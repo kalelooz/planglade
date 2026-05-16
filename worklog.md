@@ -1,3 +1,5 @@
+> Historical note: this file records an earlier implementation pass from a different environment. It mentions `/home/z/my-project` and a successful build there, which should not be treated as current verification for this Windows workspace. Use `docs/QUALITY-GATES.md` and fresh command output for current status.
+
 ---
 Task ID: 1
 Agent: Main

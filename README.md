@@ -1,89 +1,117 @@
 # FlowBoard
 
-A modern, full-featured project management application built with Next.js 16, TypeScript, and shadcn/ui. FlowBoard provides a comprehensive workspace for managing projects, tasks, notes, and team collaboration - all in a single, polished interface.
+FlowBoard is a frontend-first project management prototype built with Next.js 16, TypeScript, Tailwind CSS, and shadcn/ui. The current goal is to turn the existing polished demo into a simple, fast, trustworthy product for solo users and small teams.
+
+The product direction is intentionally narrow: help someone capture work quickly, know what matters now, organize tasks without friction, and avoid losing context.
+
+## Current Status
+
+FlowBoard is not production-ready yet.
+
+- Data is mostly mock or in-memory.
+- Auth is mocked.
+- Prisma and the API route are placeholders, not the product backend.
+- Several views look functional before the underlying actions are durable.
+- The next milestone is a reliable frontend loop with shared client state and local persistence.
+
+Treat the app as a UI/UX prototype until the core task/project/note model is centralized and persisted.
 
 ## Development Workflow
 
-FlowBoard is built incrementally. Each session should define a short TODO list, then solve and validate one TODO at a time before starting the next. The current priority is UI/UX frontend refinement first; backend, auth, and deeper persistence work should wait unless they are required to support or validate a frontend slice.
+Work incrementally. Each session should start with a short TODO list, then solve and validate one item at a time before moving to the next.
 
-For UI/UX work, prefer proven libraries and mature component patterns over hand-designed custom UI. Use the existing shadcn/ui, Radix, Tailwind, Lucide, TanStack, and Zustand stack first, and use MCP/tools when they help validate browser behavior, inspect current docs, or reuse a design-system pattern. Commit validated incremental slices locally so the project always has a recoverable checkpoint.
+Current priority:
 
-## Features
+1. UI/UX frontend refinement.
+2. Honest, working first-screen flows.
+3. Shared frontend state for tasks, projects, notes, and settings.
+4. Local persistence.
+5. Backend, auth, and database work only after the frontend loop is real.
 
-### Views
+For UI work, prefer existing shadcn/ui, Radix, Tailwind variables, Lucide icons, TanStack Table, and Zustand patterns. Avoid decorative dashboards, fake chrome, vanity metrics, and custom widgets where a proven primitive already fits.
 
-- **Dashboard** — KPI cards, project list with progress bars, upcoming tasks, and activity feed with entity chips
-- **Projects (Kanban)** — Drag-and-drop Kanban board with 4 columns (Backlog, In Progress, In Review, Done), task cards with priority borders, tag chips, CSV export/import
-- **Timeline (Gantt)** — Interactive Gantt chart with day/week/month zoom levels, scroll synchronization, today line, overdue indicators, task tooltips
-- **My Tasks** — Personal task queue (placeholder for future development)
-- **Notes** — Two-panel markdown notes with linked tasks, linked notes, tag chips, import/export
-- **Graph View** — Interactive SVG relationship graph with zoom/pan, hover highlights, node click navigation, task detail popovers
-- **Activity Log** — Filterable activity feed with date grouping, search, user/project/action filters, CSV export
-- **Team Members** — Member cards with availability indicators, workload charts (Recharts stacked bar), current tasks list
-- **Project Report** — Print-ready report with burndown chart, donut chart, workload bar chart, sortable task table
-- **Settings** — General, Appearance (theme + accent color), Notifications, Data (export/import/clear)
+## Documentation Map
 
-### Core Features
+- `AGENTS.md` - operating instructions for agents working in this repo.
+- `AUDIT_AND_ROADMAP.md` - strategic audit, Reddit synthesis, competitor gaps, and long-range roadmap.
+- `docs/PAGE-BY-PAGE-PLAN.md` - execution order and acceptance criteria for page-by-page UI work.
+- `docs/QUALITY-GATES.md` - validation rules before a slice is called complete.
+- `worklog.md` - historical implementation note; do not treat it as current verification.
+- `Reddit/` - protected voice-of-customer research. Do not delete.
 
-- **Universal Detail Drawer** — Slide-in Sheet panel for tasks, projects, notes, and members. Click any entity name or avatar across all views to open its detail panel.
-- **Command Palette** — `Cmd+K` / `Ctrl+K` to search and navigate across views, projects, tasks, notes, and reports
-- **Dark Mode** — Full dark/light/system theme support via next-themes
-- **Accent Colors** — 6 accent color presets (Teal, Blue, Purple, Orange, Rose, Green) that update CSS variables globally
-- **Entity Chips** — Two variants: "default" (colored pill) and "subtle" (whisper-style inline highlight). Clickable chips open the detail drawer.
-- **Toast Notifications** — Sonner toasts on every meaningful action (task moves, settings changes, exports, imports)
-- **Confirmation Dialogs** — AlertDialog for destructive actions (e.g., Clear All Data in Settings)
-- **Responsive Sidebar** — Collapsible sidebar with nav items, active view highlighting, and mobile auto-close
+## Product Priorities
+
+### Build First
+
+- Home/Today screen with Quick Capture.
+- Inbox for unorganized captured work.
+- Projects/Kanban with honest task actions.
+- My Tasks as a reliable personal work surface.
+- Notes with search and task linking direction.
+- Calendar and Timeline driven by real task dates.
+
+### Defer
+
+- Graph View polish.
+- Team management polish.
+- Project reports and analytics.
+- Landing-page marketing work.
+- Backend/auth/database depth.
+- Advanced automation and settings.
+
+## Current Views
+
+- Dashboard/Home - currently demo-heavy; should become Today, Inbox, Overdue, and Quick Capture.
+- Projects/Kanban - visually useful, but must be wired to shared task/project state.
+- Timeline/Gantt - useful later, but date logic must come from real task fields.
+- My Tasks - should become the main table/list work surface; fake bulk actions must become real or be disabled.
+- Notes - good direction, but should gain search and stronger task linkage.
+- Calendar - should use real task dates and support planning workflows.
+- Graph, Activity, Team, Reports - keep available only after their data is real, or move behind advanced navigation.
+- Settings - only keep settings that are persisted or clearly useful to the current frontend slice.
 
 ## Tech Stack
 
 | Category | Technology |
 |---|---|
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript |
-| **Styling** | Tailwind CSS v4 + CSS custom properties |
-| **UI Components** | shadcn/ui (37 Radix primitives) |
-| **State Management** | Zustand 5 |
-| **Theme** | next-themes (class-based) |
-| **Animations** | Framer Motion |
-| **Charts** | Recharts 2 |
-| **Drag & Drop** | @dnd-kit/core + @dnd-kit/sortable |
-| **Markdown** | react-markdown |
-| **CSV** | PapaParse |
-| **Toasts** | Sonner |
-| **Font** | Satoshi (via fontshare) |
+| Framework | Next.js 16 App Router |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 and CSS custom properties |
+| UI Components | shadcn/ui and Radix primitives |
+| State Management | Zustand |
+| Theme | next-themes |
+| Icons | Lucide React |
+| Tables | TanStack Table |
+| Charts | Recharts |
+| Drag and Drop | dnd-kit |
+| Markdown | react-markdown |
+| CSV | PapaParse |
+| Toasts | Sonner |
 
 ## Project Structure
 
-```
+```text
 src/
-├── app/
-│   ├── globals.css          # Tailwind v4 theme + CSS variables
-│   ├── layout.tsx           # Root layout with ThemeProvider
-│   └── page.tsx             # View router + DrawerProvider
-├── components/
-│   ├── flowboard/
-│   │   ├── activity-log.tsx
-│   │   ├── app-sidebar.tsx
-│   │   ├── command-palette.tsx
-│   │   ├── dashboard.tsx
-│   │   ├── drawer-context.tsx
-│   │   ├── drawer-data.tsx
-│   │   ├── entity-chips.tsx
-│   │   ├── gantt-view.tsx
-│   │   ├── graph-view.tsx
-│   │   ├── header.tsx
-│   │   ├── kanban-board.tsx
-│   │   ├── nav-store.tsx
-│   │   ├── notes-view.tsx
-│   │   ├── project-report.tsx
-│   │   ├── settings-view.tsx
-│   │   ├── team-view.tsx
-│   │   ├── theme-provider.tsx
-│   │   ├── theme-toggle.tsx
-│   │   └── universal-drawer.tsx
-│   └── ui/                  # shadcn/ui primitives
-├── hooks/
-└── lib/
+  app/
+    globals.css
+    layout.tsx
+    page.tsx
+  components/
+    flowboard/
+      app-sidebar.tsx
+      command-palette.tsx
+      dashboard.tsx
+      kanban-board.tsx
+      my-tasks-view.tsx
+      notes-view.tsx
+      calendar-view.tsx
+      gantt-view.tsx
+      universal-drawer.tsx
+      workspace-model.ts
+      workspace-store.ts
+    ui/
+  hooks/
+  lib/
 ```
 
 ## Getting Started
@@ -91,35 +119,30 @@ src/
 ### Prerequisites
 
 - Node.js 18+
-- npm or pnpm
+- npm
 
-### Installation
+### Install
 
 ```bash
-# Install dependencies
 npm install
+```
 
-# Start development server
+### Run Locally
+
+```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+The app runs at `http://localhost:3000`.
 
-### Production Build
+## Known Quality Issues
 
-```bash
-npm run build
-npm start
-```
+- `npm run build` is not currently Windows-safe because the build script uses Linux `cp`.
+- `npm run lint` has known failures from the audit.
+- `next.config.ts` currently ignores TypeScript build errors.
+- Package-manager usage should be normalized before dependency cleanup.
 
-## Architecture Notes
-
-- **All data is mock/in-memory** — FlowBoard uses hardcoded mock data for demonstration. No database or API is required.
-- **Zustand navigation store** — `nav-store.tsx` manages `activeView`, `selectedNoteId`, and `selectedProjectId` state.
-- **DrawerContext** — `drawer-context.tsx` provides `openDrawer(type, id)` / `closeDrawer()` for the universal slide-in panel.
-- **EntityChip** — `entity-chips.tsx` renders inline entity references with two visual variants and optional drawer integration via `entityId`.
-- **CSS variable theming** — The accent color system overrides CSS custom properties on `:root` and `.dark` via a dynamically injected `<style>` tag, ensuring theme switching works correctly.
-- **Print stylesheet** — `globals.css` includes print styles that hide the sidebar/header and format the Project Report for printing.
+See `AUDIT_AND_ROADMAP.md` and `docs/QUALITY-GATES.md` before claiming a slice is complete.
 
 ## License
 
