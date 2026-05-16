@@ -1,6 +1,6 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "../src";
 @import "tw-animate-css";
-@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -13,13 +13,6 @@
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
   --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -42,33 +35,23 @@
   --color-priority-high: var(--priority-high);
   --color-priority-med: var(--priority-med);
   --color-priority-low: var(--priority-low);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
 :root {
   --radius: 0.375rem;
+  /* neutral surfaces */
   --background: oklch(0.99 0 0);
   --surface: oklch(0.985 0 0);
   --sidebar: oklch(0.972 0.001 286);
-  --sidebar-foreground: oklch(0.185 0.005 286);
-  --sidebar-primary: oklch(0.52 0.09 195);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.955 0.002 286);
-  --sidebar-accent-foreground: oklch(0.25 0.005 286);
-  --sidebar-border: oklch(0.915 0.003 286);
-  --sidebar-ring: oklch(0.52 0.09 195);
   --foreground: oklch(0.185 0.005 286);
   --card: oklch(1 0 0);
   --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
 
+  /* accent: deep teal */
   --primary: oklch(0.52 0.09 195);
   --primary-foreground: oklch(0.99 0 0);
   --accent: oklch(0.52 0.09 195);
@@ -90,25 +73,12 @@
   --priority-high: oklch(0.58 0.21 27);
   --priority-med: oklch(0.72 0.16 70);
   --priority-low: oklch(0.55 0.01 286);
-
-  --chart-1: oklch(0.52 0.09 195);
-  --chart-2: oklch(0.55 0.15 250);
-  --chart-3: oklch(0.55 0.13 145);
-  --chart-4: oklch(0.65 0.16 330);
-  --chart-5: oklch(0.62 0.15 30);
 }
 
 .dark {
   --background: oklch(0.16 0.005 286);
   --surface: oklch(0.18 0.005 286);
   --sidebar: oklch(0.20 0.005 286);
-  --sidebar-foreground: oklch(0.96 0 0);
-  --sidebar-primary: oklch(0.70 0.10 195);
-  --sidebar-primary-foreground: oklch(0.15 0.005 286);
-  --sidebar-accent: oklch(0.25 0.005 286);
-  --sidebar-accent-foreground: oklch(0.96 0 0);
-  --sidebar-border: oklch(0.28 0.005 286);
-  --sidebar-ring: oklch(0.70 0.10 195);
   --foreground: oklch(0.96 0 0);
   --card: oklch(0.20 0.005 286);
   --card-foreground: var(--foreground);
@@ -126,11 +96,6 @@
   --border: oklch(0.28 0.005 286);
   --input: oklch(0.28 0.005 286);
   --ring: oklch(0.70 0.10 195);
-  --chart-1: oklch(0.70 0.10 195);
-  --chart-2: oklch(0.65 0.15 250);
-  --chart-3: oklch(0.65 0.13 145);
-  --chart-4: oklch(0.70 0.16 330);
-  --chart-5: oklch(0.68 0.15 30);
 }
 
 @layer base {
@@ -144,16 +109,4 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection { background: color-mix(in oklch, var(--color-accent) 25%, transparent); }
-}
-
-@media print {
-  [data-sidebar], header, .no-print, [data-slot="sidebar-rail"] { display: none !important; }
-  [data-slot="sidebar-inset"] { margin-left: 0 !important; }
-  body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-content { padding: 0 !important; gap: 1rem !important; }
-  .print-header { display: block !important; margin-bottom: 1rem; }
-  [data-slot="card"] { border: 1px solid #e5e7eb !important; box-shadow: none !important; break-inside: avoid; }
-  .recharts-surface { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  table { border-collapse: collapse !important; }
-  th, td { border: 1px solid #e5e7eb !important; padding: 0.5rem !important; }
 }

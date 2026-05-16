@@ -1,233 +1,193 @@
-"use client"
+"use client";
+import { useState, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { Plus, Mic } from "lucide-react";
+import { toast } from "sonner";
+import { AppShell } from "@/components/lovable/shell";
+import { TaskDrawer } from "@/components/lovable/task-drawer";
+import { useStore } from "@/lib/store";
+import { byInitials } from "@/lib/mock-data";
+import { Avatar, PriorityIcon } from "@/components/lovable/icons";
+import { Chip } from "@/components/lovable/page";
 
-import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { GripVertical } from "lucide-react"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/flowboard/app-sidebar"
-import { Header } from "@/components/flowboard/header"
-import { Dashboard, InboxView } from "@/components/flowboard/dashboard"
-import { KanbanBoard } from "@/components/flowboard/kanban-board"
-import { NotesView } from "@/components/flowboard/notes-view"
-import { GraphView } from "@/components/flowboard/graph-view"
-import { ActivityLog } from "@/components/flowboard/activity-log"
-import { ProjectReport } from "@/components/flowboard/project-report"
-import { GanttView } from "@/components/flowboard/gantt-view"
-import { CalendarView } from "@/components/flowboard/calendar-view"
-import { TeamView } from "@/components/flowboard/team-view"
-import { SettingsView } from "@/components/flowboard/settings-view"
-import { MyTasksView } from "@/components/flowboard/my-tasks-view"
-import { AuthProvider, useAuth } from "@/components/flowboard/auth-context"
-import { LoginPage } from "@/components/flowboard/login-page"
-import { useNavStore, type ViewId } from "@/components/flowboard/nav-store"
-import { CommandPalette } from "@/components/flowboard/command-palette"
-import { DrawerProvider } from "@/components/flowboard/drawer-context"
-import { UniversalDrawer } from "@/components/flowboard/universal-drawer"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { cn } from "@/lib/utils"
+function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+  return (
+    <section className="mb-8">
+      <div className="mb-2 flex items-baseline gap-2 px-1">
+        <h2 className="text-[13px] font-semibold">{title}</h2>
+        {count != null && <span className="text-[11px] text-muted-foreground">{count}</span>}
+      </div>
+      <div className="border-t">{children}</div>
+    </section>
+  );
+}
 
-// ---------------------------------------------------------------------------
-// Sidebar Resize Handle
-// ---------------------------------------------------------------------------
-
-const SIDEBAR_MIN_WIDTH = 180
-const SIDEBAR_MAX_WIDTH = 320
-const SIDEBAR_DEFAULT_WIDTH = 256
-
-function SidebarResizeHandle({
-  sidebarWidth,
-  onWidthChange,
-}: {
-  sidebarWidth: number
-  onWidthChange: (width: number) => void
-}) {
-  const isDragging = React.useRef(false)
-  const startX = React.useRef(0)
-  const startWidth = React.useRef(0)
-
-  const handleMouseDown = React.useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      isDragging.current = true
-      startX.current = e.clientX
-      startWidth.current = sidebarWidth
-      document.body.style.cursor = "col-resize"
-      document.body.style.userSelect = "none"
-
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        if (!isDragging.current) return
-        const delta = moveEvent.clientX - startX.current
-        const newWidth = Math.max(
-          SIDEBAR_MIN_WIDTH,
-          Math.min(SIDEBAR_MAX_WIDTH, startWidth.current + delta)
-        )
-        onWidthChange(newWidth)
-      }
-
-      const handleMouseUp = () => {
-        isDragging.current = false
-        document.body.style.cursor = ""
-        document.body.style.userSelect = ""
-        document.removeEventListener("mousemove", handleMouseMove)
-        document.removeEventListener("mouseup", handleMouseUp)
-      }
-
-      document.addEventListener("mousemove", handleMouseMove)
-      document.addEventListener("mouseup", handleMouseUp)
-    },
-    [sidebarWidth, onWidthChange]
-  )
-
+function Row({ checkbox = true, checked = false, onCheck, children }: { checkbox?: boolean; checked?: boolean; onCheck?: () => void; children: React.ReactNode }) {
   return (
     <div
-      onMouseDown={handleMouseDown}
-      className={cn(
-        "group relative z-40 flex w-1 cursor-col-resize items-center justify-center",
-        "bg-border transition-colors duration-200 hover:bg-primary/40",
-        "after:absolute after:inset-y-0 after:left-1/2 after:w-4 after:-translate-x-1/2"
-      )}
+      className="group flex items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60"
     >
-      <div className="z-10 flex h-6 w-4 items-center justify-center rounded-sm border border-border bg-background opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-        <GripVertical className="size-3 text-muted-foreground" />
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// View Router
-// ---------------------------------------------------------------------------
-
-function ViewContent({ view }: { view: ViewId }) {
-  switch (view) {
-    case "dashboard":
-      return <Dashboard />
-    case "inbox":
-      return <InboxView />
-    case "projects":
-      return <KanbanBoard />
-    case "timeline":
-      return <GanttView />
-    case "calendar":
-      return <CalendarView />
-    case "my-tasks":
-      return <MyTasksView />
-    case "notes":
-      return <NotesView />
-    case "graph-view":
-      return <GraphView />
-    case "activity-log":
-      return <ActivityLog />
-    case "team":
-      return <TeamView />
-    case "settings":
-      return <SettingsView />
-    case "project-report":
-      return <ProjectReport />
-    default:
-      return <Dashboard />
-  }
-}
-
-function ViewRouter() {
-  const activeView = useNavStore((s) => s.activeView)
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={activeView}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{
-          duration: 0.25,
-          ease: [0.25, 0.1, 0.25, 1],
-        }}
-      >
-        <ViewContent view={activeView} />
-      </motion.div>
-    </AnimatePresence>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Main Layout
-// ---------------------------------------------------------------------------
-
-function MainLayout() {
-  const isMobile = useIsMobile()
-  const [sidebarWidth, setSidebarWidth] = React.useState(SIDEBAR_DEFAULT_WIDTH)
-
-  const handleWidthChange = React.useCallback((width: number) => {
-    setSidebarWidth(width)
-  }, [])
-
-  return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": `${sidebarWidth}px`,
-        "--sidebar-width-icon": "3rem",
-      } as React.CSSProperties}
-    >
-      <AppSidebar />
-      {/* Desktop: resize handle between sidebar and content */}
-      {!isMobile && (
-        <SidebarResizeHandle
-          sidebarWidth={sidebarWidth}
-          onWidthChange={handleWidthChange}
+      {checkbox && (
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => onCheck?.()}
+          onClick={(e) => e.stopPropagation()}
+          className="h-3 w-3 accent-[var(--color-primary)]"
         />
       )}
-      <SidebarInset className="flex flex-col overflow-hidden">
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 p-6 overflow-auto">
-            <ViewRouter />
-          </div>
-          <UniversalDrawer />
-        </div>
-      </SidebarInset>
-      <CommandPalette />
-    </SidebarProvider>
-  )
+      {children}
+    </div>
+  );
 }
 
-// ---------------------------------------------------------------------------
-// Auth Guard — shows login page if not authenticated
-// ---------------------------------------------------------------------------
+const TODAY_REF = new Date(); // dynamic
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+export default function HomePage() {
+  const workItems = useStore((s) => s.workItems);
+  const inboxItems = useStore((s) => s.inboxItems);
+  const notes = useStore((s) => s.notes);
+  const setStatus = useStore((s) => s.setWorkItemStatus);
+  const addInboxItem = useStore((s) => s.addInboxItem);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+  const [capture, setCapture] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const selectedTask = workItems.find((w) => w.id === selectedTaskId) ?? null;
 
-  if (!user) {
-    return <LoginPage />
-  }
+  const today = workItems.filter((w) => w.status === "In Progress" || w.status === "In Review").slice(0, 5);
+  const overdue = workItems.filter((w) => w.status !== "Done" && new Date(w.due) < TODAY_REF).slice(0, 5);
 
-  return <>{children}</>
-}
+  const completeWithUndo = (id: string) => {
+    const prev = workItems.find((w) => w.id === id);
+    if (!prev || prev.status === "Done") return;
+    const prevStatus = prev.status;
+    setStatus(id, "Done");
+    toast.success(`Marked ${id} done`, {
+      description: prev.title,
+      duration: 6000,
+      action: { label: "Undo", onClick: () => setStatus(id, prevStatus) },
+    });
+  };
 
-// ---------------------------------------------------------------------------
-// Home Page
-// ---------------------------------------------------------------------------
+  const onCaptureKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && capture.trim()) {
+      const text = capture.trim();
+      addInboxItem(text);
+      toast.success("Captured to Inbox", { description: text });
+      setCapture("");
+    }
+  };
 
-export default function Home() {
   return (
-    <AuthProvider>
-      <AuthGuard>
-        <DrawerProvider>
-          <MainLayout />
-        </DrawerProvider>
-      </AuthGuard>
-    </AuthProvider>
-  )
+    <AppShell title={<span className="font-medium">Home</span>}>
+      <div className="flex h-full">
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-6 py-8">
+        <div className="mb-1 flex items-baseline justify-between">
+          <h1 className="text-[20px] font-semibold tracking-tight">Good afternoon, Alex</h1>
+          <span className="text-[12px] text-muted-foreground">{TODAY_REF.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span>
+        </div>
+        <p className="mb-6 text-[13px] text-muted-foreground">{today.length} due today · {overdue.length} overdue · {inboxItems.length} to triage</p>
+
+        <div className="mb-2 flex items-center gap-2 rounded-md border bg-card px-3 py-2 shadow-xs focus-within:border-ring focus-within:shadow-sm">
+          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            value={capture}
+            onChange={(e) => setCapture(e.target.value)}
+            onKeyDown={onCaptureKey}
+            placeholder="Capture a task, note, or idea…"
+            aria-label="Quick capture"
+            className="h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+          />
+          <button
+            type="button"
+            disabled
+            title="Voice capture (coming soon)"
+            className="rounded p-1 text-muted-foreground/40"
+          >
+            <Mic className="h-3.5 w-3.5" />
+          </button>
+          <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">↵</kbd>
+        </div>
+        <p className="mb-10 px-1 text-[11px] text-muted-foreground">
+          Press <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">↵</kbd> to save. Captures land in your <a href="/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground">Inbox</a> — a parking spot for unsorted items you triage later (assign a project, due date, or priority).
+        </p>
+
+        <Section title="Today" count={today.length}>
+          {today.length === 0 && <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">Nothing on deck. Capture something above.</div>}
+          {today.map((w) => {
+            const m = byInitials(w.assignee);
+            return (
+              <Row key={w.id} checked={false} onCheck={() => completeWithUndo(w.id)}>
+                <PriorityIcon p={w.priority} />
+                <button
+                  type="button"
+                  onClick={() => setSelectedTaskId(w.id)}
+                  title={w.title}
+                  className="min-w-0 flex-1 truncate text-left font-medium hover:underline focus:outline-none focus-visible:underline"
+                >
+                  {w.title}
+                </button>
+                <Chip>{w.label}</Chip>
+                <Avatar id={m.id} name={m.name} />
+                <span className="w-24 shrink-0 whitespace-nowrap text-right text-[12px] text-muted-foreground">{w.status}</span>
+              </Row>
+            );
+          })}
+        </Section>
+
+        <Section title="Overdue" count={overdue.length}>
+          {overdue.length === 0 && <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">No overdue work.</div>}
+          {overdue.map((w) => {
+            const m = byInitials(w.assignee);
+            const daysLate = Math.max(1, Math.floor((+TODAY_REF - +new Date(w.due)) / 86400000));
+            return (
+              <Row key={w.id} checked={false} onCheck={() => completeWithUndo(w.id)}>
+                <PriorityIcon p={w.priority} />
+                <button
+                  type="button"
+                  onClick={() => setSelectedTaskId(w.id)}
+                  title={w.title}
+                  className="min-w-0 flex-1 truncate text-left font-medium hover:underline focus:outline-none focus-visible:underline"
+                >
+                  {w.title}
+                </button>
+                <Chip tone="danger">Overdue</Chip>
+                <Avatar id={m.id} name={m.name} />
+                <span className="w-16 shrink-0 whitespace-nowrap text-right text-[12px] text-red-600">{daysLate}d</span>
+              </Row>
+            );
+          })}
+        </Section>
+
+        <Section title="Inbox · to triage" count={inboxItems.length}>
+          {inboxItems.length === 0 && <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">Inbox zero.</div>}
+          {inboxItems.slice(0, 5).map((i) => (
+            <Row key={i.id} checkbox={false}>
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+              <span className="flex-1 truncate text-muted-foreground">{i.title}</span>
+              <span className="text-[12px] text-muted-foreground">{i.captured}</span>
+            </Row>
+          ))}
+        </Section>
+
+        <Section title="Recent notes">
+          {notes.slice(0, 3).map((n) => (
+            <Link
+              key={n.id}
+              href={`/notes?id=${n.id}`}
+              className="group flex items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60"
+            >
+              <span className="truncate text-[13px] font-medium">{n.title}</span>
+              <Chip>{n.tag}</Chip>
+              <span className="ml-auto whitespace-nowrap text-[12px] text-muted-foreground">{n.updated}</span>
+            </Link>
+          ))}
+        </Section>
+          </div>
+        </div>
+        <TaskDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
+      </div>
+    </AppShell>
+  );
 }
