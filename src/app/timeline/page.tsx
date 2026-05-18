@@ -5,7 +5,6 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
-  Focus,
   FolderKanban,
   MoveHorizontal,
   RotateCcw,
@@ -24,6 +23,7 @@ import { useStore } from "@/lib/store";
 type Scale = "Week" | "Month" | "Quarter";
 type GroupBy = "Project" | "Assignee" | "Status";
 type FilterKey = "All" | "Overdue" | "Active" | "Done";
+type ScopeMode = "All projects" | "Current project";
 
 type ScheduleWindow = {
   start: Date;
@@ -191,6 +191,33 @@ function SegmentButton({
   );
 }
 
+function ControlSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <span className="font-medium">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        className="h-8 rounded border bg-card px-2 text-[12px] text-foreground outline-none focus:border-primary"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Metric({ label, value, tone = "neutral" }: { label: string; value: string | number; tone?: "neutral" | "danger" | "accent" }) {
   return (
     <div className={`rounded border px-2.5 py-1.5 ${tone === "danger" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300" : tone === "accent" ? "border-primary/20 bg-primary/10 text-primary" : "bg-card text-foreground"}`}>
@@ -256,17 +283,15 @@ function TimelineBar({
       onClick={() => onSelect(item)}
       title={`${item.title} / ${formatDate(window.start)} to ${formatDate(window.end)}`}
       style={style}
-      className={`group absolute top-1/2 flex h-8 min-w-[2rem] -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded-md border px-2 text-[11px] transition-[opacity,box-shadow,transform] hover:-translate-y-[54%] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+      className={`group absolute top-1/2 flex h-8 min-w-[5.75rem] -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded-md border px-2 text-[11px] transition-[opacity,box-shadow,transform] hover:-translate-y-[54%] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
         dimmed ? "opacity-20" : "opacity-100"
       } ${isOverdue ? "ring-1 ring-red-500/35" : ""}`}
     >
       {clippedLeft && <ChevronLeft className="h-3 w-3 shrink-0 text-muted-foreground" />}
       <span className="h-full w-1 shrink-0 rounded-full" style={{ background: accent }} />
-      <PriorityIcon p={item.priority} />
       <span className={`min-w-0 flex-1 truncate text-left font-medium ${item.status === "Done" ? "text-muted-foreground line-through" : ""}`}>
         {item.title}
       </span>
-      <Avatar id={item.assignee} name={member?.name} size={16} />
       {clippedRight && <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />}
     </button>
   );
@@ -293,9 +318,9 @@ export default function TimelinePage() {
   const [filter, setFilter] = useState<FilterKey>("Active");
   const [query, setQuery] = useState("");
   const [anchorShift, setAnchorShift] = useState(0);
-  const [scopeMode, setScopeMode] = useState<"workspace" | "project">("workspace");
+  const [scopeMode, setScopeMode] = useState<ScopeMode>("All projects");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [focusMode, setFocusMode] = useState(true);
+  const focusMode = true;
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -304,7 +329,7 @@ export default function TimelinePage() {
   const todayKey = useMemo(() => dateKey(today), [today]);
   const cfg = SCALE[scale];
   const activeProject = activeProjectId ? projects.find((project) => project.id === activeProjectId) ?? null : null;
-  const useProjectScope = scopeMode === "project" && activeProjectId != null;
+  const useProjectScope = scopeMode === "Current project" && activeProjectId != null;
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
@@ -476,10 +501,6 @@ export default function TimelinePage() {
               </SegmentButton>
             ))}
           </div>
-          <button type="button" onClick={() => setFocusMode((value) => !value)} className={`lov-btn lov-btn-ghost h-7 ${focusMode ? "lov-btn-active" : ""}`}>
-            <Focus className="h-3.5 w-3.5" />
-            Focus
-          </button>
           <span className="ml-auto" />
         </Toolbar>
       }
@@ -496,28 +517,30 @@ export default function TimelinePage() {
                 className="h-8 w-full rounded border bg-card pl-8 pr-2 text-[12px] outline-none focus:border-primary"
               />
             </div>
-            <div className="lov-segment-group">
-              <SegmentButton active={scopeMode === "workspace"} onClick={() => setScopeMode("workspace")}>All projects</SegmentButton>
-              <SegmentButton active={scopeMode === "project"} onClick={() => setScopeMode("project")}>Current project</SegmentButton>
-            </div>
-            <div className="lov-segment-group">
-              {(["Project", "Assignee", "Status"] as const).map((option) => (
-                <SegmentButton key={option} active={groupBy === option} onClick={() => setGroupBy(option)}>
-                  {option}
-                </SegmentButton>
-              ))}
-            </div>
-            <div className="lov-segment-group">
-              {(["Active", "Overdue", "Done", "All"] as const).map((option) => (
-                <SegmentButton key={option} active={filter === option} onClick={() => setFilter(option)}>
-                  {option}
-                </SegmentButton>
-              ))}
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <Metric label="Visible" value={visibleCount} />
-              <Metric label="Overdue" value={overdueCount} tone={overdueCount ? "danger" : "neutral"} />
-              <Metric label="Done" value={doneCount} tone="accent" />
+            <ControlSelect
+              label="Scope"
+              value={scopeMode}
+              options={["All projects", "Current project"] as const}
+              onChange={setScopeMode}
+            />
+            <ControlSelect
+              label="Group"
+              value={groupBy}
+              options={["Project", "Assignee", "Status"] as const}
+              onChange={setGroupBy}
+            />
+            <ControlSelect
+              label="Show"
+              value={filter}
+              options={["Active", "Overdue", "Done", "All"] as const}
+              onChange={setFilter}
+            />
+            <div className="ml-auto text-[12px] text-muted-foreground">
+              <span className="font-medium text-foreground">{visibleCount}</span> visible
+              <span className="mx-1.5">/</span>
+              <span className={overdueCount ? "font-medium text-red-600" : "font-medium text-foreground"}>{overdueCount}</span> overdue
+              <span className="mx-1.5">/</span>
+              <span className="font-medium text-foreground">{doneCount}</span> done
             </div>
           </div>
         </div>
