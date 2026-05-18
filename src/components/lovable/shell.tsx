@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText, BarChart3, CheckSquare,
   Network, Activity, Users, Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo,
@@ -31,6 +31,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const inboxCount = useStore((s) => s.inboxItems.length);
   const workItems = useStore((s) => s.workItems);
   const addInboxItem = useStore((s) => s.addInboxItem);
+  const addProject = useStore((s) => s.addProject);
   const activeProjectId = activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null;
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
 
@@ -48,6 +49,14 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const [quickValue, setQuickValue] = useState("");
   const [projectScopeOpen, setProjectScopeOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const router = useRouter();
+
+  const createProject = () => {
+    const id = addProject({ name: "New Project" });
+    updateSettings({ activeProjectId: id });
+    router.push(`/projects?project=${id}`);
+  };
+
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem(STORAGE_KEY) !== "0";
@@ -212,6 +221,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
                 active={isActive("/projects")}
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
+                onCreate={createProject}
               />
               {projectsOpen && (
                 <div className="mt-0.5 mb-1 space-y-px pl-5">
@@ -391,6 +401,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onNavigate={() => setMobileNavOpen(false)}
+                onCreate={createProject}
               />
               {projectsOpen && (
                 <div className="mt-0.5 mb-1 space-y-px pl-5">
@@ -430,7 +441,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
   );
 }
 
-function ProjectsNavItem({ href, active, open, onToggle, onNavigate }: { href: string; active: boolean; open: boolean; onToggle: () => void; onNavigate?: () => void }) {
+function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }: { href: string; active: boolean; open: boolean; onToggle: () => void; onNavigate?: () => void; onCreate?: () => void }) {
   return (
     <div className={`group flex items-center gap-px rounded ${active ? "lov-nav-item-active" : "hover:bg-[var(--color-hover)]"}`}>
       <Link
@@ -441,6 +452,16 @@ function ProjectsNavItem({ href, active, open, onToggle, onNavigate }: { href: s
         <FolderKanban className="h-3.5 w-3.5" />
         <span className="flex-1">Projects</span>
       </Link>
+      {onCreate && (
+        <button
+          onClick={(e) => { e.preventDefault(); onCreate(); }}
+          title="Create new project"
+          aria-label="Create new project"
+          className="lov-icon-btn h-6 w-6 text-muted-foreground hover:text-foreground"
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      )}
       <button
         onClick={onToggle}
         title={open ? "Collapse projects" : "Expand projects"}
