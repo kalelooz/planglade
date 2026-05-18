@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarClock,
   ChevronLeft,
@@ -94,6 +94,8 @@ const STATUS_ACCENT: Record<Status, string> = {
   "In Review": "oklch(0.7 0.14 75)",
   Done: "oklch(0.6 0.14 145)",
 };
+
+const LEFT_COLUMN_WIDTH = 272;
 
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -319,6 +321,9 @@ export default function TimelinePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const headerTimelineRef = useRef<HTMLDivElement>(null);
+  const [timelineMetrics, setTimelineMetrics] = useState({ left: LEFT_COLUMN_WIDTH, width: 768 });
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const todayKey = useMemo(() => dateKey(today), [today]);
@@ -342,6 +347,26 @@ export default function TimelinePage() {
   const rangeEnd = useMemo(() => addDays(rangeStart, cfg.totalDays), [cfg.totalDays, rangeStart]);
   const todayPct = (diffDays(rangeStart, today) / cfg.totalDays) * 100;
   const todayVisible = todayPct >= 0 && todayPct <= 100;
+  const todayLineLeft = timelineMetrics.left + timelineMetrics.width * (todayPct / 100);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    const headerTimeline = headerTimelineRef.current;
+    if (!content || !headerTimeline) return;
+    const update = () => {
+      const contentRect = content.getBoundingClientRect();
+      const headerRect = headerTimeline.getBoundingClientRect();
+      setTimelineMetrics({
+        left: headerRect.left - contentRect.left,
+        width: headerRect.width,
+      });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(content);
+    observer.observe(headerTimeline);
+    return () => observer.disconnect();
+  }, []);
 
   const timelineItems = useMemo<TimelineItem[]>(() => {
     const queryText = query.trim().toLowerCase();
@@ -541,13 +566,13 @@ export default function TimelinePage() {
         </div>
 
         <div ref={scrollRef} className="min-h-0 overflow-auto">
-          <div className="min-w-[1040px]">
+          <div ref={contentRef} className="min-w-[1040px]">
             <div className="sticky top-0 z-30 grid grid-cols-[17rem_1fr] border-b bg-background">
               <div className="flex items-center gap-2 border-r px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 {groupBy} / Work item
               </div>
-              <div className="relative">
+              <div ref={headerTimelineRef} className="relative">
                 <div className="flex h-full">
                   {columnDates.map((date, index) => {
                     const columnStart = index * cfg.daysPerColumn;
@@ -573,7 +598,14 @@ export default function TimelinePage() {
               </div>
             </div>
 
-            <div ref={timelineRef}>
+            <div ref={timelineRef} className="relative">
+              {todayVisible && (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-red-600"
+                  style={{ left: todayLineLeft }}
+                />
+              )}
               {groups.length === 0 ? (
                 <div className="px-6 py-14 text-center text-[13px] text-muted-foreground">No scheduled work matches this view.</div>
               ) : (
@@ -597,9 +629,7 @@ export default function TimelinePage() {
                           </span>
                           <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{group.items.length}</span>
                         </button>
-                        <div className="relative h-11">
-                          {todayVisible && <div className="pointer-events-none absolute inset-y-0 z-20 w-px bg-red-600" style={{ left: `${todayPct}%` }} />}
-                        </div>
+                        <div className="relative h-11" />
                       </div>
 
                       {group.items.map((entry) => {
@@ -637,7 +667,6 @@ export default function TimelinePage() {
                                 selected={selectedId === entry.item.id}
                                 onSelect={selectItem}
                               />
-                              {todayVisible && <div className="pointer-events-none absolute inset-y-0 z-20 w-px bg-red-600" style={{ left: `${todayPct}%` }} />}
                             </div>
                           </div>
                         );
