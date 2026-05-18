@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText, BarChart3, CheckSquare,
-  Network, Activity, Users, Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid,
+  Network, Activity, Users, Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -69,6 +69,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
     { to: "/", label: "Today", icon: Home, count: todayCount },
     { to: "/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
     { to: "/my-tasks", label: "My Tasks", icon: CheckSquare, count: myTasksCount },
+    { to: "/work-items", label: "Tasks", icon: ListTodo },
   ];
   const navAfterProjects: NavItem[] = [
     { to: "/board", label: "Board", icon: LayoutGrid },
