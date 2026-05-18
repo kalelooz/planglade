@@ -381,9 +381,9 @@ export default function TimelinePage() {
   const [groupBy, setGroupBy] = useState<GroupBy>("Project");
   const [filter, setFilter] = useState<FilterKey>("Active");
   const [query, setQuery] = useState("");
-  const [anchorShift, setAnchorShift] = useState(0);
   const [scopeMode, setScopeMode] = useState<ScopeMode>("All projects");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
   const timelineRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -401,8 +401,8 @@ export default function TimelinePage() {
   const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
 
   const rangeStart = useMemo(
-    () => addHours(today, anchorShift * cfg.totalHours),
-    [anchorShift, cfg.totalHours, today]
+    () => startOfDay(anchorDate),
+    [anchorDate]
   );
 
   const columnDates = useMemo(
@@ -543,7 +543,7 @@ export default function TimelinePage() {
   const doneCount = timelineItems.filter((entry) => entry.item.status === "Done").length;
 
   const jumpToToday = useCallback(() => {
-    setAnchorShift(0);
+    setAnchorDate(now);
     requestAnimationFrame(() => {
       const scroller = scrollRef.current;
       const content = contentRef.current;
@@ -557,6 +557,8 @@ export default function TimelinePage() {
 
   const selectItem = (item: WorkItem) => {
     setSelectedId(item.id);
+    const dueDate = parseDueDateTime(item);
+    if (dueDate) setAnchorDate(dueDate);
     requestAnimationFrame(() => {
       const scroller = scrollRef.current;
       const row = document.querySelector<HTMLElement>(`[data-timeline-row="${item.id}"]`);
@@ -582,11 +584,11 @@ export default function TimelinePage() {
       title={<span className="font-medium">{useProjectScope && activeProject ? `${activeProject.name} / Timeline` : "Workspace Timeline"}</span>}
       toolbar={
         <Toolbar>
-          <button type="button" onClick={() => setAnchorShift((value) => value - 1)} className="lov-icon-btn" aria-label="Shift earlier">
+          <button type="button" onClick={() => setAnchorDate((value) => addHours(value, -cfg.totalHours))} className="lov-icon-btn" aria-label="Shift earlier">
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <span suppressHydrationWarning className="min-w-44 text-center text-[12px] font-medium">{rangeLabel}</span>
-          <button type="button" onClick={() => setAnchorShift((value) => value + 1)} className="lov-icon-btn" aria-label="Shift later">
+          <button type="button" onClick={() => setAnchorDate((value) => addHours(value, cfg.totalHours))} className="lov-icon-btn" aria-label="Shift later">
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
           <button type="button" onClick={jumpToToday} className="lov-btn lov-btn-ghost h-7" title="Jump to today and center the current date">
@@ -601,7 +603,7 @@ export default function TimelinePage() {
                 active={scale === option}
                 onClick={() => {
                   setScale(option);
-                  setAnchorShift(0);
+                  if (selected?.window?.end) setAnchorDate(selected.window.end);
                 }}
               >
                 {option}
