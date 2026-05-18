@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarClock,
   ChevronLeft,
@@ -20,7 +20,7 @@ import { Chip, Toolbar } from "@/components/lovable/page";
 import { byInitials, type Member, type Priority, type Project, type Status, type WorkItem } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
 
-type Scale = "Week" | "Month" | "Quarter";
+type Scale = "Day" | "Week" | "Month" | "Quarter";
 type GroupBy = "Project" | "Assignee" | "Status";
 type FilterKey = "All" | "Overdue" | "Active" | "Done";
 type ScopeMode = "All projects" | "Current project";
@@ -30,7 +30,8 @@ type ScheduleWindow = {
   end: Date;
   startKey: string;
   endKey: string;
-  duration: number;
+  durationHours: number;
+  dueTimeLabel: string;
 };
 
 type TimelineItem = {
@@ -50,41 +51,43 @@ type TimelineGroup = {
 };
 
 type ScaleConfig = {
-  totalDays: number;
+  totalHours: number;
   columns: number;
-  daysPerColumn: number;
-  anchorOffsetDays: number;
+  hoursPerColumn: number;
   columnLabel: (date: Date) => string;
 };
 
 const SCALE: Record<Scale, ScaleConfig> = {
+  Day: {
+    totalHours: 24,
+    columns: 24,
+    hoursPerColumn: 1,
+    columnLabel: (date) => date.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", ""),
+  },
   Week: {
-    totalDays: 21,
-    columns: 21,
-    daysPerColumn: 1,
-    anchorOffsetDays: -5,
+    totalHours: 24 * 7,
+    columns: 7,
+    hoursPerColumn: 24,
     columnLabel: (date) => `${date.toLocaleDateString("en-US", { weekday: "short" })} ${date.getDate()}`,
   },
   Month: {
-    totalDays: 84,
-    columns: 12,
-    daysPerColumn: 7,
-    anchorOffsetDays: -14,
+    totalHours: 24 * 30,
+    columns: 10,
+    hoursPerColumn: 24 * 3,
     columnLabel: (date) => `${date.toLocaleDateString("en-US", { month: "short" })} ${date.getDate()}`,
   },
   Quarter: {
-    totalDays: 210,
-    columns: 15,
-    daysPerColumn: 14,
-    anchorOffsetDays: -28,
+    totalHours: 24 * 90,
+    columns: 9,
+    hoursPerColumn: 24 * 10,
     columnLabel: (date) => `${date.toLocaleDateString("en-US", { month: "short" })} ${date.getDate()}`,
   },
 };
 
-const PRIORITY_DURATION: Record<Priority, number> = {
-  High: 12,
-  Medium: 8,
-  Low: 5,
+const PRIORITY_DURATION_HOURS: Record<Priority, number> = {
+  High: 36,
+  Medium: 24,
+  Low: 12,
 };
 
 const STATUS_ACCENT: Record<Status, string> = {
@@ -109,8 +112,12 @@ function addDays(date: Date, amount: number) {
   return next;
 }
 
-function diffDays(start: Date, end: Date) {
-  return Math.round((startOfDay(end).getTime() - startOfDay(start).getTime()) / 86_400_000);
+function addHours(date: Date, amount: number) {
+  return new Date(date.getTime() + amount * 3_600_000);
+}
+
+function diffHours(start: Date, end: Date) {
+  return (end.getTime() - start.getTime()) / 3_600_000;
 }
 
 function dateKey(date: Date) {
@@ -122,6 +129,24 @@ function parseDateKey(value: string) {
   return Number.isNaN(date.getTime()) ? null : startOfDay(date);
 }
 
+function stableWorkHour(item: WorkItem) {
+  const seed = Array.from(item.id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const priorityOffset = item.priority === "High" ? 0 : item.priority === "Medium" ? 2 : 4;
+  return 9 + ((seed + priorityOffset) % 9);
+}
+
+function parseDueDateTime(item: WorkItem) {
+  if (!item.due) return null;
+  if (item.due.includes("T")) {
+    const date = new Date(item.due);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const date = parseDateKey(item.due);
+  if (!date) return null;
+  date.setHours(stableWorkHour(item), 0, 0, 0);
+  return date;
+}
+
 function formatDate(value: string | Date | null | undefined) {
   if (!value) return "No date";
   const date = typeof value === "string" ? parseDateKey(value) : value;
@@ -129,17 +154,44 @@ function formatDate(value: string | Date | null | undefined) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function formatDateTime(value: Date | null | undefined) {
+  if (!value) return "No date";
+  return `${formatDate(value)} ${value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function formatDuration(hours: number) {
+  if (hours < 24) return `${hours} hours`;
+  const days = hours / 24;
+  return Number.isInteger(days) ? `${days} days` : `${days.toFixed(1)} days`;
+}
+
+function toDateInputValue(date: Date | null | undefined) {
+  return date ? dateKey(date) : "";
+}
+
+function toTimeInputValue(date: Date | null | undefined) {
+  if (!date) return "17:00";
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function toStoredDue(dateValue: string, timeValue: string) {
+  if (!dateValue) return "";
+  if (!timeValue) return dateValue;
+  return `${dateValue}T${timeValue}`;
+}
+
 function buildWindow(item: WorkItem): ScheduleWindow | null {
-  const end = parseDateKey(item.due);
+  const end = parseDueDateTime(item);
   if (!end) return null;
-  const duration = PRIORITY_DURATION[item.priority] + (item.status === "Backlog" ? 3 : 0);
-  const start = addDays(end, -duration);
+  const durationHours = PRIORITY_DURATION_HOURS[item.priority] + (item.status === "Backlog" ? 12 : 0);
+  const start = addHours(end, -durationHours);
   return {
     start,
     end,
     startKey: dateKey(start),
     endKey: dateKey(end),
-    duration,
+    durationHours,
+    dueTimeLabel: end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
   };
 }
 
@@ -155,9 +207,11 @@ function statusTone(status: Status) {
 }
 
 function dueTone(item: WorkItem, todayKey: string) {
+  const due = parseDueDateTime(item);
+  const dueKey = due ? dateKey(due) : item.due;
   if (item.status === "Done") return "success" as const;
-  if (item.due && item.due < todayKey) return "danger" as const;
-  if (item.due === todayKey) return "warning" as const;
+  if (dueKey && dueKey < todayKey) return "danger" as const;
+  if (dueKey === todayKey) return "warning" as const;
   return "neutral" as const;
 }
 
@@ -167,10 +221,11 @@ function priorityTone(priority: Priority) {
   return "neutral" as const;
 }
 
-function nudgeDate(value: string, amount: number) {
-  const date = parseDateKey(value);
+function nudgeDate(value: string, amount: number, item?: WorkItem) {
+  const date = item ? parseDueDateTime(item) : parseDateKey(value);
   if (!date) return value;
-  return dateKey(addDays(date, amount));
+  const next = addDays(date, amount);
+  return value.includes("T") ? toStoredDue(dateKey(next), toTimeInputValue(next)) : dateKey(next);
 }
 
 function SegmentButton({
@@ -232,13 +287,13 @@ function Metric({ label, value, tone = "neutral" }: { label: string; value: stri
 function TimelineBar({
   timelineItem,
   rangeStart,
-  totalDays,
+  totalHours,
   selected,
   onSelect,
 }: {
   timelineItem: TimelineItem;
   rangeStart: Date;
-  totalDays: number;
+  totalHours: number;
   selected: boolean;
   onSelect: (item: WorkItem) => void;
 }) {
@@ -250,23 +305,27 @@ function TimelineBar({
         data-timeline-bar={item.id}
         onClick={() => onSelect(item)}
         className="absolute left-3 top-1/2 h-2.5 w-12 -translate-y-1/2 rounded-full border border-dashed border-muted-foreground/45 bg-card"
-        title={`${item.title} / no due date`}
+      title={`${item.title} / no due date`}
       >
         <span className="sr-only">{item.title} has no due date</span>
       </button>
     );
   }
 
-  const rawStart = diffDays(rangeStart, window.start);
-  const rawEnd = diffDays(rangeStart, window.end);
-  const leftPct = clamp((rawStart / totalDays) * 100, 0, 100);
-  const rightPct = clamp((rawEnd / totalDays) * 100, 0, 100);
-  const widthPct = Math.max(9, rightPct - leftPct);
+  const rawStart = diffHours(rangeStart, window.start);
+  const rawEnd = diffHours(rangeStart, window.end);
+  if (rawStart >= totalHours || rawEnd <= 0) return null;
+  const leftPct = clamp((rawStart / totalHours) * 100, 0, 100);
+  const rightPct = clamp((rawEnd / totalHours) * 100, 0, 100);
+  const naturalWidthPct = Math.max(2.75, rightPct - leftPct);
+  const visibleWidthPct = 100 - leftPct;
+  const isEdgeMarker = visibleWidthPct < 1.2;
+  const widthPct = Math.min(naturalWidthPct, Math.max(0.4, visibleWidthPct));
   const accent = project?.accent ?? STATUS_ACCENT[item.status];
 
   const style: CSSProperties = {
-    left: `${leftPct}%`,
-    width: `${widthPct}%`,
+    left: isEdgeMarker ? "calc(100% - 0.5rem)" : `${leftPct}%`,
+    width: isEdgeMarker ? "0.5rem" : `${widthPct}%`,
     background: item.status === "Done"
       ? "color-mix(in oklch, var(--color-muted) 74%, transparent)"
       : `color-mix(in oklch, ${accent} 18%, var(--color-card))`,
@@ -279,19 +338,25 @@ function TimelineBar({
       type="button"
       data-timeline-bar={item.id}
       onClick={() => onSelect(item)}
-      title={`${item.title} / ${formatDate(window.start)} to ${formatDate(window.end)}`}
+      title={`${item.title} / ${formatDateTime(window.start)} to ${formatDateTime(window.end)}`}
       style={style}
-      className={`group absolute top-1/2 flex h-7 min-w-[8.5rem] -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded-md border px-2 text-[11px] transition-[box-shadow,transform] hover:-translate-y-[54%] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+      className={`group absolute top-1/2 box-border flex h-7 min-w-0 -translate-y-1/2 items-center overflow-hidden rounded-md border text-[11px] transition-[box-shadow,transform] hover:-translate-y-[54%] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        isEdgeMarker ? "justify-center px-0" : "gap-1.5 px-2"
+      } ${
         isOverdue ? "ring-1 ring-red-500/35" : ""
       }`}
     >
-      <span className="h-full w-1.5 shrink-0" style={{ background: accent }} />
-      <span className={`min-w-0 flex-1 truncate text-left font-medium ${item.status === "Done" ? "text-muted-foreground line-through" : ""}`}>
-        {item.title}
-      </span>
-      <span className="shrink-0 text-[10px] text-muted-foreground">
-        {formatDate(window.end)}
-      </span>
+      <span className={isEdgeMarker ? "h-full w-full" : "h-full w-1.5 shrink-0"} style={{ background: accent }} />
+      {!isEdgeMarker && (
+        <>
+          <span className={`min-w-0 flex-1 truncate text-left font-medium ${item.status === "Done" ? "text-muted-foreground line-through" : ""}`}>
+            {item.title}
+          </span>
+          <span className="shrink-0 text-[10px] text-muted-foreground">
+            {window.dueTimeLabel}
+          </span>
+        </>
+      )}
     </button>
   );
 }
@@ -325,7 +390,8 @@ export default function TimelinePage() {
   const headerTimelineRef = useRef<HTMLDivElement>(null);
   const [timelineMetrics, setTimelineMetrics] = useState({ left: LEFT_COLUMN_WIDTH, width: 768 });
 
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const [now, setNow] = useState(() => new Date());
+  const today = useMemo(() => startOfDay(now), [now]);
   const todayKey = useMemo(() => dateKey(today), [today]);
   const cfg = SCALE[scale];
   const activeProject = activeProjectId ? projects.find((project) => project.id === activeProjectId) ?? null : null;
@@ -335,19 +401,24 @@ export default function TimelinePage() {
   const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
 
   const rangeStart = useMemo(
-    () => addDays(today, cfg.anchorOffsetDays + anchorShift * cfg.daysPerColumn),
-    [anchorShift, cfg.anchorOffsetDays, cfg.daysPerColumn, today]
+    () => addHours(today, anchorShift * cfg.totalHours),
+    [anchorShift, cfg.totalHours, today]
   );
 
   const columnDates = useMemo(
-    () => Array.from({ length: cfg.columns }, (_, index) => addDays(rangeStart, index * cfg.daysPerColumn)),
-    [cfg.columns, cfg.daysPerColumn, rangeStart]
+    () => Array.from({ length: cfg.columns }, (_, index) => addHours(rangeStart, index * cfg.hoursPerColumn)),
+    [cfg.columns, cfg.hoursPerColumn, rangeStart]
   );
 
-  const rangeEnd = useMemo(() => addDays(rangeStart, cfg.totalDays), [cfg.totalDays, rangeStart]);
-  const todayPct = (diffDays(rangeStart, today) / cfg.totalDays) * 100;
+  const rangeEnd = useMemo(() => addHours(rangeStart, cfg.totalHours), [cfg.totalHours, rangeStart]);
+  const todayPct = (diffHours(rangeStart, now) / cfg.totalHours) * 100;
   const todayVisible = todayPct >= 0 && todayPct <= 100;
   const todayLineLeft = timelineMetrics.left + timelineMetrics.width * (todayPct / 100);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const content = contentRef.current;
@@ -394,15 +465,16 @@ export default function TimelinePage() {
           project,
           member,
           window: buildWindow(item),
-          isOverdue: item.status !== "Done" && !!item.due && item.due < todayKey,
+          isOverdue: item.status !== "Done" && !!parseDueDateTime(item) && dateKey(parseDueDateTime(item)!) < todayKey,
         };
       })
+      .filter((entry) => entry.window && entry.window.start < rangeEnd && entry.window.end > rangeStart)
       .sort((a, b) => {
         const aDate = a.window?.endKey ?? "9999-12-31";
         const bDate = b.window?.endKey ?? "9999-12-31";
         return aDate.localeCompare(bDate) || a.item.priority.localeCompare(b.item.priority);
       });
-  }, [activeProjectId, filter, memberById, projectById, query, todayKey, useProjectScope, workItems]);
+  }, [activeProjectId, filter, memberById, projectById, query, rangeEnd, rangeStart, todayKey, useProjectScope, workItems]);
 
   const groups = useMemo<TimelineGroup[]>(() => {
     const map = new Map<string, TimelineGroup>();
@@ -463,10 +535,25 @@ export default function TimelinePage() {
         : selected.item.status
     : null;
 
-  const rangeLabel = `${formatDate(rangeStart)} - ${rangeEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const rangeLabel = scale === "Day"
+    ? `${rangeStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} / 24 hours`
+    : `${formatDate(rangeStart)} - ${rangeEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
   const overdueCount = timelineItems.filter((entry) => entry.isOverdue).length;
   const visibleCount = timelineItems.length;
   const doneCount = timelineItems.filter((entry) => entry.item.status === "Done").length;
+
+  const jumpToToday = useCallback(() => {
+    setAnchorShift(0);
+    requestAnimationFrame(() => {
+      const scroller = scrollRef.current;
+      const content = contentRef.current;
+      if (!scroller || !content) return;
+      const resetTodayPct = (diffHours(today, now) / cfg.totalHours) * 100;
+      const resetTodayLeft = timelineMetrics.left + timelineMetrics.width * (resetTodayPct / 100);
+      const nextLeft = clamp(resetTodayLeft - scroller.clientWidth / 2, 0, content.scrollWidth - scroller.clientWidth);
+      scroller.scrollTo({ left: nextLeft, behavior: "smooth" });
+    });
+  }, [cfg.totalHours, now, timelineMetrics.left, timelineMetrics.width, today]);
 
   const selectItem = (item: WorkItem) => {
     setSelectedId(item.id);
@@ -487,7 +574,7 @@ export default function TimelinePage() {
 
   const nudgeSelectedDue = (days: number) => {
     if (!selected) return;
-    updateWorkItem(selected.item.id, { due: nudgeDate(selected.item.due, days) });
+    updateWorkItem(selected.item.id, { due: nudgeDate(selected.item.due, days, selected.item) });
   };
 
   return (
@@ -498,17 +585,17 @@ export default function TimelinePage() {
           <button type="button" onClick={() => setAnchorShift((value) => value - 1)} className="lov-icon-btn" aria-label="Shift earlier">
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-          <span className="min-w-44 text-center text-[12px] font-medium">{rangeLabel}</span>
+          <span suppressHydrationWarning className="min-w-44 text-center text-[12px] font-medium">{rangeLabel}</span>
           <button type="button" onClick={() => setAnchorShift((value) => value + 1)} className="lov-icon-btn" aria-label="Shift later">
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={() => setAnchorShift(0)} className="lov-btn lov-btn-ghost h-7">
+          <button type="button" onClick={jumpToToday} className="lov-btn lov-btn-ghost h-7" title="Jump to today and center the current date">
             <RotateCcw className="h-3.5 w-3.5" />
             Today
           </button>
           <span className="h-4 w-px bg-border" />
           <div className="lov-segment-group">
-            {(["Week", "Month", "Quarter"] as const).map((option) => (
+            {(["Day", "Week", "Month", "Quarter"] as const).map((option) => (
               <SegmentButton
                 key={option}
                 active={scale === option}
@@ -565,22 +652,23 @@ export default function TimelinePage() {
           </div>
         </div>
 
-        <div ref={scrollRef} className="min-h-0 overflow-auto">
-          <div ref={contentRef} className="min-w-[1040px]">
+        <div ref={scrollRef} data-timeline-scroll className="min-h-0 overflow-auto">
+          <div ref={contentRef} data-timeline-content className="min-w-[1040px]">
             <div className="sticky top-0 z-30 grid grid-cols-[17rem_1fr] border-b bg-background">
               <div className="flex items-center gap-2 border-r px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 {groupBy} / Work item
               </div>
-              <div ref={headerTimelineRef} className="relative">
+              <div ref={headerTimelineRef} data-timeline-pane className="relative">
                 <div className="flex h-full">
                   {columnDates.map((date, index) => {
-                    const columnStart = index * cfg.daysPerColumn;
-                    const isToday = todayVisible && diffDays(rangeStart, today) >= columnStart && diffDays(rangeStart, today) < columnStart + cfg.daysPerColumn;
+                    const columnStart = index * cfg.hoursPerColumn;
+                    const currentHour = diffHours(rangeStart, now);
+                    const isToday = todayVisible && currentHour >= columnStart && currentHour < columnStart + cfg.hoursPerColumn;
                     return (
                       <div
-                        key={dateKey(date)}
-                        className={`flex-1 border-r px-1 py-2 text-center text-[11px] ${isToday ? "bg-primary/8 font-semibold text-primary" : "text-muted-foreground"}`}
+                        key={`${dateKey(date)}-${index}`}
+                        className={`flex h-9 flex-1 items-center justify-center whitespace-nowrap border-r px-1 text-center text-[11px] leading-none tabular-nums ${isToday ? "bg-primary/8 font-semibold text-primary" : "text-muted-foreground"}`}
                       >
                         {cfg.columnLabel(date)}
                       </div>
@@ -589,7 +677,8 @@ export default function TimelinePage() {
                 </div>
                 {todayVisible && (
                   <div
-                    className="pointer-events-none absolute bottom-0 z-40 -translate-x-1/2 translate-y-1/2 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm"
+                    suppressHydrationWarning
+                    className="pointer-events-none absolute bottom-0 z-40 -translate-x-1/2 translate-y-1/2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-sm"
                     style={{ left: `${todayPct}%` }}
                   >
                     Today
@@ -601,8 +690,9 @@ export default function TimelinePage() {
             <div ref={timelineRef} className="relative">
               {todayVisible && (
                 <div
+                  suppressHydrationWarning
                   aria-hidden
-                  className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-red-600"
+                  className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-primary"
                   style={{ left: todayLineLeft }}
                 />
               )}
@@ -655,7 +745,7 @@ export default function TimelinePage() {
                               <div className="absolute inset-0 flex">
                                 {columnDates.map((date, index) => (
                                   <div
-                                    key={`${entry.item.id}-${dateKey(date)}`}
+                                    key={`${entry.item.id}-${dateKey(date)}-${index}`}
                                     className="flex-1 border-r border-border/30"
                                   />
                                 ))}
@@ -663,7 +753,7 @@ export default function TimelinePage() {
                               <TimelineBar
                                 timelineItem={entry}
                                 rangeStart={rangeStart}
-                                totalDays={cfg.totalDays}
+                                totalHours={cfg.totalHours}
                                 selected={selectedId === entry.item.id}
                                 onSelect={selectItem}
                               />
@@ -728,15 +818,15 @@ export default function TimelinePage() {
                   <div className="flex flex-wrap gap-1.5">
                     <Chip tone={statusTone(selected.item.status)}>{selected.item.status}</Chip>
                     <Chip tone={priorityTone(selected.item.priority)}>{selected.item.priority}</Chip>
-                    <Chip tone={dueTone(selected.item, todayKey)}>{formatDate(selected.item.due)}</Chip>
+                    <Chip tone={dueTone(selected.item, todayKey)}>{formatDateTime(selected.window?.end)}</Chip>
                   </div>
                 </section>
 
                 <section>
                   <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Schedule</div>
                   <div className="space-y-1">
-                    <InspectorRow label="Window" value={`${formatDate(selected.window?.start)} - ${formatDate(selected.window?.end)}`} />
-                    <InspectorRow label="Duration" value={selected.window ? `${selected.window.duration} days` : "No due date"} />
+                    <InspectorRow label="Window" value={`${formatDateTime(selected.window?.start)} - ${formatDateTime(selected.window?.end)}`} />
+                    <InspectorRow label="Duration" value={selected.window ? formatDuration(selected.window.durationHours) : "No due date"} />
                     <InspectorRow label="Assignee" value={<span className="inline-flex items-center gap-2"><Avatar id={selected.item.assignee} name={selected.member?.name} size={18} />{selected.member?.name ?? selected.item.assignee}</span>} />
                     <InspectorRow label="Project" value={selected.project?.name ?? selected.item.project} />
                     <InspectorRow label="Label" value={selected.item.label} />
@@ -766,9 +856,15 @@ export default function TimelinePage() {
                     <MoveHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
                     <input
                       type="date"
-                      value={selected.item.due}
-                      onChange={(event) => updateWorkItem(selected.item.id, { due: event.target.value })}
+                      value={toDateInputValue(selected.window?.end)}
+                      onChange={(event) => updateWorkItem(selected.item.id, { due: toStoredDue(event.target.value, toTimeInputValue(selected.window?.end)) })}
                       className="min-w-0 flex-1 bg-transparent outline-none"
+                    />
+                    <input
+                      type="time"
+                      value={toTimeInputValue(selected.window?.end)}
+                      onChange={(event) => updateWorkItem(selected.item.id, { due: toStoredDue(toDateInputValue(selected.window?.end), event.target.value) })}
+                      className="w-[5.5rem] bg-transparent outline-none"
                     />
                   </div>
                 </section>
