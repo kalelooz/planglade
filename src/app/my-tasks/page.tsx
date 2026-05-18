@@ -1,13 +1,15 @@
 "use client";
 import { useState, useMemo } from "react";
 import { AppShell } from "@/components/lovable/shell";
-import { PriorityIcon, Avatar } from "@/components/lovable/icons";
+import { PriorityIcon, Avatar, StatusIcon } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
 import { useStore } from "@/lib/store";
-import { byInitials, type WorkItem } from "@/lib/mock-data";
+import { byInitials, type WorkItem, type Status, type Priority } from "@/lib/mock-data";
 
 const tabs = ["Today", "Upcoming", "Overdue", "No date", "Completed"] as const;
 type Tab = (typeof tabs)[number];
+
+type Scope = "mine" | "team" | "all";
 
 const ME = "AM";
 const TODAY = new Date();
@@ -27,33 +29,68 @@ function inTab(w: WorkItem, tab: Tab): boolean {
 
 export default function MyTasks() {
   const [tab, setTab] = useState<Tab>("Today");
+  const [scope, setScope] = useState<Scope>("mine");
   const workItems = useStore((s) => s.workItems);
+  const projects = useStore((s) => s.projects);
   const setStatus = useStore((s) => s.setWorkItemStatus);
 
-  const mine = useMemo(() => workItems.filter((w) => w.assignee === ME), [workItems]);
-  const filtered = useMemo(() => mine.filter((w) => inTab(w, tab)), [mine, tab]);
+  const byScope = useMemo(() => {
+    if (scope === "mine") return workItems.filter((w) => w.assignee === ME);
+    if (scope === "team") return workItems.filter((w) => w.assignee !== ME);
+    return workItems;
+  }, [workItems, scope]);
+
+  const filtered = useMemo(() => byScope.filter((w) => inTab(w, tab)), [byScope, tab]);
+
+  const scopeCounts = useMemo(() => ({
+    mine: workItems.filter((w) => w.assignee === ME && w.status !== "Done").length,
+    team: workItems.filter((w) => w.assignee !== ME && w.status !== "Done").length,
+    all: workItems.filter((w) => w.status !== "Done").length,
+  }), [workItems]);
 
   const counts: Record<Tab, number> = useMemo(() => ({
-    Today: mine.filter((w) => inTab(w, "Today")).length,
-    Upcoming: mine.filter((w) => inTab(w, "Upcoming")).length,
-    Overdue: mine.filter((w) => inTab(w, "Overdue")).length,
-    "No date": mine.filter((w) => inTab(w, "No date")).length,
-    Completed: mine.filter((w) => inTab(w, "Completed")).length,
-  }), [mine]);
+    Today: byScope.filter((w) => inTab(w, "Today")).length,
+    Upcoming: byScope.filter((w) => inTab(w, "Upcoming")).length,
+    Overdue: byScope.filter((w) => inTab(w, "Overdue")).length,
+    "No date": byScope.filter((w) => inTab(w, "No date")).length,
+    Completed: byScope.filter((w) => inTab(w, "Completed")).length,
+  }), [byScope]);
+
+  const openCount = scopeCounts[scope];
 
   return (
     <AppShell title={<span className="font-medium">My Tasks</span>}>
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
         <div className="mb-1 flex items-baseline justify-between">
           <h1 className="text-[20px] font-semibold tracking-tight">My Tasks</h1>
-          <span className="text-[12px] text-muted-foreground">{counts.Today + counts.Upcoming + counts.Overdue + counts["No date"]} open</span>
+          <span className="text-[12px] text-muted-foreground">{openCount} open</span>
         </div>
-        <p className="mb-4 text-[13px] text-muted-foreground">Assigned to you across every project.</p>
+        <p className="mb-4 text-[13px] text-muted-foreground">Tasks across your workspace.</p>
 
+        {/* Scope filter: Mine / Team / All */}
         <div className="mb-3 flex items-center gap-1 text-[13px]">
+          <button onClick={() => setScope("mine")}
+            className={`flex items-center gap-1.5 rounded px-3 py-1.5 font-medium ${scope === "mine" ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            <span>Assigned to me</span>
+            <span className="text-[11px] text-muted-foreground">({scopeCounts.mine})</span>
+          </button>
+          <button onClick={() => setScope("team")}
+            className={`flex items-center gap-1.5 rounded px-3 py-1.5 font-medium ${scope === "team" ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            <span>Team</span>
+            <span className="text-[11px] text-muted-foreground">({scopeCounts.team})</span>
+          </button>
+          <button onClick={() => setScope("all")}
+            className={`flex items-center gap-1.5 rounded px-3 py-1.5 font-medium ${scope === "all" ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            <span>All Tasks</span>
+            <span className="text-[11px] text-muted-foreground">({scopeCounts.all})</span>
+          </button>
+        </div>
+
+        {/* Date tabs */}
+        <div className="mb-3 flex items-center gap-1 text-[13px] border-b">
           {tabs.map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`relative flex items-center gap-1.5 rounded px-2.5 py-1 ${tab === t ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              className={`relative flex items-center gap-1.5 rounded-t px-2.5 py-2 ${tab === t ? "bg-transparent text-foreground font-semibold border-b-2 border-foreground -mb-px" : "text-muted-foreground hover:text-foreground"}`}>
               <span>{t}</span>
               <span className="text-[11px] text-muted-foreground">{counts[t]}</span>
             </button>
@@ -66,6 +103,7 @@ export default function MyTasks() {
           )}
           {filtered.map((w) => {
             const m = byInitials(w.assignee);
+            const projectName = projects.find((p) => p.id === w.project)?.name ?? w.project;
             return (
               <div key={w.id} className="group flex w-full items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60">
               <input
@@ -76,8 +114,9 @@ export default function MyTasks() {
               />
               <span className="font-mono text-[11px] text-muted-foreground">{w.id}</span>
               <span className={`flex-1 truncate ${w.status === "Done" ? "line-through text-muted-foreground" : ""}`}>{w.title}</span>
+              <StatusIcon s={w.status} />
               <PriorityIcon p={w.priority} />
-              <Chip>{w.label}</Chip>
+              <Chip>{projectName}</Chip>
               <Avatar id={m.id} name={m.name} />
               <span className="w-16 text-right text-[12px] text-muted-foreground">{new Date(w.due).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
               </div>
