@@ -14,7 +14,7 @@ const commands = [
   { label: "Go to Notes", to: "/notes", icon: FileText, group: "Navigate" },
   { label: "Go to Team", to: "/team", icon: Users, group: "Navigate" },
   { label: "Go to Settings", to: "/settings", icon: Settings, group: "Navigate" },
-  { label: "Open work items", to: "/work-items", icon: Plus, group: "Open" },
+  { label: "Open work items", to: "/my-tasks", icon: Plus, group: "Open" },
   { label: "Open notes capture", to: "/notes", icon: Plus, group: "Open" },
 ];
 
@@ -101,7 +101,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                       <button
                         key={command.label}
                         onClick={() => { router.push(command.to); onClose(); }}
-                        className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] ${active ? "bg-[var(--color-hover)]" : ""}`}
+                        className={`lov-menu-item gap-2.5 px-3 py-1.5 text-[13px] ${active ? "lov-menu-item-active" : ""}`}
                       >
                         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{command.label}</span>
