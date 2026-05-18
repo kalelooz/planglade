@@ -232,38 +232,34 @@ function TimelineBar({
   rangeStart,
   totalDays,
   selected,
-  dimmed,
   onSelect,
 }: {
   timelineItem: TimelineItem;
   rangeStart: Date;
   totalDays: number;
   selected: boolean;
-  dimmed: boolean;
   onSelect: (item: WorkItem) => void;
 }) {
-  const { item, project, member, window, isOverdue } = timelineItem;
+  const { item, project, window, isOverdue } = timelineItem;
   if (!window) {
     return (
       <button
         type="button"
         data-timeline-bar={item.id}
         onClick={() => onSelect(item)}
-        className={`ml-2 inline-flex h-7 items-center gap-1.5 rounded border border-dashed bg-card px-2 text-[11px] text-muted-foreground transition-opacity ${dimmed ? "opacity-25" : ""}`}
+        className="absolute left-3 top-1/2 h-2.5 w-12 -translate-y-1/2 rounded-full border border-dashed border-muted-foreground/45 bg-card"
+        title={`${item.title} / no due date`}
       >
-        <StatusIcon s={item.status} />
-        No due date
+        <span className="sr-only">{item.title} has no due date</span>
       </button>
     );
   }
 
   const rawStart = diffDays(rangeStart, window.start);
   const rawEnd = diffDays(rangeStart, window.end);
-  const clippedLeft = rawStart < 0;
-  const clippedRight = rawEnd > totalDays;
   const leftPct = clamp((rawStart / totalDays) * 100, 0, 100);
   const rightPct = clamp((rawEnd / totalDays) * 100, 0, 100);
-  const widthPct = Math.max(1.8, rightPct - leftPct);
+  const widthPct = Math.max(9, rightPct - leftPct);
   const accent = project?.accent ?? STATUS_ACCENT[item.status];
 
   const style: CSSProperties = {
@@ -283,16 +279,17 @@ function TimelineBar({
       onClick={() => onSelect(item)}
       title={`${item.title} / ${formatDate(window.start)} to ${formatDate(window.end)}`}
       style={style}
-      className={`group absolute top-1/2 flex h-8 min-w-[5.75rem] -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded-md border px-2 text-[11px] transition-[opacity,box-shadow,transform] hover:-translate-y-[54%] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-        dimmed ? "opacity-20" : "opacity-100"
-      } ${isOverdue ? "ring-1 ring-red-500/35" : ""}`}
+      className={`group absolute top-1/2 flex h-7 min-w-[8.5rem] -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded-md border px-2 text-[11px] transition-[box-shadow,transform] hover:-translate-y-[54%] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        isOverdue ? "ring-1 ring-red-500/35" : ""
+      }`}
     >
-      {clippedLeft && <ChevronLeft className="h-3 w-3 shrink-0 text-muted-foreground" />}
-      <span className="h-full w-1 shrink-0 rounded-full" style={{ background: accent }} />
+      <span className="h-full w-1.5 shrink-0" style={{ background: accent }} />
       <span className={`min-w-0 flex-1 truncate text-left font-medium ${item.status === "Done" ? "text-muted-foreground line-through" : ""}`}>
         {item.title}
       </span>
-      {clippedRight && <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />}
+      <span className="shrink-0 text-[10px] text-muted-foreground">
+        {formatDate(window.end)}
+      </span>
     </button>
   );
 }
@@ -320,8 +317,6 @@ export default function TimelinePage() {
   const [anchorShift, setAnchorShift] = useState(0);
   const [scopeMode, setScopeMode] = useState<ScopeMode>("All projects");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const focusMode = true;
-
   const timelineRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -583,9 +578,8 @@ export default function TimelinePage() {
                 <div className="px-6 py-14 text-center text-[13px] text-muted-foreground">No scheduled work matches this view.</div>
               ) : (
                 groups.map((group) => {
-                  const groupDimmed = focusMode && selectedGroupId != null && selectedGroupId !== group.id;
                   return (
-                    <section key={group.id} className={`border-b ${groupDimmed ? "opacity-35" : ""}`}>
+                    <section key={group.id} className="border-b">
                       <div className="grid grid-cols-[17rem_1fr] bg-sidebar/60">
                         <button
                           type="button"
@@ -609,17 +603,16 @@ export default function TimelinePage() {
                       </div>
 
                       {group.items.map((entry) => {
-                        const dimmed = focusMode && selectedId != null && selectedGroupId != null && selectedGroupId !== group.id;
                         return (
                           <div
                             key={entry.item.id}
                             data-timeline-row={entry.item.id}
-                            className={`grid grid-cols-[17rem_1fr] border-t hover:bg-[var(--color-hover)]/45 ${selectedId === entry.item.id ? "bg-primary/5" : ""}`}
+                            className={`grid grid-cols-[17rem_1fr] border-t hover:bg-[var(--color-hover)]/45 ${selectedId === entry.item.id ? "bg-primary/8 shadow-[inset_2px_0_0_var(--color-primary)]" : ""}`}
                           >
                             <button
                               type="button"
                               onClick={() => selectItem(entry.item)}
-                              className="flex min-w-0 items-center gap-2 border-r px-3 py-2 text-left text-[12px]"
+                              className="flex h-12 min-w-0 items-center gap-2 border-r px-3 text-left text-[12px]"
                             >
                               <StatusIcon s={entry.item.status} />
                               <PriorityIcon p={entry.item.priority} />
@@ -628,12 +621,12 @@ export default function TimelinePage() {
                                 <span className="block truncate text-[10.5px] text-muted-foreground">{entry.item.id} / {entry.project?.name ?? entry.item.project}</span>
                               </span>
                             </button>
-                            <div className="relative h-11">
+                            <div className="relative h-12">
                               <div className="absolute inset-0 flex">
                                 {columnDates.map((date, index) => (
                                   <div
                                     key={`${entry.item.id}-${dateKey(date)}`}
-                                    className={`flex-1 border-r ${index % 2 === 0 ? "bg-muted/10" : ""}`}
+                                    className="flex-1 border-r border-border/30"
                                   />
                                 ))}
                               </div>
@@ -642,7 +635,6 @@ export default function TimelinePage() {
                                 rangeStart={rangeStart}
                                 totalDays={cfg.totalDays}
                                 selected={selectedId === entry.item.id}
-                                dimmed={dimmed}
                                 onSelect={selectItem}
                               />
                               {todayVisible && <div className="pointer-events-none absolute inset-y-0 z-20 w-px bg-red-600" style={{ left: `${todayPct}%` }} />}
