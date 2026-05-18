@@ -160,15 +160,6 @@ function TypePill({ type }: { type: NodeType }) {
   );
 }
 
-function TypeDot({ type }: { type: NodeType }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 shrink-0 rounded-full"
-      style={{ background: TYPE_STYLE[type].tone }}
-    />
-  );
-}
-
 function pathBetween(from: GraphNode, to: GraphNode) {
   const x1 = from.x + from.width / 2;
   const y1 = from.y + from.height;
@@ -249,8 +240,7 @@ function GraphNodeView({
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="mb-0.5 flex items-center gap-1.5 min-w-0">
-          <TypeDot type={node.type} />
+        <span className="mb-0.5 flex min-w-0">
           <span className="truncate text-[12.5px] font-medium leading-4">{truncateLabel(node.label, node.type === "label" ? 16 : 28)}</span>
         </span>
         <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">{node.meta}</span>
