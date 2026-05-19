@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { ArrowRight, Check, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { WorkItemRow } from "@/components/lovable/work-item-row";
 import { useStore } from "@/lib/store";
-import { type WorkItem } from "@/lib/mock-data";
+import { type Status, type WorkItem } from "@/lib/mock-data";
 import { isSameLocalDate, parseLocalDate } from "@/lib/dates";
 
 const tabs = ["Today", "Upcoming", "Overdue", "No date", "Completed"] as const;
@@ -38,6 +39,7 @@ export default function MyTasks() {
   const [tab, setTab] = useState<Tab>("Today");
   const [scope, setScope] = useState<Scope>("mine");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
   const workItems = useStore((s) => s.workItems);
   const setStatus = useStore((s) => s.setWorkItemStatus);
@@ -72,6 +74,55 @@ export default function MyTasks() {
 
   const openCount = scopeCounts[scope];
   const selectedTask = selectedTaskId ? workItems.find((item) => item.id === selectedTaskId) ?? null : null;
+  const selectedVisibleIds = useMemo(
+    () => filtered.filter((w) => selectedIds.has(w.id)).map((w) => w.id),
+    [filtered, selectedIds]
+  );
+  const selectedCount = selectedVisibleIds.length;
+  const allVisibleSelected = filtered.length > 0 && selectedCount === filtered.length;
+  const movableStatuses: Status[] = ["Backlog", "To Do", "In Progress", "In Review"];
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectVisible = () => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        filtered.forEach((w) => next.delete(w.id));
+      } else {
+        filtered.forEach((w) => next.add(w.id));
+      }
+      return next;
+    });
+  };
+
+  const bulkSetStatus = (status: Status) => {
+    selectedVisibleIds.forEach((id) => setStatus(id, status));
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      selectedVisibleIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
+  const bulkDelete = () => {
+    selectedVisibleIds.forEach((id) => deleteWorkItem(id));
+    if (selectedTaskId && selectedVisibleIds.includes(selectedTaskId)) {
+      setSelectedTaskId(null);
+    }
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      selectedVisibleIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
 
   return (
     <AppShell title={<span className="font-medium">My Tasks</span>}>
@@ -81,6 +132,36 @@ export default function MyTasks() {
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[13px] text-muted-foreground">Tasks across your workspace.</p>
           <span className="text-[12px] text-muted-foreground">{openCount} open</span>
+        </div>
+
+        <div className="mb-3 flex min-h-8 flex-wrap items-center justify-between gap-2 text-[12px]">
+          {selectedCount > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-1 font-medium">{selectedCount} selected</span>
+              <button onClick={() => bulkSetStatus("Done")} className="lov-btn lov-btn-primary h-7 px-2">
+                <Check className="h-3 w-3" />
+                Complete
+              </button>
+              {movableStatuses.map((status) => (
+                <button key={status} onClick={() => bulkSetStatus(status)} className="lov-btn h-7 px-2">
+                  <ArrowRight className="h-3 w-3" />
+                  {status}
+                </button>
+              ))}
+              <button onClick={bulkDelete} className="lov-btn lov-btn-danger h-7 px-2">
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
+              <button onClick={() => setSelectedIds(new Set())} className="lov-btn lov-btn-ghost h-7 px-2">
+                Clear
+              </button>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">Select tasks to run bulk actions.</span>
+          )}
+          <button onClick={toggleSelectVisible} disabled={filtered.length === 0} className="lov-btn lov-btn-ghost h-7 px-2 disabled:opacity-50">
+            {allVisibleSelected ? "Clear visible" : "Select visible"}
+          </button>
         </div>
 
         {/* Scope filter: Mine / Team / All */}
@@ -119,17 +200,30 @@ export default function MyTasks() {
           )}
           {filtered.map((w) => {
             return (
-              <WorkItemRow
-                key={w.id}
-                item={w}
-                selected={selectedTaskId === w.id}
-                onClick={() => setSelectedTaskId(w.id)}
-                onMove={(nextStatus) => setStatus(w.id, nextStatus)}
-                onDelete={() => {
-                  deleteWorkItem(w.id);
-                  if (selectedTaskId === w.id) setSelectedTaskId(null);
-                }}
-              />
+              <div key={w.id} className="grid grid-cols-[20px_minmax(0,1fr)] items-stretch gap-1">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(w.id)}
+                  onChange={() => toggleSelected(w.id)}
+                  aria-label={`Select ${w.title}`}
+                  className="mt-2 h-3.5 w-3.5 self-start accent-[var(--color-primary)]"
+                />
+                <WorkItemRow
+                  item={w}
+                  selected={selectedTaskId === w.id}
+                  onClick={() => setSelectedTaskId(w.id)}
+                  onMove={(nextStatus) => setStatus(w.id, nextStatus)}
+                  onDelete={() => {
+                    deleteWorkItem(w.id);
+                    if (selectedTaskId === w.id) setSelectedTaskId(null);
+                    setSelectedIds((current) => {
+                      const next = new Set(current);
+                      next.delete(w.id);
+                      return next;
+                    });
+                  }}
+                />
+              </div>
             );
           })}
         </div>

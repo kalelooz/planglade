@@ -27,11 +27,10 @@ export default function TeamPage() {
   return (
     <AppShell title={<span className="font-medium">{activeProject ? `${activeProject.name} / Team` : "All projects / Team"}</span>}>
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
-        <div className="mb-1 flex items-baseline justify-between">
-          <h1 className="text-[20px] font-semibold tracking-tight">Team</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <p className="text-[13px] text-muted-foreground">Workload reflects scoped open tasks.</p>
           <span className="text-[12px] text-muted-foreground">{members.length} members</span>
         </div>
-        <p className="mb-6 text-[13px] text-muted-foreground">Workload reflects scoped open tasks.</p>
         <div className="border-t">
 
       {members.map((m) => {

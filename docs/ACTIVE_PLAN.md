@@ -55,7 +55,7 @@ Goal: keep navigation calm, small, and trustworthy.
 - [x] Keep Graph/Connections, Activity, Team, Reports, Board, Work Items, and similar low-priority screens behind Advanced/More or direct routes.
 - [ ] Remove or hide fake notification chrome.
 - [ ] Keep one primary action in the header: Quick Capture or `+ New`.
-- [ ] Remove duplicate page titles between shell header and content.
+- [x] Remove duplicate page titles between shell header and content.
 
 Verify: sidebar grouping is clear, fake header controls are gone, current location is obvious, and the changed shell surface has no crushed controls.
 
@@ -79,7 +79,7 @@ Goal: keep Inbox limited to unprocessed captures and items needing triage.
 - [x] Linked items are clearly indicated.
 - [ ] Keep awareness widgets out of Inbox unless they require triage.
 - [ ] Make triage actions update the same task state used by Home and My Tasks.
-- [ ] Avoid confirmation steps that do not protect a meaningful destructive action.
+- [x] Avoid confirmation steps that do not protect a meaningful destructive action.
 
 Verify: captured work appears in the right task surfaces, triage changes are reflected elsewhere, and Inbox is not a mixed dashboard.
 
@@ -100,7 +100,7 @@ Verify: moving, creating, editing, and deleting tasks changes every view that re
 Goal: make the personal work list reliable.
 
 - [x] Add direct row completion controls.
-- [ ] Replace fake bulk actions with real mutations or disable them.
+- [x] Replace fake bulk actions with real mutations or disable them.
 - [ ] Add useful filters: Today, Overdue, Upcoming, Blocked, No Date.
 - [ ] Keep table/list density compact but readable.
 - [ ] Ensure rows open the same universal drawer as other views.

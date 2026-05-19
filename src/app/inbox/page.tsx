@@ -20,7 +20,6 @@ export default function InboxPage() {
   const addInboxItem = useStore((s) => s.addInboxItem);
   const [captureValue, setCaptureValue] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [pendingCreateIds, setPendingCreateIds] = useState<string[] | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const selectedCount = selectedIds.size;
   const allSelected = inboxItems.length > 0 && selectedIds.size === inboxItems.length;
@@ -55,7 +54,21 @@ export default function InboxPage() {
       }
       return;
     }
-    setPendingCreateIds(unlinked.map((item) => item.id));
+    const createdIds: string[] = [];
+    unlinked.forEach((item) => {
+      const id = item.id;
+      const createdId = inboxToWorkItem(id);
+      if (createdId) createdIds.push(createdId);
+    });
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      unlinked.forEach((item) => next.delete(item.id));
+      return next;
+    });
+    if (createdIds[0]) setSelectedTaskId(createdIds[0]);
+    toast.success(`Sent ${createdIds.length} capture${createdIds.length === 1 ? "" : "s"} to tasks`, {
+      description: createdIds[0] ? "Opened the first task for editing." : undefined,
+    });
   };
 
   const bulkDelete = () => {
@@ -70,25 +83,6 @@ export default function InboxPage() {
     inboxItems.forEach((item) => removeInboxItem(item.id));
     setSelectedIds(new Set());
     toast.success("Inbox cleared");
-  };
-
-  const confirmCreateTasks = () => {
-    if (!pendingCreateIds?.length) return;
-    const createdIds: string[] = [];
-    pendingCreateIds.forEach((id) => {
-      const createdId = inboxToWorkItem(id);
-      if (createdId) createdIds.push(createdId);
-    });
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      pendingCreateIds.forEach((id) => next.delete(id));
-      return next;
-    });
-    setPendingCreateIds(null);
-    if (createdIds[0]) setSelectedTaskId(createdIds[0]);
-    toast.success(`Sent ${createdIds.length} capture${createdIds.length === 1 ? "" : "s"} to tasks`, {
-      description: createdIds[0] ? "Opened the first task for editing." : undefined,
-    });
   };
 
   return (
@@ -232,7 +226,18 @@ export default function InboxPage() {
                         setSelectedTaskId(item.workItemId);
                         return;
                       }
-                      setPendingCreateIds([item.id]);
+                      const createdId = inboxToWorkItem(item.id);
+                      if (createdId) {
+                        setSelectedTaskId(createdId);
+                        setSelectedIds((current) => {
+                          const next = new Set(current);
+                          next.delete(item.id);
+                          return next;
+                        });
+                        toast.success("Sent capture to tasks", {
+                          description: "Opened task for editing.",
+                        });
+                      }
                     }}
                     title={isLinked ? "Open task" : "Create task"}
                     className={`lov-btn lov-btn-primary h-7 w-[112px] justify-center whitespace-nowrap px-1.5 text-[11px] ${ready ? "" : "opacity-90"}`}
@@ -265,13 +270,6 @@ export default function InboxPage() {
           </div>
         </section>
         <TaskDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
-        {pendingCreateIds && (
-          <ConfirmCreateDialog
-            count={pendingCreateIds.length}
-            onCancel={() => setPendingCreateIds(null)}
-            onConfirm={confirmCreateTasks}
-          />
-        )}
       </div>
     </AppShell>
   );
@@ -293,27 +291,6 @@ function BulkMenu({ label, children }: { label: string; children: ReactNode }) {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function ConfirmCreateDialog({ count, onCancel, onConfirm }: { count: number; onCancel: () => void; onConfirm: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-foreground/30" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm rounded-lg border bg-background p-5 shadow-xl">
-        <h2 className="text-[15px] font-semibold tracking-tight">Send {count === 1 ? "capture" : "captures"} to tasks?</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          This will remove the selected capture{count === 1 ? "" : "s"} from Inbox and open the first task for editing. Existing linked tasks are reused when available.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onCancel} className="lov-btn lov-btn-ghost">Cancel</button>
-          <button onClick={onConfirm} className="lov-btn lov-btn-primary">
-            <Check className="h-3 w-3" />
-            Send to tasks
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
