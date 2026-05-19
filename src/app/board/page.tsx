@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, MoreHorizontal, Trash2, ArrowRight,
+  Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -116,7 +116,7 @@ export default function Board() {
       const targetStatus = overId as Status;
       const list = scopedWorkItems.filter((w) => w.status === targetStatus);
       if (moved.status === targetStatus && list[list.length - 1]?.id === activeId) return;
-      reorderWorkItem(activeId, targetStatus, null);
+      reorderWorkItem(activeId, targetStatus, null, scopedProjectId);
       if (moved.status !== targetStatus) {
         toast.success(`Moved ${activeId}`, { description: `to ${targetStatus}` });
       }
@@ -137,9 +137,9 @@ export default function Board() {
       const columnItems = scopedWorkItems.filter((w) => w.status === targetStatus);
       const overIndex = columnItems.findIndex((w) => w.id === overItem.id);
       const nextItem = overIndex === -1 ? null : columnItems[overIndex + 1]?.id ?? null;
-      reorderWorkItem(activeId, targetStatus, nextItem);
+      reorderWorkItem(activeId, targetStatus, nextItem, scopedProjectId);
     } else {
-      reorderWorkItem(activeId, targetStatus, overItem.id);
+      reorderWorkItem(activeId, targetStatus, overItem.id, scopedProjectId);
     }
 
     if (moved.status !== targetStatus) {
@@ -289,7 +289,15 @@ function Card({
   onMove: (status: Status) => void;
   onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
   const members = useStore((s) => s.members);
   const m = members.find((member) => member.id === item.assignee) ?? members[0];
   const style: React.CSSProperties = {
@@ -305,12 +313,20 @@ function Card({
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      className={`group relative cursor-grab rounded-md border bg-card p-3 text-[12px] transition-shadow active:cursor-grabbing ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
+      className={`group relative rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
     >
       {/* Row 1: one concise metadata line */}
       <div className="mb-2 flex items-center gap-2">
+        <button
+          ref={setActivatorNodeRef}
+          {...listeners}
+          {...attributes}
+          title="Drag task"
+          aria-label={`Drag ${item.title}`}
+          className="lov-icon-btn h-6 w-6 shrink-0 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
         {item.label && <Chip>{item.label}</Chip>}
         <span className="ml-auto text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
         <PriorityIcon p={item.priority} />

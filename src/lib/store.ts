@@ -52,7 +52,7 @@ type Actions = {
   deleteWorkItem: (id: string) => void;
   setWorkItemStatus: (id: string, status: Status) => void;
   setWorkItemPriority: (id: string, priority: Priority) => void;
-  reorderWorkItem: (id: string, targetStatus: Status, beforeId: string | null) => void;
+  reorderWorkItem: (id: string, targetStatus: Status, beforeId: string | null, scopeProjectId?: string | null) => void;
 
   // checklist (per work item)
   addChecklistItem: (taskId: string, text: string) => void;
@@ -246,21 +246,31 @@ export const useStore = create<State & Actions>()(
       setWorkItemPriority: (id, priority) =>
         set((s) => ({ workItems: s.workItems.map((w) => (w.id === id ? { ...w, priority } : w)) })),
 
-      reorderWorkItem: (id, targetStatus, beforeId) => {
+      reorderWorkItem: (id, targetStatus, beforeId, scopeProjectId) => {
         set((s) => {
           const moved = s.workItems.find((w) => w.id === id);
           if (!moved) return s;
           const without = s.workItems.filter((w) => w.id !== id);
           const updated: WorkItem = { ...moved, status: targetStatus };
+          const inScope = (w: WorkItem) =>
+            w.status === targetStatus && (!scopeProjectId || w.project === scopeProjectId);
           let insertAt: number;
           if (beforeId) {
             const idx = without.findIndex((w) => w.id === beforeId);
-            insertAt = idx === -1 ? without.length : idx;
+            if (idx !== -1) {
+              insertAt = idx;
+            } else {
+              let lastScopedIdx = -1;
+              for (let i = without.length - 1; i >= 0; i--) {
+                if (inScope(without[i])) { lastScopedIdx = i; break; }
+              }
+              insertAt = lastScopedIdx === -1 ? without.length : lastScopedIdx + 1;
+            }
           } else {
-            // Append after the last existing item of targetStatus; if none exist, append to end.
+            // Append after the last existing scoped item; if none exist, append to end.
             let lastIdx = -1;
             for (let i = without.length - 1; i >= 0; i--) {
-              if (without[i].status === targetStatus) { lastIdx = i; break; }
+              if (inScope(without[i])) { lastIdx = i; break; }
             }
             insertAt = lastIdx === -1 ? without.length : lastIdx + 1;
           }

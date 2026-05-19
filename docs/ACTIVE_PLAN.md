@@ -87,10 +87,9 @@ Verify: captured work appears in the right task surfaces, triage changes are ref
 
 Goal: keep project execution simple and connected to trustworthy task state.
 
-- [ ] Reduce card metadata to title, status/priority cue, due signal, and one project/tag cue.
 - [x] Reduce card metadata to title, status/priority cue, due signal, and one project/tag cue.
 - [x] Move extra information into the drawer.
-- [ ] Make create/edit/delete/move actions mutate shared state or clearly mark them unavailable.
+- [x] Make create/edit/delete/move actions mutate shared state or clearly mark them unavailable.
 - [ ] Keep the inner project list compact and keyboard/mouse usable.
 - [ ] Avoid project/report shortcuts that imply real reporting before reports are real.
 
