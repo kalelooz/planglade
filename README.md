@@ -63,7 +63,7 @@ For UI work, prefer existing shadcn/ui, Radix, Tailwind variables, Lucide icons,
 
 ## Current Views
 
-- Dashboard/Home - currently demo-heavy; should become Today, Inbox, Overdue, and Quick Capture.
+- Home - currently demo-heavy; should become Today, Inbox, Overdue, and Quick Capture.
 - Projects/Kanban - visually useful, but must be wired to shared task/project state.
 - Timeline/Gantt - useful later, but date logic must come from real task fields.
 - My Tasks - should become the main table/list work surface; fake bulk actions must become real or be disabled.
