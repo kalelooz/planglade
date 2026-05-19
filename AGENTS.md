@@ -1,5 +1,13 @@
 # FlowBoard Agent Instructions
 
+## Autonomous Operation
+
+- You receive plain English instructions and decide what tools, MCPs, and skills to use.
+- Always run the autonomous tool selection checklist before starting any task.
+- Invoke relevant MCPs and skills proactively — never wait to be asked.
+- Use parallel tool calls for independent operations.
+- Load skills via the `skill` tool when their trigger conditions are met.
+
 ## Product Direction
 
 - Work incrementally. Start each work session with a short TODO list.
@@ -17,6 +25,11 @@
 
 ## Implementation Workflow
 
+- Default to a fast lane. Keep exploration, edits, and validation scoped to the files and user-visible surface being changed.
+- Do not run broad project checks by default. Avoid full `npm run lint`, full builds, full test suites, or multi-viewport browser passes unless the change touches shared infrastructure, routing, build config, persistence, or cross-page state.
+- Prefer targeted verification: TypeScript for touched TS/TSX when relevant, ESLint on touched TS/TSX files, and one browser check for the changed UI surface when visual risk is real.
+- Skip redundant validation when a faster command already proves the slice. Record known unrelated failures instead of expanding the task to fix them.
+- Keep status updates brief. Do not narrate routine file reads or every minor command unless work takes longer than expected.
 - Use MCP/tools when they materially improve the work, especially for browser validation, current library documentation, or design-system extraction.
 - Use local git for control. Commit validated incremental slices locally with clear messages.
 - Before claiming a slice is done, run the relevant checks for that slice.

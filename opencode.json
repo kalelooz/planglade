@@ -1,0 +1,57 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "skills": {
+    "paths": [".opencode/skills"]
+  },
+  "lsp": true,
+  "formatter": true,
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@latest"],
+      "enabled": true,
+      "env": {
+        "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH": "C:\\Users\\elouedm\\.cloakbrowser\\chromium-146.0.7680.177.4\\chrome.exe",
+        "PW_TEST_CHROMIUM_EXECUTABLE_PATH": "C:\\Users\\elouedm\\.cloakbrowser\\chromium-146.0.7680.177.4\\chrome.exe"
+      }
+    },
+    "context7": {
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp@latest"],
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github@latest"],
+      "enabled": true
+    },
+    "sequential-thinking": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking@latest"],
+      "enabled": true
+    }
+  },
+  "permission": {
+    "bash": {
+      "npx *": "allow",
+      "npm run *": "allow",
+      "bun *": "allow",
+      "git *": "allow",
+      "node *": "allow",
+      "prisma *": "allow",
+      "next *": "allow",
+      "curl *": "allow",
+      "tar *": "allow",
+      "*": "ask"
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "tail_turns": 15
+  },
+  "tool_output": {
+    "max_lines": 2000,
+    "max_bytes": 51200
+  }
+}

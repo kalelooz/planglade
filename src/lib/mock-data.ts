@@ -1,26 +1,45 @@
 export type Priority = "High" | "Medium" | "Low";
 export type Status = "Backlog" | "To Do" | "In Progress" | "In Review" | "Done";
 
-export const members = [
+export type BoringAvatarVariant = "marble" | "beam" | "pixel" | "sunset" | "ring" | "bauhaus";
+
+export type Member = {
+  id: string;
+  name: string;
+  role: string;
+  color: string;
+  avatar?: { variant: BoringAvatarVariant; colors: string[]; seed?: string };
+};
+
+export const members: Member[] = [
   { id: "AM", name: "Alex Morgan", role: "Product Lead", color: "oklch(0.62 0.13 195)" },
   { id: "SK", name: "Sara Kim", role: "Designer", color: "oklch(0.65 0.16 330)" },
   { id: "JD", name: "Jake Davis", role: "Engineer", color: "oklch(0.55 0.15 250)" },
   { id: "LP", name: "Lisa Park", role: "Frontend", color: "oklch(0.62 0.15 30)" },
   { id: "RC", name: "Raj Chen", role: "Data", color: "oklch(0.6 0.14 145)" },
-] as const;
-
-export type Member = (typeof members)[number];
+];
 export const byInitials = (id: string) => members.find((m) => m.id === id) ?? members[0];
 
-export const projects = [
-  { id: "core", name: "Core Product", status: "Active", due: "2026-06-22", owner: "AM", progress: 62, accent: "oklch(0.52 0.09 195)" },
-  { id: "web", name: "Website Redesign", status: "Active", due: "2026-05-28", owner: "SK", progress: 78, accent: "oklch(0.55 0.15 250)" },
-  { id: "mobile", name: "Mobile App v2", status: "Active", due: "2026-06-15", owner: "LP", progress: 41, accent: "oklch(0.62 0.15 30)" },
-  { id: "api", name: "API Migration", status: "In Review", due: "2026-05-20", owner: "JD", progress: 88, accent: "oklch(0.6 0.14 145)" },
-  { id: "ds", name: "Design System", status: "On Hold", due: "2026-07-01", owner: "SK", progress: 30, accent: "oklch(0.65 0.16 330)" },
-] as const;
+export type ProjectStatus = "Active" | "In Review" | "On Hold" | "Archived";
 
-export type Project = (typeof projects)[number];
+export type Project = {
+  id: string;
+  name: string;
+  status: ProjectStatus;
+  due: string;
+  owner: string;
+  progress: number;
+  accent: string;
+  icon?: string;
+};
+
+export const projects: Project[] = [
+  { id: "core", name: "Core Product", status: "Active", due: "2026-06-22", owner: "AM", progress: 62, accent: "oklch(0.52 0.09 195)", icon: "Box" },
+  { id: "web", name: "Website Redesign", status: "Active", due: "2026-05-28", owner: "SK", progress: 78, accent: "oklch(0.55 0.15 250)", icon: "Globe" },
+  { id: "mobile", name: "Mobile App v2", status: "Active", due: "2026-06-15", owner: "LP", progress: 41, accent: "oklch(0.62 0.15 30)", icon: "Smartphone" },
+  { id: "api", name: "API Migration", status: "In Review", due: "2026-05-20", owner: "JD", progress: 88, accent: "oklch(0.6 0.14 145)", icon: "Database" },
+  { id: "ds", name: "Design System", status: "On Hold", due: "2026-07-01", owner: "SK", progress: 30, accent: "oklch(0.65 0.16 330)", icon: "Palette" },
+];
 
 export type ChecklistItem = { id: string; text: string; done: boolean };
 
@@ -34,6 +53,8 @@ export type WorkItem = {
   due: string;
   project: string;
   checklist?: ChecklistItem[];
+  noteIds?: string[];
+  description?: string;
 };
 
 export const workItems: WorkItem[] = [

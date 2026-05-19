@@ -25,9 +25,13 @@ export function Toolbar({ children }: { children: ReactNode }) {
   return <div className="flex h-10 shrink-0 items-center gap-3 border-b bg-background px-4 text-[12px]">{children}</div>;
 }
 
-export function ToolButton({ children, active }: { children: ReactNode; active?: boolean }) {
+export function ToolButton({ children, active, onClick, disabled }: { children: ReactNode; active?: boolean; onClick?: () => void; disabled?: boolean }) {
   return (
-    <button className={`flex h-7 items-center gap-1.5 rounded px-2 text-[12px] ${active ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:bg-[var(--color-hover)] hover:text-foreground"}`}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`lov-btn lov-btn-ghost ${active ? "lov-btn-active" : ""}`}
+    >
       {children}
     </button>
   );

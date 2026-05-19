@@ -20,6 +20,8 @@ Treat the app as a UI/UX prototype until the core task/project/note model is cen
 
 Work incrementally. Each session should start with a short TODO list, then solve and validate one item at a time before moving to the next.
 
+Use the fast lane by default: keep investigation narrow, make the smallest useful slice, and run only the checks that prove that slice. Full lint/build/test runs and broad browser sweeps are reserved for shared infrastructure, routing, persistence, cross-page state, or explicit user requests.
+
 Current priority:
 
 1. UI/UX frontend refinement.

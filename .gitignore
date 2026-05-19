@@ -55,3 +55,6 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Reference repositories cloned for local comparison
+/external/pm-repos/

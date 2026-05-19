@@ -1,29 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Search, ArrowRight, Plus, Inbox, Home, ListTodo, FolderKanban, Calendar, FileText, Users, Settings } from "lucide-react";
+import { Search, ArrowRight, Inbox, Home, ListTodo, FolderKanban, Calendar, FileText, Users, Settings, LayoutGrid, BarChart3, Activity, Network } from "lucide-react";
+import { useStore } from "@/lib/store";
 
-const commands = [
-  { label: "Go to Home", to: "/", icon: Home, group: "Navigate" },
-  { label: "Go to Inbox", to: "/inbox", icon: Inbox, group: "Navigate" },
-  { label: "Go to My Tasks", to: "/my-tasks", icon: ListTodo, group: "Navigate" },
-  { label: "Go to Projects", to: "/projects", icon: FolderKanban, group: "Navigate" },
-  { label: "Go to Calendar", to: "/calendar", icon: Calendar, group: "Navigate" },
-  { label: "Go to Notes", to: "/notes", icon: FileText, group: "Navigate" },
-  { label: "Go to Team", to: "/team", icon: Users, group: "Navigate" },
-  { label: "Go to Settings", to: "/settings", icon: Settings, group: "Navigate" },
-  { label: "Open work items", to: "/my-tasks", icon: Plus, group: "Open" },
-  { label: "Open notes capture", to: "/notes", icon: Plus, group: "Open" },
-];
+type Command = { label: string; to: string; icon: ComponentType<{ className?: string }>; group: string; search: string };
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [i, setI] = useState(0);
+  const projects = useStore((s) => s.projects);
+  const workItems = useStore((s) => s.workItems);
+  const notes = useStore((s) => s.notes);
 
-  const filtered = commands.filter((command) => command.label.toLowerCase().includes(q.toLowerCase()));
+  const commands = useMemo<Command[]>(() => ([
+    { label: "Go to Home", to: "/", icon: Home, group: "Navigate", search: "home" },
+    { label: "Go to Inbox", to: "/inbox", icon: Inbox, group: "Navigate", search: "inbox" },
+    { label: "Go to My Tasks", to: "/my-tasks", icon: ListTodo, group: "Navigate", search: "my tasks" },
+    { label: "Go to Tasks", to: "/work-items", icon: ListTodo, group: "Navigate", search: "tasks work items" },
+    { label: "Go to Board", to: "/board", icon: LayoutGrid, group: "Navigate", search: "board kanban" },
+    { label: "Go to Projects", to: "/projects", icon: FolderKanban, group: "Navigate", search: "projects" },
+    { label: "Go to Calendar", to: "/calendar", icon: Calendar, group: "Navigate", search: "calendar" },
+    { label: "Go to Timeline", to: "/timeline", icon: BarChart3, group: "Navigate", search: "timeline" },
+    { label: "Go to Notes", to: "/notes", icon: FileText, group: "Navigate", search: "notes" },
+    { label: "Go to Activity", to: "/activity", icon: Activity, group: "Navigate", search: "activity" },
+    { label: "Go to Connections", to: "/connections", icon: Network, group: "Navigate", search: "connections" },
+    { label: "Go to Reports", to: "/report", icon: BarChart3, group: "Navigate", search: "reports report" },
+    { label: "Go to Team", to: "/team", icon: Users, group: "Navigate", search: "team" },
+    { label: "Go to Settings", to: "/settings", icon: Settings, group: "Navigate", search: "settings" },
+    ...projects.map((project) => ({ label: project.name, to: `/projects?project=${project.id}`, icon: FolderKanban, group: "Projects", search: `${project.name} ${project.id}` })),
+    ...workItems.map((item) => ({ label: `${item.id} ${item.title}`, to: `/work-items?task=${item.id}`, icon: ListTodo, group: "Tasks", search: `${item.id} ${item.title} ${item.label} ${item.status}` })),
+    ...notes.map((note) => ({ label: note.title, to: `/notes?id=${note.id}`, icon: FileText, group: "Notes", search: `${note.title} ${note.tag} ${note.excerpt}` })),
+  ]), [notes, projects, workItems]);
+
+  const filtered = commands.filter((command) => command.search.toLowerCase().includes(q.toLowerCase()));
 
   useEffect(() => { setI(0); }, [q, open]);
 
@@ -98,9 +111,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     const active = index === i;
                     const Icon = command.icon;
                     return (
-                      <button
-                        key={command.label}
-                        onClick={() => { router.push(command.to); onClose(); }}
+                    <button
+                      key={command.label}
+                      onClick={() => { router.push(command.to); onClose(); }}
                         className={`lov-menu-item gap-2.5 px-3 py-1.5 text-[13px] ${active ? "lov-menu-item-active" : ""}`}
                       >
                         <Icon className="h-3.5 w-3.5 text-muted-foreground" />

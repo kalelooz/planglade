@@ -1,21 +1,35 @@
 "use client";
+import type { CSSProperties } from "react";
 import { ArrowUp, ArrowRight, ArrowDown, Circle, CircleDashed, CircleDot, CircleCheck, Eye, Octagon, Triangle } from "lucide-react";
+import BoringAvatar from "boring-avatars";
 import type { Priority, Status } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
 import type { PriorityStyle } from "@/lib/store";
 
 const ARROW_ICON = { High: ArrowUp, Medium: ArrowRight, Low: ArrowDown } as const;
 
-const COLOR_TEXT: Record<Priority, string> = {
-  High: "text-[var(--color-priority-high)]",
-  Medium: "text-[var(--color-priority-med)]",
-  Low: "text-[var(--color-priority-low)]",
+const PRIORITY_COLOR: Record<Priority, string> = {
+  High: "var(--color-priority-high)",
+  Medium: "var(--color-priority-med)",
+  Low: "var(--color-priority-low)",
 };
 
-const LABEL_CLASS: Record<Priority, string> = {
-  High: "border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
-  Medium: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
-  Low: "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-400",
+const LABEL_STYLE: Record<Priority, CSSProperties> = {
+  High: {
+    color: "var(--color-priority-high)",
+    borderColor: "color-mix(in oklch, var(--color-priority-high) 58%, transparent)",
+    background: "color-mix(in oklch, var(--color-priority-high) 13%, transparent)",
+  },
+  Medium: {
+    color: "var(--color-priority-med)",
+    borderColor: "color-mix(in oklch, var(--color-priority-med) 62%, transparent)",
+    background: "color-mix(in oklch, var(--color-priority-med) 18%, transparent)",
+  },
+  Low: {
+    color: "var(--color-priority-low)",
+    borderColor: "color-mix(in oklch, var(--color-priority-low) 48%, transparent)",
+    background: "color-mix(in oklch, var(--color-priority-low) 14%, transparent)",
+  },
 };
 
 const LABEL_TEXT: Record<Priority, string> = { High: "P1", Medium: "P2", Low: "P3" };
@@ -28,7 +42,8 @@ export function PriorityIcon({ p, className = "", style }: { p: Priority; classN
     return (
       <span
         title={`${p} priority`}
-        className={`inline-flex h-[18px] min-w-[22px] items-center justify-center rounded border px-1 font-mono text-[10px] font-semibold ${LABEL_CLASS[p]} ${className}`}
+        style={LABEL_STYLE[p]}
+        className={`inline-flex h-[18px] min-w-[24px] items-center justify-center rounded border px-1 font-mono text-[10px] font-bold ${className}`}
       >
         {LABEL_TEXT[p]}
       </span>
@@ -37,17 +52,17 @@ export function PriorityIcon({ p, className = "", style }: { p: Priority; classN
 
   if (effective === "shapes") {
     if (p === "High") {
-      return <Octagon className={`h-3.5 w-3.5 fill-red-500 stroke-red-700 ${className}`} strokeWidth={1.5} aria-label="High priority" />;
+      return <Octagon style={{ color: PRIORITY_COLOR.High, fill: "color-mix(in oklch, var(--color-priority-high) 82%, transparent)" }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={1.7} aria-label="High priority" />;
     }
     if (p === "Medium") {
-      return <Triangle className={`h-3.5 w-3.5 fill-amber-400 stroke-amber-700 ${className}`} strokeWidth={1.5} aria-label="Medium priority" />;
+      return <Triangle style={{ color: PRIORITY_COLOR.Medium, fill: "color-mix(in oklch, var(--color-priority-med) 78%, transparent)" }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={1.7} aria-label="Medium priority" />;
     }
-    return <Circle className={`h-3.5 w-3.5 fill-emerald-500 stroke-emerald-700 ${className}`} strokeWidth={1.5} aria-label="Low priority" />;
+    return <Circle style={{ color: PRIORITY_COLOR.Low, fill: "color-mix(in oklch, var(--color-priority-low) 72%, transparent)" }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={1.7} aria-label="Low priority" />;
   }
 
   // arrows (default)
   const Icon = ARROW_ICON[p];
-  return <Icon className={`h-3.5 w-3.5 ${COLOR_TEXT[p]} ${className}`} strokeWidth={2.25} aria-label={`${p} priority`} />;
+  return <Icon style={{ color: PRIORITY_COLOR[p] }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={2.8} aria-label={`${p} priority`} />;
 }
 
 export function StatusIcon({ s, className = "" }: { s: Status; className?: string }) {
@@ -60,12 +75,25 @@ export function StatusIcon({ s, className = "" }: { s: Status; className?: strin
 }
 
 export function Avatar({ id, name, size = 20 }: { id: string; name?: string; size?: number }) {
-  const color = `oklch(0.62 0.08 ${(id.charCodeAt(0) * 7) % 360})`;
+  // Look up the member to check if they've set a Boring Avatar.
+  const member = useStore((s) => s.members.find((m) => m.id === id));
+  if (member?.avatar) {
+    const seed = member.avatar.seed ?? member.name;
+    return (
+      <span title={name ?? member.name} className="inline-flex shrink-0 overflow-hidden rounded-full" style={{ width: size, height: size }}>
+        <BoringAvatar size={size} name={seed} variant={member.avatar.variant} colors={member.avatar.colors} />
+      </span>
+    );
+  }
+  // Fallback: toned-down initials chip.
+  const hue = (id.charCodeAt(0) * 53) % 360;
+  const bg = `oklch(0.94 0.03 ${hue})`;
+  const fg = `oklch(0.38 0.06 ${hue})`;
   return (
     <span
       title={name}
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-medium text-[10px] text-white"
-      style={{ width: size, height: size, background: color }}
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-medium text-[10px]"
+      style={{ width: size, height: size, background: bg, color: fg }}
     >
       {id}
     </span>

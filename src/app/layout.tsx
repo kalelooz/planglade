@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/flowboard/theme-provider";
+import { AppSettingsBridge } from "@/components/lovable/app-settings-bridge";
 
 export const metadata: Metadata = {
   title: "FlowBoard",
@@ -12,6 +13,11 @@ export const metadata: Metadata = {
       { url: "/logo.svg", type: "image/svg+xml" },
     ],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -36,6 +42,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AppSettingsBridge />
           {children}
           <Toaster />
         </ThemeProvider>

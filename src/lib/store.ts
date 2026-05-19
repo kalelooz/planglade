@@ -17,7 +17,7 @@ import {
   type ChecklistItem,
 } from "./mock-data";
 
-export type InboxItem = { id: string; title: string; captured: string };
+export type InboxItem = { id: string; title: string; captured: string; project?: string; due?: string; priority?: Priority };
 export type Note = { id: string; title: string; tag: string; updated: string; excerpt: string };
 
 export type PriorityStyle = "arrows" | "labels" | "shapes";
@@ -28,6 +28,7 @@ export type Settings = {
   density: "compact" | "comfortable";
   workspaceName: string;
   priorityStyle: PriorityStyle;
+  activeProjectId: string | null;
   notifications: Record<string, boolean>;
 };
 
@@ -50,6 +51,7 @@ type Actions = {
   deleteWorkItem: (id: string) => void;
   setWorkItemStatus: (id: string, status: Status) => void;
   setWorkItemPriority: (id: string, priority: Priority) => void;
+  reorderWorkItem: (id: string, targetStatus: Status, beforeId: string | null) => void;
 
   // checklist (per work item)
   addChecklistItem: (taskId: string, text: string) => void;
@@ -59,12 +61,21 @@ type Actions = {
   // inbox
   addInboxItem: (title: string) => string;
   removeInboxItem: (id: string) => void;
+  updateInboxItem: (id: string, patch: Partial<InboxItem>) => void;
   inboxToWorkItem: (id: string, partial?: Partial<WorkItem>) => string | null;
 
   // notes
   addNote: (partial: Partial<Note> & { title: string }) => string;
   updateNote: (id: string, patch: Partial<Note>) => void;
   removeNote: (id: string) => void;
+
+  // projects
+  addProject: (partial: Partial<Project> & { name: string }) => string;
+  updateProject: (id: string, patch: Partial<Project>) => void;
+  removeProject: (id: string) => void;
+
+  // members
+  updateMember: (id: string, patch: Partial<Member>) => void;
 
   // settings
   updateSettings: (patch: Partial<Settings>) => void;
@@ -78,10 +89,11 @@ type Actions = {
 
 const defaultSettings: Settings = {
   theme: "system",
-  accent: "oklch(0.52 0.09 195)",
+  accent: "oklch(0.24 0.006 286)",
   density: "compact",
   workspaceName: "Acme Inc.",
   priorityStyle: "arrows",
+  activeProjectId: "core",
   notifications: {
     "Assigned to me": true,
     "Mentioned": true,
@@ -90,6 +102,8 @@ const defaultSettings: Settings = {
     "Weekly digest": false,
   },
 };
+
+const legacyDefaultAccent = "oklch(0.52 0.09 195)";
 
 const initialState: State = {
   workItems: [...seedWorkItems],
@@ -228,6 +242,33 @@ export const useStore = create<State & Actions>()(
       setWorkItemPriority: (id, priority) =>
         set((s) => ({ workItems: s.workItems.map((w) => (w.id === id ? { ...w, priority } : w)) })),
 
+      reorderWorkItem: (id, targetStatus, beforeId) => {
+        set((s) => {
+          const moved = s.workItems.find((w) => w.id === id);
+          if (!moved) return s;
+          const without = s.workItems.filter((w) => w.id !== id);
+          const updated: WorkItem = { ...moved, status: targetStatus };
+          let insertAt: number;
+          if (beforeId) {
+            const idx = without.findIndex((w) => w.id === beforeId);
+            insertAt = idx === -1 ? without.length : idx;
+          } else {
+            // Append after the last existing item of targetStatus; if none exist, append to end.
+            let lastIdx = -1;
+            for (let i = without.length - 1; i >= 0; i--) {
+              if (without[i].status === targetStatus) { lastIdx = i; break; }
+            }
+            insertAt = lastIdx === -1 ? without.length : lastIdx + 1;
+          }
+          const next = [...without.slice(0, insertAt), updated, ...without.slice(insertAt)];
+          const statusChanged = moved.status !== targetStatus;
+          const activityNext = statusChanged
+            ? prependActivity(s.activity, { who: moved.assignee, action: "moved", target: `${moved.id} ${moved.title}`, to: targetStatus, time: timeLabel() })
+            : s.activity;
+          return { workItems: next, activity: activityNext };
+        });
+      },
+
       addChecklistItem: (taskId, text) => {
         const trimmed = text.trim();
         if (!trimmed) return;
@@ -274,10 +315,18 @@ export const useStore = create<State & Actions>()(
       removeInboxItem: (id) =>
         set((s) => ({ inboxItems: s.inboxItems.filter((i) => i.id !== id) })),
 
+      updateInboxItem: (id, patch) =>
+        set((s) => ({ inboxItems: s.inboxItems.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+
       inboxToWorkItem: (id, partial) => {
         const item = get().inboxItems.find((i) => i.id === id);
         if (!item) return null;
-        const newId = get().addWorkItem({ title: item.title, ...partial });
+        // Merge any accumulated triage fields from the inbox item with the override partial
+        const accumulated: Partial<WorkItem> = {};
+        if (item.project) accumulated.project = item.project;
+        if (item.due) accumulated.due = item.due;
+        if (item.priority) accumulated.priority = item.priority;
+        const newId = get().addWorkItem({ title: item.title, ...accumulated, ...partial });
         set((s) => ({ inboxItems: s.inboxItems.filter((i) => i.id !== id) }));
         return newId;
       },
@@ -304,6 +353,45 @@ export const useStore = create<State & Actions>()(
 
       removeNote: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
 
+      addProject: (partial) => {
+        const state = get();
+        const palette = ["oklch(0.55 0.15 250)", "oklch(0.62 0.15 30)", "oklch(0.6 0.14 145)", "oklch(0.65 0.16 330)", "oklch(0.52 0.09 195)", "oklch(0.6 0.16 80)"];
+        const slug = partial.id
+          ? partial.id
+          : partial.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || `p-${state.projects.length + 1}`;
+        const usedIds = new Set(state.projects.map((p) => p.id));
+        let uniqueId = slug;
+        let n = 2;
+        while (usedIds.has(uniqueId)) uniqueId = `${slug}-${n++}`;
+        const project: Project = {
+          id: uniqueId,
+          name: partial.name,
+          status: partial.status ?? "Active",
+          due: partial.due ?? "",
+          owner: partial.owner ?? "AM",
+          progress: partial.progress ?? 0,
+          accent: partial.accent ?? palette[state.projects.length % palette.length],
+        };
+        set((s) => ({ projects: [...s.projects, project] }));
+        return uniqueId;
+      },
+
+      updateProject: (id, patch) =>
+        set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+
+      removeProject: (id) =>
+        set((s) => ({
+          projects: s.projects.filter((p) => p.id !== id),
+          workItems: s.workItems.filter((w) => w.project !== id),
+          settings: {
+            ...s.settings,
+            activeProjectId: s.settings.activeProjectId === id ? null : s.settings.activeProjectId,
+          },
+        })),
+
+      updateMember: (id, patch) =>
+        set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
+
       updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
 
       logActivity: (item) => set((s) => ({ activity: prependActivity(s.activity, { ...item, time: item.time ?? timeLabel() }) })),
@@ -313,7 +401,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "fb.store.v1",
       storage: createJSONStorage(() => (typeof window !== "undefined" ? window.localStorage : (undefined as unknown as Storage))),
-      version: 2,
+      version: 4,
       migrate: (persisted: unknown) => {
         const state = (persisted ?? {}) as Partial<State>;
         if (Array.isArray(state.workItems)) {
@@ -324,6 +412,12 @@ export const useStore = create<State & Actions>()(
         }
         if (Array.isArray(state.inboxItems)) {
           state.inboxItems = dedupByIdOnly(state.inboxItems as InboxItem[], "i") as InboxItem[];
+        }
+        if (state.settings?.accent === legacyDefaultAccent) {
+          state.settings = { ...(state.settings as Settings), accent: defaultSettings.accent };
+        }
+        if (state.settings && (!("activeProjectId" in state.settings) || state.settings.activeProjectId === undefined)) {
+          state.settings = { ...(state.settings as Settings), activeProjectId: defaultSettings.activeProjectId };
         }
         return state as State & Actions;
       },
@@ -346,13 +440,11 @@ export const byMemberId = (id: string): Member => {
 };
 
 // Reactive hook for components that must wait for persist to rehydrate.
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 export function useHasHydrated() {
-  const [hydrated, setHydrated] = useState<boolean>(() => useStore.persist.hasHydrated());
-  useEffect(() => {
-    const unsub = useStore.persist.onFinishHydration(() => setHydrated(true));
-    setHydrated(useStore.persist.hasHydrated());
-    return () => unsub();
-  }, []);
-  return hydrated;
+  return useSyncExternalStore(
+    (callback) => useStore.persist.onFinishHydration(callback),
+    () => useStore.persist.hasHydrated(),
+    () => false
+  );
 }

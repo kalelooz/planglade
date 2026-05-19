@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarClock,
   ChevronLeft,
@@ -371,6 +372,8 @@ function InspectorRow({ label, value }: { label: string; value: React.ReactNode 
 }
 
 export default function TimelinePage() {
+  const params = useSearchParams();
+  const routeProjectId = params.get("project");
   const projects = useStore((state) => state.projects);
   const workItems = useStore((state) => state.workItems);
   const members = useStore((state) => state.members);
@@ -394,8 +397,9 @@ export default function TimelinePage() {
   const today = useMemo(() => startOfDay(now), [now]);
   const todayKey = useMemo(() => dateKey(today), [today]);
   const cfg = SCALE[scale];
-  const activeProject = activeProjectId ? projects.find((project) => project.id === activeProjectId) ?? null : null;
-  const useProjectScope = scopeMode === "Current project" && activeProjectId != null;
+  const scopedProjectId = routeProjectId ?? activeProjectId;
+  const activeProject = scopedProjectId ? projects.find((project) => project.id === scopedProjectId) ?? null : null;
+  const useProjectScope = scopeMode === "Current project" && scopedProjectId != null;
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
@@ -442,7 +446,7 @@ export default function TimelinePage() {
   const timelineItems = useMemo<TimelineItem[]>(() => {
     const queryText = query.trim().toLowerCase();
     return workItems
-      .filter((item) => !useProjectScope || item.project === activeProjectId)
+      .filter((item) => !useProjectScope || item.project === scopedProjectId)
       .filter((item) => {
         if (!queryText) return true;
         const project = projectById.get(item.project);
@@ -468,13 +472,13 @@ export default function TimelinePage() {
           isOverdue: item.status !== "Done" && !!parseDueDateTime(item) && dateKey(parseDueDateTime(item)!) < todayKey,
         };
       })
-      .filter((entry) => entry.window && entry.window.start < rangeEnd && entry.window.end > rangeStart)
+      .filter((entry) => !entry.window || (entry.window.start < rangeEnd && entry.window.end > rangeStart))
       .sort((a, b) => {
         const aDate = a.window?.endKey ?? "9999-12-31";
         const bDate = b.window?.endKey ?? "9999-12-31";
         return aDate.localeCompare(bDate) || a.item.priority.localeCompare(b.item.priority);
       });
-  }, [activeProjectId, filter, memberById, projectById, query, rangeEnd, rangeStart, todayKey, useProjectScope, workItems]);
+  }, [filter, memberById, projectById, query, rangeEnd, rangeStart, scopedProjectId, todayKey, useProjectScope, workItems]);
 
   const groups = useMemo<TimelineGroup[]>(() => {
     const map = new Map<string, TimelineGroup>();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar,
   CheckSquare,
@@ -286,13 +287,17 @@ function InspectorRow({ icon: Icon, label, value }: { icon: typeof CircleDot; la
 }
 
 export default function GraphPage() {
+  const params = useSearchParams();
+  const routeProjectId = params.get("project");
   const projects = useStore((s) => s.projects);
   const notes = useStore((s) => s.notes);
   const members = useStore((s) => s.members);
   const workItems = useStore((s) => s.workItems);
   const activeProjectId = useStore((s) => s.settings.activeProjectId);
+  const updateSettings = useStore((s) => s.updateSettings);
 
-  const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
+  const scopedProjectId = routeProjectId ?? activeProjectId;
+  const activeProject = scopedProjectId ? projects.find((p) => p.id === scopedProjectId) ?? null : null;
 
   const [filters, setFilters] = useState<Record<FilterKey, boolean>>({
     projects: true,
@@ -312,9 +317,15 @@ export default function GraphPage() {
   const [viewport, setViewport] = useState({ w: CANVAS_W, h: CANVAS_H });
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
-  const useProjectScope = scopeMode === "project" && activeProjectId != null;
-  const scopedProjects = useProjectScope ? projects.filter((p) => p.id === activeProjectId) : projects;
-  const scopedWorkItems = useProjectScope ? workItems.filter((w) => w.project === activeProjectId) : workItems;
+  useEffect(() => {
+    if (routeProjectId && routeProjectId !== activeProjectId) {
+      updateSettings({ activeProjectId: routeProjectId });
+    }
+  }, [activeProjectId, routeProjectId, updateSettings]);
+
+  const useProjectScope = scopeMode === "project" && scopedProjectId != null;
+  const scopedProjects = useProjectScope ? projects.filter((p) => p.id === scopedProjectId) : projects;
+  const scopedWorkItems = useProjectScope ? workItems.filter((w) => w.project === scopedProjectId) : workItems;
 
   const { nodes, edges, canvasWidth, canvasHeight } = useMemo(() => {
     const nextNodes: GraphNode[] = [];

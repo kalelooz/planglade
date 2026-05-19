@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Activity, Clock3, FileText, Inbox, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { useStore } from "@/lib/store";
-import { byInitials, type WorkItem } from "@/lib/mock-data";
+import { type WorkItem } from "@/lib/mock-data";
+import { compareLocalDateStrings, formatDueLabel, getDatePart } from "@/lib/dates";
 import { Avatar, PriorityIcon } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
 
@@ -19,59 +20,46 @@ function localDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function compareDateKey(a: string, b: string) {
-  return a.localeCompare(b);
+function daysLate(dateKey: string, today: Date) {
+  return Math.max(1, Math.floor((today.getTime() - new Date(`${getDatePart(dateKey)}T00:00:00`).getTime()) / 86400000));
 }
 
-function formatDueLabel(dateKey: string) {
-  const date = new Date(`${dateKey}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return dateKey;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function Section({
-  title,
-  count,
-  action,
-  children,
-}: {
-  title: string;
-  count?: number;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mb-8">
-      <div className="mb-2 flex items-baseline gap-2 px-1">
-        <h2 className="text-[13px] font-semibold">{title}</h2>
-        {count != null && <span className="text-[11px] text-muted-foreground">{count}</span>}
-        {action ? <div className="ml-auto">{action}</div> : null}
-      </div>
-      <div className="border-t">{children}</div>
-    </section>
-  );
-}
+const priorityRank = { High: 0, Medium: 1, Low: 2 };
 
 function TaskRow({
   item,
   meta,
+  selected,
   onOpen,
   onComplete,
+  members,
 }: {
   item: WorkItem;
-  meta: React.ReactNode;
+  meta: ReactNode;
+  selected: boolean;
   onOpen: () => void;
   onComplete: () => void;
+  members: { id: string; name: string }[];
 }) {
-  const member = byInitials(item.assignee);
+  const member = members.find((m) => m.id === item.assignee) ?? members[0];
+  const completed = item.status === "Done";
 
   return (
-    <div className="group flex items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60">
+    <div
+      className={`group flex items-center gap-3 border-b border-border/60 px-2 py-[var(--fb-row-py)] text-[13px] transition-colors ${
+        selected
+          ? "bg-primary/8 shadow-[inset_2px_0_0_var(--color-primary)]"
+          : completed
+            ? "bg-muted/35 text-muted-foreground"
+            : "hover:bg-[var(--color-hover)]/60"
+      }`}
+    >
       <input
         type="checkbox"
-        checked={item.status === "Done"}
+        checked={completed}
         onChange={onComplete}
         onClick={(event) => event.stopPropagation()}
+        disabled={completed}
         className="h-3.5 w-3.5 accent-[var(--color-primary)]"
         aria-label={`Complete ${item.title}`}
       />
@@ -80,60 +68,149 @@ function TaskRow({
         type="button"
         onClick={onOpen}
         title={item.title}
-        className="min-w-0 flex-1 truncate text-left font-medium hover:underline focus:outline-none focus-visible:underline"
+        className={`min-w-0 flex-1 truncate text-left font-medium focus:outline-none focus-visible:underline ${
+          completed ? "line-through decoration-muted-foreground/60" : "hover:underline"
+        }`}
       >
         {item.title}
       </button>
       <Chip>{item.label}</Chip>
-      <Avatar id={member.id} name={member.name} />
+      <span className="inline-flex max-w-36 shrink-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+        <Avatar id={member.id} name={member.name} />
+        <span className="truncate">{member.name}</span>
+      </span>
       <span className="shrink-0 whitespace-nowrap text-right text-[12px] text-muted-foreground">{meta}</span>
     </div>
   );
 }
 
-function InboxRow({ title, captured }: { title: string; captured: string }) {
+function TaskSection({
+  title,
+  count,
+  children,
+  empty,
+}: {
+  title: string;
+  count: number;
+  children: ReactNode;
+  empty: string;
+}) {
   return (
-    <div className="flex items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60">
-      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-      <span className="min-w-0 flex-1 truncate text-muted-foreground">{title}</span>
-      <span className="shrink-0 text-[12px] text-muted-foreground">{captured}</span>
-    </div>
+    <section>
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground">{title}</h2>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{count}</span>
+      </div>
+      <div className="border-t border-border/70">
+        {count === 0 ? (
+          <div className="px-2 py-7 text-center text-[12px] text-muted-foreground">{empty}</div>
+        ) : (
+          children
+        )}
+      </div>
+    </section>
   );
 }
 
-const TODAY_REF = new Date();
+function PulseSection({ title, icon, href, children }: { title: string; icon: ReactNode; href: string; children: ReactNode }) {
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-tight text-muted-foreground">{icon}{title}</h2>
+        <Link href={href} className="text-[12px] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground">Open</Link>
+      </div>
+      <div className="border-t border-border/70">{children}</div>
+    </section>
+  );
+}
 
 export default function HomePage() {
   const workItems = useStore((state) => state.workItems);
   const inboxItems = useStore((state) => state.inboxItems);
   const notes = useStore((state) => state.notes);
+  const activity = useStore((state) => state.activity);
+  const activeProjectId = useStore((state) => state.settings.activeProjectId);
+  const members = useStore((state) => state.members);
   const setStatus = useStore((state) => state.setWorkItemStatus);
   const addInboxItem = useStore((state) => state.addInboxItem);
 
   const [capture, setCapture] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<string[]>([]);
+  const [now, setNow] = useState(() => new Date());
   const selectedTask = workItems.find((item) => item.id === selectedTaskId) ?? null;
+  const captureRef = useRef<HTMLInputElement>(null);
+  const todayKey = localDateKey(now);
 
-  const todayKey = localDateKey(TODAY_REF);
-  const openItems = workItems.filter((item) => item.status !== "Done");
-  const today = openItems.filter((item) => item.due === todayKey).slice(0, 5);
-  const overdue = openItems
-    .filter((item) => item.due && compareDateKey(item.due, todayKey) < 0)
-    .sort((a, b) => compareDateKey(a.due, b.due))
-    .slice(0, 5);
-  const active = openItems
-    .filter((item) => (item.status === "In Progress" || item.status === "In Review") && item.due !== todayKey)
-    .slice(0, 5);
+  useEffect(() => {
+    const handler = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "/") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      event.preventDefault();
+      captureRef.current?.focus();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const buckets = useMemo(() => {
+    const today: WorkItem[] = [];
+    const upcoming: WorkItem[] = [];
+    const overdue: WorkItem[] = [];
+    const completed: WorkItem[] = [];
+
+    for (const item of workItems) {
+      if (activeProjectId && item.project !== activeProjectId) continue;
+      if (item.status === "Done") {
+        if (recentlyCompletedIds.includes(item.id)) today.push(item);
+        completed.push(item);
+        continue;
+      }
+
+      const due = getDatePart(item.due);
+      const cmp = due ? compareLocalDateStrings(due, todayKey) : 0;
+      if (due && cmp < 0) overdue.push(item);
+      else if (!due || cmp === 0) today.push(item);
+      else upcoming.push(item);
+    }
+
+    overdue.sort((a, b) => compareLocalDateStrings(a.due, b.due) || priorityRank[a.priority] - priorityRank[b.priority]);
+    today.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority] || compareLocalDateStrings(a.due || todayKey, b.due || todayKey));
+    upcoming.sort((a, b) => compareLocalDateStrings(a.due, b.due));
+
+    return { today, overdue, upcoming, completed };
+  }, [workItems, activeProjectId, todayKey, recentlyCompletedIds]);
+
+  const recentNotes = notes.slice(0, 5);
+  const recentActivity = activity
+    .flatMap((day) => day.items.map((item) => ({ ...item, date: day.date })))
+    .slice(0, 6);
 
   const completeWithUndo = (id: string) => {
     const previous = workItems.find((item) => item.id === id);
     if (!previous || previous.status === "Done") return;
 
+    setRecentlyCompletedIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setStatus(id, "Done");
+    window.setTimeout(() => {
+      setRecentlyCompletedIds((ids) => ids.filter((completedId) => completedId !== id));
+    }, 1800);
     toast.success(`Marked ${id} done`, {
       description: previous.title,
       duration: 6000,
-      action: { label: "Undo", onClick: () => setStatus(id, previous.status) },
+      action: {
+        label: "Undo",
+        onClick: () => {
+          setRecentlyCompletedIds((ids) => ids.filter((completedId) => completedId !== id));
+          setStatus(id, previous.status);
+        },
+      },
     });
   };
 
@@ -146,25 +223,45 @@ export default function HomePage() {
     }
   };
 
+  const renderTask = (item: WorkItem, meta: ReactNode) => (
+    <TaskRow
+      key={item.id}
+      item={item}
+      meta={meta}
+      selected={selectedTaskId === item.id}
+      onOpen={() => setSelectedTaskId(item.id)}
+      onComplete={() => completeWithUndo(item.id)}
+      members={members}
+    />
+  );
+
   return (
-    <AppShell title={<span className="font-medium">Home</span>}>
+    <AppShell title={<span className="font-medium">Today</span>}>
       <div className="flex h-full">
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="mx-auto grid max-w-6xl gap-8 px-5 py-7 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)] lg:px-8">
-            <div className="min-w-0">
-              <div className="mb-1 flex items-baseline justify-between gap-3">
-                <h1 className="text-[20px] font-semibold tracking-tight">Good afternoon, Alex</h1>
-                <span className="shrink-0 text-[12px] text-muted-foreground">
-                  {TODAY_REF.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                </span>
+          <div className="grid w-full max-w-none gap-8 px-4 py-6 lg:px-6 xl:grid-cols-[260px_minmax(0,760px)]">
+            <div className="min-w-0 xl:order-2">
+            <div className="space-y-4">
+              <div className="min-w-0">
+                <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h1 className="text-[20px] font-semibold tracking-tight">Good afternoon, Alex</h1>
+                  <span className="text-[12px] text-muted-foreground">
+                    {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                  </span>
+                </div>
+                <p className="text-[13px] text-muted-foreground">
+                  {buckets.today.length} today,{" "}
+                  <span className={buckets.overdue.length > 0 ? "font-medium text-red-600" : ""}>
+                    {buckets.overdue.length} overdue
+                  </span>
+                  , {inboxItems.length} in triage.
+                </p>
               </div>
-              <p className="mb-5 text-[13px] text-muted-foreground">
-                {today.length} due today - {overdue.length} overdue - {inboxItems.length} to triage
-              </p>
 
-              <div className="mb-2 flex items-center gap-2 rounded-md border bg-card px-3 py-2 shadow-xs focus-within:border-ring focus-within:shadow-sm">
+              <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 shadow-xs focus-within:border-ring focus-within:shadow-sm">
                 <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                 <input
+                  ref={captureRef}
                   value={capture}
                   onChange={(event) => setCapture(event.target.value)}
                   onKeyDown={onCaptureKey}
@@ -172,100 +269,87 @@ export default function HomePage() {
                   aria-label="Quick capture"
                   className="h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
                 />
-                <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">Enter</kbd>
+                <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">/</kbd>
               </div>
-              <p className="mb-8 px-1 text-[11px] text-muted-foreground">
-                Captures land in your{" "}
-                <Link href="/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground">
-                  Inbox
-                </Link>{" "}
-                so you can assign a project, due date, or priority later.
-              </p>
 
-              <Section title="Today" count={today.length}>
-                {today.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">
-                    Nothing due today. Capture new work above or clear overdue items first.
-                  </div>
+              <div className="flex flex-wrap items-center gap-2 bg-muted/20 px-2 py-2 text-[12px] text-muted-foreground">
+                <Link
+                  href="/inbox"
+                  className="lov-btn lov-btn-ghost h-7 px-1.5 font-medium text-foreground"
+                >
+                  <Inbox className="h-3.5 w-3.5" />
+                  <span>{inboxItems.length} in triage</span>
+                </Link>
+                <span className="hidden sm:inline">Capture first, triage when you are ready.</span>
+              </div>
+            </div>
+
+            <main className="min-w-0 space-y-8">
+                <TaskSection
+                  title="Overdue"
+                  count={buckets.overdue.length}
+                  empty="No overdue work."
+                >
+                  {buckets.overdue.map((item) => renderTask(item, <span className="text-red-600">{daysLate(getDatePart(item.due), now)}d late</span>))}
+                </TaskSection>
+
+                <TaskSection
+                  title="Today"
+                  count={buckets.today.length}
+                  empty="Nothing due today. Capture new work above or clear Inbox."
+                >
+                  {buckets.today.map((item) => renderTask(item, item.status === "Done" ? "Completed" : item.due ? item.status : "No date"))}
+                </TaskSection>
+
+                <TaskSection
+                  title="Next up"
+                  count={Math.min(buckets.upcoming.length, 5)}
+                  empty="No upcoming tasks scheduled."
+                >
+                  {buckets.upcoming.slice(0, 5).map((item) => renderTask(item, formatDueLabel(item.due)))}
+                </TaskSection>
+            </main>
+            </div>
+
+            <aside className="min-w-0 space-y-7 text-[12px] opacity-85 xl:order-1 xl:border-r xl:border-border/60 xl:pr-6">
+              <PulseSection title="Recent notes" icon={<FileText className="h-3.5 w-3.5" />} href="/notes">
+                {recentNotes.length === 0 ? (
+                  <div className="px-1 py-5 text-[12px] text-muted-foreground">No notes yet.</div>
                 ) : (
-                  today.map((item) => (
-                    <TaskRow
-                      key={item.id}
-                      item={item}
-                      meta={item.status}
-                      onOpen={() => setSelectedTaskId(item.id)}
-                      onComplete={() => completeWithUndo(item.id)}
-                    />
+                  recentNotes.map((note) => (
+                    <Link key={note.id} href={`/notes?id=${note.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 py-[var(--fb-row-py)] text-[12px] last:border-b-0 hover:text-foreground">
+                      <span className="min-w-0 truncate font-medium">{note.title}</span>
+                      <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span>{note.tag}</span>
+                        <span>{note.updated}</span>
+                      </span>
+                    </Link>
                   ))
                 )}
-              </Section>
+              </PulseSection>
 
-              <Section title="Overdue" count={overdue.length}>
-                {overdue.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">No overdue work.</div>
+              <PulseSection title="Recently changed" icon={<Activity className="h-3.5 w-3.5" />} href="/activity">
+                {recentActivity.length === 0 ? (
+                  <div className="px-1 py-5 text-[12px] text-muted-foreground">No recent changes.</div>
                 ) : (
-                  overdue.map((item) => {
-                    const daysLate = Math.max(1, Math.floor((+TODAY_REF - +new Date(`${item.due}T00:00:00`)) / 86400000));
+                  recentActivity.map((item, index) => {
+                    const member = members.find((m) => m.id === item.who) ?? members[0];
                     return (
-                      <TaskRow
-                        key={item.id}
-                        item={item}
-                        meta={<span className="text-red-600">{daysLate}d</span>}
-                        onOpen={() => setSelectedTaskId(item.id)}
-                        onComplete={() => completeWithUndo(item.id)}
-                      />
+                      <Link key={`${item.date}-${index}`} href="/activity" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 py-[var(--fb-row-py)] text-[12px] last:border-b-0 hover:text-foreground">
+                        <span className="min-w-0 truncate">
+                          <span className="font-medium">{member?.name ?? item.who}</span>{" "}
+                          <span className="text-muted-foreground">{item.action}</span>{" "}
+                          <span>{item.target}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Clock3 className="h-3 w-3" />
+                          {item.time}
+                        </span>
+                      </Link>
                     );
                   })
                 )}
-              </Section>
-
-              <Section title="Active work" count={active.length}>
-                {active.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">No active work outside today.</div>
-                ) : (
-                  active.map((item) => (
-                    <TaskRow
-                      key={item.id}
-                      item={item}
-                      meta={item.due ? formatDueLabel(item.due) : item.status}
-                      onOpen={() => setSelectedTaskId(item.id)}
-                      onComplete={() => completeWithUndo(item.id)}
-                    />
-                  ))
-                )}
-              </Section>
-            </div>
-
-            <aside className="min-w-0 lg:border-l lg:pl-8">
-              <Section
-                title="Inbox to triage"
-                count={inboxItems.length}
-                action={
-                  <Link href="/inbox" className="text-[11px] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground">
-                    Open
-                  </Link>
-                }
-              >
-                {inboxItems.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">Inbox zero.</div>
-                ) : (
-                  inboxItems.slice(0, 6).map((item) => <InboxRow key={item.id} title={item.title} captured={item.captured} />)
-                )}
-              </Section>
-
-              <Section title="Recent notes">
-                {notes.slice(0, 5).map((note) => (
-                  <Link
-                    key={note.id}
-                    href={`/notes?id=${note.id}`}
-                    className="group flex items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60"
-                  >
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{note.title}</span>
-                    <Chip>{note.tag}</Chip>
-                    <span className="shrink-0 whitespace-nowrap text-[12px] text-muted-foreground">{note.updated}</span>
-                  </Link>
-                ))}
-              </Section>
+              </PulseSection>
             </aside>
           </div>
         </div>

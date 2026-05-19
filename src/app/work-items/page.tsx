@@ -1,88 +1,115 @@
 "use client";
-import { useState, useMemo, Suspense } from "react";
-import Link from "next/link";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronRight, ChevronDown, Filter, ArrowUpDown, SlidersHorizontal, Plus, Search, LayoutList, LayoutGrid } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Search } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
 import { Toolbar } from "@/components/lovable/page";
 import { StatusIcon } from "@/components/lovable/icons";
 import { WorkItemRow } from "@/components/lovable/work-item-row";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { useStore } from "@/lib/store";
+import { getDatePart } from "@/lib/dates";
 import type { Status } from "@/lib/mock-data";
 
 const order: Status[] = ["In Progress", "To Do", "In Review", "Backlog", "Done"];
+const sortOptions = ["Due", "Priority", "Created"] as const;
+type SortOption = (typeof sortOptions)[number];
+
+function priorityRank(priority: string) {
+  return priority === "High" ? 0 : priority === "Medium" ? 1 : 2;
+}
 
 function WorkItemsInner() {
   const params = useSearchParams();
   const projectFilter = params.get("project");
+  const taskFilter = params.get("task");
   const workItems = useStore((s) => s.workItems);
   const projects = useStore((s) => s.projects);
+  const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
   const addWorkItem = useStore((s) => s.addWorkItem);
+  const setWorkItemStatus = useStore((s) => s.setWorkItemStatus);
+  const deleteWorkItem = useStore((s) => s.deleteWorkItem);
+  const updateSettings = useStore((s) => s.updateSettings);
 
   const [openCols, setOpenCols] = useState<Record<Status, boolean>>({
     "In Progress": true, "To Do": true, "In Review": true, "Backlog": true, "Done": false,
   });
-  const [selectedId, setSelectedId] = useState<string | null>("FB-65");
+  const [manualSelectedId, setManualSelectedId] = useState<string | null>(null);
   const [focusNew, setFocusNew] = useState(false);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortOption>("Due");
+
+  const scopedProjectId = projectFilter ?? activeProjectSetting;
+  const selectedId = taskFilter ?? manualSelectedId;
+
+  useEffect(() => {
+    if (projectFilter && projectFilter !== activeProjectSetting) {
+      updateSettings({ activeProjectId: projectFilter });
+    }
+  }, [activeProjectSetting, projectFilter, updateSettings]);
 
   const createAndFocus = (status?: Status) => {
     const id = addWorkItem({
       title: "Untitled task",
       status: status ?? "Backlog",
-      project: projectFilter ?? "core",
+      project: scopedProjectId ?? "core",
     });
-    setSelectedId(id);
+    setManualSelectedId(id);
     setFocusNew(true);
-    toast.success("Task created ΓÇö fill in the details", { description: `${id} ┬╖ click to edit` });
+    toast.success("Task created - fill in the details", { description: `${id} - click to edit` });
   };
 
   const filtered = useMemo(() => {
     return workItems.filter((w) => {
-      if (projectFilter && w.project !== projectFilter) return false;
+      if (scopedProjectId && w.project !== scopedProjectId) return false;
       if (query && !w.title.toLowerCase().includes(query.toLowerCase()) && !w.id.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-  }, [workItems, projectFilter, query]);
+  }, [workItems, scopedProjectId, query]);
 
-  const grouped = order.map((s) => ({ status: s, items: filtered.filter((w) => w.status === s) }));
-  const project = projects.find((p) => p.id === projectFilter);
+  const sorted = useMemo(() => {
+    const items = [...filtered];
+    if (sort === "Priority") {
+      items.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || getDatePart(a.due).localeCompare(getDatePart(b.due)));
+    } else if (sort === "Created") {
+      items.sort((a, b) => b.id.localeCompare(a.id));
+    } else {
+      items.sort((a, b) => getDatePart(a.due).localeCompare(getDatePart(b.due)) || priorityRank(a.priority) - priorityRank(b.priority));
+    }
+    return items;
+  }, [filtered, sort]);
+
+  const grouped = order.map((s) => ({ status: s, items: sorted.filter((w) => w.status === s) }));
+  const project = projects.find((p) => p.id === scopedProjectId);
   const selected = selectedId ? workItems.find((w) => w.id === selectedId) ?? null : null;
+
+  const handleDelete = (id: string) => {
+    deleteWorkItem(id);
+    if (selectedId === id) setManualSelectedId(null);
+  };
 
   return (
     <AppShell
       title={
         <div className="flex items-center gap-2 text-[13px]">
-          <span className="text-muted-foreground">Projects</span>
+          <span className="text-muted-foreground">Tasks</span>
           <span className="text-muted-foreground/50">/</span>
-          <span className="font-medium">{project?.name ?? "All work"}</span>
+          <span className="font-medium">{project?.name ?? "All Tasks"}</span>
         </div>
       }
-      tabs={[
-        { label: "Overview", to: "/projects" },
-        { label: "Tasks", to: "/work-items", active: true },
-        { label: "Board", to: "/board" },
-        { label: "Calendar", to: "/calendar" },
-        { label: "Timeline", to: "/timeline" },
-        { label: "Notes", to: "/notes" },
-        { label: "Activity", to: "/activity" },
-      ]}
       toolbar={
         <Toolbar>
-          <div className="flex items-center gap-px rounded border p-0.5">
-            <button aria-current="page" className="flex h-5 items-center gap-1 rounded-sm bg-[var(--color-hover)] px-1.5 text-[12px]"><LayoutList className="h-3 w-3" /> List</button>
-            <Link href="/board" className="flex h-5 items-center gap-1 rounded-sm px-1.5 text-[12px] text-muted-foreground hover:bg-[var(--color-hover)] hover:text-foreground"><LayoutGrid className="h-3 w-3" /> Board</Link>
-          </div>
-          <span className="h-3 w-px bg-border" />
-          <button disabled title="Coming soon" className="flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-muted-foreground/40 cursor-not-allowed"><Filter className="h-3 w-3" /> Filter</button>
-          <button disabled title="Coming soon" className="flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-muted-foreground/40 cursor-not-allowed"><ArrowUpDown className="h-3 w-3" /> Sort</button>
-          <button disabled title="Coming soon" className="flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-muted-foreground/40 cursor-not-allowed"><SlidersHorizontal className="h-3 w-3" /> Display</button>
+          <label className="flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-muted-foreground">
+            <span>Sort</span>
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortOption)} className="h-7 rounded border bg-card px-2 text-[12px] text-foreground outline-none focus:border-ring">
+              {sortOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
           <span className="ml-auto flex items-center gap-2">
             <div className="flex h-7 items-center gap-1.5 rounded border bg-sidebar px-2 text-[12px] text-muted-foreground focus-within:border-ring">
               <Search className="h-3 w-3" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} className="w-32 bg-transparent outline-none placeholder:text-muted-foreground" placeholder="Search itemsΓÇª" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} className="w-32 bg-transparent outline-none placeholder:text-muted-foreground" placeholder="Search tasks..." />
             </div>
             <button
               onClick={() => createAndFocus()}
@@ -117,7 +144,14 @@ function WorkItemsInner() {
                     <EmptyStatus status={status} onAdd={() => createAndFocus(status)} />
                   ) : (
                     items.map((w) => (
-                      <WorkItemRow key={w.id} item={w} selected={selectedId === w.id} onClick={() => setSelectedId(w.id)} />
+                      <WorkItemRow
+                        key={w.id}
+                        item={w}
+                        selected={selectedId === w.id}
+                        onClick={() => setManualSelectedId(w.id)}
+                        onMove={(nextStatus) => setWorkItemStatus(w.id, nextStatus)}
+                        onDelete={() => handleDelete(w.id)}
+                      />
                     ))
                   )}
                 </div>
@@ -131,7 +165,7 @@ function WorkItemsInner() {
           item={selected}
           focusTitle={focusNew}
           onTitleFocused={() => setFocusNew(false)}
-          onClose={() => { setSelectedId(null); setFocusNew(false); }}
+          onClose={() => { setManualSelectedId(null); setFocusNew(false); }}
         />
       </div>
     </AppShell>

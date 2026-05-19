@@ -1,10 +1,11 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { AppShell } from "@/components/lovable/shell";
-import { PriorityIcon, Avatar, StatusIcon } from "@/components/lovable/icons";
-import { Chip } from "@/components/lovable/page";
+import { TaskDrawer } from "@/components/lovable/task-drawer";
+import { WorkItemRow } from "@/components/lovable/work-item-row";
 import { useStore } from "@/lib/store";
-import { byInitials, type WorkItem, type Status, type Priority } from "@/lib/mock-data";
+import { type WorkItem } from "@/lib/mock-data";
+import { isSameLocalDate, parseLocalDate } from "@/lib/dates";
 
 const tabs = ["Today", "Upcoming", "Overdue", "No date", "Completed"] as const;
 type Tab = (typeof tabs)[number];
@@ -12,17 +13,23 @@ type Tab = (typeof tabs)[number];
 type Scope = "mine" | "team" | "all";
 
 const ME = "AM";
-const TODAY = new Date();
 
-function inTab(w: WorkItem, tab: Tab): boolean {
-  const due = new Date(w.due);
-  const sameDay = due.toDateString() === TODAY.toDateString();
+function startOfLocalDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function inTab(w: WorkItem, tab: Tab, today: Date): boolean {
+  const due = parseLocalDate(w.due);
+  const todayStart = startOfLocalDay(today);
+  const sameDay = isSameLocalDate(w.due, todayStart);
   const isDone = w.status === "Done";
   if (tab === "Completed") return isDone;
   if (isDone) return false;
-  if (tab === "Overdue") return due < TODAY && !sameDay;
+  if (tab === "Overdue") return !!due && due < todayStart && !sameDay;
   if (tab === "Today") return sameDay;
-  if (tab === "Upcoming") return due > TODAY && !sameDay;
+  if (tab === "Upcoming") return !!due && due > todayStart && !sameDay;
   if (tab === "No date") return !w.due;
   return true;
 }
@@ -30,9 +37,16 @@ function inTab(w: WorkItem, tab: Tab): boolean {
 export default function MyTasks() {
   const [tab, setTab] = useState<Tab>("Today");
   const [scope, setScope] = useState<Scope>("mine");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const workItems = useStore((s) => s.workItems);
-  const projects = useStore((s) => s.projects);
   const setStatus = useStore((s) => s.setWorkItemStatus);
+  const deleteWorkItem = useStore((s) => s.deleteWorkItem);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const byScope = useMemo(() => {
     if (scope === "mine") return workItems.filter((w) => w.assignee === ME);
@@ -40,7 +54,7 @@ export default function MyTasks() {
     return workItems;
   }, [workItems, scope]);
 
-  const filtered = useMemo(() => byScope.filter((w) => inTab(w, tab)), [byScope, tab]);
+  const filtered = useMemo(() => byScope.filter((w) => inTab(w, tab, now)), [byScope, now, tab]);
 
   const scopeCounts = useMemo(() => ({
     mine: workItems.filter((w) => w.assignee === ME && w.status !== "Done").length,
@@ -49,17 +63,20 @@ export default function MyTasks() {
   }), [workItems]);
 
   const counts: Record<Tab, number> = useMemo(() => ({
-    Today: byScope.filter((w) => inTab(w, "Today")).length,
-    Upcoming: byScope.filter((w) => inTab(w, "Upcoming")).length,
-    Overdue: byScope.filter((w) => inTab(w, "Overdue")).length,
-    "No date": byScope.filter((w) => inTab(w, "No date")).length,
-    Completed: byScope.filter((w) => inTab(w, "Completed")).length,
-  }), [byScope]);
+    Today: byScope.filter((w) => inTab(w, "Today", now)).length,
+    Upcoming: byScope.filter((w) => inTab(w, "Upcoming", now)).length,
+    Overdue: byScope.filter((w) => inTab(w, "Overdue", now)).length,
+    "No date": byScope.filter((w) => inTab(w, "No date", now)).length,
+    Completed: byScope.filter((w) => inTab(w, "Completed", now)).length,
+  }), [byScope, now]);
 
   const openCount = scopeCounts[scope];
+  const selectedTask = selectedTaskId ? workItems.find((item) => item.id === selectedTaskId) ?? null : null;
 
   return (
     <AppShell title={<span className="font-medium">My Tasks</span>}>
+      <div className="flex h-full">
+      <div className="min-w-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
         <div className="mb-1 flex items-baseline justify-between">
           <h1 className="text-[20px] font-semibold tracking-tight">My Tasks</h1>
@@ -102,27 +119,24 @@ export default function MyTasks() {
             <div className="px-3 py-12 text-center text-[13px] text-muted-foreground">Nothing here.</div>
           )}
           {filtered.map((w) => {
-            const m = byInitials(w.assignee);
-            const projectName = projects.find((p) => p.id === w.project)?.name ?? w.project;
             return (
-              <div key={w.id} className="group flex w-full items-center gap-3 border-b px-2 py-2 text-[13px] hover:bg-[var(--color-hover)]/60">
-              <input
-                type="checkbox"
-                checked={w.status === "Done"}
-                onChange={() => setStatus(w.id, w.status === "Done" ? "In Progress" : "Done")}
-                className="h-3.5 w-3.5 accent-[var(--color-primary)]"
+              <WorkItemRow
+                key={w.id}
+                item={w}
+                selected={selectedTaskId === w.id}
+                onClick={() => setSelectedTaskId(w.id)}
+                onMove={(nextStatus) => setStatus(w.id, nextStatus)}
+                onDelete={() => {
+                  deleteWorkItem(w.id);
+                  if (selectedTaskId === w.id) setSelectedTaskId(null);
+                }}
               />
-              <span className="font-mono text-[11px] text-muted-foreground">{w.id}</span>
-              <span className={`flex-1 truncate ${w.status === "Done" ? "line-through text-muted-foreground" : ""}`}>{w.title}</span>
-              <StatusIcon s={w.status} />
-              <PriorityIcon p={w.priority} />
-              <Chip>{projectName}</Chip>
-              <Avatar id={m.id} name={m.name} />
-              <span className="w-16 text-right text-[12px] text-muted-foreground">{new Date(w.due).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-              </div>
             );
           })}
         </div>
+      </div>
+      </div>
+      <TaskDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
       </div>
     </AppShell>
   );

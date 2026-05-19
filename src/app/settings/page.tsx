@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Papa from "papaparse";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -7,11 +7,14 @@ import type { WorkItem, Status, Priority } from "@/lib/mock-data";
 import { AppShell } from "@/components/lovable/shell";
 import { Avatar, PriorityIcon } from "@/components/lovable/icons";
 import { useStore, type PriorityStyle } from "@/lib/store";
+import { AvatarPicker } from "@/components/lovable/avatar-picker";
+import { SaveIndicator } from "@/components/lovable/save-indicator";
 
 const sections = ["General", "Appearance", "Notifications", "Data", "Account"] as const;
 type Section = (typeof sections)[number];
 
 const ACCENTS = [
+  { value: "oklch(0.24 0.006 286)", label: "Slate" },
   { value: "oklch(0.52 0.09 195)", label: "Teal" },
   { value: "oklch(0.55 0.15 250)", label: "Blue" },
   { value: "oklch(0.55 0.13 145)", label: "Green" },
@@ -31,22 +34,96 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+function AppearancePreview({
+  accent,
+  density,
+  priorityStyle,
+}: {
+  accent: string;
+  density: "compact" | "comfortable";
+  priorityStyle: PriorityStyle;
+}) {
+  const relaxed = density === "comfortable";
+  const rowPadding = relaxed ? "py-2.5" : "py-1.5";
+  const rowGap = relaxed ? "gap-3" : "gap-2";
+  const sampleTasks = [
+    { id: "FB-65", title: "Review integration copy", priority: "High" as Priority, status: "In Progress" },
+    { id: "FB-87", title: "Triage mobile feedback", priority: "Medium" as Priority, status: "To Do" },
+    { id: "FB-111", title: "Archive stale checklist", priority: "Low" as Priority, status: "Backlog" },
+  ];
+
+  return (
+    <div className="rounded-md border bg-card">
+      <div className="flex items-center justify-between border-b px-3 py-2">
+        <div>
+          <div className="text-[12px] font-medium">Appearance preview</div>
+          <div className="text-[11px] text-muted-foreground">Accent, density, and priority style update here first.</div>
+        </div>
+        <button
+          type="button"
+          style={{ background: accent }}
+          className="lov-btn lov-btn-primary h-7 text-[11px] shadow-xs"
+        >
+          Primary action
+        </button>
+      </div>
+
+      <div className="grid gap-0 md:grid-cols-[1fr_180px]">
+        <div className="min-w-0 border-b md:border-r md:border-b-0">
+          {sampleTasks.map((task) => (
+            <div key={task.id} className={`flex items-center ${rowGap} border-b px-3 text-[13px] last:border-b-0 ${rowPadding}`}>
+              <input type="checkbox" className="h-3.5 w-3.5 accent-[var(--color-primary)]" aria-label={`Complete ${task.title}`} />
+              <PriorityIcon p={task.priority} style={priorityStyle} />
+              <span className="min-w-0 flex-1 truncate font-medium">{task.title}</span>
+              <span className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">{task.status}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Menu sample</div>
+          <div className="overflow-hidden rounded border">
+            <div className={`px-2 text-[12px] ${rowPadding}`} style={{ background: `color-mix(in oklch, ${accent} 14%, transparent)` }}>
+              Assign to me
+            </div>
+            <div className={`px-2 text-[12px] text-muted-foreground ${rowPadding}`}>Move to today</div>
+            <div className={`px-2 text-[12px] text-muted-foreground ${rowPadding}`}>Copy link</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t px-3 py-2 text-[11px] text-muted-foreground">
+        <span>Priority colors:</span>
+        <PriorityIcon p="High" style="arrows" />
+        <PriorityIcon p="Medium" style="arrows" />
+        <PriorityIcon p="Low" style="arrows" />
+        <PriorityIcon p="High" style="labels" />
+        <PriorityIcon p="Medium" style="labels" />
+        <PriorityIcon p="Low" style="labels" />
+        <PriorityIcon p="High" style="shapes" />
+        <PriorityIcon p="Medium" style="shapes" />
+        <PriorityIcon p="Low" style="shapes" />
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [section, setSection] = useState<Section>("General");
   const settings = useStore((s) => s.settings);
+  const members = useStore((s) => s.members);
   const updateSettings = useStore((s) => s.updateSettings);
+  const updateMember = useStore((s) => s.updateMember);
   const resetData = useStore((s) => s.resetData);
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const fileRef = useRef<HTMLInputElement>(null);
   const csvRef = useRef<HTMLInputElement>(null);
-
-  // Apply accent live to the document
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.style.setProperty("--primary", settings.accent);
-    document.documentElement.style.setProperty("--ring", settings.accent);
-    document.documentElement.style.setProperty("--accent", settings.accent);
-  }, [settings.accent]);
+  const currentMember = members.find((m) => m.id === "AM") ?? members[0] ?? {
+    id: "AM",
+    name: "Alex Morgan",
+    role: "Product Lead",
+    color: "oklch(0.62 0.13 195)",
+  };
 
   const exportJSON = () => {
     const data = useStore.getState();
@@ -124,13 +201,16 @@ export default function SettingsPage() {
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace</div>
           {sections.map((x) => (
             <button key={x} onClick={() => setSection(x)}
-              className={`block w-full rounded px-2 py-1.5 text-left text-[13px] ${section === x ? "bg-[var(--color-hover)] font-medium" : "text-muted-foreground hover:bg-[var(--color-hover)] hover:text-foreground"}`}>{x}</button>
+              className={`lov-menu-item py-1.5 text-[13px] ${section === x ? "lov-menu-item-active" : ""}`}>{x}</button>
           ))}
         </aside>
 
         <div className="mx-auto w-full max-w-2xl px-8 py-8">
-          <h1 className="text-[19px] font-semibold tracking-tight">{section}</h1>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Manage your {section.toLowerCase()} preferences.</p>
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-[19px] font-semibold tracking-tight">{section}</h1>
+            <SaveIndicator />
+          </div>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Manage your {section.toLowerCase()} preferences. Changes save automatically.</p>
 
           {section === "General" && (
             <div className="mt-8 space-y-6">
@@ -141,14 +221,8 @@ export default function SettingsPage() {
                   className="lov-input"
                 />
               </Field>
-              <Field label="Week starts on">
-                <select className="lov-input" defaultValue="Monday">
-                  <option>Monday</option>
-                  <option>Sunday</option>
-                </select>
-              </Field>
               <Field label="Danger zone" hint="Reset all tasks, projects, and notes to seed defaults.">
-                <button onClick={onReset} className="rounded border border-red-200 px-3 py-1.5 text-[12px] font-medium text-red-700 hover:bg-red-50">Reset workspace</button>
+                <button onClick={onReset} className="lov-btn lov-btn-danger">Reset workspace</button>
               </Field>
             </div>
           )}
@@ -161,7 +235,7 @@ export default function SettingsPage() {
                     <button
                       key={t}
                       onClick={() => { setTheme(t); updateSettings({ theme: t }); }}
-                      className={`rounded border px-3 py-1.5 text-[12px] capitalize ${theme === t ? "border-ring bg-[var(--color-hover)]" : ""}`}
+                      className={`lov-btn capitalize ${settings.theme === t ? "lov-btn-active" : ""}`}
                     >
                       {t}
                     </button>
@@ -196,14 +270,14 @@ export default function SettingsPage() {
                   {([
                     { key: "arrows", title: "Arrows", desc: "Up / right / down" },
                     { key: "labels", title: "P1 / P2 / P3", desc: "Jira-style chips" },
-                    { key: "shapes", title: "Shapes", desc: "Stop / caution / go" },
+                    { key: "shapes", title: "Shapes", desc: "Stop / caution / neutral" },
                   ] as { key: PriorityStyle; title: string; desc: string }[]).map((opt) => {
                     const active = settings.priorityStyle === opt.key;
                     return (
                       <button
                         key={opt.key}
                         onClick={() => updateSettings({ priorityStyle: opt.key })}
-                        className={`flex flex-col items-start gap-2 rounded border bg-card p-3 text-left transition ${active ? "border-ring ring-2 ring-ring/30" : "hover:border-foreground/30"}`}
+                        className={`flex flex-col items-start gap-2 rounded border bg-card p-3 text-left transition ${active ? "border-ring bg-[color-mix(in_oklch,var(--color-primary)_11%,var(--color-card))] ring-2 ring-ring/30" : "hover:bg-[var(--color-hover)]"}`}
                       >
                         <div className="flex items-center gap-2">
                           <PriorityIcon p="High" style={opt.key} />
@@ -219,6 +293,9 @@ export default function SettingsPage() {
                   })}
                 </div>
               </Field>
+              <Field label="Live preview" hint="Use this to compare accent, density, and priority choices before leaving settings.">
+                <AppearancePreview accent={settings.accent} density={settings.density} priorityStyle={settings.priorityStyle} />
+              </Field>
             </div>
           )}
 
@@ -230,7 +307,12 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={val}
-                    onChange={(e) => updateSettings({ notifications: { ...settings.notifications, [key]: e.target.checked } })}
+                    onChange={(event) => updateSettings({
+                      notifications: {
+                        ...settings.notifications,
+                        [key]: event.target.checked,
+                      },
+                    })}
                     className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-primary"
                   />
                 </label>
@@ -249,8 +331,8 @@ export default function SettingsPage() {
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) importJSON(f); e.target.value = ""; }}
                 />
                 <div className="flex gap-2">
-                  <button onClick={() => fileRef.current?.click()} className="rounded border px-3 py-1.5 text-[12px]">Import JSON…</button>
-                  <button onClick={exportJSON} className="rounded border px-3 py-1.5 text-[12px]">Export JSON</button>
+                  <button onClick={() => fileRef.current?.click()} className="lov-btn">Import JSON</button>
+                  <button onClick={exportJSON} className="lov-btn">Export JSON</button>
                 </div>
               </Field>
               <Field label="Work items (CSV)" hint="Import or export tasks for spreadsheet workflows.">
@@ -262,12 +344,12 @@ export default function SettingsPage() {
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) importCSV(f); e.target.value = ""; }}
                 />
                 <div className="flex gap-2">
-                  <button onClick={() => csvRef.current?.click()} className="rounded border px-3 py-1.5 text-[12px]">Import CSV…</button>
-                  <button onClick={exportCSV} className="rounded border px-3 py-1.5 text-[12px]">Export CSV</button>
+                  <button onClick={() => csvRef.current?.click()} className="lov-btn">Import CSV</button>
+                  <button onClick={exportCSV} className="lov-btn">Export CSV</button>
                 </div>
               </Field>
               <Field label="Reset" hint="Reload seed data (keeps your settings).">
-                <button onClick={onReset} className="rounded border px-3 py-1.5 text-[12px]">Reset to seed</button>
+                <button onClick={onReset} className="lov-btn lov-btn-danger">Reset to seed</button>
               </Field>
             </div>
           )}
@@ -275,23 +357,26 @@ export default function SettingsPage() {
           {section === "Account" && (
             <div className="mt-8 space-y-6">
               <div className="flex items-center gap-3 border-b pb-5">
-                <Avatar id="AM" name="Alex Morgan" size={40} />
+                <Avatar id={currentMember.id} name={currentMember.name} size={40} />
                 <div>
-                  <div className="text-[14px] font-medium">Alex Morgan</div>
-                  <div className="text-[12px] text-muted-foreground">alex@acme.com · Product Lead</div>
+                  <div className="text-[14px] font-medium">{currentMember.name}</div>
+                  <div className="text-[12px] text-muted-foreground">{currentMember.role}</div>
                 </div>
               </div>
-              <Field label="Display name"><input defaultValue="Alex Morgan" className="lov-input" /></Field>
-              <Field label="Active sessions" hint="Sign out of all other devices.">
-                <button className="rounded border px-3 py-1.5 text-[12px]">End all other sessions</button>
+              <Field label="Avatar" hint="Pick a generated avatar style or revert to initials.">
+                <AvatarPicker memberId={currentMember.id} />
+              </Field>
+              <Field label="Display name">
+                <input
+                  value={currentMember.name}
+                  onChange={(event) => updateMember(currentMember.id, { name: event.target.value })}
+                  className="lov-input"
+                />
               </Field>
             </div>
           )}
         </div>
       </div>
-
-      <style>{`.lov-input { height: 32px; width: 100%; max-width: 360px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-card); padding: 0 8px; font-size: 13px; outline: none; color: var(--color-foreground); }
-      .lov-input:focus { border-color: var(--color-ring); }`}</style>
     </AppShell>
   );
 }

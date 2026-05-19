@@ -32,7 +32,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const workItems = useStore((s) => s.workItems);
   const addInboxItem = useStore((s) => s.addInboxItem);
   const addProject = useStore((s) => s.addProject);
-  const activeProjectId = activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null;
+  const activeProjectId = routeProjectId ?? (activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null);
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
 
   // Solo-first counts: all open items are mine; Today/Overdue compare to local today
@@ -41,7 +41,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })();
   const openWorkItems = workItems.filter((w) => w.status !== "Done" && (!activeProjectId || w.project === activeProjectId));
-  const todayCount = openWorkItems.filter((w) => !w.due || w.due === todayKey).length;
+  const todayCount = openWorkItems.filter((w) => !w.due || (w.due.includes("T") ? w.due.split("T")[0] : w.due) === todayKey).length;
   // My Tasks default scope is "mine" - count only the current user's open tasks
   const myTasksCount = openWorkItems.filter((w) => w.assignee === "AM").length;
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -55,6 +55,16 @@ export function AppShell({ children, title, tabs, toolbar }: {
     const id = addProject({ name: "New Project" });
     updateSettings({ activeProjectId: id });
     router.push(`/projects?project=${id}`);
+  };
+
+  const applyProjectScope = (id: string | null) => {
+    updateSettings({ activeProjectId: id });
+    setProjectScopeOpen(false);
+
+    const scopedRoutes = ["/projects", "/work-items", "/board", "/calendar", "/timeline", "/report", "/team", "/connections", "/activity"];
+    if (scopedRoutes.some((route) => path.startsWith(route))) {
+      router.push(id ? `${path}?project=${id}` : path);
+    }
   };
 
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
@@ -78,27 +88,27 @@ export function AppShell({ children, title, tabs, toolbar }: {
     { to: "/", label: "Today", icon: Home, count: todayCount },
     { to: "/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
     { to: "/my-tasks", label: "My Tasks", icon: CheckSquare, count: myTasksCount },
-    { to: "/work-items", label: "Tasks", icon: ListTodo },
-  ];
-  const navAfterProjects: NavItem[] = [
-    { to: "/board", label: "Board", icon: LayoutGrid },
-    { to: "/notes", label: "Notes", icon: FileText },
-    { to: "/calendar", label: "Calendar", icon: Calendar },
   ];
 
   const navMore = [
-    { to: "/timeline", label: "Timeline", icon: BarChart3 },
+    { to: "/notes", label: "Notes", icon: FileText },
     { to: "/connections", label: "Connections", icon: Network },
     { to: "/activity", label: "Activity", icon: Activity },
     { to: "/team", label: "Team", icon: Users },
-    { to: "/report", label: "Project Report", icon: BarChart3 },
+    { to: "/report", label: "Reports", icon: BarChart3 },
+  ];
+  const projectViewLinks: NavItem[] = [
+    { to: activeProjectId ? `/projects?project=${activeProjectId}` : "/projects", label: "Overview", icon: FolderKanban },
+    { to: activeProjectId ? `/work-items?project=${activeProjectId}` : "/work-items", label: "Tasks", icon: ListTodo },
+    { to: activeProjectId ? `/board?project=${activeProjectId}` : "/board", label: "Board", icon: LayoutGrid },
+    { to: activeProjectId ? `/calendar?project=${activeProjectId}` : "/calendar", label: "Calendar", icon: Calendar },
+    { to: activeProjectId ? `/timeline?project=${activeProjectId}` : "/timeline", label: "Timeline", icon: BarChart3 },
   ];
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
     ...navBeforeProjects,
     { to: "/projects", label: "Projects", icon: FolderKanban },
-    ...navAfterProjects,
   ];
 
   const submitQuick = () => {
@@ -226,7 +236,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
               {projectsOpen && (
                 <div className="mt-0.5 mb-1 space-y-px pl-5">
                   {projects.map((p) => {
-                    const active = path.startsWith("/projects") && (routeProjectId ?? activeProjectId) === p.id;
+                    const active = (routeProjectId ?? activeProjectId) === p.id;
                     return (
                       <Link key={p.id} href={`/projects?project=${p.id}`} onClick={() => updateSettings({ activeProjectId: p.id })}
                         className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
@@ -237,7 +247,12 @@ export function AppShell({ children, title, tabs, toolbar }: {
                   })}
                 </div>
               )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} />
+              <div className="mt-2 border-t border-border/60 pt-2">
+                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Project views
+                </div>
+                <SidebarSection items={projectViewLinks} isActive={isActive} collapsed={false} />
+              </div>
               <SidebarCollapsible
                 label="More"
                 open={moreOpen}
@@ -249,6 +264,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
           ) : (
             <>
               <SidebarSection items={navMain} isActive={isActive} collapsed={true} />
+              <SidebarSection items={projectViewLinks} isActive={isActive} collapsed={true} />
               <SidebarSection items={navMore} isActive={isActive} collapsed={true} />
             </>
           )}
@@ -297,7 +313,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
               {projectScopeOpen && (
                 <div className="absolute left-0 right-0 top-9 z-[80] rounded-md border bg-popover py-1 shadow-lg">
                     <button
-                      onClick={() => { updateSettings({ activeProjectId: null }); setProjectScopeOpen(false); }}
+                      onClick={() => applyProjectScope(null)}
                       className={`lov-menu-item py-1.5 ${!activeProjectId ? "font-medium text-foreground" : ""}`}
                     >
                       <span className="shrink-0 text-[11px] font-medium uppercase text-muted-foreground">Project</span>
@@ -308,7 +324,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
                     {projects.map((project) => (
                       <button
                         key={project.id}
-                        onClick={() => { updateSettings({ activeProjectId: project.id }); setProjectScopeOpen(false); }}
+                        onClick={() => applyProjectScope(project.id)}
                         className={`lov-menu-item py-1.5 ${activeProjectId === project.id ? "font-medium text-foreground" : ""}`}
                       >
                         <span className="shrink-0 text-[11px] font-medium uppercase text-muted-foreground">Project</span>
@@ -406,7 +422,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
               {projectsOpen && (
                 <div className="mt-0.5 mb-1 space-y-px pl-5">
                   {projects.map((p) => {
-                    const active = path.startsWith("/projects") && (routeProjectId ?? activeProjectId) === p.id;
+                    const active = (routeProjectId ?? activeProjectId) === p.id;
                     return (
                       <Link key={p.id} href={`/projects?project=${p.id}`} onClick={() => { updateSettings({ activeProjectId: p.id }); setMobileNavOpen(false); }}
                         className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
@@ -417,7 +433,12 @@ export function AppShell({ children, title, tabs, toolbar }: {
                   })}
                 </div>
               )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <div className="mt-2 border-t border-border/60 pt-2">
+                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Project views
+                </div>
+                <SidebarSection items={projectViewLinks} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              </div>
               <SidebarCollapsible
                 label="More"
                 open={moreOpen}
@@ -473,10 +494,6 @@ function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }:
       </button>
     </div>
   );
-}
-
-function SidebarLabel({ children }: { children: ReactNode }) {
-  return <div className="mt-5 mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</div>;
 }
 
 function SidebarCollapsible({ label, open, onToggle, children }: {

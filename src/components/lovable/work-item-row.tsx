@@ -1,26 +1,63 @@
-import { MoreHorizontal } from "lucide-react";
-import type { WorkItem } from "@/lib/mock-data";
-import { byInitials } from "@/lib/mock-data";
-import { Avatar, PriorityIcon } from "./icons";
+"use client";
+
+import { MoreHorizontal, Trash2, ArrowRight } from "lucide-react";
+import type { WorkItem, Status } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { formatDueLabel } from "@/lib/dates";
+import { Avatar, PriorityIcon, StatusIcon } from "./icons";
 import { Chip } from "./page";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
-function fmt(d: string) {
-  const date = new Date(d);
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+const STATUSES: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 
-export function WorkItemRow({ item, selected, onClick }: { item: WorkItem; selected?: boolean; onClick?: () => void }) {
-  const m = byInitials(item.assignee);
+export function WorkItemRow({
+  item,
+  selected,
+  onClick,
+  onMove,
+  onDelete,
+}: {
+  item: WorkItem;
+  selected?: boolean;
+  onClick?: () => void;
+  onMove?: (status: Status) => void;
+  onDelete?: () => void;
+}) {
+  const members = useStore((s) => s.members);
+  const m = members.find((member) => member.id === item.assignee) ?? members[0];
+  const completed = item.status === "Done";
+
+  const toggleComplete = () => {
+    onMove?.(completed ? "In Progress" : "Done");
+  };
+
   return (
     <div
-      className={`group grid w-full grid-cols-[24px_56px_minmax(0,1fr)_72px_100px_88px_56px_24px] items-center gap-2 border-b px-2 text-[13px] ${selected ? "bg-primary/[0.04]" : "hover:bg-[var(--color-hover)]/40"}`}>
-      <input type="checkbox" className="h-3 w-3 opacity-0 accent-[var(--color-primary)] group-hover:opacity-100" />
+      className={`group grid w-full grid-cols-[20px_48px_minmax(0,1fr)_minmax(54px,0.65fr)_minmax(76px,0.8fr)_minmax(54px,0.55fr)_minmax(48px,0.45fr)_24px] items-center gap-2 border-b px-2 text-[13px] ${selected ? "bg-primary/[0.04]" : "hover:bg-[var(--color-hover)]/40"} ${completed ? "text-muted-foreground" : ""}`}>
+      <input
+        type="checkbox"
+        checked={completed}
+        onChange={toggleComplete}
+        onClick={(event) => event.stopPropagation()}
+        className="h-3.5 w-3.5 accent-[var(--color-primary)]"
+        aria-label={`${completed ? "Reopen" : "Complete"} ${item.title}`}
+      />
       <span className="font-mono text-[11px] text-muted-foreground">{item.id}</span>
       <button
         type="button"
         onClick={onClick}
         title={item.title}
-        className="min-w-0 truncate py-2 text-left font-medium hover:underline focus:outline-none focus-visible:underline"
+        className={`min-w-0 truncate py-2 text-left font-medium hover:underline focus:outline-none focus-visible:underline ${completed ? "line-through decoration-muted-foreground/60" : ""}`}
       >
         {item.title}
       </button>
@@ -33,10 +70,41 @@ export function WorkItemRow({ item, selected, onClick }: { item: WorkItem; selec
         <span className="truncate text-muted-foreground">{m.name}</span>
       </span>
       <span><Chip>{item.label}</Chip></span>
-      <span className="text-[12px] text-muted-foreground">{fmt(item.due)}</span>
-      <button className="rounded p-1 text-muted-foreground opacity-0 hover:bg-[var(--color-hover)] group-hover:opacity-100">
-        <MoreHorizontal className="h-3.5 w-3.5" />
-      </button>
+      <span className="text-[12px] text-muted-foreground">{formatDueLabel(item.due)}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            title="More actions"
+            onClick={(e) => e.stopPropagation()}
+            className="lov-icon-btn opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuLabel className="text-[11px] text-muted-foreground">{item.id}</DropdownMenuLabel>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ArrowRight className="h-3.5 w-3.5" /> Move to
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-40">
+              {STATUSES.filter((s) => s !== item.status).map((s) => (
+                <DropdownMenuItem key={s} onSelect={() => onMove?.(s)}>
+                  <StatusIcon s={s} /> {s}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => onDelete?.()}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete task
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
