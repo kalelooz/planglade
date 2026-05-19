@@ -2,7 +2,7 @@
 
 > AI agents: this is the single source of truth for execution planning. Read this after `AGENTS.md` and before changing code. Do not treat archived audits, rollback patches, worklogs, or completed slice plans as active roadmap items.
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Product Goal
 
@@ -149,10 +149,10 @@ Verify: today's marker matches the actual current date and Timeline agrees with 
 
 Goal: prevent advanced screens from damaging product trust.
 
-- [ ] Hide or demote Connections until relationships are real.
-- [ ] Hide or demote Activity until user actions generate real activity.
-- [ ] Hide Team for the solo-first MVP unless assignment/workload data is real.
-- [ ] Hide Reports until reports derive from the same task/project state.
+- [x] Hide or demote Connections until relationships are real.
+- [x] Hide or demote Activity until user actions generate real activity.
+- [x] Hide Team for the solo-first MVP unless assignment/workload data is real.
+- [x] Hide Reports until reports derive from the same task/project state.
 
 Verify: advanced screens are not part of the primary first-run path and do not contradict shared task/project state.
 

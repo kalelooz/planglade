@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Search, ArrowRight, Inbox, Home, ListTodo, FolderKanban, Calendar, FileText, Users, Settings, LayoutGrid, BarChart3, Activity, Network } from "lucide-react";
+import { Search, ArrowRight, Inbox, Home, ListTodo, FolderKanban, Calendar, FileText, Settings, LayoutGrid, BarChart3 } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 type Command = { label: string; to: string; icon: ComponentType<{ className?: string }>; group: string; search: string };
@@ -26,10 +26,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { label: "Go to Calendar", to: "/calendar", icon: Calendar, group: "Navigate", search: "calendar" },
     { label: "Go to Timeline", to: "/timeline", icon: BarChart3, group: "Navigate", search: "timeline" },
     { label: "Go to Notes", to: "/notes", icon: FileText, group: "Navigate", search: "notes" },
-    { label: "Go to Activity", to: "/activity", icon: Activity, group: "Navigate", search: "activity" },
-    { label: "Go to Connections", to: "/connections", icon: Network, group: "Navigate", search: "connections" },
-    { label: "Go to Reports", to: "/report", icon: BarChart3, group: "Navigate", search: "reports report" },
-    { label: "Go to Team", to: "/team", icon: Users, group: "Navigate", search: "team" },
     { label: "Go to Settings", to: "/settings", icon: Settings, group: "Navigate", search: "settings" },
     ...projects.map((project) => ({ label: project.name, to: `/projects?project=${project.id}`, icon: FolderKanban, group: "Projects", search: `${project.name} ${project.id}` })),
     ...workItems.map((item) => ({ label: `${item.id} ${item.title}`, to: `/work-items?task=${item.id}`, icon: ListTodo, group: "Tasks", search: `${item.id} ${item.title} ${item.label} ${item.status}` })),

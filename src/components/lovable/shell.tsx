@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText, BarChart3, CheckSquare,
-  Network, Activity, Users, Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo,
+  Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -92,13 +92,9 @@ export function AppShell({ children, title, tabs, toolbar }: {
   ];
 
   const navMore = [
-    { to: "/connections", label: "Connections", icon: Network },
-    { to: "/activity", label: "Activity", icon: Activity },
-    { to: "/team", label: "Team", icon: Users },
     { to: "/work-items", label: "Tasks", icon: ListTodo },
     { to: "/board", label: "Board", icon: LayoutGrid },
     { to: "/timeline", label: "Timeline", icon: BarChart3 },
-    { to: "/report", label: "Reports", icon: BarChart3 },
   ];
 
   // Flat list used for the collapsed icon rail
