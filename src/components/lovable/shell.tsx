@@ -66,18 +66,10 @@ export function AppShell({ children, title, tabs, toolbar }: {
     }
   };
 
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(STORAGE_KEY) !== "0";
-  });
-  const [projectsOpen, setProjectsOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(PROJECTS_STORAGE_KEY) !== "0";
-  });
-  const [moreOpen, setMoreOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("fb.sidebarMoreOpen") === "1";
-  });
+  // Keep SSR and first client render stable to avoid hydration mismatches.
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [projectsOpen, setProjectsOpen] = useState<boolean>(true);
+  const [moreOpen, setMoreOpen] = useState<boolean>(false);
   const [hydrated, setHydrated] = useState(false);
   const [logoHover, setLogoHover] = useState(false);
   const projectScopeRef = useRef<HTMLDivElement>(null);
@@ -134,21 +126,18 @@ export function AppShell({ children, title, tabs, toolbar }: {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, sidebarOpen ? "1" : "0");
-    }
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STORAGE_KEY, sidebarOpen ? "1" : "0");
   }, [sidebarOpen]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(PROJECTS_STORAGE_KEY, projectsOpen ? "1" : "0");
-    }
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(PROJECTS_STORAGE_KEY, projectsOpen ? "1" : "0");
   }, [projectsOpen]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("fb.sidebarMoreOpen", moreOpen ? "1" : "0");
-    }
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("fb.sidebarMoreOpen", moreOpen ? "1" : "0");
   }, [moreOpen]);
 
   useEffect(() => {
