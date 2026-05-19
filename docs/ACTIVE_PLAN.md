@@ -103,7 +103,7 @@ Goal: make the personal work list reliable.
 - [x] Replace fake bulk actions with real mutations or disable them.
 - [x] Add useful filters: Today, Overdue, Upcoming, Blocked, No Date.
 - [x] Keep table/list density compact but readable.
-- [ ] Ensure rows open the same universal drawer as other views.
+- [x] Ensure rows open the same universal drawer as other views.
 
 Verify: complete/delete/move/edit actions affect shared task state and empty states tell the user what to do next.
 
