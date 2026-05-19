@@ -16,8 +16,9 @@ import {
   type ActivityItem,
   type ChecklistItem,
 } from "./mock-data";
+import { localDateKey } from "./dates";
 
-export type InboxItem = { id: string; title: string; captured: string; project?: string; due?: string; priority?: Priority };
+export type InboxItem = { id: string; title: string; captured: string; project?: string; due?: string; priority?: Priority; workItemId?: string };
 export type Note = { id: string; title: string; tag: string; updated: string; excerpt: string };
 
 export type PriorityStyle = "arrows" | "labels" | "shapes";
@@ -46,7 +47,7 @@ type State = {
 
 type Actions = {
   // work items
-  addWorkItem: (partial: Partial<WorkItem> & { title: string }) => string;
+  addWorkItem: (partial: Partial<WorkItem> & { title: string }, options?: { logActivity?: boolean }) => string;
   updateWorkItem: (id: string, patch: Partial<WorkItem>) => void;
   deleteWorkItem: (id: string) => void;
   setWorkItemStatus: (id: string, status: Status) => void;
@@ -59,7 +60,7 @@ type Actions = {
   removeChecklistItem: (taskId: string, itemId: string) => void;
 
   // inbox
-  addInboxItem: (title: string) => string;
+  addInboxItem: (title: string, options?: { createWorkItem?: boolean }) => string;
   removeInboxItem: (id: string) => void;
   updateInboxItem: (id: string, patch: Partial<InboxItem>) => void;
   inboxToWorkItem: (id: string, partial?: Partial<WorkItem>) => string | null;
@@ -202,7 +203,7 @@ export const useStore = create<State & Actions>()(
     (set, get) => ({
       ...initialState,
 
-      addWorkItem: (partial) => {
+      addWorkItem: (partial, options) => {
         const state = get();
         const id = partial.id
           ? ensureUniqueId(state.workItems, partial.id, "FB")
@@ -218,9 +219,12 @@ export const useStore = create<State & Actions>()(
           due: partial.due ?? new Date().toISOString().slice(0, 10),
           project: partial.project ?? "core",
         };
+        const logActivity = options?.logActivity !== false;
         set((s) => ({
           workItems: [item, ...s.workItems],
-          activity: prependActivity(s.activity, { who: item.assignee, action: "created", target: `${item.id} ${item.title}`, time: timeLabel() }),
+          activity: logActivity
+            ? prependActivity(s.activity, { who: item.assignee, action: "created", target: `${item.id} ${item.title}`, time: timeLabel() })
+            : s.activity,
         }));
         return id;
       },
@@ -302,21 +306,78 @@ export const useStore = create<State & Actions>()(
           ),
         })),
 
-      addInboxItem: (title) => {
+      addInboxItem: (title, options) => {
         const state = get();
+        const trimmed = title.trim();
         const id = nextNumericId(state.inboxItems, "i");
+        const captureProject = options?.createWorkItem ? state.settings.activeProjectId ?? undefined : undefined;
+        const workItemId = options?.createWorkItem
+          ? get().addWorkItem(
+              {
+                title: trimmed,
+                due: localDateKey(),
+                project: state.settings.activeProjectId ?? "core",
+              },
+              { logActivity: false }
+            )
+          : undefined;
         set((s) => ({
-          inboxItems: [{ id, title, captured: "just now" }, ...s.inboxItems],
-          activity: prependActivity(s.activity, { who: "AM", action: "captured", target: title, time: timeLabel() }),
+          inboxItems: [{ id, title: trimmed, captured: "just now", workItemId, project: captureProject }, ...s.inboxItems],
+          activity: prependActivity(s.activity, { who: "AM", action: "captured", target: trimmed, time: timeLabel() }),
         }));
         return id;
       },
 
-      removeInboxItem: (id) =>
-        set((s) => ({ inboxItems: s.inboxItems.filter((i) => i.id !== id) })),
+      removeInboxItem: (id) => {
+        const item = get().inboxItems.find((i) => i.id === id);
+        set((s) => ({
+          inboxItems: s.inboxItems.filter((i) => i.id !== id),
+          workItems: item?.workItemId ? s.workItems.filter((w) => w.id !== item.workItemId) : s.workItems,
+        }));
+      },
 
-      updateInboxItem: (id, patch) =>
-        set((s) => ({ inboxItems: s.inboxItems.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+      updateInboxItem: (id, patch) => {
+        const previous = get().inboxItems.find((i) => i.id === id);
+        if (!previous) return;
+        const hasTriagePatch = "project" in patch || "due" in patch || "priority" in patch;
+        set((s) => {
+          const nextInbox = s.inboxItems.map((i) => (i.id === id ? { ...i, ...patch } : i));
+          if (!previous.workItemId || !hasTriagePatch) {
+            return { inboxItems: nextInbox };
+          }
+
+          const workItemPatch: Partial<WorkItem> = {};
+          const summaryParts: string[] = [];
+          if ("project" in patch) {
+            const nextProject = patch.project ?? s.settings.activeProjectId ?? "core";
+            workItemPatch.project = nextProject;
+            const name = s.projects.find((p) => p.id === nextProject)?.name ?? "Project";
+            summaryParts.push(`project ${name}`);
+          }
+          if ("due" in patch) {
+            const nextDue = patch.due ?? "";
+            workItemPatch.due = nextDue;
+            summaryParts.push(nextDue ? `due ${nextDue}` : "cleared due");
+          }
+          if ("priority" in patch) {
+            const nextPriority = patch.priority ?? "Medium";
+            workItemPatch.priority = nextPriority;
+            summaryParts.push(`priority ${nextPriority}`);
+          }
+
+          return {
+            inboxItems: nextInbox,
+            workItems: s.workItems.map((w) => (w.id === previous.workItemId ? { ...w, ...workItemPatch } : w)),
+            activity: prependActivity(s.activity, {
+              who: "AM",
+              action: "triaged",
+              target: `${previous.workItemId} ${previous.title}`,
+              to: summaryParts.join(", ") || undefined,
+              time: timeLabel(),
+            }),
+          };
+        });
+      },
 
       inboxToWorkItem: (id, partial) => {
         const item = get().inboxItems.find((i) => i.id === id);
@@ -326,6 +387,21 @@ export const useStore = create<State & Actions>()(
         if (item.project) accumulated.project = item.project;
         if (item.due) accumulated.due = item.due;
         if (item.priority) accumulated.priority = item.priority;
+
+        if (item.workItemId) {
+          set((s) => ({
+            workItems: s.workItems.map((w) => (w.id === item.workItemId ? { ...w, ...accumulated, ...partial } : w)),
+            inboxItems: s.inboxItems.filter((i) => i.id !== id),
+            activity: prependActivity(s.activity, {
+              who: "AM",
+              action: "created",
+              target: `${item.workItemId} ${item.title}`,
+              time: timeLabel(),
+            }),
+          }));
+          return item.workItemId;
+        }
+
         const newId = get().addWorkItem({ title: item.title, ...accumulated, ...partial });
         set((s) => ({ inboxItems: s.inboxItems.filter((i) => i.id !== id) }));
         return newId;

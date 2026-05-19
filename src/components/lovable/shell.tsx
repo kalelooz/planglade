@@ -114,8 +114,8 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const submitQuick = () => {
     const v = quickValue.trim();
     if (v) {
-      addInboxItem(v);
-      toast.success("Captured to Inbox", { description: v });
+      addInboxItem(v, { createWorkItem: true });
+      toast.success("Captured to Inbox and My Tasks", { description: v });
     }
     setQuickValue("");
     setQuickOpen(false);
@@ -363,7 +363,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
                       className="h-8 w-full rounded border bg-card px-2 text-[13px] outline-none focus:border-ring"
                     />
                     <div className="mt-1.5 flex items-center justify-between px-1 text-[10px] text-muted-foreground">
-                      <span>Saves to <Link href="/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link></span>
+                      <span>Saves to <Link href="/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link> + Tasks</span>
                       <kbd className="rounded border bg-muted px-1 font-mono">Enter</kbd>
                     </div>
                 </div>

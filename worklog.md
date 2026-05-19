@@ -102,3 +102,65 @@ Navigation now matches roadmap:
 
 Verification:
 - TypeScript compiles with no errors
+
+---
+Task ID: 4
+Agent: Main
+Task: Wire quick capture to tasks, tighten Inbox triage logging, improve notes search, fix My Tasks scrollbar
+
+Work Log:
+- Quick capture now links a task to each capture (while keeping the Inbox item), so it appears in My Tasks.
+- Inbox triage updates propagate to linked tasks and log activity; send-to-tasks flow opens the first task drawer.
+- Notes search matches title, body, and tags.
+- My Tasks uses AppShell scrolling to keep the scrollbar at the window edge.
+
+Verification:
+- Not run (UI copy/store changes only)
+
+---
+Task ID: 5
+Agent: Main
+Task: Default quick-captured tasks to Today, skip Inbox confirm for linked items, add linked indicator
+
+Work Log:
+- Quick capture now assigns a local due date so items land in My Tasks > Today.
+- Inbox send-to-tasks skips confirmation when items are already linked and opens the first linked task.
+- Added a small "Linked" badge in Inbox rows for clarity.
+
+Verification:
+- Not run (UI/store changes only)
+
+---
+Task ID: 6
+Agent: Main
+Task: Remove nested scrollbar from Tasks page
+
+Work Log:
+- Removed inner scroll container in Tasks so AppShell owns scrolling and the scrollbar stays at the window edge.
+
+Verification:
+- Not run (UI layout change only)
+
+---
+Task ID: 7
+Agent: Main
+Task: Add Today breathing room + tighten awareness widgets + highlight Notes search
+
+Work Log:
+- Added more spacing between Today task sections and trimmed awareness widgets layout.
+- Notes search highlights matches in title, excerpt, and tag; empty states are clearer.
+
+Verification:
+- Not run (UI changes only)
+
+---
+Task ID: 8
+Agent: Main
+Task: UI check for Today/Notes/Tasks after layout updates
+
+Work Log:
+- Loaded Today, Notes, and Tasks pages on http://localhost:3001.
+- Notes search input accepts queries and filters the list.
+
+Verification:
+- UI check only (no automated tests)

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, type ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,31 @@ function parseTitleAndBody(md: string): { title: string; body: string } {
   return { title, body };
 }
 
+function highlightText(text: string, query: string): ReactNode {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return text;
+  const lower = text.toLowerCase();
+  if (!lower.includes(trimmed)) return text;
+
+  const parts: ReactNode[] = [];
+  let index = 0;
+  while (index < text.length) {
+    const next = lower.indexOf(trimmed, index);
+    if (next === -1) {
+      parts.push(text.slice(index));
+      break;
+    }
+    if (next > index) parts.push(text.slice(index, next));
+    parts.push(
+      <span key={`h-${next}-${parts.length}`} className="rounded-sm bg-primary/10 px-0.5 text-foreground">
+        {text.slice(next, next + trimmed.length)}
+      </span>
+    );
+    index = next + trimmed.length;
+  }
+  return parts;
+}
+
 function NotesInner() {
   const notes = useStore((s) => s.notes);
   const workItems = useStore((s) => s.workItems);
@@ -54,10 +79,14 @@ function NotesInner() {
     router.replace(`/notes?id=${id}`, { scroll: false });
   };
 
-  const filtered = useMemo(
-    () => notes.filter((n) => n.title.toLowerCase().includes(query.toLowerCase()) || n.excerpt.toLowerCase().includes(query.toLowerCase())),
-    [notes, query]
-  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!normalizedQuery) return notes;
+    return notes.filter((n) => {
+      const haystack = `${n.title}\n${n.excerpt}\n${n.tag}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [notes, normalizedQuery]);
   const selectedId = idFromUrl && notes.some((n) => n.id === idFromUrl) ? idFromUrl : selId;
   const sel = notes.find((n) => n.id === selectedId) ?? filtered[0] ?? null;
   const selectedTask = workItems.find((w) => w.id === selectedTaskId) ?? null;
@@ -127,22 +156,35 @@ function NotesInner() {
             />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filtered.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => selectNote(n.id)}
-                className={`block w-full border-b border-border/40 px-3 py-3 text-left hover:bg-[var(--color-hover)]/40 ${sel?.id === n.id ? "bg-[var(--color-hover)]/60" : ""}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="truncate text-[13px] font-medium text-foreground">{n.title}</span>
-                  <span className="shrink-0 pl-2 text-[11px] text-muted-foreground">{n.updated}</span>
-                </div>
-                {n.excerpt && <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">{n.excerpt}</p>}
-                <div className="mt-1.5"><Chip>{n.tag}</Chip></div>
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <div className="px-3 py-8 text-center text-[12px] text-muted-foreground">No matches.</div>
+            {notes.length === 0 ? (
+              <div className="px-3 py-10 text-center text-[12px] text-muted-foreground">
+                No notes yet. Capture one above.
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="px-3 py-8 text-center text-[12px] text-muted-foreground">
+                No matches. Try another term or create a note.
+              </div>
+            ) : (
+              filtered.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => selectNote(n.id)}
+                  className={`block w-full border-b border-border/40 px-3 py-3 text-left hover:bg-[var(--color-hover)]/40 ${sel?.id === n.id ? "bg-[var(--color-hover)]/60" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate text-[13px] font-medium text-foreground">
+                      {highlightText(n.title, normalizedQuery)}
+                    </span>
+                    <span className="shrink-0 pl-2 text-[11px] text-muted-foreground">{n.updated}</span>
+                  </div>
+                  {n.excerpt && (
+                    <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
+                      {highlightText(n.excerpt, normalizedQuery)}
+                    </p>
+                  )}
+                  <div className="mt-1.5"><Chip>{highlightText(n.tag, normalizedQuery)}</Chip></div>
+                </button>
+              ))
             )}
           </div>
         </aside>

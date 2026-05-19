@@ -75,8 +75,8 @@ export default function MyTasks() {
 
   return (
     <AppShell title={<span className="font-medium">My Tasks</span>}>
-      <div className="flex h-full">
-      <div className="min-w-0 flex-1 overflow-y-auto">
+      <div className="flex">
+      <div className="min-w-0 flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
         <div className="mb-1 flex items-baseline justify-between">
           <h1 className="text-[20px] font-semibold tracking-tight">My Tasks</h1>

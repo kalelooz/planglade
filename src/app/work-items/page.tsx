@@ -121,8 +121,8 @@ function WorkItemsInner() {
         </Toolbar>
       }
     >
-      <div className="mx-auto flex h-full w-full max-w-6xl">
-        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6">
+      <div className="mx-auto flex w-full max-w-6xl">
+        <div className="min-w-0 flex-1 overflow-x-hidden px-4 py-6">
           <div className="mb-6 px-1">
             <h1 className="text-[15px] font-semibold tracking-tight">Tasks</h1>
             <p className="mt-0.5 text-[12px] text-muted-foreground">Everything to be done in {project?.name ?? "this workspace"} - bugs, features, ideas, follow-ups. Grouped by status. Click a task title to open details.</p>

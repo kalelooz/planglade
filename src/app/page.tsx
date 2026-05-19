@@ -96,14 +96,14 @@ function TaskSection({
   empty: string;
 }) {
   return (
-    <section>
-      <div className="mb-2 flex items-center gap-2">
+    <section className="pb-4 last:pb-0">
+      <div className="mb-3 flex items-center gap-2">
         <h2 className="text-[15px] font-semibold tracking-tight text-foreground">{title}</h2>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{count}</span>
       </div>
-      <div className="border-t border-border/70">
+      <div className="border-t border-border/70 pt-2">
         {count === 0 ? (
-          <div className="px-2 py-7 text-center text-[12px] text-muted-foreground">{empty}</div>
+          <div className="px-2 py-8 text-center text-[12px] text-muted-foreground">{empty}</div>
         ) : (
           children
         )}
@@ -115,11 +115,11 @@ function TaskSection({
 function PulseSection({ title, icon, href, children }: { title: string; icon: ReactNode; href: string; children: ReactNode }) {
   return (
     <section>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-tight text-muted-foreground">{icon}{title}</h2>
-        <Link href={href} className="text-[12px] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground">Open</Link>
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <h2 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{icon}{title}</h2>
+        <Link href={href} className="text-[11px] text-muted-foreground hover:text-foreground">Open</Link>
       </div>
-      <div className="border-t border-border/70">{children}</div>
+      <div className="border-t border-border/60 pt-1">{children}</div>
     </section>
   );
 }
@@ -217,8 +217,8 @@ export default function HomePage() {
   const onCaptureKey = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && capture.trim()) {
       const text = capture.trim();
-      addInboxItem(text);
-      toast.success("Captured to Inbox", { description: text });
+      addInboxItem(text, { createWorkItem: true });
+      toast.success("Captured to Inbox and My Tasks", { description: text });
       setCapture("");
     }
   };
@@ -242,23 +242,48 @@ export default function HomePage() {
           <div className="grid w-full max-w-none gap-8 px-4 py-6 lg:px-6 xl:grid-cols-[260px_minmax(0,760px)]">
             <div className="min-w-0 xl:order-2">
             <div className="space-y-4">
-              <div className="min-w-0">
-                <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h1 className="text-[20px] font-semibold tracking-tight">Good afternoon, Alex</h1>
-                  <span className="text-[12px] text-muted-foreground">
-                    {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                  </span>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h1 className="text-[20px] font-semibold tracking-tight">Good afternoon, Alex</h1>
+                    <span className="text-[12px] text-muted-foreground">
+                      {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-muted-foreground">
+                    {buckets.today.length} today,{" "}
+                    <span className={buckets.overdue.length > 0 ? "font-medium text-red-600" : ""}>
+                      {buckets.overdue.length} overdue
+                    </span>
+                    , {inboxItems.length} in Inbox.
+                  </p>
                 </div>
-                <p className="text-[13px] text-muted-foreground">
-                  {buckets.today.length} today,{" "}
-                  <span className={buckets.overdue.length > 0 ? "font-medium text-red-600" : ""}>
-                    {buckets.overdue.length} overdue
-                  </span>
-                  , {inboxItems.length} in triage.
-                </p>
+                <Link
+                  href="/inbox"
+                  className="group w-full rounded-lg border border-primary/20 bg-primary/[0.05] px-4 py-3 shadow-sm transition hover:border-primary/40 hover:bg-primary/[0.08] sm:w-[320px]"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-background text-primary">
+                      <Inbox className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Inbox</p>
+                      <div className="mt-0.5 flex items-baseline gap-2">
+                        <span className="text-[20px] font-semibold text-foreground">{inboxItems.length}</span>
+                        <span className="text-[12px] text-muted-foreground">
+                          capture{inboxItems.length === 1 ? "" : "s"} waiting
+                        </span>
+                      </div>
+                    </div>
+                    <span className="lov-btn lov-btn-primary h-7 px-2 text-[11px]">Open</span>
+                  </div>
+                  <p className="mt-2 text-[12px] text-muted-foreground">
+                    Capture first, process in Inbox when you are ready.
+                  </p>
+                </Link>
               </div>
 
-              <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 shadow-xs focus-within:border-ring focus-within:shadow-sm">
+              <div className="mb-4 flex items-center gap-2 rounded-md border bg-card px-3 py-2 shadow-xs focus-within:border-ring focus-within:shadow-sm">
                 <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   ref={captureRef}
@@ -272,19 +297,9 @@ export default function HomePage() {
                 <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">/</kbd>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 bg-muted/20 px-2 py-2 text-[12px] text-muted-foreground">
-                <Link
-                  href="/inbox"
-                  className="lov-btn lov-btn-ghost h-7 px-1.5 font-medium text-foreground"
-                >
-                  <Inbox className="h-3.5 w-3.5" />
-                  <span>{inboxItems.length} in triage</span>
-                </Link>
-                <span className="hidden sm:inline">Capture first, triage when you are ready.</span>
-              </div>
             </div>
 
-            <main className="min-w-0 space-y-8">
+            <main className="min-w-0 space-y-12">
                 <TaskSection
                   title="Overdue"
                   count={buckets.overdue.length}
@@ -311,20 +326,22 @@ export default function HomePage() {
             </main>
             </div>
 
-            <aside className="min-w-0 space-y-7 text-[12px] opacity-85 xl:order-1 xl:border-r xl:border-border/60 xl:pr-6">
+            <aside className="min-w-0 space-y-6 text-[12px] opacity-90 xl:order-1 xl:border-r xl:border-border/60 xl:pr-6">
               <PulseSection title="Recent notes" icon={<FileText className="h-3.5 w-3.5" />} href="/notes">
                 {recentNotes.length === 0 ? (
                   <div className="px-1 py-5 text-[12px] text-muted-foreground">No notes yet.</div>
                 ) : (
-                  recentNotes.map((note) => (
-                    <Link key={note.id} href={`/notes?id=${note.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 py-[var(--fb-row-py)] text-[12px] last:border-b-0 hover:text-foreground">
-                      <span className="min-w-0 truncate font-medium">{note.title}</span>
-                      <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span>{note.tag}</span>
-                        <span>{note.updated}</span>
-                      </span>
-                    </Link>
-                  ))
+                  <div className="divide-y divide-border/60">
+                    {recentNotes.map((note) => (
+                      <Link key={note.id} href={`/notes?id=${note.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2 text-[12px] hover:text-foreground">
+                        <span className="min-w-0 truncate font-medium">{note.title}</span>
+                        <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <span>{note.tag}</span>
+                          <span>{note.updated}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </PulseSection>
 
@@ -332,22 +349,24 @@ export default function HomePage() {
                 {recentActivity.length === 0 ? (
                   <div className="px-1 py-5 text-[12px] text-muted-foreground">No recent changes.</div>
                 ) : (
-                  recentActivity.map((item, index) => {
-                    const member = members.find((m) => m.id === item.who) ?? members[0];
-                    return (
-                      <Link key={`${item.date}-${index}`} href="/activity" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 py-[var(--fb-row-py)] text-[12px] last:border-b-0 hover:text-foreground">
-                        <span className="min-w-0 truncate">
-                          <span className="font-medium">{member?.name ?? item.who}</span>{" "}
-                          <span className="text-muted-foreground">{item.action}</span>{" "}
-                          <span>{item.target}</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Clock3 className="h-3 w-3" />
-                          {item.time}
-                        </span>
-                      </Link>
-                    );
-                  })
+                  <div className="divide-y divide-border/60">
+                    {recentActivity.map((item, index) => {
+                      const member = members.find((m) => m.id === item.who) ?? members[0];
+                      return (
+                        <Link key={`${item.date}-${index}`} href="/activity" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2 text-[12px] hover:text-foreground">
+                          <span className="min-w-0 truncate">
+                            <span className="font-medium">{member?.name ?? item.who}</span>{" "}
+                            <span className="text-muted-foreground">{item.action}</span>{" "}
+                            <span>{item.target}</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Clock3 className="h-3 w-3" />
+                            {item.time}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 )}
               </PulseSection>
             </aside>

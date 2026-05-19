@@ -37,8 +37,8 @@ Verify:
 
 Purpose: replace the generic dashboard with the daily cockpit.
 
-- [ ] Add Quick Capture at the top.
-- [ ] Show Today, Overdue, Inbox, and Recently Changed/Recent Notes.
+- [x] Add Quick Capture at the top.
+- [x] Show Today, Overdue, Inbox, and Recently Changed/Recent Notes.
 - [ ] Remove vanity KPIs unless clicking them reveals the exact underlying work.
 - [ ] Make empty states action-oriented.
 - [ ] Keep team or reporting content off the first screen unless the data is real.
@@ -88,7 +88,7 @@ Verify:
 
 Purpose: make notes fast to capture and easy to find.
 
-- [ ] Add notes search.
+- [x] Add notes search.
 - [ ] Make capture/edit mode obvious.
 - [ ] Improve selected-note state and list readability.
 - [ ] Keep Markdown support.
@@ -96,7 +96,7 @@ Purpose: make notes fast to capture and easy to find.
 
 Verify:
 
-- [ ] Search finds note titles, body text, and tags.
+- [x] Search finds note titles, body text, and tags.
 - [ ] Creating a note updates the note list immediately.
 - [ ] The editor/preview state is clear.
 - [ ] Notes do not rely on hidden inaccessible controls.

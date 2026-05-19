@@ -80,7 +80,7 @@ export const workItems: WorkItem[] = [
 export const inboxItems = [
   { id: "i1", title: "Customer asked about SAML SSO timing", captured: "2h ago" },
   { id: "i2", title: "Look into flaky timeline drag test", captured: "5h ago" },
-  { id: "i3", title: "Idea: keyboard shortcut to triage inbox", captured: "yesterday" },
+  { id: "i3", title: "Idea: keyboard shortcut for Inbox triage", captured: "yesterday" },
   { id: "i4", title: "Reply to Sara about mobile nav spec", captured: "yesterday" },
   { id: "i5", title: "Audit colors used in priority chips", captured: "2d ago" },
 ];

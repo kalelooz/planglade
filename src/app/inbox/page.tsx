@@ -45,7 +45,17 @@ export default function InboxPage() {
   };
 
   const bulkPromote = () => {
-    setPendingCreateIds([...selectedIds]);
+    const selected = inboxItems.filter((item) => selectedIds.has(item.id));
+    const unlinked = selected.filter((item) => !item.workItemId);
+    if (unlinked.length === 0) {
+      const firstLinked = selected.find((item) => item.workItemId);
+      if (firstLinked?.workItemId) {
+        setSelectedTaskId(firstLinked.workItemId);
+        toast.success("Already in tasks", { description: "Opened the first linked task." });
+      }
+      return;
+    }
+    setPendingCreateIds(unlinked.map((item) => item.id));
   };
 
   const bulkDelete = () => {
@@ -76,7 +86,7 @@ export default function InboxPage() {
     });
     setPendingCreateIds(null);
     if (createdIds[0]) setSelectedTaskId(createdIds[0]);
-    toast.success(`Created ${createdIds.length} task${createdIds.length === 1 ? "" : "s"}`, {
+    toast.success(`Sent ${createdIds.length} capture${createdIds.length === 1 ? "" : "s"} to tasks`, {
       description: createdIds[0] ? "Opened the first task for editing." : undefined,
     });
   };
@@ -136,7 +146,7 @@ export default function InboxPage() {
                 </BulkMenu>
                 <button onClick={bulkPromote} className="lov-btn lov-btn-primary">
                   <Check className="h-3 w-3" />
-                  Create tasks
+                  Send to tasks
                 </button>
                 <button onClick={bulkDelete} className="lov-btn lov-btn-danger">
                   <Trash2 className="h-3 w-3" />
@@ -148,7 +158,7 @@ export default function InboxPage() {
               </div>
             ) : (
               <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
-                <span>Project, due, priority, then create tasks.</span>
+                <span>Project, due, priority, then send to tasks.</span>
                 <button onClick={clearAll} disabled={inboxItems.length === 0} className="lov-btn lov-btn-ghost h-7 px-2">
                   Clear all
                 </button>
@@ -176,7 +186,7 @@ export default function InboxPage() {
                   if (e.key === "Enter" && captureValue.trim()) {
                     addInboxItem(captureValue.trim());
                     setCaptureValue("");
-                    toast.success("Captured to triage");
+                    toast.success("Captured to Inbox");
                   }
                 }}
                 placeholder="Capture a thought, task, or idea."
@@ -192,7 +202,8 @@ export default function InboxPage() {
 
             {inboxItems.map((item) => {
               const assignedProject = item.project ? projects.find((p) => p.id === item.project) : null;
-              const ready = Boolean(item.project || item.due || item.priority);
+              const isLinked = Boolean(item.workItemId);
+              const ready = Boolean(item.project || item.due || item.priority || isLinked);
               const selected = selectedIds.has(item.id);
               return (
                 <div key={item.id} className={`group grid grid-cols-[24px_minmax(120px,1fr)_minmax(104px,0.65fr)_minmax(72px,0.45fr)_minmax(80px,0.45fr)_112px_24px_56px] items-center gap-3 border-b border-border/60 px-2 py-[var(--fb-row-py)] text-[13px] hover:bg-[var(--color-hover)]/60 ${selected ? "bg-[var(--color-hover)]/50" : ""}`}>
@@ -203,7 +214,10 @@ export default function InboxPage() {
                     aria-label={`Select ${item.title}`}
                     className="h-3.5 w-3.5 accent-[var(--color-primary)]"
                   />
-                  <span className="min-w-0 truncate font-medium">{item.title}</span>
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span className="min-w-0 truncate font-medium">{item.title}</span>
+                    {isLinked && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Linked</span>}
+                  </div>
                   <ProjectChip
                     assigned={assignedProject ? { id: assignedProject.id, name: assignedProject.name, accent: assignedProject.accent, icon: assignedProject.icon } : null}
                     items={projects.map((p) => ({ id: p.id, name: p.name, accent: p.accent, icon: p.icon }))}
@@ -213,12 +227,18 @@ export default function InboxPage() {
                   <DueChip assigned={item.due ?? null} onPick={(due) => updateInboxItem(item.id, { due })} onClear={() => updateInboxItem(item.id, { due: undefined })} />
                   <PriorityChip assigned={item.priority ?? null} onPick={(p) => updateInboxItem(item.id, { priority: p })} onClear={() => updateInboxItem(item.id, { priority: undefined })} />
                   <button
-                    onClick={() => setPendingCreateIds([item.id])}
-                    title="Promote to task"
+                    onClick={() => {
+                      if (isLinked && item.workItemId) {
+                        setSelectedTaskId(item.workItemId);
+                        return;
+                      }
+                      setPendingCreateIds([item.id]);
+                    }}
+                    title={isLinked ? "Open task" : "Create task"}
                     className={`lov-btn lov-btn-primary h-7 w-[112px] justify-center whitespace-nowrap px-1.5 text-[11px] ${ready ? "" : "opacity-90"}`}
                   >
                     <Check className="h-3 w-3" />
-                    Create task
+                    {isLinked ? "Open task" : "Create task"}
                   </button>
                   <button
                     onClick={() => {
@@ -282,15 +302,15 @@ function ConfirmCreateDialog({ count, onCancel, onConfirm }: { count: number; on
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-foreground/30" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-sm rounded-lg border bg-background p-5 shadow-xl">
-        <h2 className="text-[15px] font-semibold tracking-tight">Create {count === 1 ? "task" : "tasks"}?</h2>
+        <h2 className="text-[15px] font-semibold tracking-tight">Send {count === 1 ? "capture" : "captures"} to tasks?</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          This will remove the selected capture{count === 1 ? "" : "s"} from Inbox and create editable task{count === 1 ? "" : "s"} in the shared task store.
+          This will remove the selected capture{count === 1 ? "" : "s"} from Inbox and open the first task for editing. Existing linked tasks are reused when available.
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onCancel} className="lov-btn lov-btn-ghost">Cancel</button>
           <button onClick={onConfirm} className="lov-btn lov-btn-primary">
             <Check className="h-3 w-3" />
-            Create {count === 1 ? "task" : "tasks"}
+            Send to tasks
           </button>
         </div>
       </div>
