@@ -60,7 +60,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
     updateSettings({ activeProjectId: id });
     setProjectScopeOpen(false);
 
-    const scopedRoutes = ["/projects", "/work-items", "/board", "/calendar", "/timeline", "/report", "/team", "/connections", "/activity"];
+    const scopedRoutes = ["/projects", "/work-items", "/board", "/calendar", "/timeline"];
     if (scopedRoutes.some((route) => path.startsWith(route))) {
       router.push(id ? `${path}?project=${id}` : path);
     }

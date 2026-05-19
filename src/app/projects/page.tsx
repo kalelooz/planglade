@@ -398,9 +398,10 @@ function ProjectsInner() {
                     key={p.id}
                     role="link"
                     tabIndex={0}
+                    aria-label={`Open project ${p.name}`}
                     onClick={() => { updateSettings({ activeProjectId: p.id }); router.push(`/projects?project=${p.id}`); }}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateSettings({ activeProjectId: p.id }); router.push(`/projects?project=${p.id}`); } }}
-                    className={`grid ${cols} cursor-pointer items-center gap-3 border-b border-border/40 px-2 py-3 text-[13px] hover:bg-[var(--color-hover)]/40 focus:bg-[var(--color-hover)]/40 focus:outline-none`}
+                    className={`grid ${cols} cursor-pointer items-center gap-3 border-b border-border/40 px-2 py-3 text-[13px] hover:bg-[var(--color-hover)]/40 focus:bg-[var(--color-hover)]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
                   >
                     <span>
                       <Chip tone={p.status === "Active" ? "accent" : p.status === "On Hold" ? "warning" : "neutral"}>{p.status}</Chip>
@@ -414,7 +415,7 @@ function ProjectsInner() {
                       >
                         <ProjectIcon name={p.icon} accent={p.accent} />
                       </button>
-                      <span className="whitespace-nowrap">{p.name}</span>
+                      <span className="truncate">{p.name}</span>
                       {iconEditingId === p.id && (
                         <>
                           <div className="fixed inset-0 z-[70]" onMouseDown={(e) => { e.stopPropagation(); setIconEditingId(null); }} />

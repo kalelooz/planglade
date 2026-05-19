@@ -90,8 +90,8 @@ Goal: keep project execution simple and connected to trustworthy task state.
 - [x] Reduce card metadata to title, status/priority cue, due signal, and one project/tag cue.
 - [x] Move extra information into the drawer.
 - [x] Make create/edit/delete/move actions mutate shared state or clearly mark them unavailable.
-- [ ] Keep the inner project list compact and keyboard/mouse usable.
-- [ ] Avoid project/report shortcuts that imply real reporting before reports are real.
+- [x] Keep the inner project list compact and keyboard/mouse usable.
+- [x] Avoid project/report shortcuts that imply real reporting before reports are real.
 
 Verify: moving, creating, editing, and deleting tasks changes every view that reads task state.
 
