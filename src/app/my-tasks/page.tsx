@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import { type Status, type WorkItem } from "@/lib/mock-data";
 import { isSameLocalDate, parseLocalDate } from "@/lib/dates";
 
-const tabs = ["Today", "Upcoming", "Overdue", "No date", "Completed"] as const;
+const tabs = ["Today", "Upcoming", "Overdue", "Blocked", "No date", "Completed"] as const;
 type Tab = (typeof tabs)[number];
 
 type Scope = "mine" | "team" | "all";
@@ -28,6 +28,10 @@ function inTab(w: WorkItem, tab: Tab, today: Date): boolean {
   const isDone = w.status === "Done";
   if (tab === "Completed") return isDone;
   if (isDone) return false;
+  if (tab === "Blocked") {
+    const looksBlocked = w.status === "In Review" || /block/i.test(w.title) || /block/i.test(w.label);
+    return looksBlocked;
+  }
   if (tab === "Overdue") return !!due && due < todayStart && !sameDay;
   if (tab === "Today") return sameDay;
   if (tab === "Upcoming") return !!due && due > todayStart && !sameDay;
@@ -68,6 +72,7 @@ export default function MyTasks() {
     Today: byScope.filter((w) => inTab(w, "Today", now)).length,
     Upcoming: byScope.filter((w) => inTab(w, "Upcoming", now)).length,
     Overdue: byScope.filter((w) => inTab(w, "Overdue", now)).length,
+    Blocked: byScope.filter((w) => inTab(w, "Blocked", now)).length,
     "No date": byScope.filter((w) => inTab(w, "No date", now)).length,
     Completed: byScope.filter((w) => inTab(w, "Completed", now)).length,
   }), [byScope, now]);

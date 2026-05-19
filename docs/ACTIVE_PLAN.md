@@ -77,8 +77,8 @@ Goal: keep Inbox limited to unprocessed captures and items needing triage.
 
 - [x] Quick Capture creates linked task state for captured items.
 - [x] Linked items are clearly indicated.
-- [ ] Keep awareness widgets out of Inbox unless they require triage.
-- [ ] Make triage actions update the same task state used by Home and My Tasks.
+- [x] Keep awareness widgets out of Inbox unless they require triage.
+- [x] Make triage actions update the same task state used by Home and My Tasks.
 - [x] Avoid confirmation steps that do not protect a meaningful destructive action.
 
 Verify: captured work appears in the right task surfaces, triage changes are reflected elsewhere, and Inbox is not a mixed dashboard.
@@ -101,7 +101,7 @@ Goal: make the personal work list reliable.
 
 - [x] Add direct row completion controls.
 - [x] Replace fake bulk actions with real mutations or disable them.
-- [ ] Add useful filters: Today, Overdue, Upcoming, Blocked, No Date.
+- [x] Add useful filters: Today, Overdue, Upcoming, Blocked, No Date.
 - [ ] Keep table/list density compact but readable.
 - [ ] Ensure rows open the same universal drawer as other views.
 
