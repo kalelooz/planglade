@@ -1,5 +1,7 @@
 # FlowBoard Page-by-Page Plan
 
+> Archived legacy plan. Do not use this as the active roadmap. Use `docs/ACTIVE_PLAN.md`.
+
 ## Goal
 
 Turn the current prototype into a reliable frontend product one page at a time. Each page should become simpler, more honest, and more useful before moving to the next.
@@ -156,4 +158,4 @@ Verify:
 - [ ] Create/edit/delete/move actions update all affected views.
 - [ ] Refresh does not lose core user-created work once local persistence is introduced.
 - [ ] Browser screenshots pass desktop and mobile sanity checks for changed pages.
-- [ ] `README.md`, `AUDIT_AND_ROADMAP.md`, and this plan do not contradict the implementation state.
+- [ ] `README.md`, `docs/ACTIVE_PLAN.md`, and implementation state do not contradict each other.

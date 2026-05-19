@@ -15,6 +15,13 @@
 - Current priority is UI/UX frontend work first.
 - Backend, auth, database, and deeper persistence work wait unless needed to support or validate a frontend slice.
 
+## Canonical Planning
+
+- `docs/ACTIVE_PLAN.md` is the single source of truth for the current roadmap and execution order.
+- Read `docs/ACTIVE_PLAN.md` after this file and before changing code.
+- Do not treat `docs/audits/`, `docs/archive/`, root rollback patches, worklogs, or completed slice plans as active roadmap instructions.
+- If another document conflicts with `docs/ACTIVE_PLAN.md`, follow `docs/ACTIVE_PLAN.md` and update or archive the conflicting document.
+
 ## UI/UX Standard
 
 - Aim for clean, restrained, product-grade UI similar to mature tools such as Plane and Linear.

@@ -35,10 +35,10 @@ For UI work, prefer existing shadcn/ui, Radix, Tailwind variables, Lucide icons,
 ## Documentation Map
 
 - `AGENTS.md` - operating instructions for agents working in this repo.
-- `AUDIT_AND_ROADMAP.md` - strategic audit, Reddit synthesis, competitor gaps, and long-range roadmap.
-- `docs/PAGE-BY-PAGE-PLAN.md` - execution order and acceptance criteria for page-by-page UI work.
+- `docs/ACTIVE_PLAN.md` - canonical execution plan. Agents should read this before changing code.
 - `docs/QUALITY-GATES.md` - validation rules before a slice is called complete.
-- `worklog.md` - historical implementation note; do not treat it as current verification.
+- `docs/audits/` - strategic audits and research synthesis. Reference only, not active execution plans.
+- `docs/archive/` - completed plans, rollback patches, and historical worklogs. Do not treat as current roadmap.
 - `Reddit/` - protected voice-of-customer research. Do not delete.
 
 ## Product Priorities
@@ -144,7 +144,7 @@ The app runs at `http://localhost:3000`.
 - `next.config.ts` currently ignores TypeScript build errors.
 - Package-manager usage should be normalized before dependency cleanup.
 
-See `AUDIT_AND_ROADMAP.md` and `docs/QUALITY-GATES.md` before claiming a slice is complete.
+See `docs/ACTIVE_PLAN.md` and `docs/QUALITY-GATES.md` before claiming a slice is complete.
 
 ## License
 

@@ -8,7 +8,7 @@ Define the minimum evidence required before a FlowBoard slice is called complete
 
 Every meaningful change should pass this checklist:
 
-- [ ] The change matches `AGENTS.md`, `AUDIT_AND_ROADMAP.md`, and `docs/PAGE-BY-PAGE-PLAN.md`.
+- [ ] The change matches `AGENTS.md` and `docs/ACTIVE_PLAN.md`.
 - [ ] Fake controls are removed, disabled, or made real.
 - [ ] The changed UI uses existing component patterns before custom widgets.
 - [ ] Desktop or mobile layout is checked only when the changed surface is visible there and the change can affect layout.
@@ -39,7 +39,7 @@ Use the smallest command set that proves the slice.
 Suggested checks:
 
 ```bash
-rg --line-number "full-featured|production-ready|Build passes|/home/z|fake|mock|Quick Capture|Inbox" README.md AUDIT_AND_ROADMAP.md docs worklog.md
+rg --line-number "full-featured|production-ready|Build passes|/home/z|fake|mock|Quick Capture|Inbox" README.md AGENTS.md docs/ACTIVE_PLAN.md docs/QUALITY-GATES.md
 ```
 
 ### TypeScript or React component changes

@@ -1,5 +1,7 @@
 # FlowBoard Consolidated Audit
 
+> Reference audit only. The active execution plan is `docs/ACTIVE_PLAN.md`.
+
 > Date: 2026-05-19
 > Sources merged: `audit qwen.md`, `audit deepseek.md`, `audit gpt codex.md`
 > Benchmark repos referenced: `external/pm-repos/plane`, `memos`, `vikunja`, `leantime`, `focalboard`, plus the Mohamy benchmark referenced in the DeepSeek audit.

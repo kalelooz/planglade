@@ -1,5 +1,7 @@
 # FlowBoard - Complete Audit and Roadmap
 
+> Archived strategic audit. Reference only. The active execution plan is `docs/ACTIVE_PLAN.md`.
+
 Last updated: 2026-05-16  
 Mode: merged final report from Codex + Claude audits. Planning/audit plus small low-risk UI cleanup.  
 Core goal: a plain, simple, easy-to-use, very fast management tool for solo users and small teams.

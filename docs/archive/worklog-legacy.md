@@ -1,4 +1,4 @@
-> Historical note: this file records an earlier implementation pass from a different environment. It mentions `/home/z/my-project` and a successful build there, which should not be treated as current verification for this Windows workspace. Use `docs/QUALITY-GATES.md` and fresh command output for current status.
+> Archived historical note. Do not use this as the active roadmap or current verification. It records an earlier implementation pass from a different environment, mentions `/home/z/my-project`, and includes verification statements that do not apply to this Windows workspace. Use `docs/ACTIVE_PLAN.md`, `docs/QUALITY-GATES.md`, and fresh command output for current status.
 
 ---
 Task ID: 1
