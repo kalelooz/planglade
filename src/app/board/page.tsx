@@ -9,11 +9,14 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
+  pointerWithin,
   PointerSensor,
   KeyboardSensor,
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
+  type Over,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -44,6 +47,27 @@ import { useStore } from "@/lib/store";
 import { type Status, type WorkItem } from "@/lib/mock-data";
 
 const cols: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
+const columnIds = new Set(cols as string[]);
+
+function resolveTargetStatus(over: Over | null | undefined, scopedWorkItems: WorkItem[]): Status | null {
+  if (!over) return null;
+  const overId = String(over.id);
+  if (columnIds.has(overId)) {
+    return overId as Status;
+  }
+
+  const overItem = scopedWorkItems.find((w) => w.id === overId);
+  if (overItem) {
+    return overItem.status;
+  }
+
+  const containerId = over.data.current?.sortable?.containerId;
+  if (typeof containerId === "string" && columnIds.has(containerId)) {
+    return containerId as Status;
+  }
+
+  return null;
+}
 
 export default function Board() {
   const params = useSearchParams();
@@ -71,6 +95,11 @@ export default function Board() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  const collisionDetection: CollisionDetection = (args) => {
+    const pointerHits = pointerWithin(args);
+    return pointerHits.length > 0 ? pointerHits : closestCorners(args);
+  };
 
   useEffect(() => {
     if (routeProjectId && routeProjectId !== activeProjectId) {
@@ -105,15 +134,16 @@ export default function Board() {
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragId(null);
     const activeId = String(e.active.id);
-    const overId = e.over?.id ? String(e.over.id) : null;
-    if (!overId || overId === activeId) return;
+    if (!e.over) return;
 
     const moved = scopedWorkItems.find((w) => w.id === activeId);
     if (!moved) return;
 
+    const targetStatus = resolveTargetStatus(e.over, scopedWorkItems);
+    if (!targetStatus) return;
+
     // Drop on a column droppable (empty area / column header zone) and append to end.
-    if ((cols as string[]).includes(overId)) {
-      const targetStatus = overId as Status;
+    if (columnIds.has(String(e.over.id))) {
       const list = scopedWorkItems.filter((w) => w.status === targetStatus);
       if (moved.status === targetStatus && list[list.length - 1]?.id === activeId) return;
       reorderWorkItem(activeId, targetStatus, null, scopedProjectId);
@@ -124,9 +154,17 @@ export default function Board() {
     }
 
     // Drop on another card and place before or after based on pointer position.
+    const overId = String(e.over.id);
+    if (overId === activeId) return;
     const overItem = scopedWorkItems.find((w) => w.id === overId);
-    if (!overItem) return;
-    const targetStatus = overItem.status;
+    if (!overItem) {
+      // Fallback: if we're over the column shell but not a concrete card, append in target status.
+      reorderWorkItem(activeId, targetStatus, null, scopedProjectId);
+      if (moved.status !== targetStatus) {
+        toast.success(`Moved ${activeId}`, { description: `to ${targetStatus}` });
+      }
+      return;
+    }
     const activeRect = e.active.rect.current.translated;
     const overRect = e.over?.rect;
     const isBelowTarget = activeRect && overRect
@@ -177,7 +215,7 @@ export default function Board() {
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={collisionDetection}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onDragCancel={() => setActiveDragId(null)}
