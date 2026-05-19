@@ -89,30 +89,31 @@ export function AppShell({ children, title, tabs, toolbar }: {
   }, []);
 
   const navBeforeProjects: NavItem[] = [
-    { to: "/", label: "Today", icon: Home, count: todayCount },
+    { to: "/", label: "Home", icon: Home, count: todayCount },
     { to: "/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
     { to: "/my-tasks", label: "My Tasks", icon: CheckSquare, count: myTasksCount },
   ];
 
-  const navMore = [
+  const navAfterProjects: NavItem[] = [
     { to: "/notes", label: "Notes", icon: FileText },
+    { to: "/calendar", label: "Calendar", icon: Calendar },
+  ];
+
+  const navMore = [
     { to: "/connections", label: "Connections", icon: Network },
     { to: "/activity", label: "Activity", icon: Activity },
     { to: "/team", label: "Team", icon: Users },
+    { to: "/work-items", label: "Tasks", icon: ListTodo },
+    { to: "/board", label: "Board", icon: LayoutGrid },
+    { to: "/timeline", label: "Timeline", icon: BarChart3 },
     { to: "/report", label: "Reports", icon: BarChart3 },
-  ];
-  const projectViewLinks: NavItem[] = [
-    { to: activeProjectId ? `/projects?project=${activeProjectId}` : "/projects", label: "Overview", icon: FolderKanban },
-    { to: activeProjectId ? `/work-items?project=${activeProjectId}` : "/work-items", label: "Tasks", icon: ListTodo },
-    { to: activeProjectId ? `/board?project=${activeProjectId}` : "/board", label: "Board", icon: LayoutGrid },
-    { to: activeProjectId ? `/calendar?project=${activeProjectId}` : "/calendar", label: "Calendar", icon: Calendar },
-    { to: activeProjectId ? `/timeline?project=${activeProjectId}` : "/timeline", label: "Timeline", icon: BarChart3 },
   ];
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
     ...navBeforeProjects,
     { to: "/projects", label: "Projects", icon: FolderKanban },
+    ...navAfterProjects,
   ];
 
   const submitQuick = () => {
@@ -251,12 +252,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
                   })}
                 </div>
               )}
-              <div className="mt-2 border-t border-border/60 pt-2">
-                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Project views
-                </div>
-                <SidebarSection items={projectViewLinks} isActive={isActive} collapsed={false} />
-              </div>
+              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} />
               <SidebarCollapsible
                 label="More"
                 open={moreOpen}
@@ -268,8 +264,6 @@ export function AppShell({ children, title, tabs, toolbar }: {
           ) : (
             <>
               <SidebarSection items={navMain} isActive={isActive} collapsed={true} />
-              <SidebarSection items={projectViewLinks} isActive={isActive} collapsed={true} />
-              <SidebarSection items={navMore} isActive={isActive} collapsed={true} />
             </>
           )}
         </nav>
@@ -437,12 +431,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
                   })}
                 </div>
               )}
-              <div className="mt-2 border-t border-border/60 pt-2">
-                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Project views
-                </div>
-                <SidebarSection items={projectViewLinks} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
-              </div>
+              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <SidebarCollapsible
                 label="More"
                 open={moreOpen}

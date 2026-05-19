@@ -78,11 +78,10 @@ export default function MyTasks() {
       <div className="flex">
       <div className="min-w-0 flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
-        <div className="mb-1 flex items-baseline justify-between">
-          <h1 className="text-[20px] font-semibold tracking-tight">My Tasks</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-[13px] text-muted-foreground">Tasks across your workspace.</p>
           <span className="text-[12px] text-muted-foreground">{openCount} open</span>
         </div>
-        <p className="mb-4 text-[13px] text-muted-foreground">Tasks across your workspace.</p>
 
         {/* Scope filter: Mine / Team / All */}
         <div className="mb-3 flex items-center gap-1 text-[13px]">

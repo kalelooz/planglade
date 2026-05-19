@@ -51,8 +51,8 @@ Advanced or secondary surfaces should not drive the MVP:
 Goal: keep navigation calm, small, and trustworthy.
 
 - [ ] Rename any remaining default "Dashboard" wording to "Home" where appropriate.
-- [ ] Keep primary navigation small: Home, Inbox, Projects, My Tasks, Notes, Calendar.
-- [ ] Keep Graph/Connections, Activity, Team, Reports, Board, Work Items, and similar low-priority screens behind Advanced/More or direct routes.
+- [x] Keep primary navigation small: Home, Inbox, Projects, My Tasks, Notes, Calendar.
+- [x] Keep Graph/Connections, Activity, Team, Reports, Board, Work Items, and similar low-priority screens behind Advanced/More or direct routes.
 - [ ] Remove or hide fake notification chrome.
 - [ ] Keep one primary action in the header: Quick Capture or `+ New`.
 - [ ] Remove duplicate page titles between shell header and content.
