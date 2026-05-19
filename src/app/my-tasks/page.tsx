@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
@@ -14,6 +15,14 @@ type Tab = (typeof tabs)[number];
 type Scope = "mine" | "team" | "all";
 
 const ME = "AM";
+
+function isTab(value: string | null): value is Tab {
+  return value != null && (tabs as readonly string[]).includes(value);
+}
+
+function isScope(value: string | null): value is Scope {
+  return value === "mine" || value === "team" || value === "all";
+}
 
 function startOfLocalDay(date: Date) {
   const next = new Date(date);
@@ -40,8 +49,13 @@ function inTab(w: WorkItem, tab: Tab, today: Date): boolean {
 }
 
 export default function MyTasks() {
-  const [tab, setTab] = useState<Tab>("Today");
-  const [scope, setScope] = useState<Scope>("mine");
+  const params = useSearchParams();
+  const tabParam = params.get("tab");
+  const scopeParam = params.get("scope");
+  const initialTab = isTab(tabParam) ? tabParam : "Today";
+  const initialScope = isScope(scopeParam) ? scopeParam : "mine";
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [scope, setScope] = useState<Scope>(initialScope);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());

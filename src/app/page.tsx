@@ -251,11 +251,21 @@ export default function HomePage() {
                     </span>
                   </div>
                   <p className="text-[13px] text-muted-foreground">
-                    {buckets.today.length} today,{" "}
-                    <span className={buckets.overdue.length > 0 ? "font-medium text-red-600" : ""}>
+                    <Link href="/my-tasks?tab=Today&scope=all" className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+                      {buckets.today.length} today
+                    </Link>
+                    ,{" "}
+                    <Link
+                      href="/my-tasks?tab=Overdue&scope=all"
+                      className={`underline decoration-dotted underline-offset-2 hover:text-foreground ${buckets.overdue.length > 0 ? "font-medium text-red-600" : ""}`}
+                    >
                       {buckets.overdue.length} overdue
-                    </span>
-                    , {inboxItems.length} in Inbox.
+                    </Link>
+                    ,{" "}
+                    <Link href="/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+                      {inboxItems.length} in Inbox
+                    </Link>
+                    .
                   </p>
                 </div>
                 <Link
