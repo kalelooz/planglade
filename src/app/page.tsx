@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { Activity, Clock3, FileText, Inbox, Plus } from "lucide-react";
+import { FileText, Inbox, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/lovable/shell";
@@ -128,7 +128,6 @@ export default function HomePage() {
   const workItems = useStore((state) => state.workItems);
   const inboxItems = useStore((state) => state.inboxItems);
   const notes = useStore((state) => state.notes);
-  const activity = useStore((state) => state.activity);
   const activeProjectId = useStore((state) => state.settings.activeProjectId);
   const members = useStore((state) => state.members);
   const setStatus = useStore((state) => state.setWorkItemStatus);
@@ -188,9 +187,6 @@ export default function HomePage() {
   }, [workItems, activeProjectId, todayKey, recentlyCompletedIds]);
 
   const recentNotes = notes.slice(0, 5);
-  const recentActivity = activity
-    .flatMap((day) => day.items.map((item) => ({ ...item, date: day.date })))
-    .slice(0, 6);
 
   const completeWithUndo = (id: string) => {
     const previous = workItems.find((item) => item.id === id);
@@ -382,33 +378,6 @@ export default function HomePage() {
                 )}
               </PulseSection>
 
-              <PulseSection title="Recently changed" icon={<Activity className="h-3.5 w-3.5" />} href="/activity">
-                {recentActivity.length === 0 ? (
-                  <div className="px-1 py-5 text-[12px] text-muted-foreground">
-                    <p>No recent changes.</p>
-                    <Link href="/inbox" className="mt-2 inline-flex lov-btn lov-btn-ghost h-7 px-2 text-[11px]">Capture work in Inbox</Link>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border/60">
-                    {recentActivity.map((item, index) => {
-                      const member = members.find((m) => m.id === item.who) ?? members[0];
-                      return (
-                        <Link key={`${item.date}-${index}`} href="/activity" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2 text-[12px] hover:text-foreground">
-                          <span className="min-w-0 truncate">
-                            <span className="font-medium">{member?.name ?? item.who}</span>{" "}
-                            <span className="text-muted-foreground">{item.action}</span>{" "}
-                            <span>{item.target}</span>
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <Clock3 className="h-3 w-3" />
-                            {item.time}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </PulseSection>
             </aside>
           </div>
         </div>

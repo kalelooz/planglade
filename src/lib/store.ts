@@ -217,6 +217,7 @@ export const useStore = create<State & Actions>()(
           assignee: partial.assignee ?? "AM",
           label: partial.label ?? "Task",
           due: partial.due ?? new Date().toISOString().slice(0, 10),
+          start: partial.start ?? ((partial.due ?? new Date().toISOString().slice(0, 10)).split("T")[0]),
           project: partial.project ?? "core",
         };
         const logActivity = options?.logActivity !== false;
@@ -487,11 +488,16 @@ export const useStore = create<State & Actions>()(
     {
       name: "fb.store.v1",
       storage: createJSONStorage(() => (typeof window !== "undefined" ? window.localStorage : (undefined as unknown as Storage))),
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown) => {
         const state = (persisted ?? {}) as Partial<State>;
         if (Array.isArray(state.workItems)) {
           state.workItems = dedupByIdAndTitle(state.workItems as WorkItem[], "FB") as WorkItem[];
+          state.workItems = (state.workItems as WorkItem[]).map((item) => {
+            if (item.start) return item;
+            const start = item.due ? item.due.split("T")[0] : "";
+            return { ...item, start };
+          }) as WorkItem[];
         }
         if (Array.isArray(state.notes)) {
           state.notes = dedupByIdAndTitle(state.notes as Note[], "n") as Note[];

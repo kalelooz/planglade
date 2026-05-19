@@ -54,6 +54,11 @@ function highlightText(text: string, query: string): ReactNode {
   return parts;
 }
 
+function extractTaskRefs(text: string): string[] {
+  const matches = text.match(/\bFB-\d+\b/g) ?? [];
+  return Array.from(new Set(matches));
+}
+
 function NotesInner() {
   const notes = useStore((s) => s.notes);
   const workItems = useStore((s) => s.workItems);
@@ -91,10 +96,13 @@ function NotesInner() {
   const sel = notes.find((n) => n.id === selectedId) ?? filtered[0] ?? null;
   const selectedTask = workItems.find((w) => w.id === selectedTaskId) ?? null;
 
-  const linkedTasks = useMemo(
-    () => sel ? workItems.filter((w) => (w.noteIds ?? []).includes(sel.id)) : [],
-    [workItems, sel]
-  );
+  const linkedTasks = useMemo(() => {
+    if (!sel) return [];
+    const explicit = workItems.filter((w) => (w.noteIds ?? []).includes(sel.id));
+    const refs = new Set(extractTaskRefs(`${sel.title}\n${sel.excerpt}`));
+    const byRef = workItems.filter((w) => refs.has(w.id));
+    return [...explicit, ...byRef.filter((item) => !explicit.some((existing) => existing.id === item.id))];
+  }, [workItems, sel]);
 
   const quickCreate = () => {
     if (!draft.trim()) return;
@@ -114,7 +122,9 @@ function NotesInner() {
       const title = match[2].trim();
       if (!title) return line;
       const id = addWorkItem({ title, project: activeProjectId ?? "core" });
-      updateWorkItem(id, { noteIds: [sel.id] });
+      const created = workItems.find((w) => w.id === id);
+      const existing = created?.noteIds ?? [];
+      updateWorkItem(id, { noteIds: [...existing, sel.id] });
       createdCount += 1;
       return `${match[1]}- [x] ${title} (${id})`;
     });

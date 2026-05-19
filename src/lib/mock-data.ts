@@ -50,10 +50,12 @@ export type WorkItem = {
   priority: Priority;
   assignee: string;
   label: string;
+  start?: string;
   due: string;
   project: string;
   checklist?: ChecklistItem[];
   noteIds?: string[];
+  blockerIds?: string[];
   description?: string;
 };
 

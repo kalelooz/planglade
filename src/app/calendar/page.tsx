@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/lovable/shell";
 import { Toolbar } from "@/components/lovable/page";
@@ -192,6 +192,7 @@ function MonthView({
   now,
   projectsById,
   onSelect,
+  onCreate,
 }: {
   cursor: Date;
   itemsByKey: Record<string, WorkItem[]>;
@@ -199,6 +200,7 @@ function MonthView({
   now: Date;
   projectsById: Record<string, Project>;
   onSelect: (id: string) => void;
+  onCreate: (dateKey: string) => void;
 }) {
   const isThisMonth =
     cursor.getFullYear() === now.getFullYear() &&
@@ -270,6 +272,15 @@ function MonthView({
                       visibleCount={MONTH_VISIBLE}
                     />
                   )}
+                  {dayItems.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onCreate(key)}
+                      className="flex h-6 w-full items-center justify-center rounded border border-dashed text-[10px] text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+                    >
+                      <Plus className="mr-1 h-3 w-3" /> Add
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -288,12 +299,14 @@ function WeekView({
   todayKey,
   projectsById,
   onSelect,
+  onCreate,
 }: {
   cursor: Date;
   itemsByKey: Record<string, WorkItem[]>;
   todayKey: string;
   projectsById: Record<string, Project>;
   onSelect: (id: string) => void;
+  onCreate: (dateKey: string) => void;
 }) {
   const monday = useMemo(() => startOfWeek(cursor), [cursor]);
   const days = useMemo(
@@ -349,9 +362,13 @@ function WeekView({
                 />
               ))}
               {dayItems.length === 0 && (
-                <div className="pt-3 text-center text-[11px] text-muted-foreground/30">
-                  —
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onCreate(key)}
+                  className="mt-2 flex w-full items-center justify-center rounded border border-dashed px-2 py-1 text-[10px] text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add
+                </button>
               )}
             </div>
           </div>
@@ -369,6 +386,7 @@ export default function CalendarPage() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const workItems = useStore((s) => s.workItems);
+  const addWorkItem = useStore((s) => s.addWorkItem);
   const activeProjectId = useStore((s) => s.settings.activeProjectId);
   const projects = useStore((s) => s.projects);
 
@@ -376,6 +394,7 @@ export default function CalendarPage() {
   const [now, setNow] = useState(() => new Date());
   const [view, setView] = useState<CalView>("month");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusNewTask, setFocusNewTask] = useState(false);
 
   const scopedProjectId = routeProjectId ?? activeProjectId;
   const activeProject = scopedProjectId
@@ -460,6 +479,17 @@ export default function CalendarPage() {
     }
   }
 
+  function createOnDate(dateKey: string) {
+    const id = addWorkItem({
+      title: "Untitled task",
+      project: scopedProjectId ?? projects[0]?.id ?? "core",
+      start: dateKey,
+      due: dateKey,
+    });
+    setSelectedId(id);
+    setFocusNewTask(true);
+  }
+
   return (
     <AppShell
       title={
@@ -519,12 +549,13 @@ export default function CalendarPage() {
                 cursor={cursor}
                 itemsByKey={itemsByKey}
                 todayKey={todayKey}
-                now={now}
-                projectsById={projectsById}
-                onSelect={setSelectedId}
-              />
-            </div>
-          ) : (
+              now={now}
+              projectsById={projectsById}
+              onSelect={setSelectedId}
+              onCreate={createOnDate}
+            />
+          </div>
+        ) : (
             <div className="min-h-0 flex-1 overflow-auto">
               <WeekView
                 cursor={cursor}
@@ -532,11 +563,20 @@ export default function CalendarPage() {
                 todayKey={todayKey}
                 projectsById={projectsById}
                 onSelect={setSelectedId}
+                onCreate={createOnDate}
               />
             </div>
           )}
         </div>
-        <TaskDrawer item={selectedItem} onClose={() => setSelectedId(null)} />
+        <TaskDrawer
+          item={selectedItem}
+          focusTitle={focusNewTask}
+          onTitleFocused={() => setFocusNewTask(false)}
+          onClose={() => {
+            setSelectedId(null);
+            setFocusNewTask(false);
+          }}
+        />
       </div>
     </AppShell>
   );

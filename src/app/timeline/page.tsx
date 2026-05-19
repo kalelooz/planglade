@@ -145,6 +145,14 @@ function parseDueDateTime(item: WorkItem) {
   return date;
 }
 
+function parseStartDateTime(item: WorkItem) {
+  if (!item.start) return null;
+  const date = parseLocalDateTime(item.start);
+  if (!date) return null;
+  if (!getTimePart(item.start)) date.setHours(9, 0, 0, 0);
+  return date;
+}
+
 function formatDate(value: string | Date | null | undefined) {
   if (!value) return "No date";
   const date = typeof value === "string" ? parseDateKey(value) : value;
@@ -181,15 +189,18 @@ function toStoredDue(dateValue: string, timeValue: string) {
 function buildWindow(item: WorkItem): ScheduleWindow | null {
   const end = parseDueDateTime(item);
   if (!end) return null;
-  const durationHours = PRIORITY_DURATION_HOURS[item.priority] + (item.status === "Backlog" ? 12 : 0);
-  const start = addHours(end, -durationHours);
+  const preferredStart = parseStartDateTime(item);
+  const fallbackStart = addHours(end, -PRIORITY_DURATION_HOURS[item.priority]);
+  const start = preferredStart ?? fallbackStart;
+  const safeEnd = end <= start ? addHours(start, 1) : end;
+  const durationHours = Math.max(1, diffHours(start, safeEnd));
   return {
     start,
-    end,
+    end: safeEnd,
     startKey: dateKey(start),
-    endKey: dateKey(end),
+    endKey: dateKey(safeEnd),
     durationHours,
-    dueTimeLabel: end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    dueTimeLabel: safeEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
   };
 }
 
@@ -528,6 +539,10 @@ export default function TimelinePage() {
   }, [groupBy, timelineItems]);
 
   const selected = selectedId ? timelineItems.find((entry) => entry.item.id === selectedId) ?? null : null;
+  const selectedBlockers = useMemo(
+    () => (selected?.item.blockerIds ?? []).map((id) => workItems.find((item) => item.id === id)).filter((item): item is WorkItem => !!item),
+    [selected, workItems]
+  );
   const selectedGroupId = selected
     ? groupBy === "Project"
       ? selected.item.project
@@ -882,6 +897,26 @@ export default function TimelinePage() {
                     className="w-full resize-y rounded border bg-card px-3 py-2 text-[12px] outline-none placeholder:text-muted-foreground/60 focus:border-primary"
                   />
                 </section>
+
+                {selectedBlockers.length > 0 && (
+                  <section>
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Dependencies</div>
+                    <div className="space-y-1">
+                      {selectedBlockers.map((blocker) => (
+                        <button
+                          key={blocker.id}
+                          type="button"
+                          onClick={() => selectItem(blocker)}
+                          className="lov-menu-item w-full px-2 py-1.5 text-left text-[12px]"
+                        >
+                          <StatusIcon s={blocker.status} />
+                          <span className="font-mono text-[10px] text-muted-foreground">{blocker.id}</span>
+                          <span className="min-w-0 flex-1 truncate">{blocker.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </>
             )}
           </div>

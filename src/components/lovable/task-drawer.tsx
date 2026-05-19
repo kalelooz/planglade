@@ -45,6 +45,7 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
   const linkedNoteIds = item.noteIds ?? [];
   const linkedNotes = notes.filter((n) => linkedNoteIds.includes(n.id));
   const linkableNotes = notes.filter((n) => !linkedNoteIds.includes(n.id));
+  const startValue = getDatePart(item.start ?? "");
   const dueValue = getDatePart(item.due);
 
   const linkNote = (noteId: string) => {
@@ -123,6 +124,16 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
                 const time = getTimePart(item.due);
                 updateWorkItem(item.id, { due: time ? `${e.target.value}T${time}` : e.target.value });
               }}
+              className="rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
+            />
+          </dd>
+
+          <dt className="pt-0.5 text-muted-foreground">Start</dt>
+          <dd>
+            <input
+              type="date"
+              value={startValue}
+              onChange={(e) => updateWorkItem(item.id, { start: e.target.value })}
               className="rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
             />
           </dd>

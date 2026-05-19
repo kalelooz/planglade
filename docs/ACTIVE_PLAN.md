@@ -64,10 +64,10 @@ Verify: sidebar grouping is clear, fake header controls are gone, current locati
 Goal: make Home the daily command center, not a vanity dashboard.
 
 - [x] Add Quick Capture at the top.
-- [x] Show Today, Overdue, Inbox, and Recently Changed/Recent Notes.
+- [x] Show Today, Overdue, Inbox, and Recent Notes.
 - [x] Remove vanity KPIs unless clicking them reveals the exact underlying work.
 - [x] Make empty states action-oriented.
-- [ ] Keep team/reporting content off the first screen unless the data is real.
+- [x] Keep team/reporting content off the first screen unless the data is real.
 
 Verify: a task can be captured quickly, no first-screen action pretends to persist if it does not, and the first screen has one clear focal area.
 
@@ -115,7 +115,7 @@ Goal: make notes fast to capture and easy to find.
 - [x] Highlight search matches.
 - [x] Make capture/edit mode obvious.
 - [x] Improve selected-note state and list readability.
-- [ ] Prepare for task links and checkbox-to-task conversion without overbuilding it.
+- [x] Prepare for task links and checkbox-to-task conversion without overbuilding it.
 
 Verify: search is accurate, creating/editing notes updates the list immediately, and note controls are discoverable.
 
@@ -127,7 +127,7 @@ Goal: make dated work visible and consistent.
 - [x] Fix date parsing so years are explicit and stable.
 - [x] Show useful task text before truncation.
 - [x] Calendar data agrees with My Tasks and Home.
-- [ ] Add creation affordance on empty days only after create flow is real.
+- [x] Add creation affordance on empty days only after create flow is real.
 - [x] Keep month view readable on desktop and mobile.
 
 Verify: changing a task due date moves it on the calendar, and undated tasks do not appear on misleading dates.
@@ -140,8 +140,8 @@ Goal: show planning dates without adding fragile complexity.
 - [x] Add a clear today marker.
 - [x] Make overdue work visually distinct.
 - [x] Use consistent status/project color rules.
-- [ ] Drive bars from real start and due dates.
-- [ ] Keep dependencies hidden until blocker/dependency state exists.
+- [x] Drive bars from real start and due dates.
+- [x] Keep dependencies hidden until blocker/dependency state exists.
 
 Verify: today's marker matches the actual current date and Timeline agrees with Calendar and My Tasks.
 
@@ -158,11 +158,11 @@ Verify: advanced screens are not part of the primary first-run path and do not c
 
 ## Cross-Page Done Criteria
 
-- [ ] One source of truth for tasks, projects, notes, members, activity, and settings.
-- [ ] Create/edit/delete/move actions update all affected views.
-- [ ] Core user-created work survives refresh once local persistence is in scope.
-- [ ] Changed UI surfaces pass the targeted checks in `docs/QUALITY-GATES.md`.
-- [ ] `README.md`, `AGENTS.md`, this plan, and implementation state do not contradict each other.
+- [x] One source of truth for tasks, projects, notes, members, activity, and settings.
+- [x] Create/edit/delete/move actions update all affected views.
+- [x] Core user-created work survives refresh once local persistence is in scope.
+- [x] Changed UI surfaces pass the targeted checks in `docs/QUALITY-GATES.md`.
+- [x] `README.md`, `AGENTS.md`, this plan, and implementation state do not contradict each other.
 
 ## Reference Material
 
