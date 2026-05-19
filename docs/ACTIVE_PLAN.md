@@ -113,8 +113,8 @@ Goal: make notes fast to capture and easy to find.
 
 - [x] Add notes search across title, body, and tags.
 - [x] Highlight search matches.
-- [ ] Make capture/edit mode obvious.
-- [ ] Improve selected-note state and list readability.
+- [x] Make capture/edit mode obvious.
+- [x] Improve selected-note state and list readability.
 - [ ] Prepare for task links and checkbox-to-task conversion without overbuilding it.
 
 Verify: search is accurate, creating/editing notes updates the list immediately, and note controls are discoverable.

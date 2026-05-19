@@ -100,6 +100,7 @@ function NotesInner() {
     if (!draft.trim()) return;
     const id = addNote({ title: draft.trim(), tag: "Capture", excerpt: "" });
     selectNote(id);
+    toast.success("Note captured");
     setDraft("");
   };
 
@@ -147,13 +148,23 @@ function NotesInner() {
             </button>
           </div>
           <div className="border-b border-border/40 p-2">
-            <input
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Capture</label>
+            <div className="flex items-center gap-1">
+              <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") quickCreate(); }}
-              placeholder="Quick capture a note…"
-              className="h-8 w-full rounded border bg-background px-2 text-[13px] outline-none focus:border-ring"
-            />
+              placeholder="Quick capture a note."
+              className="h-8 min-w-0 flex-1 rounded border bg-background px-2 text-[13px] outline-none focus:border-ring"
+              />
+              <button
+                onClick={quickCreate}
+                disabled={!draft.trim()}
+                className="lov-btn lov-btn-primary h-8 px-2 disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             {notes.length === 0 ? (
@@ -169,7 +180,7 @@ function NotesInner() {
                 <button
                   key={n.id}
                   onClick={() => selectNote(n.id)}
-                  className={`block w-full border-b border-border/40 px-3 py-3 text-left hover:bg-[var(--color-hover)]/40 ${sel?.id === n.id ? "bg-[var(--color-hover)]/60" : ""}`}
+                  className={`block w-full border-b border-border/40 px-3 py-3 text-left transition-colors hover:bg-[var(--color-hover)]/40 ${sel?.id === n.id ? "border-l-2 border-l-primary bg-[var(--color-hover)]/60 pl-[10px]" : ""}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate text-[13px] font-medium text-foreground">
@@ -195,6 +206,9 @@ function NotesInner() {
             <>
               {/* Header bar: tag + linked tasks (left), edited time + grouped actions (right) */}
               <div className="flex h-12 items-center gap-3 border-b border-border/40 px-5 text-[12px]">
+                <span className="rounded border bg-muted/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Editing
+                </span>
                 {/* Tag: chip with edit affordance */}
                 <label className="group flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 hover:border-ring focus-within:border-ring">
                   <Hash className="h-3 w-3 text-muted-foreground" />
