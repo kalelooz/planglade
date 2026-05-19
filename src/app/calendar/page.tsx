@@ -8,7 +8,7 @@ import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useStore } from "@/lib/store";
 import type { WorkItem, Project } from "@/lib/mock-data";
-import { localDateKey, parseLocalDate } from "@/lib/dates";
+import { getDatePart, localDateKey, parseLocalDate } from "@/lib/dates";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -82,7 +82,8 @@ function TaskChip({
   size?: "sm" | "md";
 }) {
   const isDone = item.status === "Done";
-  const isOverdue = !!item.due && item.due < todayKey && !isDone;
+  const dueKey = getDatePart(item.due);
+  const isOverdue = !!dueKey && dueKey < todayKey && !isDone;
   const sizing =
     size === "sm" ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-[12px]";
   const textTone = isDone
@@ -179,19 +180,20 @@ function MonthView({
   cursor,
   itemsByKey,
   todayKey,
+  now,
   projectsById,
   onSelect,
 }: {
   cursor: Date;
   itemsByKey: Record<string, WorkItem[]>;
   todayKey: string;
+  now: Date;
   projectsById: Record<string, Project>;
   onSelect: (id: string) => void;
 }) {
-  const today = new Date();
   const isThisMonth =
-    cursor.getFullYear() === today.getFullYear() &&
-    cursor.getMonth() === today.getMonth();
+    cursor.getFullYear() === now.getFullYear() &&
+    cursor.getMonth() === now.getMonth();
 
   const cells = useMemo(() => {
     const dim = daysInMonth(cursor);
@@ -215,7 +217,7 @@ function MonthView({
       ))}
       {cells.map((c, idx) => {
         const day = c.day;
-        const isToday = !!day && isThisMonth && day === today.getDate();
+        const isToday = !!day && isThisMonth && day === now.getDate();
         const key = day
           ? `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
           : "";
@@ -506,6 +508,7 @@ export default function CalendarPage() {
               cursor={cursor}
               itemsByKey={itemsByKey}
               todayKey={todayKey}
+              now={now}
               projectsById={projectsById}
               onSelect={setSelectedId}
             />

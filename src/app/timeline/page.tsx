@@ -20,6 +20,7 @@ import { Avatar, PriorityIcon, StatusIcon } from "@/components/lovable/icons";
 import { Chip, Toolbar } from "@/components/lovable/page";
 import { byInitials, type Member, type Priority, type Project, type Status, type WorkItem } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
+import { getDatePart, getTimePart, localDateKey, parseLocalDate, parseLocalDateTime } from "@/lib/dates";
 
 type Scale = "Day" | "Week" | "Month" | "Quarter";
 type GroupBy = "Project" | "Assignee" | "Status";
@@ -122,12 +123,12 @@ function diffHours(start: Date, end: Date) {
 }
 
 function dateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return localDateKey(date);
 }
 
 function parseDateKey(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : startOfDay(date);
+  const date = parseLocalDate(value);
+  return date ? startOfDay(date) : null;
 }
 
 function stableWorkHour(item: WorkItem) {
@@ -138,13 +139,9 @@ function stableWorkHour(item: WorkItem) {
 
 function parseDueDateTime(item: WorkItem) {
   if (!item.due) return null;
-  if (item.due.includes("T")) {
-    const date = new Date(item.due);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  const date = parseDateKey(item.due);
+  const date = parseLocalDateTime(item.due);
   if (!date) return null;
-  date.setHours(stableWorkHour(item), 0, 0, 0);
+  if (!getTimePart(item.due)) date.setHours(stableWorkHour(item), 0, 0, 0);
   return date;
 }
 
@@ -209,7 +206,7 @@ function statusTone(status: Status) {
 
 function dueTone(item: WorkItem, todayKey: string) {
   const due = parseDueDateTime(item);
-  const dueKey = due ? dateKey(due) : item.due;
+  const dueKey = due ? dateKey(due) : getDatePart(item.due);
   if (item.status === "Done") return "success" as const;
   if (dueKey && dueKey < todayKey) return "danger" as const;
   if (dueKey === todayKey) return "warning" as const;
@@ -226,7 +223,7 @@ function nudgeDate(value: string, amount: number, item?: WorkItem) {
   const date = item ? parseDueDateTime(item) : parseDateKey(value);
   if (!date) return value;
   const next = addDays(date, amount);
-  return value.includes("T") ? toStoredDue(dateKey(next), toTimeInputValue(next)) : dateKey(next);
+  return getTimePart(value) ? toStoredDue(dateKey(next), toTimeInputValue(next)) : dateKey(next);
 }
 
 function SegmentButton({
@@ -458,7 +455,7 @@ export default function TimelinePage() {
       .filter((item) => {
         if (filter === "All") return true;
         if (filter === "Done") return item.status === "Done";
-        if (filter === "Overdue") return item.status !== "Done" && !!item.due && item.due < todayKey;
+        if (filter === "Overdue") return item.status !== "Done" && !!getDatePart(item.due) && getDatePart(item.due) < todayKey;
         return item.status !== "Done";
       })
       .map((item) => {
@@ -469,7 +466,7 @@ export default function TimelinePage() {
           project,
           member,
           window: buildWindow(item),
-          isOverdue: item.status !== "Done" && !!parseDueDateTime(item) && dateKey(parseDueDateTime(item)!) < todayKey,
+          isOverdue: item.status !== "Done" && !!getDatePart(item.due) && getDatePart(item.due) < todayKey,
         };
       })
       .filter((entry) => !entry.window || (entry.window.start < rangeEnd && entry.window.end > rangeStart))

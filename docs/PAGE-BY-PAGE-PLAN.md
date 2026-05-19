@@ -105,35 +105,35 @@ Verify:
 
 Purpose: make dated work visible and actionable.
 
-- [ ] Drive calendar items from real task dates.
-- [ ] Fix date parsing so years are explicit and stable.
-- [ ] Show useful task text before truncation.
+- [x] Drive calendar items from real task dates.
+- [x] Fix date parsing so years are explicit and stable.
+- [x] Show useful task text before truncation.
 - [ ] Add creation affordance on empty days only after create flow is real.
-- [ ] Consider week view after month view is trustworthy.
+- [x] Consider week view after month view is trustworthy.
 
 Verify:
 
-- [ ] Changing a task due date moves it on the calendar.
-- [ ] Undated tasks do not appear in misleading dates.
+- [x] Changing a task due date moves it on the calendar.
+- [x] Undated tasks do not appear in misleading dates.
 - [ ] Month view remains readable on desktop and mobile.
-- [ ] Calendar data agrees with My Tasks and Home.
+- [x] Calendar data agrees with My Tasks and Home.
 
 ### 7. Timeline / Gantt
 
 Purpose: make planning dates visible without adding fragile complexity.
 
-- [ ] Use the current date, not a hardcoded `TODAY`.
+- [x] Use the current date, not a hardcoded `TODAY`.
 - [ ] Drive bars from real start and due dates.
-- [ ] Add a clear today marker.
+- [x] Add a clear today marker.
 - [ ] Keep dependencies hidden until blocker/dependency state exists.
-- [ ] Color bars by consistent status/project rules, not decoration.
+- [x] Color bars by consistent status/project rules, not decoration.
 
 Verify:
 
-- [ ] Today's marker matches the actual current date.
-- [ ] Editing start/due dates updates the timeline.
-- [ ] Overdue work is visually distinct.
-- [ ] Timeline agrees with Calendar and My Tasks.
+- [x] Today's marker matches the actual current date.
+- [x] Editing start/due dates updates the timeline.
+- [x] Overdue work is visually distinct.
+- [x] Timeline agrees with Calendar and My Tasks.
 
 ### 8. Advanced Views
 

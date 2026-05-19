@@ -5,7 +5,7 @@ import { X, Link2, Plus, Trash2, FileText } from "lucide-react";
 import Link from "next/link";
 import type { WorkItem, Status, Priority } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
-import { getDatePart } from "@/lib/dates";
+import { getDatePart, getTimePart } from "@/lib/dates";
 import { Avatar, PriorityIcon, StatusIcon } from "./icons";
 import { Chip } from "./page";
 
@@ -120,7 +120,7 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
               type="date"
               value={dueValue}
               onChange={(e) => {
-                const time = item.due.includes("T") ? item.due.split("T")[1] : "";
+                const time = getTimePart(item.due);
                 updateWorkItem(item.id, { due: time ? `${e.target.value}T${time}` : e.target.value });
               }}
               className="rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
