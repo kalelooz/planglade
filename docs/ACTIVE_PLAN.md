@@ -66,7 +66,7 @@ Goal: make Home the daily command center, not a vanity dashboard.
 - [x] Add Quick Capture at the top.
 - [x] Show Today, Overdue, Inbox, and Recently Changed/Recent Notes.
 - [ ] Remove vanity KPIs unless clicking them reveals the exact underlying work.
-- [ ] Make empty states action-oriented.
+- [x] Make empty states action-oriented.
 - [ ] Keep team/reporting content off the first screen unless the data is real.
 
 Verify: a task can be captured quickly, no first-screen action pretends to persist if it does not, and the first screen has one clear focal area.

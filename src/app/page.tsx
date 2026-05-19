@@ -93,7 +93,7 @@ function TaskSection({
   title: string;
   count: number;
   children: ReactNode;
-  empty: string;
+  empty: ReactNode;
 }) {
   return (
     <section className="pb-4 last:pb-0">
@@ -303,7 +303,12 @@ export default function HomePage() {
                 <TaskSection
                   title="Overdue"
                   count={buckets.overdue.length}
-                  empty="No overdue work."
+                  empty={
+                    <div className="space-y-2">
+                      <p>No overdue work.</p>
+                      <Link href="/calendar" className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]">Open Calendar</Link>
+                    </div>
+                  }
                 >
                   {buckets.overdue.map((item) => renderTask(item, <span className="text-red-600">{daysLate(getDatePart(item.due), now)}d late</span>))}
                 </TaskSection>
@@ -311,7 +316,21 @@ export default function HomePage() {
                 <TaskSection
                   title="Today"
                   count={buckets.today.length}
-                  empty="Nothing due today. Capture new work above or clear Inbox."
+                  empty={
+                    <div className="space-y-2">
+                      <p>Nothing due today.</p>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => captureRef.current?.focus()}
+                          className="lov-btn lov-btn-primary h-7 px-2 text-[11px]"
+                        >
+                          Quick capture
+                        </button>
+                        <Link href="/inbox" className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]">Open Inbox</Link>
+                      </div>
+                    </div>
+                  }
                 >
                   {buckets.today.map((item) => renderTask(item, item.status === "Done" ? "Completed" : item.due ? item.status : "No date"))}
                 </TaskSection>
@@ -319,7 +338,12 @@ export default function HomePage() {
                 <TaskSection
                   title="Next up"
                   count={Math.min(buckets.upcoming.length, 5)}
-                  empty="No upcoming tasks scheduled."
+                  empty={
+                    <div className="space-y-2">
+                      <p>No upcoming tasks scheduled.</p>
+                      <Link href="/calendar" className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]">Schedule in Calendar</Link>
+                    </div>
+                  }
                 >
                   {buckets.upcoming.slice(0, 5).map((item) => renderTask(item, formatDueLabel(item.due)))}
                 </TaskSection>
@@ -329,7 +353,10 @@ export default function HomePage() {
             <aside className="min-w-0 space-y-6 text-[12px] opacity-90 xl:order-1 xl:border-r xl:border-border/60 xl:pr-6">
               <PulseSection title="Recent notes" icon={<FileText className="h-3.5 w-3.5" />} href="/notes">
                 {recentNotes.length === 0 ? (
-                  <div className="px-1 py-5 text-[12px] text-muted-foreground">No notes yet.</div>
+                  <div className="px-1 py-5 text-[12px] text-muted-foreground">
+                    <p>No notes yet.</p>
+                    <Link href="/notes" className="mt-2 inline-flex lov-btn lov-btn-ghost h-7 px-2 text-[11px]">Create note</Link>
+                  </div>
                 ) : (
                   <div className="divide-y divide-border/60">
                     {recentNotes.map((note) => (
@@ -347,7 +374,10 @@ export default function HomePage() {
 
               <PulseSection title="Recently changed" icon={<Activity className="h-3.5 w-3.5" />} href="/activity">
                 {recentActivity.length === 0 ? (
-                  <div className="px-1 py-5 text-[12px] text-muted-foreground">No recent changes.</div>
+                  <div className="px-1 py-5 text-[12px] text-muted-foreground">
+                    <p>No recent changes.</p>
+                    <Link href="/inbox" className="mt-2 inline-flex lov-btn lov-btn-ghost h-7 px-2 text-[11px]">Capture work in Inbox</Link>
+                  </div>
                 ) : (
                   <div className="divide-y divide-border/60">
                     {recentActivity.map((item, index) => {
