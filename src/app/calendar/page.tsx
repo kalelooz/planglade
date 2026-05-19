@@ -175,6 +175,15 @@ function DayOverflowPopover({
 // ── Month view ────────────────────────────────────────────────────────────────
 
 const MONTH_VISIBLE = 3;
+const WEEKDAY_HEADERS = [
+  { short: "M", long: "Mon" },
+  { short: "T", long: "Tue" },
+  { short: "W", long: "Wed" },
+  { short: "T", long: "Thu" },
+  { short: "F", long: "Fri" },
+  { short: "S", long: "Sat" },
+  { short: "S", long: "Sun" },
+];
 
 function MonthView({
   cursor,
@@ -206,13 +215,14 @@ function MonthView({
   }, [cursor]);
 
   return (
-    <div className="grid h-full grid-cols-7 border-b border-l text-[12px]">
-      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+    <div className="grid h-full min-w-[720px] grid-cols-7 border-b border-l text-[12px] md:min-w-0">
+      {WEEKDAY_HEADERS.map((d, index) => (
         <div
-          key={d}
+          key={`${d.long}-${index}`}
           className="border-r border-t bg-sidebar/50 px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
         >
-          {d}
+          <span className="sm:hidden">{d.short}</span>
+          <span className="hidden sm:inline">{d.long}</span>
         </div>
       ))}
       {cells.map((c, idx) => {
@@ -227,7 +237,7 @@ function MonthView({
         return (
           <div
             key={idx}
-            className={`min-h-28 border-r border-t p-1.5 ${day ? "" : "bg-sidebar/30"}`}
+            className={`min-h-24 border-r border-t p-1.5 sm:min-h-28 ${day ? "" : "bg-sidebar/30"}`}
           >
             {day && (
               <>
@@ -464,7 +474,7 @@ export default function CalendarPage() {
           <button onClick={prev} className="lov-icon-btn">
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-          <span className="min-w-[180px] text-center text-[13px] font-medium">
+          <span className="min-w-[120px] text-center text-[12px] font-medium sm:min-w-[180px] sm:text-[13px]">
             {navLabel}
           </span>
           <button onClick={next} className="lov-icon-btn">
@@ -476,7 +486,7 @@ export default function CalendarPage() {
           >
             Today
           </button>
-          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
           <div className="lov-segment-group">
             <button
               onClick={() => setView("month")}
@@ -493,7 +503,7 @@ export default function CalendarPage() {
           </div>
           <span className="ml-auto" />
           {undatedCount > 0 && (
-            <span className="text-[12px] text-muted-foreground">
+            <span className="hidden text-[12px] text-muted-foreground lg:inline">
               {undatedCount} task{undatedCount === 1 ? "" : "s"} without a due
               date
             </span>
@@ -504,22 +514,26 @@ export default function CalendarPage() {
       <div className="flex h-full min-h-0 w-full">
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {view === "month" ? (
-            <MonthView
-              cursor={cursor}
-              itemsByKey={itemsByKey}
-              todayKey={todayKey}
-              now={now}
-              projectsById={projectsById}
-              onSelect={setSelectedId}
-            />
+            <div className="min-h-0 flex-1 overflow-auto">
+              <MonthView
+                cursor={cursor}
+                itemsByKey={itemsByKey}
+                todayKey={todayKey}
+                now={now}
+                projectsById={projectsById}
+                onSelect={setSelectedId}
+              />
+            </div>
           ) : (
-            <WeekView
-              cursor={cursor}
-              itemsByKey={itemsByKey}
-              todayKey={todayKey}
-              projectsById={projectsById}
-              onSelect={setSelectedId}
-            />
+            <div className="min-h-0 flex-1 overflow-auto">
+              <WeekView
+                cursor={cursor}
+                itemsByKey={itemsByKey}
+                todayKey={todayKey}
+                projectsById={projectsById}
+                onSelect={setSelectedId}
+              />
+            </div>
           )}
         </div>
         <TaskDrawer item={selectedItem} onClose={() => setSelectedId(null)} />

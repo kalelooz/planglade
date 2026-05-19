@@ -128,7 +128,7 @@ Goal: make dated work visible and consistent.
 - [x] Show useful task text before truncation.
 - [x] Calendar data agrees with My Tasks and Home.
 - [ ] Add creation affordance on empty days only after create flow is real.
-- [ ] Keep month view readable on desktop and mobile.
+- [x] Keep month view readable on desktop and mobile.
 
 Verify: changing a task due date moves it on the calendar, and undated tasks do not appear on misleading dates.
 
