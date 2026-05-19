@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
+import { getDatePart, localDateKey } from "@/lib/dates";
 import { CommandPalette } from "./command-palette";
 import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
@@ -34,14 +35,12 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const addProject = useStore((s) => s.addProject);
   const activeProjectId = routeProjectId ?? (activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null);
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
+  const [now, setNow] = useState(() => new Date());
 
   // Solo-first counts: all open items are mine; Today/Overdue compare to local today
-  const todayKey = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+  const todayKey = localDateKey(now);
   const openWorkItems = workItems.filter((w) => w.status !== "Done" && (!activeProjectId || w.project === activeProjectId));
-  const todayCount = openWorkItems.filter((w) => !w.due || (w.due.includes("T") ? w.due.split("T")[0] : w.due) === todayKey).length;
+  const todayCount = openWorkItems.filter((w) => !w.due || getDatePart(w.due) === todayKey).length;
   // My Tasks default scope is "mine" - count only the current user's open tasks
   const myTasksCount = openWorkItems.filter((w) => w.assignee === "AM").length;
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -83,6 +82,11 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const [logoHover, setLogoHover] = useState(false);
   const projectScopeRef = useRef<HTMLDivElement>(null);
   const quickCaptureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const navBeforeProjects: NavItem[] = [
     { to: "/", label: "Today", icon: Home, count: todayCount },
