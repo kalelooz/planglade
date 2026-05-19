@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/lovable/shell";
 import { useStore } from "@/lib/store";
 import { type ProjectStatus, type WorkItem } from "@/lib/mock-data";
-import { compareLocalDateStrings, formatDueLabel, getDatePart, parseLocalDate } from "@/lib/dates";
+import { compareLocalDateStrings, formatDueLabel, getDatePart, localDateKey, parseLocalDate } from "@/lib/dates";
 import { Avatar, PriorityIcon, StatusIcon } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
@@ -30,7 +30,7 @@ function isInTab(item: WorkItem, tab: TaskTab, today: Date): boolean {
   if (!item.due) return false;
   const due = parseLocalDate(item.due);
   if (!due || Number.isNaN(due.getTime())) return false;
-  const sameDay = due.toDateString() === today.toDateString();
+  const sameDay = localDateKey(due) === localDateKey(today);
   if (tab === "Overdue") return due < today && !sameDay;
   if (tab === "Today") return sameDay;
   if (tab === "Upcoming") return due > today && !sameDay;
@@ -41,9 +41,10 @@ function formatDueDate(due?: string) {
   return due ? formatDueLabel(due) : "—";
 }
 
-function localToday() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function startOfLocalDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
 }
 
 function ProjectsInner() {
@@ -70,11 +71,18 @@ function ProjectsInner() {
   const [taskScope, setTaskScope] = useState<TaskScope>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [focusNewTask, setFocusNewTask] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   const cols = "grid-cols-[minmax(64px,0.7fr)_minmax(140px,1.7fr)_minmax(96px,1fr)_minmax(100px,1fr)_minmax(72px,0.7fr)_minmax(44px,0.45fr)_minmax(44px,0.45fr)]";
-  const todayKey = localToday();
+  const today = useMemo(() => startOfLocalDay(now), [now]);
+  const todayKey = localDateKey(today);
   const selectedProjectId = params.get("project");
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (selectedProject && selectedProject.id !== activeProjectId) {
@@ -93,7 +101,6 @@ function ProjectsInner() {
     return projectItems;
   }, [projectItems, taskScope]);
 
-  const today = useMemo(() => new Date(), []);
   const filteredItems = useMemo(
     () => scopedItems.filter((w) => isInTab(w, taskTab, today)),
     [scopedItems, taskTab, today]
@@ -134,7 +141,7 @@ function ProjectsInner() {
     const items = projectItems;
     const done = items.filter((workItem) => workItem.status === "Done").length;
     const open = items.length - done;
-    const overdue = items.filter((workItem) => workItem.status !== "Done" && compareLocalDateStrings(workItem.due, todayKey) < 0).length;
+    const overdue = items.filter((workItem) => workItem.status !== "Done" && !!workItem.due && compareLocalDateStrings(workItem.due, todayKey) < 0).length;
     const progress = items.length === 0 ? 0 : Math.round((done / items.length) * 100);
     const projectItemIds = new Set(items.map((item) => item.id));
     const projectNoteIds = new Set(items.flatMap((item) => item.noteIds ?? []));
