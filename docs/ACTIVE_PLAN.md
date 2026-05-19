@@ -88,7 +88,8 @@ Verify: captured work appears in the right task surfaces, triage changes are ref
 Goal: keep project execution simple and connected to trustworthy task state.
 
 - [ ] Reduce card metadata to title, status/priority cue, due signal, and one project/tag cue.
-- [ ] Move extra information into the drawer.
+- [x] Reduce card metadata to title, status/priority cue, due signal, and one project/tag cue.
+- [x] Move extra information into the drawer.
 - [ ] Make create/edit/delete/move actions mutate shared state or clearly mark them unavailable.
 - [ ] Keep the inner project list compact and keyboard/mouse usable.
 - [ ] Avoid project/report shortcuts that imply real reporting before reports are real.
@@ -102,7 +103,7 @@ Goal: make the personal work list reliable.
 - [x] Add direct row completion controls.
 - [x] Replace fake bulk actions with real mutations or disable them.
 - [x] Add useful filters: Today, Overdue, Upcoming, Blocked, No Date.
-- [ ] Keep table/list density compact but readable.
+- [x] Keep table/list density compact but readable.
 - [ ] Ensure rows open the same universal drawer as other views.
 
 Verify: complete/delete/move/edit actions affect shared task state and empty states tell the user what to do next.

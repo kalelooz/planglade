@@ -34,8 +34,10 @@ export function WorkItemRow({
   onDelete?: () => void;
 }) {
   const members = useStore((s) => s.members);
+  const density = useStore((s) => s.settings.density);
   const m = members.find((member) => member.id === item.assignee) ?? members[0];
   const completed = item.status === "Done";
+  const rowPadding = density === "compact" ? "py-1.5" : "py-2.5";
 
   const toggleComplete = () => {
     onMove?.(completed ? "In Progress" : "Done");
@@ -43,7 +45,7 @@ export function WorkItemRow({
 
   return (
     <div
-      className={`group grid w-full grid-cols-[20px_48px_minmax(0,1fr)_minmax(54px,0.65fr)_minmax(76px,0.8fr)_minmax(54px,0.55fr)_minmax(48px,0.45fr)_24px] items-center gap-2 border-b px-2 text-[13px] ${selected ? "bg-primary/[0.04]" : "hover:bg-[var(--color-hover)]/40"} ${completed ? "text-muted-foreground" : ""}`}>
+      className={`group grid w-full grid-cols-[20px_48px_minmax(0,1fr)_minmax(54px,0.65fr)_minmax(76px,0.8fr)_minmax(54px,0.55fr)_minmax(48px,0.45fr)_24px] items-center gap-2 border-b px-2 text-[13px] ${rowPadding} ${selected ? "bg-primary/[0.04]" : "hover:bg-[var(--color-hover)]/40"} ${completed ? "text-muted-foreground" : ""}`}>
       <input
         type="checkbox"
         checked={completed}
@@ -57,7 +59,7 @@ export function WorkItemRow({
         type="button"
         onClick={onClick}
         title={item.title}
-        className={`min-w-0 truncate py-2 text-left font-medium hover:underline focus:outline-none focus-visible:underline ${completed ? "line-through decoration-muted-foreground/60" : ""}`}
+        className={`min-w-0 truncate text-left font-medium hover:underline focus:outline-none focus-visible:underline ${completed ? "line-through decoration-muted-foreground/60" : ""}`}
       >
         {item.title}
       </button>

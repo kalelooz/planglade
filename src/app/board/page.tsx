@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, MoreHorizontal, Trash2, ArrowRight, CheckSquare,
+  Plus, MoreHorizontal, Trash2, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -300,7 +300,6 @@ function Card({
     position: "relative",
   };
   const checklist = item.checklist ?? [];
-  const done = checklist.filter((c) => c.done).length;
 
   return (
     <div
@@ -310,10 +309,11 @@ function Card({
       {...attributes}
       className={`group relative cursor-grab rounded-md border bg-card p-3 text-[12px] transition-shadow active:cursor-grabbing ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
     >
-      {/* Row 1: id + label on the left, priority + more menu on the right */}
+      {/* Row 1: one concise metadata line */}
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[11px] text-muted-foreground">{item.id}</span>
         {item.label && <Chip>{item.label}</Chip>}
+        <span className="ml-auto text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
+        <PriorityIcon p={item.priority} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -347,7 +347,6 @@ function Card({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <PriorityIcon p={item.priority} />
       </div>
 
       {/* Row 2: title */}
@@ -359,25 +358,12 @@ function Card({
         {item.title}
       </button>
 
-      {/* Row 3: checklist progress */}
-      {checklist.length > 0 && (
-        <div className="mb-3">
-          <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground" title="Checklist progress">
-            <CheckSquare className="h-3 w-3" />
-            {done}/{checklist.length}
-          </span>
-        </div>
-      )}
-
-      {/* Row 4: assignee + due */}
-      <div className="flex items-center justify-between gap-2 text-[11.5px] text-muted-foreground">
+      {/* Row 3: assignee */}
+      <div className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-1.5">
           <Avatar id={m.id} name={m.name} size={20} />
           <span className="truncate">{m.name}</span>
         </div>
-        <span className="shrink-0 tabular-nums">
-          {formatDueLabel(item.due)}
-        </span>
       </div>
     </div>
   );
@@ -386,32 +372,19 @@ function Card({
 function CardGhost({ item }: { item: WorkItem }) {
   const members = useStore((s) => s.members);
   const m = members.find((member) => member.id === item.assignee) ?? members[0];
-  const checklist = item.checklist ?? [];
-  const done = checklist.filter((c) => c.done).length;
   return (
     <div className="w-[260px] rotate-1 rounded-md border bg-card p-3 text-[12px] shadow-xl ring-2 ring-primary/30">
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[11px] text-muted-foreground">{item.id}</span>
         {item.label && <Chip>{item.label}</Chip>}
-        <PriorityIcon p={item.priority} className="ml-auto" />
+        <span className="ml-auto text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
+        <PriorityIcon p={item.priority} />
       </div>
       <div className="mb-2.5 text-[13.5px] font-medium leading-[1.4]">{item.title}</div>
-      {checklist.length > 0 && (
-        <div className="mb-3">
-          <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground">
-            <CheckSquare className="h-3 w-3" />
-            {done}/{checklist.length}
-          </span>
-        </div>
-      )}
-      <div className="flex items-center justify-between gap-2 text-[11.5px] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-1.5">
           <Avatar id={m.id} name={m.name} size={20} />
           <span className="truncate">{m.name}</span>
         </div>
-        <span className="shrink-0 tabular-nums">
-          {formatDueLabel(item.due)}
-        </span>
       </div>
     </div>
   );
