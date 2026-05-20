@@ -12,8 +12,9 @@
 
 - Work incrementally. Start each work session with a short TODO list.
 - Solve TODOs one by one. Validate each meaningful item before moving to the next.
-- Current priority is UI/UX frontend work first.
-- Backend, auth, database, and deeper persistence work wait unless needed to support or validate a frontend slice.
+- The frontend MVP loop is complete for the local-first prototype.
+- Current priority is the full-stack foundation in `docs/ACTIVE_PLAN.md` and `docs/FULLSTACK_ROADMAP.md`.
+- Backend, auth, database, and deeper persistence work are now in scope when they support the production roadmap without expanding the product surface.
 
 ## Canonical Planning
 
@@ -33,7 +34,7 @@
 ## Implementation Workflow
 
 - Default to a fast lane. Keep exploration, edits, and validation scoped to the files and user-visible surface being changed.
-- Do not run broad project checks by default. Avoid full `npm run lint`, full builds, full test suites, or multi-viewport browser passes unless the change touches shared infrastructure, routing, build config, persistence, or cross-page state.
+- Do not run broad project checks by default. Avoid full `npm run lint`, full builds, full test suites, or multi-viewport browser passes unless the change touches shared infrastructure, routing, build config, persistence, cross-page state, or production foundation work.
 - Prefer targeted verification: TypeScript for touched TS/TSX when relevant, ESLint on touched TS/TSX files, and one browser check for the changed UI surface when visual risk is real.
 - Skip redundant validation when a faster command already proves the slice. Record known unrelated failures instead of expanding the task to fix them.
 - Keep status updates brief. Do not narrate routine file reads or every minor command unless work takes longer than expected.

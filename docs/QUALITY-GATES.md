@@ -39,7 +39,7 @@ Use the smallest command set that proves the slice.
 Suggested checks:
 
 ```bash
-rg --line-number "full-featured|production-ready|Build passes|/home/z|fake|mock|Quick Capture|Inbox" README.md AGENTS.md docs/ACTIVE_PLAN.md docs/QUALITY-GATES.md
+rg --line-number "full-featured|production-ready|Build passes|/home/z|fake|mock|Quick Capture|Inbox|local persistence|full-stack" README.md AGENTS.md docs/ACTIVE_PLAN.md docs/FULLSTACK_ROADMAP.md docs/QUALITY-GATES.md
 ```
 
 ### TypeScript or React component changes
@@ -87,11 +87,11 @@ Minimum workflow proof only when those actions are part of the changed behavior:
 
 These are known project-level issues from the audit. Do not report them as fixed unless fresh verification proves it.
 
-- `npm run build` is not Windows-safe while it uses Linux `cp`.
+- Build/start scripts still need production hardening and cross-platform verification.
 - `npm run lint` has existing failures.
 - `next.config.ts` currently has `typescript.ignoreBuildErrors: true`.
-- The app still has mock/in-memory product data.
-- Auth, Prisma, and API routes are placeholders for the actual product.
+- The app still uses client-side local persistence instead of server-backed product data.
+- Auth, Prisma schema, and product API routes are placeholders for the actual product.
 
 ## Definition of Done
 

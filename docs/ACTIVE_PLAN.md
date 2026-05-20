@@ -4,31 +4,59 @@
 
 Last updated: 2026-05-20
 
+## Current Status
+
+The frontend MVP loop is complete for the current local-first prototype. FlowBoard now has focused primary navigation, shared client workspace state, local persistence, Quick Capture, real task completion, notes search, and date-driven Calendar/Timeline behavior.
+
+FlowBoard is not a production full-stack app yet. The active work now moves from UI honesty to the full-stack foundation described in `docs/FULLSTACK_ROADMAP.md`.
+
 ## Product Goal
 
 Turn FlowBoard from a polished prototype into a simple, fast, trustworthy project management tool for solo users and small teams.
 
-The current priority is the frontend product loop:
+The completed frontend product loop is:
 
 1. Capture work quickly.
 2. Triage captured work in Inbox.
 3. See what matters today in Home and My Tasks.
 4. Use Projects, Calendar, and Timeline as views over the same task data.
-5. Persist user-created work locally before adding deeper backend, auth, or database work.
+5. Persist user-created work locally.
+
+The current priority is the production foundation:
+
+1. Replace placeholder backend/auth/database pieces with real FlowBoard foundations.
+2. Keep the completed frontend loop working while moving persistence server-side.
+3. Add collaboration only after single-user server persistence is durable.
 
 ## Operating Rules
 
 - Start every session with a short TODO list.
 - Work one slice at a time and validate that slice before moving on.
 - Prefer existing shadcn/ui, Radix, Tailwind variables, Lucide icons, TanStack Table, and Zustand patterns.
-- Do not add backend, auth, database, reporting, or team-management depth unless it is required to prove a frontend slice.
+- Backend, auth, and database work are now in scope only for the production foundation and server-backed core loop.
 - Do not polish fake actions. Make them real, disable them, or remove them from the active surface.
 - Do not delete `Reddit/`; it is protected voice-of-customer research.
 - Use `docs/QUALITY-GATES.md` for validation scope.
 
 ## Current Active Milestone
 
-Make the core loop honest across the primary app surfaces.
+Build the full-stack foundation without expanding the product surface.
+
+The next milestone is Phase 1 from `docs/FULLSTACK_ROADMAP.md`:
+
+- [ ] Choose deployment target and database path for v1 production. Recommended default: Next.js app plus PostgreSQL through Prisma.
+- [ ] Replace the sample Prisma schema with FlowBoard domain models.
+- [ ] Add Zod schemas for core create/update payloads.
+- [ ] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
+- [ ] Replace the hello-world API route with real health/bootstrap routes.
+- [ ] Replace mocked auth direction with a production auth adapter plan and server session checks.
+- [ ] Fix project red gates before production: TypeScript build errors cannot be ignored, build/start scripts must be cross-platform, and package-manager usage must be normalized.
+
+Verify: the app still runs the completed frontend loop, Prisma can validate/migrate the real schema, and no advanced surface is promoted before it reads/writes real data.
+
+## Completed Frontend Milestone
+
+The core loop is honest across the primary app surfaces.
 
 Primary navigation should stay focused:
 
@@ -160,9 +188,19 @@ Verify: advanced screens are not part of the primary first-run path and do not c
 
 - [x] One source of truth for tasks, projects, notes, members, activity, and settings.
 - [x] Create/edit/delete/move actions update all affected views.
-- [x] Core user-created work survives refresh once local persistence is in scope.
+- [x] Core user-created work survives refresh through localStorage persistence.
 - [x] Changed UI surfaces pass the targeted checks in `docs/QUALITY-GATES.md`.
 - [x] `README.md`, `AGENTS.md`, this plan, and implementation state do not contradict each other.
+
+## External Repo Guidance
+
+Use `docs/FULLSTACK_ROADMAP.md` as the reference for lessons from `external/pm-repos/`.
+
+- Plane: use its work-item and saved-view model as inspiration.
+- Vikunja: use its durable task semantics as inspiration.
+- Memos: use its Markdown-first quick capture and derived note metadata as inspiration.
+- Focalboard: use only its board/view preference ideas; do not copy wholesale because the standalone repo is unmaintained.
+- Leantime: use its progressive-disclosure product philosophy; do not import its broad feature set into the MVP.
 
 ## Reference Material
 
