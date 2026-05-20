@@ -1,12 +1,12 @@
 "use client";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/lovable/shell";
 import { useStore } from "@/lib/store";
 import { Avatar } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
 
-export default function TeamPage() {
+function TeamPageContent() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const members = useStore((s) => s.members);
@@ -56,5 +56,13 @@ export default function TeamPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function TeamPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeamPageContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { badRequest, parseDateValue, parseJsonBody, resolveActorUserId, serverError } from "@/lib/api-utils"
+import { parseDateValue, parseJsonBody, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -31,7 +31,7 @@ function toWorkItemPriority(value: string) {
   return "MEDIUM"
 }
 
-function toNoteVisibility(_value?: string) {
+function toNoteVisibility(_value?: string): "PRIVATE" | "WORKSPACE" {
   return "PRIVATE"
 }
 
@@ -51,8 +51,13 @@ export async function POST(request: NextRequest) {
   const { workspaceId, mode, projects, workItems, notes } = parsed.data
 
   try {
-    const actorUserId = await resolveActorUserId(workspaceId, parsed.data.actorUserId)
-    if (!actorUserId) return badRequest("Workspace not found")
+    const access = await requireWorkspaceRole(
+      workspaceId,
+      request.headers.get("x-flowboard-user-id") ?? parsed.data.actorUserId,
+      "ADMIN"
+    )
+    if (!access.ok) return access.response
+    const actorUserId = access.actor.userId
 
     const summary = await db.$transaction(async (tx) => {
       if (mode === "replace") {
@@ -113,6 +118,8 @@ export async function POST(request: NextRequest) {
             projectId: projectId ?? undefined,
             title: item.title,
             description: item.description,
+            checklist: item.checklist,
+            noteIds: item.noteIds,
             status: toWorkItemStatus(item.status),
             priority: toWorkItemPriority(item.priority),
             startDate: parseDateValue(item.start) ?? undefined,

@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useState } from "react";
 import {
   MDXEditor,
   headingsPlugin,
@@ -29,7 +29,7 @@ export default function MarkdownEditorClient({
 }) {
   // Capture the initial markdown once. The editor owns its state from then on.
   // The parent uses `key={noteId}` to remount when switching notes.
-  const initialMarkdown = useRef(markdown).current;
+  const [initialMarkdown] = useState(() => markdown);
   return (
     <MDXEditor
       markdown={initialMarkdown}

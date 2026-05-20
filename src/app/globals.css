@@ -157,9 +157,39 @@ html[data-density="comfortable"] {
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
+    cursor: default;
   }
   ::selection { background: color-mix(in oklch, var(--color-accent) 25%, transparent); }
   button, input, select, textarea { font: inherit; }
+  a,
+  button,
+  [role="button"],
+  [role="menuitem"],
+  [data-slot="dropdown-menu-trigger"],
+  [data-slot="popover-trigger"],
+  summary {
+    cursor: pointer;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    cursor: text;
+  }
+  input[type="range"] {
+    cursor: ew-resize;
+  }
+  [aria-disabled="true"],
+  [disabled] {
+    cursor: not-allowed;
+  }
+  [data-dnd-handle],
+  [data-sortable-handle] {
+    cursor: grab;
+  }
+  [data-dnd-handle]:active,
+  [data-sortable-handle]:active {
+    cursor: grabbing;
+  }
   input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--color-primary); }
 }
 

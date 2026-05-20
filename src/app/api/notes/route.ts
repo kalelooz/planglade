@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { badRequest, parseJsonBody, parseQuery, resolveActorUserId, serverError } from "@/lib/api-utils"
+import { parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
+import { logActivityEvent } from "@/lib/activity"
 import { createNoteSchema, noteListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -36,24 +37,44 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const actorUserId = await resolveActorUserId(
+    const access = await requireWorkspaceRole(
       parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
     )
-    if (!actorUserId) return badRequest("Workspace not found")
+    if (!access.ok) return access.response
+    const actorUserId = access.actor.userId
 
-    const note = await db.note.create({
-      data: {
+    const note = await db.$transaction(async (tx) => {
+      const createdNote = await tx.note.create({
+        data: {
+          workspaceId: parsed.data.workspaceId,
+          projectId: parsed.data.projectId,
+          title: parsed.data.title,
+          body: parsed.data.body,
+          visibility: parsed.data.visibility,
+          pinned: parsed.data.pinned,
+          tags: parsed.data.tags,
+          createdById: actorUserId,
+          updatedById: actorUserId,
+        },
+      })
+
+      await logActivityEvent(tx, {
         workspaceId: parsed.data.workspaceId,
-        projectId: parsed.data.projectId,
-        title: parsed.data.title,
-        body: parsed.data.body,
-        visibility: parsed.data.visibility,
-        pinned: parsed.data.pinned,
-        tags: parsed.data.tags,
-        createdById: actorUserId,
-        updatedById: actorUserId,
-      },
+        actorId: actorUserId,
+        action: "CREATED",
+        entityType: "NOTE",
+        entityId: createdNote.id,
+        summary: `Created note "${createdNote.title}"`,
+        metadata: {
+          visibility: createdNote.visibility,
+          pinned: createdNote.pinned,
+          ...(createdNote.projectId ? { projectId: createdNote.projectId } : {}),
+        },
+      })
+
+      return createdNote
     })
 
     return NextResponse.json({ note }, { status: 201 })

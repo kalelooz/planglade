@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import type { Prisma } from "@prisma/client"
 
-import { badRequest, parseJsonBody, parseQuery, resolveActorUserId, serverError } from "@/lib/api-utils"
+import { parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { createSavedViewSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -27,26 +28,28 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const actorUserId = await resolveActorUserId(
+    const access = await requireWorkspaceRole(
       parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
     )
-    if (!actorUserId) return badRequest("Workspace not found")
+    if (!access.ok) return access.response
+    const actorUserId = access.actor.userId
 
-    const savedView = await db.savedView.create({
-      data: {
-        workspaceId: parsed.data.workspaceId,
-        projectId: parsed.data.projectId,
-        createdById: actorUserId,
-        name: parsed.data.name,
-        layout: parsed.data.layout,
-        groupBy: parsed.data.groupBy,
-        orderBy: parsed.data.orderBy,
-        filters: parsed.data.filters,
-        display: parsed.data.display,
-        isDefault: parsed.data.isDefault,
-      },
-    })
+    const data: Prisma.SavedViewUncheckedCreateInput = {
+      workspaceId: parsed.data.workspaceId,
+      projectId: parsed.data.projectId,
+      createdById: actorUserId,
+      name: parsed.data.name,
+      layout: parsed.data.layout,
+      groupBy: parsed.data.groupBy,
+      orderBy: parsed.data.orderBy,
+      filters: (parsed.data.filters as Prisma.InputJsonValue | undefined) ?? undefined,
+      display: (parsed.data.display as Prisma.InputJsonValue | undefined) ?? undefined,
+      isDefault: parsed.data.isDefault,
+    }
+
+    const savedView = await db.savedView.create({ data })
     return NextResponse.json({ savedView }, { status: 201 })
   } catch (error) {
     return serverError("Failed to create saved view", String(error))

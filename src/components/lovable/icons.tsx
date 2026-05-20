@@ -89,13 +89,21 @@ export function Avatar({ id, name, size = 20 }: { id: string; name?: string; siz
   const hue = (id.charCodeAt(0) * 53) % 360;
   const bg = `oklch(0.94 0.03 ${hue})`;
   const fg = `oklch(0.38 0.06 ${hue})`;
+  const label = name
+    ? name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("")
+    : id.slice(0, 2).toUpperCase();
   return (
     <span
       title={name}
       className="inline-flex shrink-0 items-center justify-center rounded-full font-medium text-[10px]"
       style={{ width: size, height: size, background: bg, color: fg }}
     >
-      {id}
+      {label || id.slice(0, 2).toUpperCase()}
     </span>
   );
 }

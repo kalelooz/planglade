@@ -22,17 +22,18 @@ FlowBoard is not production-ready yet. The app is currently a strong local-first
 ## Missing for a Full-Stack App
 
 - [ ] Real auth: replace mocked session storage auth with production sessions, OAuth/email login, account lifecycle, and server-side authorization.
+- [ ] Session bootstrap: `GET /api/auth/session` now returns a DB-backed dev user/workspace pair for server-backed slices; production auth/session provider is still pending.
 - [ ] Real data model: replace the sample Prisma `User` and `Post` models with FlowBoard models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
 - [ ] API mutation layer: replace the placeholder `src/app/api/route.ts` with typed routes or server actions for create, update, move, complete, delete, search, and settings mutations. Initial CRUD routes for projects/work items/notes/labels/saved-views/settings are in place.
 - [ ] Persistence migration: migrate from client-only `localStorage` to Prisma-backed persistence, with a one-time import path for existing local workspace data. Initial import route exists.
 - [ ] Authorization boundaries: enforce user/workspace/project permissions on every read and mutation.
 - [ ] Validation and errors: use Zod schemas at API boundaries and return consistent field and request errors.
 - [ ] Server-derived activity: generate activity entries from real mutations instead of static or inferred UI data.
-- [ ] Collaboration basics: members, roles, assignments, comments, mentions, and invitations.
+- [ ] Collaboration basics: members, roles, assignments, comments, mentions, and invitations. (partial: workspace member role-management APIs and server-side role guards are now in place)
 - [ ] Files and uploads: task/note attachments with local development storage and production object storage.
 - [ ] Search: indexed search across work items, notes, projects, and labels.
 - [ ] Notifications: in-app notification records first, email later.
-- [ ] Production build hygiene: cross-platform start/build scripts, no ignored TypeScript errors, stable package-manager usage, CI checks, and deployment configuration.
+- [ ] Production build hygiene: cross-platform start/build scripts, no ignored TypeScript errors, stable package-manager usage, CI checks, and deployment configuration. (partial: npm package-manager normalization and cross-platform start script updates completed)
 - [ ] Operations: environment validation, migrations, backups, logging, error reporting, rate limits, and rollback procedure.
 
 ## External Repo Lessons
@@ -94,12 +95,13 @@ Use Leantime for product scope, not immediate feature breadth.
 - [x] Add initial Prisma-backed CRUD API routes for labels, saved views, and user settings.
 - [x] Enforce workspace scoping on update/delete routes for core entities.
 - [ ] Replace mocked `auth-context.tsx` with a production auth adapter and server session checks.
+- [x] Add `GET /api/auth/session` server session scaffold for workspace/user resolution in API-backed views.
 - [ ] Remove or keep disabled any Team, Activity, Reports, Connections, Board, and Work Items actions that do not read/write real data.
 - [x] Update README status so it no longer says local persistence is still the next milestone.
 - [x] Update `AGENTS.md` so project instructions point to the full-stack foundation.
-- [ ] Update build/start scripts to be Windows-safe and deployment-safe.
-- [ ] Remove `typescript.ignoreBuildErrors` from `next.config.ts` before production.
-- [ ] Normalize package-manager usage before dependency cleanup.
+- [ ] Update build/start scripts to be Windows-safe and deployment-safe. (partial: `start` now uses cross-platform Node standalone command; broader deployment validation pending)
+- [x] Remove `typescript.ignoreBuildErrors` from `next.config.ts` before production.
+- [x] Normalize package-manager usage before dependency cleanup.
 
 ## Production Roadmap
 
@@ -117,12 +119,12 @@ Status: done.
 
 Goal: make the app structurally ready for real persistence.
 
-- [ ] Choose deployment target and database path for v1 production. Recommended default: Next.js app plus PostgreSQL through Prisma.
+- [x] Choose deployment target and database path for v1 production. Decision: Vercel-hosted Next.js app plus managed PostgreSQL (Neon) via Prisma. Keep SQLite for local development.
 - [x] Replace sample Prisma schema with FlowBoard schema.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
-- [ ] Add auth provider decision and environment validation.
-- [ ] Fix project-level red gates: TypeScript build errors must fail builds, build/start scripts must be cross-platform, and package-manager usage must be consistent.
+- [ ] Add auth provider decision and environment validation. (partial: dev session scaffold done; production provider/env contract pending)
+- [ ] Fix project-level red gates: TypeScript build errors must fail builds, build/start scripts must be cross-platform, and package-manager usage must be consistent. (partial: TypeScript ignore gate removed and start script normalized; package-manager normalization pending)
 
 Done when: Prisma can migrate a real FlowBoard schema, API contracts are documented, and the app can still run the frontend loop.
 
@@ -132,9 +134,9 @@ Goal: move the current local-first loop onto the server without expanding scope.
 
 - [ ] Implement authenticated workspace bootstrap.
 - [x] Implement CRUD for projects, work items, notes, labels, saved views, and settings.
-- [ ] Connect Home, Inbox, Projects, My Tasks, Notes, Calendar, and Timeline to server data.
+- [x] Connect Home, Inbox, Projects, My Tasks, Notes, Calendar, and Timeline to server data.
 - [ ] Preserve optimistic UI where it is already useful, but reconcile with server state.
-- [ ] Add one-time localStorage import/reset affordance. Server-side import route exists; UI affordance is still pending.
+- [x] Add one-time localStorage import/reset affordance. Settings now provides `append`/`replace` migration controls backed by `workspace/import-local`.
 - [ ] Generate activity records from create/update/complete/delete/move mutations.
 
 Done when: a signed-in user can create, edit, move, complete, delete, refresh, sign out, sign back in, and see the same data.
@@ -143,10 +145,12 @@ Done when: a signed-in user can create, edit, move, complete, delete, refresh, s
 
 Goal: support small teams without turning the app into enterprise admin software.
 
-- [ ] Add workspace members and project memberships.
-- [ ] Add roles: owner, admin, member, viewer.
+- [x] Add workspace members and project memberships. (workspace member CRUD APIs implemented; project-specific membership still pending)
+- [x] Add roles: owner, admin, member, viewer. (role model and server authorization gates implemented on core mutation routes)
+- [ ] Generate server-derived activity and task history from real mutations.
 - [ ] Add assignment, comments, mentions, and simple invitations.
-- [ ] Make Team and Activity real or keep them out of primary navigation.
+- [ ] Add in-app notifications for mentions, assignment, due changes, and comments.
+- [ ] Make Team, Activity, and Notifications real or keep them out of primary navigation.
 - [ ] Add authorization tests for cross-workspace and cross-project access.
 
 Done when: two users can collaborate in one workspace without seeing data from another workspace.
@@ -159,7 +163,8 @@ Goal: add the data features expected of a dependable PM tool.
 - [ ] Add search across projects, work items, notes, and labels.
 - [ ] Add saved custom views using the Plane/Focalboard-inspired view preference model.
 - [ ] Add task relations: parent, blocked by, blocking, related.
-- [ ] Add in-app notifications for mentions, assignment, due changes, and comments.
+- [ ] Add server-backed settings import/export and workspace JSON export.
+- [ ] Add project-level feature flags before exposing optional modules such as docs, custom fields, SLA, and service-desk mode.
 
 Done when: users can organize, retrieve, and link work without relying on browser-local state.
 
@@ -190,9 +195,11 @@ Done when: the app can be deployed, monitored, upgraded, backed up, and rolled b
 
 ## Recommended Next Slice
 
-Start with Phase 1:
+Continue with the collaboration foundation from `flowboard-collaboration-foundation-plan.md`:
 
-1. Replace the Prisma sample schema with the real FlowBoard domain schema.
-2. Add Zod schemas for work item, project, note, and saved view payloads.
-3. Replace the hello-world API route with a real health route plus initial workspace bootstrap route.
-4. Keep the existing UI behavior intact while preparing server-backed data.
+1. Generate `ActivityEvent` rows from project/work-item/note/member/settings create/update/move/complete/delete mutations.
+2. Replace mock Activity with server-backed Activity and task-drawer history.
+3. Add task comments, mention parsing, and notification records.
+4. Make settings/theme/import-export durable through server APIs.
+5. Add project feature flags before subtasks, custom fields, SLA, docs, or ITSM-lite are surfaced.
+6. Add authorization tests for cross-workspace and cross-project access as these routes are added.

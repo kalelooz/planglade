@@ -1,14 +1,15 @@
 "use client";
-import { useEffect, useState, useMemo, type CSSProperties } from "react";
+import { Suspense, useEffect, useState, useMemo, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/lovable/shell";
 import { Toolbar } from "@/components/lovable/page";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { useStore } from "@/lib/store";
 import type { WorkItem, Project } from "@/lib/mock-data";
 import { getDatePart, localDateKey, parseLocalDate } from "@/lib/dates";
+import { getServerSession } from "@/lib/server-session-client";
+import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -382,19 +383,64 @@ function WeekView({
 
 type CalView = "month" | "week";
 
-export default function CalendarPage() {
+function CalendarPageContent() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
-  const workItems = useStore((s) => s.workItems);
-  const addWorkItem = useStore((s) => s.addWorkItem);
-  const activeProjectId = useStore((s) => s.settings.activeProjectId);
-  const projects = useStore((s) => s.projects);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
 
   const [cursor, setCursor] = useState(() => new Date());
   const [now, setNow] = useState(() => new Date());
   const [view, setView] = useState<CalView>("month");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusNewTask, setFocusNewTask] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+        setMembers((session.members ?? []).map((member) => ({ id: member.id, name: member.name })));
+
+        const [projectsRes, workItemsRes] = await Promise.all([
+          fetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+        ]);
+        if (!projectsRes.ok) throw new Error("Failed to load projects");
+        if (!workItemsRes.ok) throw new Error("Failed to load calendar tasks");
+
+        const projectsPayload = (await projectsRes.json()) as { projects: ApiProject[] };
+        const workItemsPayload = (await workItemsRes.json()) as { workItems: ApiWorkItem[] };
+        if (!active) return;
+
+        setProjects(projectsPayload.projects.map((project) => toUiProject(project, session.user.id)));
+        const mappedItems = workItemsPayload.workItems.map((item) => toUiWorkItem(item, session.user.id));
+        setWorkItems(mappedItems);
+        setActiveProjectId(mappedItems[0]?.project ?? null);
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load Calendar");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const scopedProjectId = routeProjectId ?? activeProjectId;
   const activeProject = scopedProjectId
@@ -480,14 +526,34 @@ export default function CalendarPage() {
   }
 
   function createOnDate(dateKey: string) {
-    const id = addWorkItem({
-      title: "Untitled task",
-      project: scopedProjectId ?? projects[0]?.id ?? "core",
-      start: dateKey,
-      due: dateKey,
-    });
-    setSelectedId(id);
-    setFocusNewTask(true);
+    if (!workspaceId) return;
+    void (async () => {
+      const response = await fetch("/api/work-items", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": currentUserId ?? "",
+        },
+        body: JSON.stringify({
+          workspaceId,
+          projectId: scopedProjectId ?? projects[0]?.id ?? undefined,
+          title: "Untitled task",
+          status: "BACKLOG",
+          priority: "MEDIUM",
+          startDate: `${dateKey}T00:00:00.000Z`,
+          dueDate: `${dateKey}T00:00:00.000Z`,
+        }),
+      });
+      if (!response.ok) {
+        setError("Failed to create task");
+        return;
+      }
+      const payload = (await response.json()) as { workItem: ApiWorkItem };
+      const next = toUiWorkItem(payload.workItem, currentUserId);
+      setWorkItems((current) => [next, ...current]);
+      setSelectedId(next.id);
+      setFocusNewTask(true);
+    })();
   }
 
   return (
@@ -542,7 +608,9 @@ export default function CalendarPage() {
       }
     >
       <div className="flex h-full min-h-0 w-full">
+        {error && <div className="absolute left-6 right-6 top-3 z-40 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {loading && <div className="px-4 py-2 text-[12px] text-muted-foreground">Loading calendar data...</div>}
           {view === "month" ? (
             <div className="min-h-0 flex-1 overflow-auto">
               <MonthView
@@ -571,6 +639,16 @@ export default function CalendarPage() {
         <TaskDrawer
           item={selectedItem}
           focusTitle={focusNewTask}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          membersOverride={members}
+          projectsOverride={projects}
+          onItemPatched={(id, patch) => {
+            setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, ...patch } : workItem)));
+          }}
+          onItemReplaced={(next) => {
+            setWorkItems((current) => current.map((workItem) => (workItem.id === next.id ? next : workItem)));
+          }}
           onTitleFocused={() => setFocusNewTask(false)}
           onClose={() => {
             setSelectedId(null);
@@ -579,5 +657,13 @@ export default function CalendarPage() {
         />
       </div>
     </AppShell>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={null}>
+      <CalendarPageContent />
+    </Suspense>
   );
 }

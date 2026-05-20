@@ -9,6 +9,8 @@ export async function GET() {
     endpoints: {
       health: "/api/health",
       workspaceBootstrap: "/api/workspace/bootstrap",
+      workspaceMembers: "/api/workspace/members",
+      authSession: "/api/auth/session",
     },
   })
 }

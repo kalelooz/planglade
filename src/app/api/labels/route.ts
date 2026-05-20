@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { parseJsonBody, parseQuery, serverError } from "@/lib/api-utils"
+import { parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { createLabelSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -27,6 +27,13 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
+    const access = await requireWorkspaceRole(
+      parsed.data.workspaceId,
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
+    )
+    if (!access.ok) return access.response
+
     const label = await db.label.create({
       data: {
         workspaceId: parsed.data.workspaceId,

@@ -1,20 +1,19 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
-import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { WorkItemRow } from "@/components/lovable/work-item-row";
-import { useStore } from "@/lib/store";
-import { type Status, type WorkItem } from "@/lib/mock-data";
+import { TaskDrawer } from "@/components/lovable/task-drawer";
+import { type Project, type Status, type WorkItem } from "@/lib/mock-data";
 import { isSameLocalDate, parseLocalDate } from "@/lib/dates";
+import { getServerSession } from "@/lib/server-session-client";
+import { type ApiProject, type ApiWorkItem, toApiWorkStatus, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 
 const tabs = ["Today", "Upcoming", "Overdue", "Blocked", "No date", "Completed"] as const;
 type Tab = (typeof tabs)[number];
 
 type Scope = "mine" | "team" | "all";
-
-const ME = "AM";
 
 function isTab(value: string | null): value is Tab {
   return value != null && (tabs as readonly string[]).includes(value);
@@ -48,39 +47,135 @@ function inTab(w: WorkItem, tab: Tab, today: Date): boolean {
   return true;
 }
 
-export default function MyTasks() {
+function MyTasksContent() {
   const params = useSearchParams();
   const tabParam = params.get("tab");
   const scopeParam = params.get("scope");
   const initialTab = isTab(tabParam) ? tabParam : "Today";
   const initialScope = isScope(scopeParam) ? scopeParam : "mine";
+  const taskParam = params.get("taskId");
+  const focusParam = params.get("focus");
+  const drawerFocus = focusParam === "comments" || focusParam === "history" ? focusParam : undefined;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [scope, setScope] = useState<Scope>(initialScope);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(taskParam);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
-  const workItems = useStore((s) => s.workItems);
-  const setStatus = useStore((s) => s.setWorkItemStatus);
-  const deleteWorkItem = useStore((s) => s.deleteWorkItem);
+
+  useEffect(() => {
+    setSelectedTaskId(taskParam);
+  }, [taskParam]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+        setMembers((session.members ?? []).map((member) => ({ id: member.id, name: member.name })));
+
+        const [itemsRes, projectsRes] = await Promise.all([
+          fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, {
+            cache: "no-store",
+          }),
+        ]);
+        if (!itemsRes.ok) throw new Error("Failed to load work items");
+        if (!projectsRes.ok) throw new Error("Failed to load projects");
+        const payload = (await itemsRes.json()) as { workItems: ApiWorkItem[] };
+        const projectsPayload = (await projectsRes.json()) as { projects: ApiProject[] };
+        if (!active) return;
+
+        setWorkItems(payload.workItems.map((item) => toUiWorkItem(item, session.user.id)));
+        setProjects(projectsPayload.projects.map((project) => toUiProject(project, session.user.id)));
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load My Tasks");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const patchStatus = async (id: string, status: Status) => {
+    if (!workspaceId) return;
+    const snapshot = workItems;
+    setWorkItems((current) => current.map((item) => (item.id === id ? { ...item, status } : item)));
+
+    const completedAt = status === "Done" ? new Date().toISOString() : null;
+    const response = await fetch(
+      `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
+        body: JSON.stringify({ status: toApiWorkStatus(status), completedAt }),
+      }
+    );
+
+    if (!response.ok) {
+      setWorkItems(snapshot);
+      setError("Failed to update task status");
+    }
+  };
+
+  const removeWorkItem = async (id: string) => {
+    if (!workspaceId) return;
+    const snapshot = workItems;
+    setWorkItems((current) => current.filter((item) => item.id !== id));
+
+    const response = await fetch(
+      `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (!response.ok) {
+      setWorkItems(snapshot);
+      setError("Failed to delete task");
+    }
+  };
+
   const byScope = useMemo(() => {
-    if (scope === "mine") return workItems.filter((w) => w.assignee === ME);
-    if (scope === "team") return workItems.filter((w) => w.assignee !== ME);
+    if (!currentUserId) return workItems;
+    if (scope === "mine") return workItems.filter((w) => w.assignee === currentUserId);
+    if (scope === "team") return workItems.filter((w) => w.assignee !== currentUserId);
     return workItems;
-  }, [workItems, scope]);
+  }, [workItems, scope, currentUserId]);
 
   const filtered = useMemo(() => byScope.filter((w) => inTab(w, tab, now)), [byScope, now, tab]);
+  const selectedTask = selectedTaskId ? workItems.find((item) => item.id === selectedTaskId) ?? null : null;
 
   const scopeCounts = useMemo(() => ({
-    mine: workItems.filter((w) => w.assignee === ME && w.status !== "Done").length,
-    team: workItems.filter((w) => w.assignee !== ME && w.status !== "Done").length,
+    mine: currentUserId ? workItems.filter((w) => w.assignee === currentUserId && w.status !== "Done").length : 0,
+    team: currentUserId ? workItems.filter((w) => w.assignee !== currentUserId && w.status !== "Done").length : 0,
     all: workItems.filter((w) => w.status !== "Done").length,
-  }), [workItems]);
+  }), [workItems, currentUserId]);
 
   const counts: Record<Tab, number> = useMemo(() => ({
     Today: byScope.filter((w) => inTab(w, "Today", now)).length,
@@ -92,7 +187,6 @@ export default function MyTasks() {
   }), [byScope, now]);
 
   const openCount = scopeCounts[scope];
-  const selectedTask = selectedTaskId ? workItems.find((item) => item.id === selectedTaskId) ?? null : null;
   const selectedVisibleIds = useMemo(
     () => filtered.filter((w) => selectedIds.has(w.id)).map((w) => w.id),
     [filtered, selectedIds]
@@ -123,7 +217,9 @@ export default function MyTasks() {
   };
 
   const bulkSetStatus = (status: Status) => {
-    selectedVisibleIds.forEach((id) => setStatus(id, status));
+    selectedVisibleIds.forEach((id) => {
+      void patchStatus(id, status);
+    });
     setSelectedIds((current) => {
       const next = new Set(current);
       selectedVisibleIds.forEach((id) => next.delete(id));
@@ -132,10 +228,9 @@ export default function MyTasks() {
   };
 
   const bulkDelete = () => {
-    selectedVisibleIds.forEach((id) => deleteWorkItem(id));
-    if (selectedTaskId && selectedVisibleIds.includes(selectedTaskId)) {
-      setSelectedTaskId(null);
-    }
+    selectedVisibleIds.forEach((id) => {
+      void removeWorkItem(id);
+    });
     setSelectedIds((current) => {
       const next = new Set(current);
       selectedVisibleIds.forEach((id) => next.delete(id));
@@ -148,6 +243,7 @@ export default function MyTasks() {
       <div className="flex">
       <div className="min-w-0 flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
+        {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[13px] text-muted-foreground">Tasks across your workspace.</p>
           <span className="text-[12px] text-muted-foreground">{openCount} open</span>
@@ -214,6 +310,9 @@ export default function MyTasks() {
         </div>
 
         <div className="border-t">
+          {loading && (
+            <div className="px-3 py-12 text-center text-[13px] text-muted-foreground">Loading tasks...</div>
+          )}
           {filtered.length === 0 && (
             <div className="px-3 py-12 text-center text-[13px] text-muted-foreground">Nothing here.</div>
           )}
@@ -229,12 +328,13 @@ export default function MyTasks() {
                 />
                 <WorkItemRow
                   item={w}
-                  selected={selectedTaskId === w.id}
                   onClick={() => setSelectedTaskId(w.id)}
-                  onMove={(nextStatus) => setStatus(w.id, nextStatus)}
+                  membersOverride={members}
+                  onMove={(nextStatus) => {
+                    void patchStatus(w.id, nextStatus);
+                  }}
                   onDelete={() => {
-                    deleteWorkItem(w.id);
-                    if (selectedTaskId === w.id) setSelectedTaskId(null);
+                    void removeWorkItem(w.id);
                     setSelectedIds((current) => {
                       const next = new Set(current);
                       next.delete(w.id);
@@ -248,8 +348,30 @@ export default function MyTasks() {
         </div>
       </div>
       </div>
-      <TaskDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
+      <TaskDrawer
+        item={selectedTask}
+        onClose={() => setSelectedTaskId(null)}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        membersOverride={members}
+        projectsOverride={projects}
+        initialFocusSection={drawerFocus}
+        onItemPatched={(id, patch) => {
+          setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, ...patch } : workItem)));
+        }}
+        onItemReplaced={(next) => {
+          setWorkItems((current) => current.map((workItem) => (workItem.id === next.id ? next : workItem)));
+        }}
+      />
       </div>
     </AppShell>
+  );
+}
+
+export default function MyTasks() {
+  return (
+    <Suspense fallback={null}>
+      <MyTasksContent />
+    </Suspense>
   );
 }

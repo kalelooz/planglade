@@ -24,10 +24,10 @@ export function SaveIndicator() {
     timers.current.forEach(clearTimeout);
     timers.current = [];
 
-    setState("saving");
+    const t0 = window.setTimeout(() => setState("saving"), 0);
     const t1 = window.setTimeout(() => setState("saved"), 300);
     const t2 = window.setTimeout(() => setState("idle"), 2200);
-    timers.current.push(t1, t2);
+    timers.current.push(t0, t1, t2);
 
     return () => {
       timers.current.forEach(clearTimeout);

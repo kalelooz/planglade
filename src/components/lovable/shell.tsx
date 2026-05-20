@@ -1,14 +1,15 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText, BarChart3, CheckSquare,
-  Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo,
+  Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo, Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import { getDatePart, localDateKey } from "@/lib/dates";
+import { getServerSession } from "@/lib/server-session-client";
 import { CommandPalette } from "./command-palette";
 import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
@@ -16,15 +17,40 @@ import { ProjectIcon } from "./project-icon";
 const STORAGE_KEY = "fb.sidebarOpen";
 const PROJECTS_STORAGE_KEY = "fb.sidebarProjectsOpen";
 
-export function AppShell({ children, title, tabs, toolbar }: {
+type AppShellProps = {
   children: ReactNode;
   title?: ReactNode;
   tabs?: { label: string; to: string; active?: boolean }[];
   toolbar?: ReactNode;
-}) {
-  const path = usePathname() ?? "/";
+};
+
+type HeaderNotification = {
+  id: string;
+  type: "MENTION" | "ASSIGNED" | "COMMENT" | "STATUS";
+  title: string;
+  body: string;
+  createdAt: string;
+  isUnread?: boolean;
+  workItemId: string | null;
+  actor: { id: string; name: string | null; email: string } | null;
+};
+
+export function AppShell(props: AppShellProps) {
+  return (
+    <Suspense fallback={<AppShellLayout {...props} routeProjectId={null} />}>
+      <AppShellWithSearchParams {...props} />
+    </Suspense>
+  );
+}
+
+function AppShellWithSearchParams(props: AppShellProps) {
   const searchParams = useSearchParams();
   const routeProjectId = searchParams?.get("project") ?? null;
+  return <AppShellLayout {...props} routeProjectId={routeProjectId} />;
+}
+
+function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppShellProps & { routeProjectId: string | null }) {
+  const path = usePathname() ?? "/";
   const projects = useStore((s) => s.projects);
   const workspaceName = useStore((s) => s.settings.workspaceName);
   const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
@@ -47,6 +73,11 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickValue, setQuickValue] = useState("");
   const [projectScopeOpen, setProjectScopeOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
 
@@ -74,6 +105,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
   const [logoHover, setLogoHover] = useState(false);
   const projectScopeRef = useRef<HTMLDivElement>(null);
   const quickCaptureRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -137,6 +169,58 @@ export function AppShell({ children, title, tabs, toolbar }: {
   }, [moreOpen]);
 
   useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+        setNotificationScope({ workspaceId: session.workspace.id, userId: session.user.id });
+      } catch {
+        if (active) setNotificationScope(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!notificationScope) return;
+    let active = true;
+
+    const load = async () => {
+      setNotificationsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/notifications?workspaceId=${encodeURIComponent(notificationScope.workspaceId)}&userId=${encodeURIComponent(notificationScope.userId)}&limit=12`,
+          {
+            cache: "no-store",
+            headers: { "x-flowboard-user-id": notificationScope.userId },
+          }
+        );
+        if (!response.ok || !active) return;
+        const payload = (await response.json()) as { notifications: HeaderNotification[]; unreadCount: number };
+        if (active) {
+          setNotifications(payload.notifications ?? []);
+          setUnreadCount(payload.unreadCount ?? 0);
+        }
+      } finally {
+        if (active) setNotificationsLoading(false);
+      }
+    };
+
+    void load();
+    const interval = window.setInterval(() => {
+      void load();
+    }, 60_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [notificationScope]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdOpen(true); }
     };
@@ -145,7 +229,7 @@ export function AppShell({ children, title, tabs, toolbar }: {
   }, []);
 
   useEffect(() => {
-    if (!projectScopeOpen && !quickOpen) return;
+    if (!projectScopeOpen && !quickOpen && !notificationsOpen) return;
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -155,13 +239,41 @@ export function AppShell({ children, title, tabs, toolbar }: {
       if (quickOpen && quickCaptureRef.current && !quickCaptureRef.current.contains(target)) {
         setQuickOpen(false);
       }
+      if (notificationsOpen && notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setNotificationsOpen(false);
+      }
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [projectScopeOpen, quickOpen]);
+  }, [projectScopeOpen, quickOpen, notificationsOpen]);
 
   const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
+  const markNotificationsRead = async (notificationIds?: string[]) => {
+    if (!notificationScope) return;
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": notificationScope.userId,
+      },
+      body: JSON.stringify({
+        workspaceId: notificationScope.workspaceId,
+        userId: notificationScope.userId,
+        ...(notificationIds && notificationIds.length > 0 ? { notificationIds } : {}),
+      }),
+    });
+  };
+  const formatNotificationTime = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
@@ -356,6 +468,92 @@ export function AppShell({ children, title, tabs, toolbar }: {
           <button onClick={() => setCmdOpen(true)} className="lov-icon-btn sm:hidden">
             <Command className="h-4 w-4" />
           </button>
+          <div ref={notificationsRef} className="relative">
+            <button
+              onClick={() => {
+                setProjectScopeOpen(false);
+                setQuickOpen(false);
+                setNotificationsOpen((open) => !open);
+              }}
+              className="lov-icon-btn relative"
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                  {Math.min(unreadCount, 9)}
+                </span>
+              )}
+            </button>
+            {notificationsOpen && (
+              <div className="absolute right-0 top-9 z-[85] w-[22rem] rounded-md border bg-popover shadow-lg">
+                <div className="flex items-center justify-between border-b px-3 py-2">
+                  <span className="text-[12px] font-medium">Notifications</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">{notifications.length}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUnreadCount(0);
+                        setNotifications((current) => current.map((notification) => ({ ...notification, isUnread: false })));
+                        void markNotificationsRead();
+                      }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notificationsLoading ? (
+                    <p className="px-3 py-3 text-[12px] text-muted-foreground">Loading notifications...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="px-3 py-3 text-[12px] text-muted-foreground">No notifications.</p>
+                  ) : (
+                    notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          if (notification.isUnread) {
+                            setUnreadCount((current) => Math.max(0, current - 1));
+                            setNotifications((current) =>
+                              current.map((entry) =>
+                                entry.id === notification.id ? { ...entry, isUnread: false } : entry
+                              )
+                            );
+                            void markNotificationsRead([notification.id]);
+                          }
+                          if (!notification.workItemId) {
+                            router.push("/activity");
+                            return;
+                          }
+                          const focus = notification.type === "COMMENT" || notification.type === "MENTION" ? "comments" : "history";
+                          router.push(`/my-tasks?taskId=${encodeURIComponent(notification.workItemId)}&focus=${focus}`);
+                        }}
+                        className={`block w-full border-b px-3 py-2 text-left last:border-b-0 hover:bg-[var(--color-hover)]/60 ${notification.isUnread ? "bg-primary/[0.045]" : ""}`}
+                      >
+                        <div className="mb-0.5 flex items-center justify-between gap-2">
+                          <span className="truncate text-[12px] font-medium">{notification.title}</span>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">
+                            {formatNotificationTime(notification.createdAt)}
+                          </span>
+                        </div>
+                        <p className="line-clamp-2 text-[12px] text-muted-foreground">{notification.body}</p>
+                        {notification.actor && (
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            {notification.actor.name ?? notification.actor.email}
+                          </p>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <Avatar id="AM" name="Alex Morgan" size={26} />
             <span className="max-w-28 truncate text-[12px] font-medium text-foreground">Alex Morgan</span>

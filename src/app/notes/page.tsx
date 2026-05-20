@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, Suspense, type ReactNode } from "react";
+import { useState, useMemo, Suspense, useEffect, useRef, type ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -7,17 +7,32 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
-import { useStore } from "@/lib/store";
 import { Chip } from "@/components/lovable/page";
 import { MarkdownEditor } from "@/components/notes/markdown-editor";
+import type { WorkItem } from "@/lib/mock-data";
+import { getServerSession } from "@/lib/server-session-client";
+import { type ApiWorkItem, toUiWorkItem } from "@/lib/server-ui-mappers";
 
-// Pull the first H1 line out as the note title, treat the rest as the body.
-// Falls back gracefully when the user clears the heading.
+type ApiNote = {
+  id: string;
+  title: string;
+  body: string | null;
+  tags: unknown;
+  updatedAt: string;
+};
+
+type UiNote = {
+  id: string;
+  title: string;
+  tag: string;
+  updated: string;
+  excerpt: string;
+};
+
 function parseTitleAndBody(md: string): { title: string; body: string } {
   const lines = md.split("\n");
   let titleIndex = lines.findIndex((line) => /^#\s+/.test(line));
   if (titleIndex === -1) {
-    // No H1: first non-empty line becomes the title.
     titleIndex = lines.findIndex((line) => line.trim().length > 0);
     if (titleIndex === -1) return { title: "Untitled", body: "" };
     const title = lines[titleIndex].trim() || "Untitled";
@@ -59,29 +74,187 @@ function extractTaskRefs(text: string): string[] {
   return Array.from(new Set(matches));
 }
 
-function NotesInner() {
-  const notes = useStore((s) => s.notes);
-  const workItems = useStore((s) => s.workItems);
-  const activeProjectId = useStore((s) => s.settings.activeProjectId);
-  const addNote = useStore((s) => s.addNote);
-  const updateNote = useStore((s) => s.updateNote);
-  const removeNote = useStore((s) => s.removeNote);
-  const addWorkItem = useStore((s) => s.addWorkItem);
-  const updateWorkItem = useStore((s) => s.updateWorkItem);
+function mapTag(value: unknown) {
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+  return "Note";
+}
 
+function mapNote(note: ApiNote): UiNote {
+  return {
+    id: note.id,
+    title: note.title,
+    tag: mapTag(note.tags),
+    updated: new Date(note.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    excerpt: note.body ?? "",
+  };
+}
+
+function NotesInner() {
   const params = useSearchParams();
   const router = useRouter();
   const idFromUrl = params.get("id");
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({});
 
-  const [selId, setSelId] = useState<string | null>(idFromUrl ?? notes[0]?.id ?? null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [notes, setNotes] = useState<UiNote[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+
+  const [selId, setSelId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [linkedOpen, setLinkedOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+        setMembers((session.members ?? []).map((member) => ({ id: member.id, name: member.name })));
+
+        const [notesRes, workItemsRes] = await Promise.all([
+          fetch(`/api/notes?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+        ]);
+        if (!notesRes.ok) throw new Error("Failed to load notes");
+        if (!workItemsRes.ok) throw new Error("Failed to load tasks for notes");
+
+        const notesPayload = (await notesRes.json()) as { notes: ApiNote[] };
+        const workItemsPayload = (await workItemsRes.json()) as { workItems: ApiWorkItem[] };
+        if (!active) return;
+
+        const mappedNotes = notesPayload.notes.map(mapNote);
+        setNotes(mappedNotes);
+        setSelId(idFromUrl && mappedNotes.some((n) => n.id === idFromUrl) ? idFromUrl : mappedNotes[0]?.id ?? null);
+
+        const mappedTasks = workItemsPayload.workItems.map((item) => toUiWorkItem(item, session.user.id));
+        setWorkItems(mappedTasks);
+        setActiveProjectId(mappedTasks[0]?.project ?? null);
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load Notes");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [idFromUrl]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimers.current).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+    };
+  }, []);
+
   const selectNote = (id: string) => {
     setSelId(id);
     router.replace(`/notes?id=${id}`, { scroll: false });
+  };
+
+  const patchNoteNow = async (id: string, patch: { title?: string; body?: string; tags?: string[] }) => {
+    if (!workspaceId) return;
+    const response = await fetch(`/api/notes/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": currentUserId ?? "",
+      },
+      body: JSON.stringify(patch),
+    });
+    if (!response.ok) {
+      setError("Failed to save note");
+    }
+  };
+
+  const queueSaveNote = (id: string, patch: { title?: string; body?: string; tags?: string[] }) => {
+    const existing = saveTimers.current[id];
+    if (existing) clearTimeout(existing);
+    saveTimers.current[id] = setTimeout(() => {
+      void patchNoteNow(id, patch);
+    }, 350);
+  };
+
+  const createNote = async (title: string, tag: string, excerpt: string) => {
+    if (!workspaceId) return null;
+    const response = await fetch("/api/notes", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": currentUserId ?? "",
+      },
+      body: JSON.stringify({
+        workspaceId,
+        title,
+        body: excerpt,
+        visibility: "PRIVATE",
+        tags: [tag],
+      }),
+    });
+    if (!response.ok) {
+      setError("Failed to create note");
+      return null;
+    }
+    const payload = (await response.json()) as { note: ApiNote };
+    const next = mapNote(payload.note);
+    setNotes((current) => [next, ...current]);
+    return next.id;
+  };
+
+  const deleteNote = async (id: string) => {
+    if (!workspaceId) return false;
+    const snapshot = notes;
+    setNotes((current) => current.filter((note) => note.id !== id));
+
+    const response = await fetch(`/api/notes/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      setNotes(snapshot);
+      setError("Failed to delete note");
+      return false;
+    }
+    return true;
+  };
+
+  const createTaskFromNote = async (title: string, noteId?: string) => {
+    if (!workspaceId) return null;
+    const response = await fetch("/api/work-items", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": currentUserId ?? "",
+      },
+      body: JSON.stringify({
+        workspaceId,
+        projectId: activeProjectId ?? undefined,
+        title,
+        status: "BACKLOG",
+        priority: "MEDIUM",
+        noteIds: noteId ? [noteId] : undefined,
+      }),
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { workItem: ApiWorkItem };
+    const next = toUiWorkItem(payload.workItem, currentUserId);
+    setWorkItems((current) => [next, ...current]);
+    return next.id;
   };
 
   const normalizedQuery = query.trim().toLowerCase();
@@ -92,65 +265,73 @@ function NotesInner() {
       return haystack.includes(normalizedQuery);
     });
   }, [notes, normalizedQuery]);
+
   const selectedId = idFromUrl && notes.some((n) => n.id === idFromUrl) ? idFromUrl : selId;
   const sel = notes.find((n) => n.id === selectedId) ?? filtered[0] ?? null;
   const selectedTask = workItems.find((w) => w.id === selectedTaskId) ?? null;
 
   const linkedTasks = useMemo(() => {
     if (!sel) return [];
-    const explicit = workItems.filter((w) => (w.noteIds ?? []).includes(sel.id));
     const refs = new Set(extractTaskRefs(`${sel.title}\n${sel.excerpt}`));
-    const byRef = workItems.filter((w) => refs.has(w.id));
-    return [...explicit, ...byRef.filter((item) => !explicit.some((existing) => existing.id === item.id))];
+    return workItems.filter((w) => refs.has(w.id));
   }, [workItems, sel]);
 
-  const quickCreate = () => {
+  const quickCreate = async () => {
     if (!draft.trim()) return;
-    const id = addNote({ title: draft.trim(), tag: "Capture", excerpt: "" });
+    const id = await createNote(draft.trim(), "Capture", "");
+    if (!id) return;
     selectNote(id);
     toast.success("Note captured");
     setDraft("");
   };
 
-  const extractCheckboxes = () => {
+  const extractCheckboxes = async () => {
     if (!sel) return;
     const lines = sel.excerpt.split("\n");
     let createdCount = 0;
-    const next = lines.map((line) => {
+    const next = [...lines];
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i];
       const match = line.match(/^(\s*)- \[ \] (?!.*\bFB-\d+\b)(.+)$/);
-      if (!match) return line;
+      if (!match) continue;
       const title = match[2].trim();
-      if (!title) return line;
-      const id = addWorkItem({ title, project: activeProjectId ?? "core" });
-      const created = workItems.find((w) => w.id === id);
-      const existing = created?.noteIds ?? [];
-      updateWorkItem(id, { noteIds: [...existing, sel.id] });
+      if (!title) continue;
+      const id = await createTaskFromNote(title, sel.id);
+      if (!id) continue;
       createdCount += 1;
-      return `${match[1]}- [x] ${title} (${id})`;
-    });
+      next[i] = `${match[1]}- [x] ${title} (${id})`;
+    }
+
     if (createdCount === 0) {
-      toast(`No unchecked checkboxes found. Write "- [ ] something" first.`);
+      toast("No unchecked checkboxes found. Write \"- [ ] something\" first.");
       return;
     }
-    updateNote(sel.id, { excerpt: next.join("\n") });
+
+    const body = next.join("\n");
+    setNotes((current) => current.map((note) => (note.id === sel.id ? { ...note, excerpt: body } : note)));
+    await patchNoteNow(sel.id, { body });
     toast.success(`Created ${createdCount} task${createdCount === 1 ? "" : "s"} from checkboxes`);
   };
 
   return (
     <AppShell title={<span className="font-medium">Notes</span>}>
       <div className="flex h-full bg-background">
-        {/* ── Notes list (left panel, floated as a card) ── */}
-        <aside className="ml-4 mt-4 mb-4 flex w-72 shrink-0 flex-col rounded-md border bg-card">
+        <aside className="ml-4 mb-4 mt-4 flex w-72 shrink-0 flex-col rounded-md border bg-card">
           <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2">
             <Search className="h-3 w-3 text-muted-foreground" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
-              placeholder="Search notes…"
+              placeholder="Search notes."
             />
             <button
-              onClick={() => { const id = addNote({ title: "Untitled", tag: "Note", excerpt: "" }); selectNote(id); }}
+              onClick={() => {
+                void (async () => {
+                  const id = await createNote("Untitled", "Note", "");
+                  if (id) selectNote(id);
+                })();
+              }}
               title="New note"
               className="lov-icon-btn h-6 w-6"
             >
@@ -161,14 +342,14 @@ function NotesInner() {
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Capture</label>
             <div className="flex items-center gap-1">
               <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") quickCreate(); }}
-              placeholder="Quick capture a note."
-              className="h-8 min-w-0 flex-1 rounded border bg-background px-2 text-[13px] outline-none focus:border-ring"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void quickCreate(); }}
+                placeholder="Quick capture a note."
+                className="h-8 min-w-0 flex-1 rounded border bg-background px-2 text-[13px] outline-none focus:border-ring"
               />
               <button
-                onClick={quickCreate}
+                onClick={() => { void quickCreate(); }}
                 disabled={!draft.trim()}
                 className="lov-btn lov-btn-primary h-8 px-2 disabled:opacity-50"
               >
@@ -177,7 +358,9 @@ function NotesInner() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {notes.length === 0 ? (
+            {loading ? (
+              <div className="px-3 py-10 text-center text-[12px] text-muted-foreground">Loading notes...</div>
+            ) : notes.length === 0 ? (
               <div className="px-3 py-10 text-center text-[12px] text-muted-foreground">
                 No notes yet. Capture one above.
               </div>
@@ -210,28 +393,29 @@ function NotesInner() {
           </div>
         </aside>
 
-        {/* ── Editor (right panel) ── */}
         <div className="flex min-w-0 flex-1 flex-col">
+          {error && <div className="mx-5 mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
           {sel ? (
             <>
-              {/* Header bar: tag + linked tasks (left), edited time + grouped actions (right) */}
               <div className="flex h-12 items-center gap-3 border-b border-border/40 px-5 text-[12px]">
                 <span className="rounded border bg-muted/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Editing
                 </span>
-                {/* Tag: chip with edit affordance */}
                 <label className="group flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 hover:border-ring focus-within:border-ring">
                   <Hash className="h-3 w-3 text-muted-foreground" />
                   <input
                     value={sel.tag}
-                    onChange={(e) => updateNote(sel.id, { tag: e.target.value })}
+                    onChange={(e) => {
+                      const tag = e.target.value;
+                      setNotes((current) => current.map((note) => (note.id === sel.id ? { ...note, tag } : note)));
+                      queueSaveNote(sel.id, { tags: tag.trim() ? [tag.trim()] : [] });
+                    }}
                     className="w-24 bg-transparent text-[12px] font-medium text-foreground outline-none"
                     aria-label="Tag"
                   />
                   <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
                 </label>
 
-                {/* Linked tasks: clickable */}
                 <div className="relative">
                   <button
                     onClick={() => setLinkedOpen((v) => !v)}
@@ -263,10 +447,9 @@ function NotesInner() {
 
                 <span className="ml-auto text-[11px] text-muted-foreground">Edited {sel.updated}</span>
 
-                {/* Grouped action buttons */}
                 <div className="flex items-center gap-px rounded-md border bg-card p-0.5">
                   <button
-                    onClick={extractCheckboxes}
+                    onClick={() => { void extractCheckboxes(); }}
                     title="Create a task for every unchecked checkbox line"
                     className="lov-btn lov-btn-ghost h-6 px-2 text-[11px]"
                   >
@@ -275,11 +458,13 @@ function NotesInner() {
                   <span className="h-3 w-px bg-border" />
                   <button
                     onClick={() => {
-                      if (window.confirm(`Delete "${sel.title}"?`)) {
-                        removeNote(sel.id);
+                      void (async () => {
+                        if (!window.confirm(`Delete "${sel.title}"?`)) return;
+                        const deleted = await deleteNote(sel.id);
+                        if (!deleted) return;
                         const remaining = notes.filter((n) => n.id !== sel.id);
                         if (remaining[0]) selectNote(remaining[0].id);
-                      }
+                      })();
                     }}
                     title="Delete note"
                     className="lov-btn lov-btn-danger h-6 px-2 text-[11px]"
@@ -289,14 +474,18 @@ function NotesInner() {
                 </div>
               </div>
 
-              {/* Editor body: title is the first H1, unified undo history */}
               <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-8 py-6">
                 <MarkdownEditor
                   key={sel.id}
                   markdown={`# ${sel.title}\n\n${sel.excerpt}`}
                   onChange={(md) => {
                     const { title, body } = parseTitleAndBody(md);
-                    updateNote(sel.id, { title, excerpt: body });
+                    setNotes((current) => current.map((note) => (
+                      note.id === sel.id
+                        ? { ...note, title, excerpt: body, updated: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }) }
+                        : note
+                    )));
+                    queueSaveNote(sel.id, { title, body });
                   }}
                   placeholder="# Untitled note"
                 />
@@ -307,7 +496,19 @@ function NotesInner() {
           )}
         </div>
 
-        <TaskDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
+        <TaskDrawer
+          item={selectedTask}
+          onClose={() => setSelectedTaskId(null)}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          membersOverride={members}
+          onItemPatched={(id, patch) => {
+            setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, ...patch } : workItem)));
+          }}
+          onItemReplaced={(next) => {
+            setWorkItems((current) => current.map((workItem) => (workItem.id === next.id ? next : workItem)));
+          }}
+        />
       </div>
     </AppShell>
   );

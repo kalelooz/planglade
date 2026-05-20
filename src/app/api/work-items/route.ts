@@ -5,9 +5,10 @@ import {
   parseDateValue,
   parseJsonBody,
   parseQuery,
-  resolveActorUserId,
+  requireWorkspaceRole,
   serverError,
 } from "@/lib/api-utils"
+import { logActivityEvent } from "@/lib/activity"
 import { createWorkItemSchema, workItemListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -48,11 +49,13 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const actorUserId = await resolveActorUserId(
+    const access = await requireWorkspaceRole(
       parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
     )
-    if (!actorUserId) return badRequest("Workspace not found")
+    if (!access.ok) return access.response
+    const actorUserId = access.actor.userId
 
     const created = await db.$transaction(async (tx) => {
       const workItem = await tx.workItem.create({
@@ -61,6 +64,8 @@ export async function POST(request: NextRequest) {
           projectId: parsed.data.projectId,
           title: parsed.data.title,
           description: parsed.data.description,
+          checklist: parsed.data.checklist,
+          noteIds: parsed.data.noteIds,
           status: parsed.data.status,
           priority: parsed.data.priority,
           startDate: parseDateValue(parsed.data.startDate) ?? undefined,
@@ -77,9 +82,22 @@ export async function POST(request: NextRequest) {
             workItemId: workItem.id,
             labelId,
           })),
-          skipDuplicates: true,
         })
       }
+
+      await logActivityEvent(tx, {
+        workspaceId: parsed.data.workspaceId,
+        actorId: actorUserId,
+        action: "CREATED",
+        entityType: "WORK_ITEM",
+        entityId: workItem.id,
+        summary: `Created work item "${workItem.title}"`,
+        metadata: {
+          status: workItem.status,
+          priority: workItem.priority,
+          ...(workItem.projectId ? { projectId: workItem.projectId } : {}),
+        },
+      })
 
       return tx.workItem.findUnique({
         where: { id: workItem.id },

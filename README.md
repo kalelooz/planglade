@@ -10,12 +10,16 @@ FlowBoard is not production-ready yet.
 
 - The frontend MVP loop is now local-first and wired through shared client state.
 - User-created workspace data persists in `localStorage`.
-- Auth is mocked.
-- Prisma now contains draft FlowBoard domain models, but migrations and server data wiring are still pending.
-- The API now exposes health/bootstrap endpoints and initial server-backed CRUD, but wiring is not complete across all entities.
+- Auth now supports a production adapter path via NextAuth providers, with a dev-session fallback for local bootstrapping.
+- Prisma contains FlowBoard domain models; migration/deployment hardening and broader server wiring are still pending.
+- The API exposes health/bootstrap/session endpoints and server-backed CRUD; client wiring is still incomplete across views.
 - Initial server CRUD routes now exist for projects, work items, and notes.
 - Initial server CRUD routes now exist for labels, saved views, and user settings.
 - Initial `workspace/import-local` route now exists for local-to-server data migration.
+- Settings now includes local-to-server migration actions (`append` / `replace`) that call `workspace/import-local`.
+- `My Tasks` now reads from server work-items and uses server-backed complete/delete mutations.
+- `Home` now reads server work-items/notes and uses server-backed complete + quick-capture task creation.
+- `Projects` now reads server projects/work-items and uses server-backed project/task core mutations.
 - Team, Activity, Reports, Connections, Board, and Work Items remain secondary until their data is real.
 - The next milestone is the full-stack foundation: real schema, auth direction, typed API contracts, and server-backed persistence.
 
@@ -151,13 +155,18 @@ npm run dev
 
 The app runs at `http://localhost:3000`.
 
+### Auth Modes
+
+- Default local mode: `FLOWBOARD_AUTH_MODE=dev` (or unset) uses the seeded dev session.
+- Provider mode: set `FLOWBOARD_AUTH_MODE=nextauth` and configure at least one provider:
+  - `GITHUB_ID` + `GITHUB_SECRET`, or
+  - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
+- Also set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` for provider mode.
+
 ## Known Quality Issues
 
-- Build/start scripts still need production hardening and cross-platform verification.
-- `next.config.ts` currently ignores TypeScript build errors.
-- Prisma schema and API route are placeholders.
-- Auth is mocked in the frontend.
-- Package-manager usage should be normalized before dependency cleanup.
+- Prisma client regeneration can fail when query-engine binaries are locked by a running process; stop active dev servers before `npm run db:generate` if needed.
+- Most core views still rely on local store data and are not fully server-backed.
 
 See `docs/ACTIVE_PLAN.md`, `docs/FULLSTACK_ROADMAP.md`, and `docs/QUALITY-GATES.md` before claiming a slice is complete.
 

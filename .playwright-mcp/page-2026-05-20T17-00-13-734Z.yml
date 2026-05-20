@@ -1,0 +1,173 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - banner [ref=e4]:
+        - generic [ref=e5]:
+          - button "FlowBoard" [ref=e6] [cursor=pointer]
+          - navigation [ref=e7]:
+            - button "Sign in" [ref=e8]
+      - main [ref=e9]:
+        - generic [ref=e10]:
+          - generic:
+            - img
+          - generic [ref=e12]:
+            - generic [ref=e13]:
+              - heading "FlowBoard" [level=1] [ref=e14]
+              - paragraph [ref=e15]: Capture work, triage it once, finish it. No duplicate entries, no theater.
+              - generic [ref=e16]:
+                - button "Sign in" [ref=e17]
+                - button "View product preview" [ref=e18]
+              - paragraph [ref=e19]: Built for small teams who want one source of truth.
+            - generic [ref=e22]:
+              - generic [ref=e23]:
+                - generic [ref=e24]: Inbox
+                - generic [ref=e25]: Today
+                - generic [ref=e26]: Projects
+                - generic [ref=e27]: Notes
+              - generic [ref=e28]:
+                - generic [ref=e29]:
+                  - generic [ref=e31]: Draft Q3 planning brief
+                  - generic [ref=e32]: Inbox
+                - generic [ref=e33]:
+                  - img [ref=e35]
+                  - generic [ref=e37]: Review design tokens
+                  - generic [ref=e38]: Inbox
+                - generic [ref=e39]:
+                  - generic [ref=e41]: Schedule 1:1 with Meret
+                  - generic [ref=e42]: Inbox
+                - generic [ref=e43]:
+                  - img [ref=e45]
+                  - generic [ref=e48]: "Notes: API rate-limit behavior"
+                  - generic [ref=e49]: Notes
+              - generic [ref=e51]:
+                - generic [ref=e52]: Also in
+                - generic [ref=e53]:
+                  - generic [ref=e54]: Home
+                  - generic [ref=e55]: My Tasks
+                  - generic [ref=e56]: Calendar
+                  - generic [ref=e57]: Timeline
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - img [ref=e63]
+              - heading "Capture first" [level=3] [ref=e66]
+            - paragraph [ref=e67]: Drop tasks, notes, and loose thoughts into Inbox. Nothing gets lost before you have time to sort it.
+          - generic [ref=e68]:
+            - generic [ref=e69]:
+              - img [ref=e70]
+              - heading "Triage once" [level=3] [ref=e72]
+            - paragraph [ref=e73]: "One pass: add a date, assign an owner, link to a project. The item updates everywhere — no re-entry."
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - img [ref=e76]
+              - heading "Same source, every view" [level=3] [ref=e78]
+            - paragraph [ref=e79]: Home, My Tasks, Projects, Calendar, and Timeline all read from the same work items. Change it once, see it everywhere.
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - img [ref=e82]
+              - heading "No ceremony" [level=3] [ref=e87]
+            - paragraph [ref=e88]: Roles, comments, and notifications appear only where the underlying data is real. No overhead for its own sake.
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - heading "Same work, different lens" [level=2] [ref=e92]
+            - paragraph [ref=e93]: Switch between Calendar and Timeline without re-entering data. Every view pulls from the same underlying tasks, notes, and deadlines.
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]: Home
+              - generic [ref=e98]: My Tasks
+              - generic [ref=e99]: Calendar
+              - generic [ref=e100]: Timeline
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - generic [ref=e103]:
+                  - text: Mon
+                  - generic [ref=e104]: "12"
+                - generic [ref=e105]:
+                  - text: Tue
+                  - generic [ref=e106]: "13"
+                - generic [ref=e107]:
+                  - text: Wed
+                  - generic [ref=e108]: "14"
+                - generic [ref=e109]:
+                  - text: Thu
+                  - generic [ref=e110]: "15"
+                - generic [ref=e111]:
+                  - text: Fri
+                  - generic [ref=e112]: "16"
+              - generic [ref=e113]:
+                - generic [ref=e116]: Design review
+                - generic [ref=e117]:
+                  - generic [ref=e118]: Q3 planning brief
+                  - generic [ref=e119]: 1:1 Meret
+                - generic [ref=e121]: API rate-limit notes
+              - generic [ref=e123]:
+                - generic [ref=e125]: Timeline
+                - generic [ref=e126]:
+                  - generic [ref=e128]: Q3 planning brief
+                  - generic [ref=e132]: Design review
+                  - generic [ref=e136]: 1:1 Meret
+            - generic [ref=e140]:
+              - generic [ref=e141]: Source
+              - generic [ref=e142]:
+                - generic [ref=e143]: Inbox
+                - generic [ref=e144]: Projects
+                - generic [ref=e145]: Notes
+              - generic [ref=e146]: Same items
+        - generic [ref=e148]:
+          - heading "How we build" [level=2] [ref=e149]
+          - generic [ref=e150]:
+            - generic [ref=e151]:
+              - generic [ref=e152]:
+                - img [ref=e153]
+                - heading "Honest data" [level=3] [ref=e155]
+              - paragraph [ref=e156]: No vanity metrics or progress bars that measure nothing. If a field is empty, it stays empty.
+            - generic [ref=e157]:
+              - generic [ref=e158]:
+                - img [ref=e159]
+                - heading "Visible connections" [level=3] [ref=e162]
+              - paragraph [ref=e163]: Every item shows where it came from and where it appears. No hidden duplicates or phantom tasks.
+            - generic [ref=e164]:
+              - generic [ref=e165]:
+                - img [ref=e166]
+                - heading "One record, many views" [level=3] [ref=e170]
+              - paragraph [ref=e171]: A task is a single record. Calendar and Timeline are lenses, not separate databases that drift apart.
+        - generic [ref=e173]:
+          - heading "Built for small teams, not enterprises" [level=2] [ref=e174]
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - paragraph [ref=e177]: Team size
+              - paragraph [ref=e178]: 1–12 people
+            - generic [ref=e179]:
+              - paragraph [ref=e180]: Status
+              - paragraph [ref=e181]: Early access
+            - generic [ref=e182]:
+              - paragraph [ref=e183]: Built by
+              - paragraph [ref=e184]: A small team that uses it daily
+        - generic [ref=e186]:
+          - heading "Start with an empty inbox" [level=2] [ref=e187]
+          - paragraph [ref=e188]: No templates. No onboarding wizard. Just sign in and begin.
+          - generic [ref=e189]:
+            - button "Sign in" [ref=e190]
+            - button "View product preview" [ref=e191]
+      - contentinfo [ref=e192]:
+        - generic [ref=e193]:
+          - generic [ref=e194]: FlowBoard
+          - navigation "Footer" [ref=e195]:
+            - link "Features" [ref=e196] [cursor=pointer]:
+              - /url: "#features"
+            - link "Views" [ref=e197] [cursor=pointer]:
+              - /url: "#views"
+            - link "Principles" [ref=e198] [cursor=pointer]:
+              - /url: "#principles"
+            - generic [ref=e199]: "|"
+            - link "Docs" [ref=e200] [cursor=pointer]:
+              - /url: "#"
+            - link "Privacy" [ref=e201] [cursor=pointer]:
+              - /url: "#"
+            - link "Terms" [ref=e202] [cursor=pointer]:
+              - /url: "#"
+    - group [ref=e204]:
+      - img [ref=e207] [cursor=pointer]
+  - region "Notifications (F8)":
+    - list
+  - alert [ref=e211]

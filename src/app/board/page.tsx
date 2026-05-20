@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical,
@@ -69,7 +69,7 @@ function resolveTargetStatus(over: Over | null | undefined, scopedWorkItems: Wor
   return null;
 }
 
-export default function Board() {
+function BoardPageContent() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const workItems = useStore((s) => s.workItems);
@@ -253,6 +253,14 @@ export default function Board() {
         />
       </div>
     </AppShell>
+  );
+}
+
+export default function Board() {
+  return (
+    <Suspense fallback={null}>
+      <BoardPageContent />
+    </Suspense>
   );
 }
 

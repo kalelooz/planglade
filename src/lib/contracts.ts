@@ -40,6 +40,22 @@ export const workspaceUserQuerySchema = workspaceQuerySchema.extend({
   userId: z.string().min(1),
 })
 
+export const workspaceMemberQuerySchema = workspaceQuerySchema.extend({
+  memberUserId: z.string().min(1).optional(),
+})
+
+export const createWorkspaceMemberSchema = z.object({
+  workspaceId: z.string().min(1),
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1).max(120).optional(),
+  role: workspaceRoleSchema.default("MEMBER"),
+})
+
+export const updateWorkspaceMemberSchema = z.object({
+  workspaceId: z.string().min(1),
+  role: workspaceRoleSchema,
+})
+
 export const createLabelSchema = z.object({
   workspaceId: z.string().min(1),
   name: z.string().trim().min(1).max(64),
@@ -78,11 +94,26 @@ export const createWorkItemSchema = z.object({
   assigneeId: z.string().min(1).optional(),
   parentId: z.string().min(1).optional(),
   labelIds: z.array(z.string().min(1)).optional(),
+  noteIds: z.array(z.string().min(1)).optional(),
+  checklist: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        text: z.string().min(1),
+        done: z.boolean(),
+      })
+    )
+    .optional(),
 })
 
 export const updateWorkItemSchema = createWorkItemSchema.partial().extend({
   workspaceId: z.string().min(1).optional(),
+  assigneeId: z.string().min(1).nullable().optional(),
   completedAt: z.string().datetime().nullable().optional(),
+})
+
+export const createCommentSchema = z.object({
+  body: z.string().trim().min(1).max(5000),
 })
 
 export const createNoteSchema = z.object({
@@ -142,6 +173,16 @@ const localWorkItemSchema = z.object({
   start: z.string().optional(),
   project: z.string().optional(),
   description: z.string().optional(),
+  noteIds: z.array(z.string().min(1)).optional(),
+  checklist: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        text: z.string().min(1),
+        done: z.boolean(),
+      })
+    )
+    .optional(),
 })
 
 const localNoteSchema = z.object({
@@ -167,9 +208,12 @@ export type UpdateLabelInput = z.infer<typeof updateLabelSchema>
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>
 export type CreateWorkItemInput = z.infer<typeof createWorkItemSchema>
 export type UpdateWorkItemInput = z.infer<typeof updateWorkItemSchema>
+export type CreateCommentInput = z.infer<typeof createCommentSchema>
 export type CreateNoteInput = z.infer<typeof createNoteSchema>
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>
 export type CreateSavedViewInput = z.infer<typeof createSavedViewSchema>
 export type UpdateSavedViewInput = z.infer<typeof updateSavedViewSchema>
 export type UpdateUserSettingsInput = z.infer<typeof updateUserSettingsSchema>
 export type ImportLocalWorkspaceInput = z.infer<typeof importLocalWorkspaceSchema>
+export type CreateWorkspaceMemberInput = z.infer<typeof createWorkspaceMemberSchema>
+export type UpdateWorkspaceMemberInput = z.infer<typeof updateWorkspaceMemberSchema>

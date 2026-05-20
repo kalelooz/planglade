@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowBoard — Keep your work in one place without the clutter</title>
+  <meta name="description" content="A fast, local-first workspace for solo creators and developers. Capture tasks instantly, triage in your inbox, and organize your timeline without the database bloat.">
+  
+  <!-- Modern Premium Typography: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            background: 'oklch(0.99 0 0)',
+            foreground: 'oklch(0.185 0.005 286)',
+            surface: 'oklch(0.985 0 0)',
+            primary: 'oklch(0.24 0.006 286)',
+            secondary: 'oklch(0.955 0.002 286)',
+            muted: {
+              DEFAULT: 'oklch(0.955 0.002 286)',
+              foreground: 'oklch(0.51 0.01 286)',
+            },
+            border: 'oklch(0.94 0.002 286)',
+            card: 'oklch(1 0 0)',
+            priority: {
+              high: 'oklch(0.56 0.24 27)',
+              med: 'oklch(0.72 0.18 78)',
+              low: 'oklch(0.46 0.018 286)',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --background-val: oklch(0.99 0 0);
+      --foreground-val: oklch(0.185 0.005 286);
+      --primary-val: oklch(0.24 0.006 286);
+      --border-val: oklch(0.94 0.002 286);
+      --card-val: oklch(1 0 0);
+      --primary-glow: rgba(28, 27, 31, 0.04);
+    }
+    
+    body {
+      background-color: var(--background-val);
+      color: var(--foreground-val);
+      -webkit-font-smoothing: antialiased;
+      font-family: "Plus Jakarta Sans", sans-serif;
+    }
+
+    /* Living network graph background grid */
+    .graph-bg {
+      background-image: 
+        radial-gradient(circle at 1px 1px, rgba(28, 27, 31, 0.04) 1.5px, transparent 0),
+        linear-gradient(to right, rgba(28, 27, 31, 0.015) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(28, 27, 31, 0.015) 1px, transparent 1px);
+      background-size: 32px 32px, 64px 64px, 64px 64px;
+    }
+
+    /* Elegant, breathing glow orb spotlight in hero background */
+    .spotlight-orb {
+      filter: blur(120px);
+      background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+      animation: floatSpotlight 10s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatSpotlight {
+      0% { transform: translate(-10%, -10%) scale(1); }
+      100% { transform: translate(10%, 10%) scale(1.15); }
+    }
+
+    /* Living nodes animation on the graph background */
+    .node-pulse {
+      animation: nodeBreathe 5s ease-in-out infinite alternate;
+    }
+
+    @keyframes nodeBreathe {
+      0% { transform: scale(0.95); opacity: 0.15; }
+      100% { transform: scale(1.3); opacity: 0.5; }
+    }
+
+    /* SVG connections draw effect on page load */
+    .draw-path {
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+      animation: drawLine 3.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes drawLine {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Standard FlowBoard logo breathing animation */
+    .z-breathe {
+      animation: logoBreathe 2.8s ease-in-out infinite;
+    }
+
+    @keyframes logoBreathe {
+      0%, 100% { opacity: 0.75; }
+      50% { opacity: 1; }
+    }
+
+    /* Premium high-density button classes */
+    .fb-btn {
+      display: inline-flex;
+      height: 2.25rem;
+      align-items: center;
+      gap: 0.375rem;
+      border-radius: 0.375rem;
+      border: 1px solid rgba(28, 27, 31, 0.08);
+      background-color: white;
+      padding: 0 0.875rem;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .fb-btn:hover {
+      border-color: rgba(28, 27, 31, 0.2);
+      background-color: oklch(0.972 0.001 286);
+      transform: translateY(-1px);
+    }
+
+    .fb-btn:active {
+      transform: translateY(0);
+    }
+
+    .fb-btn-primary {
+      background-color: var(--primary-val);
+      border-color: transparent;
+      color: white;
+    }
+
+    .fb-btn-primary:hover {
+      background-color: oklch(0.18 0.005 286);
+      border-color: transparent;
+      color: white;
+      box-shadow: 0 4px 12px rgba(28, 27, 31, 0.08);
+    }
+
+    .fb-btn-ghost {
+      border-color: transparent;
+      background-color: transparent;
+      color: oklch(0.51 0.01 286);
+    }
+
+    .fb-btn-ghost:hover {
+      background-color: oklch(0.955 0.002 286);
+      color: var(--foreground-val);
+    }
+
+    /* Scroll reveal transitions */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal-on-scroll.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Smooth bento hover expansion */
+    .bento-card {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .bento-card:hover {
+      border-color: rgba(28, 27, 31, 0.18);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(28, 27, 31, 0.02);
+    }
+    
+    /* New Entrance Animations */
+    @keyframes slideUpFade {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased overflow-x-hidden selection:bg-black/10">
+
+  <!-- Header / Navigation -->
+  <header class="sticky top-0 z-50 border-b border-border bg-white/70 backdrop-blur-md transition-all duration-300">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+      <div class="flex items-center gap-2">
+        <!-- Embedded FlowBoard Logo -->
+        <svg class="h-7 w-7 transition-transform duration-300 hover:rotate-6" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+          <g>
+            <path fill="#1C1B1F" stroke="#FFFFFF" stroke-width="0.63" stroke-miterlimit="10" d="M24.51,28.51H5.49c-2.21,0-4-1.79-4-4V5.49c0-2.21,1.79-4,4-4h19.03c2.21,0,4,1.79,4,4v19.03C28.51,26.72,26.72,28.51,24.51,28.51z"/>
+            <g class="z-breathe">
+              <path fill="#FFFFFF" d="M15.47,7.1l-1.3,1.85c-0.2,0.29-0.54,0.47-0.9,0.47h-7.1V7.09C6.16,7.1,15.47,7.1,15.47,7.1z"/>
+              <polygon fill="#FFFFFF" points="24.3,7.1 13.14,22.91 5.7,22.91 16.86,7.1"/>
+              <path fill="#FFFFFF" d="M14.53,22.91l1.31-1.86c0.2-0.29,0.54-0.47,0.9-0.47h7.09v2.33H14.53z"/>
+            </g>
+          </g>
+        </svg>
+        <span class="text-base font-semibold tracking-tight text-foreground">FlowBoard</span>
+        <span class="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-muted-foreground uppercase font-mono">v0.9</span>
+      </div>
+      
+      <nav class="hidden md:flex items-center gap-6">
+        <a href="#hero" class="text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground">Overview</a>
+        <a href="#workflow" class="text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground">Workflow</a>
+        <a href="#views" class="text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground">Views</a>
+        <a href="#why" class="text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground">Why FlowBoard</a>
+        <a href="#local-first" class="text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground">Local-First</a>
+        <a href="#faq" class="text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground">FAQ</a>
+      </nav>
+      
+      <div class="flex items-center gap-2">
+        <button onclick="scrollToCTA()" class="fb-btn fb-btn-primary">Open preview</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section id="hero" class="relative overflow-hidden border-b border-border bg-gradient-to-b from-white to-surface py-20 lg:py-28 graph-bg">
+    <!-- Spotlight glowing orb backdrop -->
+    <div class="absolute -right-40 -top-40 w-[600px] h-[600px] rounded-full spotlight-orb pointer-events-none"></div>
+    <div class="absolute -left-40 bottom-10 w-[500px] h-[500px] rounded-full spotlight-orb pointer-events-none" style="animation-delay: -5s;"></div>
+
+    <!-- Live drawing graph network overlay -->
+    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+      <!-- Fine Path Left -->
+      <svg class="absolute left-1/12 top-1/4 w-[380px] h-[250px] text-foreground/5 opacity-50" viewBox="0 0 380 250" fill="none">
+        <path d="M10,20 L120,110 L280,70 L370,220" stroke="currentColor" stroke-width="1.2" class="draw-path" />
+        <circle cx="10" cy="20" r="3.5" fill="currentColor" class="node-pulse" />
+        <circle cx="120" cy="110" r="3.5" fill="currentColor" />
+        <circle cx="280" cy="70" r="3.5" fill="currentColor" />
+        <circle cx="370" cy="220" r="3.5" fill="currentColor" class="node-pulse" style="animation-delay: 2s;" />
+      </svg>
+      <!-- Fine Path Right -->
+      <svg class="absolute right-8 top-1/3 w-[320px] h-[320px] text-foreground/5 opacity-50" viewBox="0 0 320 320" fill="none">
+        <path d="M15,300 L110,190 L210,230 L300,20" stroke="currentColor" stroke-width="1.2" class="draw-path" style="animation-delay: 0.5s;" />
+        <circle cx="15" cy="300" r="3.5" fill="currentColor" />
+        <circle cx="110" cy="190" r="3.5" fill="currentColor" class="node-pulse" style="animation-delay: 1.2s;" />
+        <circle cx="210" cy="230" r="3.5" fill="currentColor" />
+        <circle cx="300" cy="20" r="3.5" fill="currentColor" class="node-pulse" style="animation-delay: 2.8s;" />
+      </svg>
+    </div>
+
+    <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="grid gap-12 lg:grid-cols-12 lg:items-center">
+        <!-- Hero Text -->
+        <div class="lg:col-span-6 space-y-6 opacity-0 translate-y-8" style="animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;">
+          <h1 class="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-5xl leading-[1.12]">
+            Keep your work in one place without the clutter.
+          </h1>
+          <p class="text-sm sm:text-base text-muted-foreground max-w-lg leading-relaxed font-normal">
+            Instantly capture tasks and notes, triage them in your inbox, and plan your schedule across integrated calendar and timeline views. A fast, local-first workspace built for solo productivity.
+          </p>
+          
+          <div class="flex flex-wrap items-center gap-3 pt-2">
+            <button onclick="scrollToCTA()" class="fb-btn fb-btn-primary px-6">Open preview</button>
+            <a href="#workflow" class="fb-btn fb-btn-ghost transition-all duration-300 hover:translate-x-1">
+              <span>See the workflow</span>
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Dynamic Interactive Capture Mockup Panel -->
+        <div class="lg:col-span-6 opacity-0 translate-y-8" style="animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards; transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);">
+          <div class="rounded-xl border border-border bg-white/80 backdrop-blur-md shadow-2xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(28,27,31,0.1)] transition-all duration-500">
+            <!-- Mockup Header -->
+            <div class="flex items-center justify-between border-b border-border bg-surface px-4 py-2.5 text-xs">
+              <div class="flex items-center gap-1.5 font-medium text-foreground">
+                <svg class="h-3.5 w-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+                <span>Home / Today</span>
+              </div>
+              <div class="flex items-center gap-2 font-mono text-[9px] text-muted-foreground">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Active local memory</span>
+              </div>
+            </div>
+
+            <!-- Mockup Content -->
+            <div class="p-5 space-y-4">
+              <!-- Capture Input Box -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label for="hero-capture" class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase font-mono">Interactive Quick Capture</label>
+                  <span class="text-[10px] text-muted-foreground/60 font-mono">Try it below</span>
+                </div>
+                
+                <div class="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2 shadow-inner focus-within:border-foreground/40 focus-within:bg-white transition-all duration-300">
+                  <svg class="h-4 w-4 text-muted-foreground/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  <input 
+                    type="text" 
+                    id="hero-capture" 
+                    placeholder="Type task name & press Enter to test..." 
+                    class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/60"
+                    onkeydown="handleCaptureSubmit(event)"
+                  >
+                  <kbd class="hidden sm:inline-block rounded border border-border/80 bg-white px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground shadow-xs select-none">/</kbd>
+                </div>
+              </div>
+
+              <!-- Checklist Rows -->
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between text-[11px] font-semibold text-muted-foreground border-b border-border/60 pb-1">
+                  <span>Task Pipeline</span>
+                  <span id="task-counter" class="text-foreground font-mono">3 items</span>
+                </div>
+                
+                <div id="mock-task-container" class="divide-y divide-border/40 text-xs">
+                  <!-- Task Row 1 -->
+                  <div class="group flex items-center gap-3 py-2.5 transition-colors">
+                    <input type="checkbox" onclick="completeTask(this)" class="h-3.5 w-3.5 rounded accent-primary border-border cursor-pointer">
+                    <span class="inline-flex h-2 w-2 rounded-full bg-priority-high" title="High Priority"></span>
+                    <span class="flex-1 truncate font-medium text-foreground transition-all duration-300">Draft new project guidelines</span>
+                    <span class="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground font-medium font-mono">Capture</span>
+                    <span class="text-[10px] text-muted-foreground whitespace-nowrap">Today</span>
+                  </div>
+                  <!-- Task Row 2 -->
+                  <div class="group flex items-center gap-3 py-2.5 transition-colors">
+                    <input type="checkbox" onclick="completeTask(this)" class="h-3.5 w-3.5 rounded accent-primary border-border cursor-pointer">
+                    <span class="inline-flex h-2 w-2 rounded-full bg-priority-med" title="Medium Priority"></span>
+                    <span class="flex-1 truncate font-medium text-foreground transition-all duration-300">Review Fellowships opportunities list</span>
+                    <span class="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground font-medium font-mono">Inbox</span>
+                    <span class="text-[10px] text-muted-foreground whitespace-nowrap">Today</span>
+                  </div>
+                  <!-- Task Row 3 -->
+                  <div class="group flex items-center gap-3 py-2.5 transition-colors">
+                    <input type="checkbox" onclick="completeTask(this)" class="h-3.5 w-3.5 rounded accent-primary border-border cursor-pointer">
+                    <span class="inline-flex h-2 w-2 rounded-full bg-priority-low" title="Low Priority"></span>
+                    <span class="flex-1 truncate font-medium text-foreground transition-all duration-300">Update local calendar parameters</span>
+                    <span class="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground font-medium font-mono">Settings</span>
+                    <span class="text-[10px] text-muted-foreground whitespace-nowrap">Upcoming</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Dynamic Inline Toast Notification -->
+            <div id="inner-toast" class="hidden flex items-center justify-between bg-foreground text-background px-4 py-2.5 text-[11px] font-medium border-t border-border animate-slide-up transition-all duration-300">
+              <span id="toast-message">Task created!</span>
+              <button onclick="undoLastCapture()" class="text-white underline hover:opacity-80 font-semibold transition-opacity">Undo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Credibility Bar (Proof Row) -->
+  <section id="proof" class="border-b border-border bg-white py-8">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-around">
+        <!-- Chip 1 -->
+        <div class="flex items-center gap-3.5 px-4 py-2 bg-surface rounded-full border border-border/80 shadow-xs max-w-fit transition-transform hover:-translate-y-0.5">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 text-foreground">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-foreground">Local-first prototype</p>
+            <p class="text-[10px] text-muted-foreground">Zero latency, complete local control.</p>
+          </div>
+        </div>
+
+        <!-- Chip 2 -->
+        <div class="flex items-center gap-3.5 px-4 py-2 bg-surface rounded-full border border-border/80 shadow-xs max-w-fit transition-transform hover:-translate-y-0.5">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 text-foreground">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-foreground">Real task state across views</p>
+            <p class="text-[10px] text-muted-foreground">Shared data behind every view.</p>
+          </div>
+        </div>
+
+        <!-- Chip 3 -->
+        <div class="flex items-center gap-3.5 px-4 py-2 bg-surface rounded-full border border-border/80 shadow-xs max-w-fit transition-transform hover:-translate-y-0.5">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 text-foreground">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-foreground">Built for solo and small teams</p>
+            <p class="text-[10px] text-muted-foreground">Tailored for personal focus efficiency.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Workflow Section -->
+  <section id="workflow" class="reveal-on-scroll border-b border-border bg-surface py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto space-y-3 mb-16">
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">The Core Loop</h2>
+        <p class="text-sm text-muted-foreground font-normal">
+          Move your work seamlessly from raw intake to scheduled execution through five clear, working phases.
+        </p>
+      </div>
+
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <!-- Step 1 -->
+        <div class="group rounded-xl border border-border bg-white p-6 space-y-4 transition-all duration-300 hover:border-foreground/15 hover:shadow-lg hover:shadow-black/[0.01]">
+          <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">01. Capture</div>
+          <h3 class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">Quick Capture</h3>
+          <p class="text-xs text-muted-foreground leading-relaxed">
+            Drop tasks, links, or fleeting thoughts into the workspace input the millisecond they occur. Zero setup overhead.
+          </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="group rounded-xl border border-border bg-white p-6 space-y-4 transition-all duration-300 hover:border-foreground/15 hover:shadow-lg hover:shadow-black/[0.01]">
+          <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">02. Triage</div>
+          <h3 class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">Inbox Triage</h3>
+          <p class="text-xs text-muted-foreground leading-relaxed">
+            Process raw captures in a dedicated inbox container. Group, tag, prioritize, and structure items when you are ready.
+          </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="group rounded-xl border border-border bg-white p-6 space-y-4 transition-all duration-300 hover:border-foreground/15 hover:shadow-lg hover:shadow-black/[0.01]">
+          <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">03. Focus</div>
+          <h3 class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">My Tasks</h3>
+          <p class="text-xs text-muted-foreground leading-relaxed">
+            Work cleanly from a unified checklist. Filter items scheduled for Today or Overdue to isolate active workload priorities.
+          </p>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="group rounded-xl border border-border bg-white p-6 space-y-4 transition-all duration-300 hover:border-foreground/15 hover:shadow-lg hover:shadow-black/[0.01]">
+          <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">04. Plan</div>
+          <h3 class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">Calendar &amp; Timeline</h3>
+          <p class="text-xs text-muted-foreground leading-relaxed">
+            Organize tasks horizontally. Schedule deadlines on visual month grids or timeline bars to establish a roadmap.
+          </p>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="group rounded-xl border border-border bg-white p-6 space-y-4 transition-all duration-300 hover:border-foreground/15 hover:shadow-lg hover:shadow-black/[0.01]">
+          <div class="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">05. Review</div>
+          <h3 class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">Projects &amp; Notes</h3>
+          <p class="text-xs text-muted-foreground leading-relaxed">
+            Manage projects using board interfaces and write reference markdown notes with automatic task extraction from checklists.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-8 flex justify-center">
+        <div class="inline-flex items-center gap-2 rounded bg-white border border-border/80 px-3.5 py-2 text-xs text-muted-foreground shadow-xs">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>This is the current, working loop. Every feature runs locally in the preview.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Views Section (Bento Grid layout) -->
+  <section id="views" class="reveal-on-scroll border-b border-border bg-white py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="max-w-2xl space-y-3 mb-16">
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">Multiple Views, One Data Source</h2>
+        <p class="text-sm text-muted-foreground font-normal">
+          Switch between representation modes effortlessly. Because everything hooks into a unified local task model, you will never experience duplicate cards or out-of-sync task states.
+        </p>
+      </div>
+
+      <!-- High density, polished Bento Grid -->
+      <div class="grid gap-4 md:grid-cols-3 lg:grid-cols-7">
+        <!-- Bento item 1 (Home) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">Home</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            Your daily dashboard summarizing quick capture inputs, overdue alerts, inbox size, and recent documents.
+          </p>
+        </div>
+
+        <!-- Bento item 2 (Inbox) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">Inbox</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            The processing container designed to gather quick captures, keeping your core projects clean.
+          </p>
+        </div>
+
+        <!-- Bento item 3 (My Tasks) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">My Tasks</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            A high-density task checklist displaying overdue, scheduled, and completed rows with immediate completion controls.
+          </p>
+        </div>
+
+        <!-- Bento item 4 (Projects) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">Projects</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.5-3h15m-15-9h15M3 5.25h18c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125H3c-.621 0-1.125-.504-1.125-1.125V6.375C1.875 5.754 2.379 5.25 3 5.25z" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            Kanban boards that map items across lanes, maintaining consistent card layouts and detail panels.
+          </p>
+        </div>
+
+        <!-- Bento item 5 (Notes) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">Notes</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            A fast markdown text space featuring deep body text queries and task generation straight from checklist markers.
+          </p>
+        </div>
+
+        <!-- Bento item 6 (Calendar) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">Calendar</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            A monthly visual grid driven entirely by task deadlines, ensuring absolute consistency with your task checklist.
+          </p>
+        </div>
+
+        <!-- Bento item 7 (Timeline) -->
+        <div class="bento-card rounded-xl border border-border bg-surface p-5 flex flex-col justify-between min-h-[160px] shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold tracking-wide text-foreground">Timeline</span>
+            <div class="rounded-lg p-1.5 bg-foreground/[0.03]">
+              <svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed mt-4 font-normal">
+            A fluid, horizontal planning board plotting tasks across schedule spans, backed by a clear Today marker.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why FlowBoard Section -->
+  <section id="why" class="reveal-on-scroll border-b border-border bg-surface py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="grid gap-12 lg:grid-cols-12 lg:items-center">
+        <div class="lg:col-span-5 space-y-4">
+          <h2 class="text-3xl font-bold tracking-tight text-foreground leading-[1.15]">Designed for Individual Focus</h2>
+          <p class="text-sm text-muted-foreground leading-relaxed font-normal">
+            FlowBoard rejects the complexity and administrative bloat that makes standard project managers feel like a chore. It is built to optimize personal production above all.
+          </p>
+        </div>
+
+        <div class="lg:col-span-7 space-y-6">
+          <!-- Bullet 1 -->
+          <div class="flex items-start gap-4 transition-transform duration-300 hover:translate-x-1">
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background mt-0.5 shadow-xs">
+              <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </span>
+            <div class="space-y-1">
+              <h4 class="text-xs font-bold text-foreground">Built for Solo Workflows</h4>
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                Most tools assume you are managing a large enterprise matrix. FlowBoard strips down permission grids and notification hubs to prioritize individual speed and key layout operations.
+              </p>
+            </div>
+          </div>
+
+          <!-- Bullet 2 -->
+          <div class="flex items-start gap-4 transition-transform duration-300 hover:translate-x-1">
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background mt-0.5 shadow-xs">
+              <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </span>
+            <div class="space-y-1">
+              <h4 class="text-xs font-bold text-foreground">Zero-Friction Capture</h4>
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                Drop your thoughts immediately into a single quick-capture pipeline and process them later. Never let tedious form inputs disrupt your train of thought.
+              </p>
+            </div>
+          </div>
+
+          <!-- Bullet 3 -->
+          <div class="flex items-start gap-4 transition-transform duration-300 hover:translate-x-1">
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background mt-0.5 shadow-xs">
+              <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </span>
+            <div class="space-y-1">
+              <h4 class="text-xs font-bold text-foreground">No Administrative Clutter</h4>
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                We omit complex workflow customizers, decorative dashboard charts, and forced status columns. Your workspace remains simple, legible, and direct.
+              </p>
+            </div>
+          </div>
+
+          <!-- Bullet 4 -->
+          <div class="flex items-start gap-4 transition-transform duration-300 hover:translate-x-1">
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background mt-0.5 shadow-xs">
+              <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </span>
+            <div class="space-y-1">
+              <h4 class="text-xs font-bold text-foreground">Timeline &amp; Calendar at the Core</h4>
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                Unlike competitive services that place Gantt grids behind premium paywalls, horizontal planning scales are treated as structural defaults within FlowBoard.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Local-First Honesty Block -->
+  <section id="local-first" class="reveal-on-scroll border-b border-border bg-white py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="rounded-2xl border border-border bg-surface p-8 lg:p-12 space-y-6 max-w-4xl mx-auto shadow-xs relative overflow-hidden transition-all duration-300 hover:border-foreground/10 hover:shadow-md">
+        <!-- Floating glow spot inside container -->
+        <div class="absolute -right-20 -bottom-20 w-80 h-80 rounded-full spotlight-orb pointer-events-none opacity-40"></div>
+
+        <div class="flex items-center gap-2.5">
+          <span class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">Product Architecture</span>
+        </div>
+        
+        <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Local-first today, server-backed tomorrow.
+        </h2>
+        
+        <div class="space-y-4 text-xs sm:text-xs text-muted-foreground leading-relaxed max-w-3xl font-normal">
+          <p>
+            FlowBoard operates completely within your local browser sandbox, utilizing indexable storage databases and in-memory structures to guarantee instantaneous reactions. Since there is no database handshake or network lag, it remains fully functional offline, keeping your raw documents, tags, and milestones private to your device.
+          </p>
+          <div class="rounded-lg border border-amber-500/10 bg-amber-500/[0.02] p-3 text-[11px] font-medium text-foreground flex items-center gap-2 max-w-fit">
+            <svg class="h-3.5 w-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Engineering Roadmap Statement: Cross-device sync is actively in progress.</span>
+          </div>
+          <p>
+            Our active engineering roadmap is presently establishing core workspace APIs and server synchronization channels. Until stable database-backed authentication layers are rolled out, your active workload state is kept entirely on your local machine. We believe in perfecting robust, low-latency client mechanics before introducing cloud sync complexity.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="reveal-on-scroll border-b border-border bg-surface py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto space-y-3 mb-16">
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">Frequently Asked Questions</h2>
+        <p class="text-sm text-muted-foreground font-normal">
+          Grounded, honest answers regarding the current scope of the FlowBoard prototype.
+        </p>
+      </div>
+
+      <div class="max-w-3xl mx-auto divide-y divide-border/60">
+        <!-- Q1 -->
+        <div class="py-4.5 border-t border-border/40">
+          <button onclick="toggleFAQ(this)" class="flex w-full items-center justify-between text-left focus:outline-none group py-3">
+            <span class="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Does FlowBoard have Timeline planning?</span>
+            <span class="ml-6 flex h-7 items-center text-muted-foreground transition-all duration-300">
+              <svg class="h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-answer hidden pb-4 max-w-2xl text-[11px] sm:text-xs text-muted-foreground leading-relaxed transition-all duration-300">
+            Yes. The Timeline view is fully functional and driven directly by your tasks' start and due dates. Adjusting schedule spans horizontally on the planning scale will propagate date updates across your My Tasks checklist and Calendar automatically.
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="py-4.5 border-t border-border/40">
+          <button onclick="toggleFAQ(this)" class="flex w-full items-center justify-between text-left focus:outline-none group py-3">
+            <span class="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Is FlowBoard suitable for solo developers and creators?</span>
+            <span class="ml-6 flex h-7 items-center text-muted-foreground transition-all duration-300">
+              <svg class="h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-answer hidden pb-4 max-w-2xl text-[11px] sm:text-xs text-muted-foreground leading-relaxed transition-all duration-300">
+            Absolutely. FlowBoard is specifically designed for single-actor productivity. It omits complex team-assignment trees, administrative status dashboards, and nested workspace permissions to focus on low-friction execution.
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="py-4.5 border-t border-border/40">
+          <button onclick="toggleFAQ(this)" class="flex w-full items-center justify-between text-left focus:outline-none group py-3">
+            <span class="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Can I sync my data across different devices?</span>
+            <span class="ml-6 flex h-7 items-center text-muted-foreground transition-all duration-300">
+              <svg class="h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-answer hidden pb-4 max-w-2xl text-[11px] sm:text-xs text-muted-foreground leading-relaxed transition-all duration-300">
+            Not yet. To guarantee near-zero loading times and data privacy, your tasks are preserved strictly inside your local browser memory space. Unified cloud database synchronizations and multi-device authentication schemes are currently in active development.
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="py-4.5 border-t border-border/40">
+          <button onclick="toggleFAQ(this)" class="flex w-full items-center justify-between text-left focus:outline-none group py-3">
+            <span class="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Do I have to use every single view in the sidebar?</span>
+            <span class="ml-6 flex h-7 items-center text-muted-foreground transition-all duration-300">
+              <svg class="h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-answer hidden pb-4 max-w-2xl text-[11px] sm:text-xs text-muted-foreground leading-relaxed transition-all duration-300">
+            No. FlowBoard is highly flexible. If you only want to use Quick Capture and My Tasks, you can ignore Calendar, Projects, and Timeline views completely. The sidebar options remain accessible, but they never force you to alter your preferred workflow.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA Section -->
+  <section id="cta" class="reveal-on-scroll bg-white py-20 border-b border-border relative overflow-hidden">
+    <!-- Spotlight glowing orb -->
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full spotlight-orb pointer-events-none opacity-40"></div>
+
+    <div class="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center space-y-6">
+      <h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        Try a cleaner way to work.
+      </h2>
+      <p class="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+        Experience a fast, local-first workspace that stays out of your way. Try the interactive prototype preview today.
+      </p>
+      
+      <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <a href="/" class="fb-btn fb-btn-primary px-8">Open preview</a>
+        <a href="#workflow" class="fb-btn fb-btn-ghost transition-colors">See the workflow</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer Section -->
+  <footer id="footer" class="bg-surface py-12 border-t border-border">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-border/60 pb-8">
+        <div class="flex items-center gap-2">
+          <!-- FlowBoard Logo SVG -->
+          <svg class="h-6 w-6 opacity-80" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <g>
+              <path fill="#1C1B1F" stroke="#FFFFFF" stroke-width="0.63" stroke-miterlimit="10" d="M24.51,28.51H5.49c-2.21,0-4-1.79-4-4V5.49c0-2.21,1.79-4,4-4h19.03c2.21,0,4,1.79,4,4v19.03C28.51,26.72,26.72,28.51,24.51,28.51z"/>
+              <g class="z-breathe">
+                <path fill="#FFFFFF" d="M15.47,7.1l-1.3,1.85c-0.2,0.29-0.54,0.47-0.9,0.47h-7.1V7.09C6.16,7.1,15.47,7.1,15.47,7.1z"/>
+                <polygon fill="#FFFFFF" points="24.3,7.1 13.14,22.91 5.7,22.91 16.86,7.1"/>
+                <path fill="#FFFFFF" d="M14.53,22.91l1.31-1.86c0.2-0.29,0.54-0.47,0.9-0.47h7.09v2.33H14.53z"/>
+              </g>
+            </g>
+          </svg>
+          <span class="text-sm font-semibold tracking-tight text-foreground">FlowBoard</span>
+        </div>
+        
+        <!-- Footer menu containing functional anchors -->
+        <div class="flex flex-wrap justify-center gap-x-8 gap-y-3 text-xs font-medium text-muted-foreground">
+          <a href="#hero" class="transition-colors hover:text-foreground">Overview</a>
+          <a href="#workflow" class="transition-colors hover:text-foreground">Workflow</a>
+          <a href="#views" class="transition-colors hover:text-foreground">Views</a>
+          <a href="#why" class="transition-colors hover:text-foreground">Why FlowBoard</a>
+          <a href="#local-first" class="transition-colors hover:text-foreground">Local-First</a>
+          <a href="#faq" class="transition-colors hover:text-foreground">FAQ</a>
+        </div>
+      </div>
+      
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 text-[11px] text-muted-foreground/80 font-mono">
+        <p>&copy; 2026 FlowBoard. Built as a fast, local-first workspace prototype.</p>
+        <p class="flex items-center gap-1.5">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Verified Local Integrity</span>
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Interactivity & Page Logic -->
+  <script>
+    // FAQ Accordion Toggle
+    function toggleFAQ(button) {
+      const answer = button.nextElementSibling;
+      const arrowSvg = button.querySelector('svg');
+      
+      const isExpanded = !answer.classList.contains('hidden');
+      
+      // Close all FAQs smoothly
+      document.querySelectorAll('.faq-answer').forEach(faq => faq.classList.add('hidden'));
+      document.querySelectorAll('#faq svg').forEach(svg => svg.classList.remove('rotate-180'));
+      
+      if (!isExpanded) {
+        answer.classList.remove('hidden');
+        arrowSvg.classList.add('rotate-180');
+      }
+    }
+
+    // Scroll Helper to CTA
+    function scrollToCTA() {
+      document.getElementById('cta').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Scroll reveal implementation
+    const revealElements = document.querySelectorAll('.reveal-on-scroll');
+    const revealOnScroll = () => {
+      const triggerBottom = (window.innerHeight / 5) * 4.5;
+      revealElements.forEach(element => {
+        const boxTop = element.getBoundingClientRect().top;
+        if (boxTop < triggerBottom) {
+          element.classList.add('active');
+        }
+      });
+    };
+    
+    window.addEventListener('scroll', revealOnScroll);
+    revealOnScroll(); // Trigger check on load
+
+    // Interactive Quick Capture Mockup state
+    let lastCapturedTask = null;
+    let toastTimeout = null;
+
+    function handleCaptureSubmit(event) {
+      if (event.key === 'Enter') {
+        const input = event.target;
+        const text = input.value.trim();
+        
+        if (text) {
+          addTaskToMockList(text);
+          input.value = '';
+          showToast(`Captured to Inbox: "${text}"`);
+        }
+      }
+    }
+
+    function addTaskToMockList(title) {
+      const container = document.getElementById('mock-task-container');
+      
+      // Create new checklist item element
+      const newTask = document.createElement('div');
+      newTask.className = "group flex items-center gap-3 py-2.5 transition-all duration-300 border-t border-border/40 opacity-0 -translate-y-2";
+      
+      const priorities = ['high', 'med', 'low'];
+      const randPriority = priorities[Math.floor(Math.random() * priorities.length)];
+      
+      newTask.innerHTML = `
+        <input type="checkbox" onclick="completeTask(this)" class="h-3.5 w-3.5 rounded accent-primary border-border cursor-pointer">
+        <span class="inline-flex h-2 w-2 rounded-full bg-priority-${randPriority}" title="Priority"></span>
+        <span class="flex-1 truncate font-medium text-foreground transition-all duration-300">${title}</span>
+        <span class="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground font-medium font-mono">Capture</span>
+        <span class="text-[10px] text-muted-foreground whitespace-nowrap">Today</span>
+      `;
+      
+      // Prepend to checklist list
+      container.insertBefore(newTask, container.firstChild);
+      
+      // Trigger smooth entry transitions
+      setTimeout(() => {
+        newTask.classList.remove('opacity-0', '-translate-y-2');
+      }, 50);
+
+      lastCapturedTask = newTask;
+      updateCounter();
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('inner-toast');
+      const msgSpan = document.getElementById('toast-message');
+      
+      msgSpan.textContent = message;
+      toast.classList.remove('hidden');
+      
+      if (toastTimeout) clearTimeout(toastTimeout);
+      
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 5000);
+    }
+
+    function undoLastCapture() {
+      if (lastCapturedTask) {
+        lastCapturedTask.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => {
+          lastCapturedTask.remove();
+          lastCapturedTask = null;
+          updateCounter();
+        }, 300);
+        
+        document.getElementById('inner-toast').classList.add('hidden');
+      }
+    }
+
+    function completeTask(checkbox) {
+      const row = checkbox.parentElement;
+      const textSpan = row.querySelector('.flex-1');
+      
+      if (checkbox.checked) {
+        textSpan.classList.add('line-through', 'text-muted-foreground', 'opacity-50');
+        showToast('Marked task done');
+      } else {
+        textSpan.classList.remove('line-through', 'text-muted-foreground', 'opacity-50');
+      }
+    }
+
+    function updateCounter() {
+      const count = document.getElementById('mock-task-container').children.length;
+      document.getElementById('task-counter').textContent = `${count} items`;
+    }
+  </script>
+</body>
+</html>

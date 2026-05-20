@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // FlowBoard persistent server launcher
 // Uses detached child process to survive session cleanup
 

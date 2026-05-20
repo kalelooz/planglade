@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { badRequest, parseDateValue, parseJsonBody, parseQuery, resolveActorUserId, serverError } from "@/lib/api-utils"
+import { parseDateValue, parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
+import { logActivityEvent } from "@/lib/activity"
 import { createProjectSchema, projectListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -33,24 +34,43 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const actorUserId = await resolveActorUserId(
+    const access = await requireWorkspaceRole(
       parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
     )
-    if (!actorUserId) return badRequest("Workspace not found")
+    if (!access.ok) return access.response
+    const actorUserId = access.actor.userId
 
-    const project = await db.project.create({
-      data: {
+    const project = await db.$transaction(async (tx) => {
+      const createdProject = await tx.project.create({
+        data: {
+          workspaceId: parsed.data.workspaceId,
+          name: parsed.data.name,
+          slug: parsed.data.slug,
+          description: parsed.data.description,
+          status: parsed.data.status,
+          color: parsed.data.color,
+          startDate: parseDateValue(parsed.data.startDate) ?? undefined,
+          dueDate: parseDateValue(parsed.data.dueDate) ?? undefined,
+          createdById: actorUserId,
+        },
+      })
+
+      await logActivityEvent(tx, {
         workspaceId: parsed.data.workspaceId,
-        name: parsed.data.name,
-        slug: parsed.data.slug,
-        description: parsed.data.description,
-        status: parsed.data.status,
-        color: parsed.data.color,
-        startDate: parseDateValue(parsed.data.startDate) ?? undefined,
-        dueDate: parseDateValue(parsed.data.dueDate) ?? undefined,
-        createdById: actorUserId,
-      },
+        actorId: actorUserId,
+        action: "CREATED",
+        entityType: "PROJECT",
+        entityId: createdProject.id,
+        summary: `Created project "${createdProject.name}"`,
+        metadata: {
+          status: createdProject.status,
+          slug: createdProject.slug,
+        },
+      })
+
+      return createdProject
     })
 
     return NextResponse.json({ project }, { status: 201 })

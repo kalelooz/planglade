@@ -171,6 +171,8 @@ model WorkItem {
   projectId        String?
   title            String
   description      String?
+  checklist        Json?
+  noteIds          Json?
   status           WorkItemStatus       @default(BACKLOG)
   priority         WorkItemPriority     @default(MEDIUM)
   startDate        DateTime?

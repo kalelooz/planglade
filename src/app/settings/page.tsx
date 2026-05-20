@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -9,6 +9,8 @@ import { Avatar, PriorityIcon } from "@/components/lovable/icons";
 import { useStore, type PriorityStyle } from "@/lib/store";
 import { AvatarPicker } from "@/components/lovable/avatar-picker";
 import { SaveIndicator } from "@/components/lovable/save-indicator";
+import { getServerSession } from "@/lib/server-session-client";
+import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } from "@/lib/notification-preferences";
 
 const sections = ["General", "Appearance", "Notifications", "Data", "Account"] as const;
 type Section = (typeof sections)[number];
@@ -110,8 +112,14 @@ function AppearancePreview({
 
 export default function SettingsPage() {
   const [section, setSection] = useState<Section>("General");
+  const [serverImportBusy, setServerImportBusy] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const settings = useStore((s) => s.settings);
   const members = useStore((s) => s.members);
+  const projects = useStore((s) => s.projects);
+  const notes = useStore((s) => s.notes);
+  const workItems = useStore((s) => s.workItems);
   const updateSettings = useStore((s) => s.updateSettings);
   const updateMember = useStore((s) => s.updateMember);
   const resetData = useStore((s) => s.resetData);
@@ -124,6 +132,76 @@ export default function SettingsPage() {
     role: "Product Lead",
     color: "oklch(0.62 0.13 195)",
   };
+
+  const persistUserSettings = async (patch: Partial<{
+    theme: "system" | "light" | "dark";
+    density: "compact" | "comfortable";
+    accent: string;
+    notifications: Record<string, boolean>;
+  }>) => {
+    if (!workspaceId || !currentUserId) return;
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": currentUserId,
+      },
+      body: JSON.stringify({
+        workspaceId,
+        userId: currentUserId,
+        ...patch,
+      }),
+    });
+  };
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+
+        const response = await fetch(
+          `/api/settings?workspaceId=${encodeURIComponent(session.workspace.id)}&userId=${encodeURIComponent(session.user.id)}`,
+          {
+            cache: "no-store",
+            headers: { "x-flowboard-user-id": session.user.id },
+          }
+        );
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as {
+          settings: {
+            theme: "system" | "light" | "dark" | null;
+            density: "compact" | "comfortable" | null;
+            accent: string | null;
+            notifications: unknown;
+          } | null;
+        };
+
+        if (!payload.settings || !active) return;
+
+        const notifications = normalizeNotificationPreferences(payload.settings.notifications);
+        updateSettings({
+          ...(payload.settings.theme ? { theme: payload.settings.theme } : {}),
+          ...(payload.settings.density ? { density: payload.settings.density } : {}),
+          ...(payload.settings.accent ? { accent: payload.settings.accent } : {}),
+          notifications,
+        });
+        if (payload.settings.theme) {
+          setTheme(payload.settings.theme);
+        }
+      } catch {
+        // keep local defaults when remote settings are unavailable
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [setTheme, updateSettings]);
 
   const exportJSON = () => {
     const data = useStore.getState();
@@ -194,6 +272,64 @@ export default function SettingsPage() {
     });
   };
 
+  const importLocalToServer = async (mode: "append" | "replace") => {
+    setServerImportBusy(true);
+    try {
+      const session = await getServerSession();
+      const response = await fetch("/api/workspace/import-local", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: session.workspace.id,
+          actorUserId: session.user.id,
+          mode,
+          projects: projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            status: project.status,
+            due: project.due,
+            accent: project.accent,
+          })),
+          workItems: workItems.map((item) => ({
+            id: item.id,
+            title: item.title,
+            status: item.status,
+            priority: item.priority,
+            assignee: item.assignee,
+            due: item.due,
+            start: item.start,
+            project: item.project,
+            description: item.description,
+          })),
+          notes: notes.map((note) => ({
+            id: note.id,
+            title: note.title,
+            tag: note.tag,
+            excerpt: note.excerpt,
+            body: note.excerpt,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Server import failed");
+      }
+
+      const payload = (await response.json()) as {
+        imported: { projects: number; workItems: number; notes: number };
+        skipped: { workItems: number; notes: number };
+      };
+
+      toast.success(`Server import complete (${mode})`, {
+        description: `Projects ${payload.imported.projects}, Tasks ${payload.imported.workItems}, Notes ${payload.imported.notes}`,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to import local data to server");
+    } finally {
+      setServerImportBusy(false);
+    }
+  };
+
   return (
     <AppShell title={<span className="font-medium">Settings</span>}>
       <div className="flex h-full">
@@ -234,7 +370,11 @@ export default function SettingsPage() {
                   {(["system", "light", "dark"] as const).map((t) => (
                     <button
                       key={t}
-                      onClick={() => { setTheme(t); updateSettings({ theme: t }); }}
+                      onClick={() => {
+                        setTheme(t);
+                        updateSettings({ theme: t });
+                        void persistUserSettings({ theme: t });
+                      }}
                       className={`lov-btn capitalize ${settings.theme === t ? "lov-btn-active" : ""}`}
                     >
                       {t}
@@ -247,7 +387,10 @@ export default function SettingsPage() {
                   {ACCENTS.map((c) => (
                     <button
                       key={c.value}
-                      onClick={() => updateSettings({ accent: c.value })}
+                      onClick={() => {
+                        updateSettings({ accent: c.value });
+                        void persistUserSettings({ accent: c.value });
+                      }}
                       title={c.label}
                       className={`h-6 w-6 rounded-full ring-offset-2 ${settings.accent === c.value ? "ring-2 ring-ring" : ""}`}
                       style={{ background: c.value }}
@@ -258,7 +401,11 @@ export default function SettingsPage() {
               <Field label="Density">
                 <select
                   value={settings.density}
-                  onChange={(e) => updateSettings({ density: e.target.value as "compact" | "comfortable" })}
+                  onChange={(e) => {
+                    const density = e.target.value as "compact" | "comfortable";
+                    updateSettings({ density });
+                    void persistUserSettings({ density });
+                  }}
                   className="lov-input"
                 >
                   <option value="compact">Compact</option>
@@ -301,17 +448,21 @@ export default function SettingsPage() {
 
           {section === "Notifications" && (
             <div className="mt-8 space-y-3">
-              {Object.entries(settings.notifications).map(([key, val]) => (
+              {Object.keys(DEFAULT_NOTIFICATION_PREFERENCES).map((key) => (
                 <label key={key} className="flex items-center justify-between border-b py-2 text-[13px]">
                   <span>{key}</span>
                   <input
                     type="checkbox"
-                    checked={val}
+                    checked={Boolean(settings.notifications[key])}
                     onChange={(event) => updateSettings({
-                      notifications: {
-                        ...settings.notifications,
-                        [key]: event.target.checked,
-                      },
+                      notifications: (() => {
+                        const next = {
+                          ...normalizeNotificationPreferences(settings.notifications),
+                          [key]: event.target.checked,
+                        };
+                        void persistUserSettings({ notifications: next });
+                        return next;
+                      })(),
                     })}
                     className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-primary"
                   />
@@ -350,6 +501,27 @@ export default function SettingsPage() {
               </Field>
               <Field label="Reset" hint="Reload seed data (keeps your settings).">
                 <button onClick={onReset} className="lov-btn lov-btn-danger">Reset to seed</button>
+              </Field>
+              <Field
+                label="Server migration"
+                hint="Import current local workspace into server persistence. Append keeps existing server records; Replace clears workspace records first."
+              >
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => void importLocalToServer("append")}
+                    disabled={serverImportBusy}
+                    className="lov-btn"
+                  >
+                    {serverImportBusy ? "Importing..." : "Append to server"}
+                  </button>
+                  <button
+                    onClick={() => void importLocalToServer("replace")}
+                    disabled={serverImportBusy}
+                    className="lov-btn lov-btn-danger"
+                  >
+                    {serverImportBusy ? "Importing..." : "Replace server data"}
+                  </button>
+                </div>
               </Field>
             </div>
           )}

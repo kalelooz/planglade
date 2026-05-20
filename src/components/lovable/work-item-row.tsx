@@ -26,16 +26,22 @@ export function WorkItemRow({
   onClick,
   onMove,
   onDelete,
+  membersOverride,
 }: {
   item: WorkItem;
   selected?: boolean;
   onClick?: () => void;
   onMove?: (status: Status) => void;
   onDelete?: () => void;
+  membersOverride?: { id: string; name: string }[];
 }) {
-  const members = useStore((s) => s.members);
+  const storeMembers = useStore((s) => s.members);
   const density = useStore((s) => s.settings.density);
-  const m = members.find((member) => member.id === item.assignee) ?? members[0];
+  const members = membersOverride ?? storeMembers;
+  const m =
+    members.find((member) => member.id === item.assignee) ??
+    storeMembers.find((member) => member.id === item.assignee) ??
+    { id: item.assignee, name: item.assignee.slice(0, 8) };
   const completed = item.status === "Done";
   const rowPadding = density === "compact" ? "py-1.5" : "py-2.5";
 

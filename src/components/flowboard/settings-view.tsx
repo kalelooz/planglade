@@ -165,6 +165,35 @@ function applyFontSize(size: "small" | "medium" | "large") {
   root.style.fontSize = sizeMap[size]
 }
 
+function ThemeOption({
+  value,
+  icon: Icon,
+  label,
+  selected,
+  onSelect,
+}: {
+  value: string
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  selected: boolean
+  onSelect: (value: string) => void
+}) {
+  return (
+    <button
+      onClick={() => onSelect(value)}
+      className={cn(
+        "flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-muted/50",
+        selected ? "border-primary bg-primary/5" : "border-transparent bg-muted/30"
+      )}
+    >
+      <Icon className={cn("size-5", selected ? "text-primary" : "text-muted-foreground")} />
+      <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>
+        {label}
+      </span>
+    </button>
+  )
+}
+
 // ── Component ────────────────────────────────────────────────────────────
 
 export function SettingsView() {
@@ -297,21 +326,6 @@ export function SettingsView() {
 
   // ── Render helpers ─────────────────────────────────────────────────────
 
-  const ThemeOption = ({ value, icon: Icon, label }: { value: string; icon: React.ComponentType<{ className?: string }>; label: string }) => (
-    <button
-      onClick={() => handleThemeChange(value)}
-      className={cn(
-        "flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-muted/50",
-        theme === value ? "border-primary bg-primary/5" : "border-transparent bg-muted/30"
-      )}
-    >
-      <Icon className={cn("size-5", theme === value ? "text-primary" : "text-muted-foreground")} />
-      <span className={cn("text-xs font-medium", theme === value ? "text-primary" : "text-muted-foreground")}>
-        {label}
-      </span>
-    </button>
-  )
-
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       {/* Header */}
@@ -443,9 +457,9 @@ export function SettingsView() {
             </CardHeader>
             <CardContent className="pb-5">
               <div className="flex gap-3">
-                <ThemeOption value="light" icon={Sun} label="Light" />
-                <ThemeOption value="dark" icon={Moon} label="Dark" />
-                <ThemeOption value="system" icon={Monitor} label="System" />
+                <ThemeOption value="light" icon={Sun} label="Light" selected={theme === "light"} onSelect={handleThemeChange} />
+                <ThemeOption value="dark" icon={Moon} label="Dark" selected={theme === "dark"} onSelect={handleThemeChange} />
+                <ThemeOption value="system" icon={Monitor} label="System" selected={theme === "system"} onSelect={handleThemeChange} />
               </div>
             </CardContent>
           </Card>

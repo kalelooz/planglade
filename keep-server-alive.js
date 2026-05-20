@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Single-process FlowBoard server with self-keep-alive
 // Runs the Next.js standalone server as a child and pings it periodically
 

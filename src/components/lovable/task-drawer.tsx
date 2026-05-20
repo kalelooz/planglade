@@ -1,21 +1,105 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Link2, Plus, Trash2, FileText } from "lucide-react";
+import { X, Link2, Plus, Trash2, FileText, MessageSquare, Send, History } from "lucide-react";
 import Link from "next/link";
 import type { WorkItem, Status, Priority } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
 import { getDatePart, getTimePart } from "@/lib/dates";
 import { Avatar, PriorityIcon, StatusIcon } from "./icons";
 import { Chip } from "./page";
+import { toApiWorkPriority, toApiWorkStatus, toIsoDateTime } from "@/lib/server-ui-mappers";
 
 const STATUSES: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
 
-export function TaskDrawer({ item, onClose, focusTitle, onTitleFocused }: { item: WorkItem | null; onClose: () => void; focusTitle?: boolean; onTitleFocused?: () => void }) {
+function prettyActionLabel(action: DrawerHistoryEvent["action"]) {
+  if (action === "CREATED") return "Created";
+  if (action === "UPDATED") return "Updated";
+  if (action === "MOVED") return "Moved";
+  if (action === "COMPLETED") return "Completed";
+  if (action === "DELETED") return "Deleted";
+  if (action === "COMMENTED") return "Commented";
+  if (action === "ASSIGNED") return "Assigned";
+  return "Unassigned";
+}
+
+function formatTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+type DrawerMember = { id: string; name: string };
+type DrawerProject = { id: string; name: string; accent?: string; icon?: string };
+type DrawerNote = { id: string; title: string; tag: string; updated: string };
+type DrawerComment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: { id: string; name: string | null; email: string };
+  mentionUserIds?: string[];
+};
+type DrawerHistoryEvent = {
+  id: string;
+  action: "CREATED" | "UPDATED" | "MOVED" | "COMPLETED" | "DELETED" | "COMMENTED" | "ASSIGNED" | "UNASSIGNED";
+  summary: string | null;
+  metadata?: unknown;
+  createdAt: string;
+  actor: { id: string; name: string | null; email: string } | null;
+};
+
+export function TaskDrawer({
+  item,
+  onClose,
+  focusTitle,
+  initialFocusSection,
+  onTitleFocused,
+  workspaceId,
+  currentUserId,
+  membersOverride,
+  projectsOverride,
+  notesOverride,
+  onItemPatched,
+  onItemReplaced,
+}: {
+  item: WorkItem | null;
+  onClose: () => void;
+  focusTitle?: boolean;
+  initialFocusSection?: "comments" | "history";
+  onTitleFocused?: () => void;
+  workspaceId?: string | null;
+  currentUserId?: string | null;
+  membersOverride?: DrawerMember[];
+  projectsOverride?: DrawerProject[];
+  notesOverride?: DrawerNote[];
+  onItemPatched?: (id: string, patch: Partial<WorkItem>) => void;
+  onItemReplaced?: (item: WorkItem) => void;
+}) {
   return (
     <AnimatePresence initial={false}>
-      {item && <DrawerContent item={item} onClose={onClose} focusTitle={!!focusTitle} onTitleFocused={onTitleFocused} />}
+      {item && (
+        <DrawerContent
+          item={item}
+          onClose={onClose}
+          focusTitle={!!focusTitle}
+          initialFocusSection={initialFocusSection}
+          onTitleFocused={onTitleFocused}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          membersOverride={membersOverride}
+          projectsOverride={projectsOverride}
+          notesOverride={notesOverride}
+          onItemPatched={onItemPatched}
+          onItemReplaced={onItemReplaced}
+        />
+      )}
     </AnimatePresence>
   );
 }
@@ -24,37 +108,267 @@ type DrawerContentProps = {
   item: WorkItem;
   onClose: () => void;
   focusTitle: boolean;
+  initialFocusSection?: "comments" | "history";
   onTitleFocused?: () => void;
+  workspaceId?: string | null;
+  currentUserId?: string | null;
+  membersOverride?: DrawerMember[];
+  projectsOverride?: DrawerProject[];
+  notesOverride?: DrawerNote[];
+  onItemPatched?: (id: string, patch: Partial<WorkItem>) => void;
+  onItemReplaced?: (item: WorkItem) => void;
 };
 
-function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerContentProps) {
+function DrawerContent({
+  item,
+  onClose,
+  focusTitle,
+  initialFocusSection,
+  onTitleFocused,
+  workspaceId,
+  currentUserId,
+  membersOverride,
+  projectsOverride,
+  notesOverride,
+  onItemPatched,
+  onItemReplaced,
+}: DrawerContentProps) {
   const setStatus = useStore((s) => s.setWorkItemStatus);
   const setPriority = useStore((s) => s.setWorkItemPriority);
   const updateWorkItem = useStore((s) => s.updateWorkItem);
   const addChecklistItem = useStore((s) => s.addChecklistItem);
   const toggleChecklistItem = useStore((s) => s.toggleChecklistItem);
   const removeChecklistItem = useStore((s) => s.removeChecklistItem);
-  const members = useStore((s) => s.members);
-  const projects = useStore((s) => s.projects);
-  const notes = useStore((s) => s.notes);
+  const storeMembers = useStore((s) => s.members);
+  const storeProjects = useStore((s) => s.projects);
+  const storeNotes = useStore((s) => s.notes);
+
   const checklist = item.checklist ?? [];
   const [newChecklistText, setNewChecklistText] = useState("");
   const [notePickerOpen, setNotePickerOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(item.title);
+  const [descriptionDraft, setDescriptionDraft] = useState(item.description ?? "");
+  const [labelDraft, setLabelDraft] = useState(item.label);
+  const [knownLabels, setKnownLabels] = useState<Record<string, string>>({});
+  const [comments, setComments] = useState<DrawerComment[]>([]);
+  const [historyEvents, setHistoryEvents] = useState<DrawerHistoryEvent[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [postingComment, setPostingComment] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const commentsSectionRef = useRef<HTMLDivElement>(null);
+  const historySectionRef = useRef<HTMLDivElement>(null);
+
+  const members = membersOverride ?? storeMembers;
+  const projects = projectsOverride ?? storeProjects;
+  const notes = notesOverride ?? storeNotes;
+  const serverMode = Boolean(workspaceId && onItemPatched);
 
   const linkedNoteIds = item.noteIds ?? [];
   const linkedNotes = notes.filter((n) => linkedNoteIds.includes(n.id));
   const linkableNotes = notes.filter((n) => !linkedNoteIds.includes(n.id));
   const startValue = getDatePart(item.start ?? "");
   const dueValue = getDatePart(item.due);
+  const mentionQuery = /(^|\s)@([a-zA-Z0-9._-]{1,60})$/.exec(commentDraft);
+  const mentionCandidates =
+    mentionQuery && members.length > 0
+      ? members.filter((member) =>
+          member.name.toLowerCase().replace(/\s+/g, "").startsWith(mentionQuery[2].toLowerCase().replace(/\s+/g, ""))
+        )
+      : [];
+
+  const applyLocalPatch = (patch: Partial<WorkItem>) => {
+    if (onItemPatched) {
+      onItemPatched(item.id, patch);
+      return;
+    }
+    updateWorkItem(item.id, patch);
+  };
+
+  const restoreItem = (previous: WorkItem) => {
+    if (onItemReplaced) {
+      onItemReplaced(previous);
+      return;
+    }
+    updateWorkItem(item.id, previous);
+  };
+
+  const patchServer = async (uiPatch: Partial<WorkItem>, apiPatch: Record<string, unknown>) => {
+    const previous = item;
+    applyLocalPatch(uiPatch);
+    if (!workspaceId) return true;
+
+    const response = await fetch(
+      `/api/work-items/${encodeURIComponent(item.id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": currentUserId ?? "",
+        },
+        body: JSON.stringify(apiPatch),
+      }
+    );
+
+    if (!response.ok) {
+      restoreItem(previous);
+      return false;
+    }
+    return true;
+  };
+
+  useEffect(() => {
+    if (!serverMode || !workspaceId) return;
+    let active = true;
+    void (async () => {
+      const response = await fetch(`/api/labels?workspaceId=${encodeURIComponent(workspaceId)}`, {
+        cache: "no-store",
+      });
+      if (!response.ok || !active) return;
+      const payload = (await response.json()) as { labels: Array<{ id: string; name: string }> };
+      if (!active) return;
+      const next: Record<string, string> = {};
+      payload.labels.forEach((label) => {
+        next[label.name.toLowerCase()] = label.id;
+      });
+      setKnownLabels(next);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [serverMode, workspaceId]);
+
+  useEffect(() => {
+    setTitleDraft(item.title);
+    setDescriptionDraft(item.description ?? "");
+    setLabelDraft(item.label);
+    setCommentDraft("");
+  }, [item.id, item.title, item.description, item.label]);
+
+  useEffect(() => {
+    if (!serverMode || !workspaceId) return;
+    let active = true;
+
+    void (async () => {
+      setCommentsLoading(true);
+      try {
+        const [commentsRes, historyRes] = await Promise.all([
+          fetch(
+            `/api/work-items/${encodeURIComponent(item.id)}/comments?workspaceId=${encodeURIComponent(workspaceId)}`,
+            {
+              cache: "no-store",
+              headers: { "x-flowboard-user-id": currentUserId ?? "" },
+            }
+          ),
+          fetch(
+            `/api/work-items/${encodeURIComponent(item.id)}/history?workspaceId=${encodeURIComponent(workspaceId)}`,
+            {
+              cache: "no-store",
+              headers: { "x-flowboard-user-id": currentUserId ?? "" },
+            }
+          ),
+        ]);
+        if (!active) return;
+
+        if (commentsRes.ok) {
+          const commentsPayload = (await commentsRes.json()) as { comments: DrawerComment[] };
+          if (active) setComments(commentsPayload.comments ?? []);
+        }
+
+        if (historyRes.ok) {
+          const historyPayload = (await historyRes.json()) as { events: DrawerHistoryEvent[] };
+          if (active) setHistoryEvents(historyPayload.events ?? []);
+        }
+      } finally {
+        if (active) setCommentsLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [serverMode, workspaceId, item.id, currentUserId]);
+
+  const resolveLabelId = async (name: string) => {
+    if (!workspaceId) return undefined;
+    const trimmed = name.trim();
+    if (!trimmed) return undefined;
+    const key = trimmed.toLowerCase();
+    if (knownLabels[key]) return knownLabels[key];
+
+    const response = await fetch("/api/labels", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ workspaceId, name: trimmed }),
+    });
+    if (!response.ok) return undefined;
+    const payload = (await response.json()) as { label: { id: string; name: string } };
+    setKnownLabels((current) => ({ ...current, [payload.label.name.toLowerCase()]: payload.label.id }));
+    return payload.label.id;
+  };
+
+  const insertMention = (member: DrawerMember) => {
+    const next = commentDraft.replace(/(^|\s)@([a-zA-Z0-9._-]{0,60})$/, `$1@${member.name.replace(/\s+/g, "")} `);
+    setCommentDraft(next);
+    commentRef.current?.focus();
+  };
+
+  const postComment = async () => {
+    if (!serverMode || !workspaceId || !commentDraft.trim() || postingComment) return;
+    setPostingComment(true);
+    try {
+      const response = await fetch(
+        `/api/work-items/${encodeURIComponent(item.id)}/comments?workspaceId=${encodeURIComponent(workspaceId)}`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-flowboard-user-id": currentUserId ?? "",
+          },
+          body: JSON.stringify({ body: commentDraft.trim() }),
+        }
+      );
+      if (!response.ok) return;
+
+      const payload = (await response.json()) as { comment: DrawerComment };
+      setComments((current) => [...current, payload.comment]);
+      setCommentDraft("");
+
+      const historyResponse = await fetch(
+        `/api/work-items/${encodeURIComponent(item.id)}/history?workspaceId=${encodeURIComponent(workspaceId)}`,
+        {
+          cache: "no-store",
+          headers: { "x-flowboard-user-id": currentUserId ?? "" },
+        }
+      );
+      if (historyResponse.ok) {
+        const historyPayload = (await historyResponse.json()) as { events: DrawerHistoryEvent[] };
+        setHistoryEvents(historyPayload.events ?? []);
+      }
+    } finally {
+      setPostingComment(false);
+    }
+  };
 
   const linkNote = (noteId: string) => {
     if (linkedNoteIds.includes(noteId)) return;
-    updateWorkItem(item.id, { noteIds: [...linkedNoteIds, noteId] });
+    const nextNoteIds = [...linkedNoteIds, noteId];
+    if (!serverMode) {
+      applyLocalPatch({ noteIds: nextNoteIds });
+    } else {
+      void patchServer({ noteIds: nextNoteIds }, { noteIds: nextNoteIds });
+    }
     setNotePickerOpen(false);
   };
+
   const unlinkNote = (noteId: string) => {
-    updateWorkItem(item.id, { noteIds: linkedNoteIds.filter((id) => id !== noteId) });
+    const nextNoteIds = linkedNoteIds.filter((id) => id !== noteId);
+    if (!serverMode) {
+      applyLocalPatch({ noteIds: nextNoteIds });
+    } else {
+      void patchServer({ noteIds: nextNoteIds }, { noteIds: nextNoteIds });
+    }
   };
 
   useEffect(() => {
@@ -65,6 +379,151 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
     }
   }, [focusTitle, item.id, onTitleFocused]);
 
+  useEffect(() => {
+    if (!serverMode || !initialFocusSection) return;
+    const targetRef = initialFocusSection === "comments" ? commentsSectionRef : historySectionRef;
+    const timerId = window.setTimeout(() => {
+      targetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (initialFocusSection === "comments") {
+        commentRef.current?.focus();
+      }
+    }, 120);
+    return () => window.clearTimeout(timerId);
+  }, [serverMode, item.id, initialFocusSection]);
+
+  const onStatusChange = async (status: Status) => {
+    if (!serverMode) {
+      setStatus(item.id, status);
+      return;
+    }
+    await patchServer(
+      { status },
+      {
+        status: toApiWorkStatus(status),
+        completedAt: status === "Done" ? new Date().toISOString() : null,
+      }
+    );
+  };
+
+  const onPriorityChange = async (priority: Priority) => {
+    if (!serverMode) {
+      setPriority(item.id, priority);
+      return;
+    }
+    await patchServer({ priority }, { priority: toApiWorkPriority(priority) });
+  };
+
+  const onAssigneeChange = async (assignee: string) => {
+    if (!serverMode) {
+      updateWorkItem(item.id, { assignee });
+      return;
+    }
+    const assigneeId = assignee === "unassigned" ? null : assignee;
+    await patchServer({ assignee }, { assigneeId });
+  };
+
+  const onDueChange = async (nextDue: string) => {
+    const time = getTimePart(item.due);
+    const value = time ? `${nextDue}T${time}` : nextDue;
+    if (!serverMode) {
+      updateWorkItem(item.id, { due: value });
+      return;
+    }
+    await patchServer({ due: value }, { dueDate: toIsoDateTime(value) });
+  };
+
+  const onStartChange = async (nextStart: string) => {
+    if (!serverMode) {
+      updateWorkItem(item.id, { start: nextStart });
+      return;
+    }
+    await patchServer({ start: nextStart }, { startDate: toIsoDateTime(nextStart) });
+  };
+
+  const onProjectChange = async (projectId: string) => {
+    if (!serverMode) {
+      updateWorkItem(item.id, { project: projectId });
+      return;
+    }
+    await patchServer({ project: projectId }, { projectId });
+  };
+
+  const onLabelCommit = async () => {
+    const nextLabel = labelDraft.trim() || "Task";
+    if (nextLabel === item.label) return;
+
+    if (!serverMode) {
+      updateWorkItem(item.id, { label: nextLabel });
+      return;
+    }
+
+    const labelId = await resolveLabelId(nextLabel);
+    if (!labelId) return;
+    await patchServer({ label: nextLabel }, { labelIds: [labelId] });
+  };
+
+  const onTitleCommit = async () => {
+    const nextTitle = titleDraft.trim();
+    if (!nextTitle || nextTitle === item.title) {
+      setTitleDraft(item.title);
+      return;
+    }
+    if (!serverMode) {
+      updateWorkItem(item.id, { title: nextTitle });
+      return;
+    }
+    await patchServer({ title: nextTitle }, { title: nextTitle });
+  };
+
+  const onDescriptionCommit = async () => {
+    if (descriptionDraft === (item.description ?? "")) return;
+    if (!serverMode) {
+      updateWorkItem(item.id, { description: descriptionDraft });
+      return;
+    }
+    await patchServer({ description: descriptionDraft }, { description: descriptionDraft });
+  };
+
+  const onAddChecklistItem = () => {
+    const text = newChecklistText.trim();
+    if (!text) return;
+    const nextItem = {
+      id: `cl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      text,
+      done: false,
+    };
+    const nextChecklist = [...checklist, nextItem];
+
+    if (!serverMode) {
+      addChecklistItem(item.id, text);
+      setNewChecklistText("");
+      return;
+    }
+
+    void patchServer({ checklist: nextChecklist }, { checklist: nextChecklist });
+    setNewChecklistText("");
+  };
+
+  const onToggleChecklistItem = (checklistItemId: string) => {
+    if (!serverMode) {
+      toggleChecklistItem(item.id, checklistItemId);
+      return;
+    }
+    const nextChecklist = checklist.map((checklistItem) =>
+      checklistItem.id === checklistItemId ? { ...checklistItem, done: !checklistItem.done } : checklistItem
+    );
+    void patchServer({ checklist: nextChecklist }, { checklist: nextChecklist });
+  };
+
+  const onRemoveChecklistItem = (checklistItemId: string) => {
+    if (!serverMode) {
+      removeChecklistItem(item.id, checklistItemId);
+      return;
+    }
+    const nextChecklist = checklist.filter((checklistItem) => checklistItem.id !== checklistItemId);
+    void patchServer({ checklist: nextChecklist }, { checklist: nextChecklist });
+  };
+
   return (
     <motion.aside
       key={item.id}
@@ -72,47 +531,44 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
-      className="flex w-[420px] shrink-0 flex-col border-l bg-background">
-
-      {/* ── Header ── */}
+      className="flex w-[420px] shrink-0 flex-col border-l bg-background"
+    >
       <div className="flex h-12 items-center justify-between border-b px-5">
         <div className="flex items-center gap-3 text-[12px]">
           <span className="font-mono text-muted-foreground">{item.id}</span>
-          <StatusSelect value={item.status} onChange={(s) => setStatus(item.id, s)} />
+          <StatusSelect value={item.status} onChange={(s) => { void onStatusChange(s); }} />
         </div>
         <button onClick={onClose} title="Close" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
-      {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-
-        {/* Task title */}
         <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Task details</div>
         <input
           ref={titleRef}
-          value={item.title}
-          onChange={(e) => updateWorkItem(item.id, { title: e.target.value })}
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={() => { void onTitleCommit(); }}
           placeholder="Task title"
           className="mb-2 w-full bg-transparent text-[18px] font-semibold tracking-tight outline-none focus:underline focus:underline-offset-2"
         />
         <textarea
-          value={item.description ?? ""}
-          onChange={(e) => updateWorkItem(item.id, { description: e.target.value })}
-          placeholder="Add a description…"
+          value={descriptionDraft}
+          onChange={(e) => setDescriptionDraft(e.target.value)}
+          onBlur={() => { void onDescriptionCommit(); }}
+          placeholder="Add a description."
           rows={3}
           className="mb-2 w-full resize-y bg-transparent text-[13px] leading-relaxed text-foreground/90 outline-none placeholder:text-muted-foreground/60"
         />
 
-        {/* ── Details grid ── */}
         <dl className="mt-6 grid grid-cols-[96px_1fr] gap-y-4 text-[12px]">
           <dt className="pt-0.5 text-muted-foreground">Assignee</dt>
           <dd>
-            <AssigneeSelect members={members} value={item.assignee} onChange={(id) => updateWorkItem(item.id, { assignee: id })} />
+            <AssigneeSelect members={members} value={item.assignee} onChange={(id) => { void onAssigneeChange(id); }} />
           </dd>
 
           <dt className="pt-0.5 text-muted-foreground">Priority</dt>
           <dd>
-            <PrioritySelect value={item.priority} onChange={(p) => setPriority(item.id, p)} />
+            <PrioritySelect value={item.priority} onChange={(p) => { void onPriorityChange(p); }} />
           </dd>
 
           <dt className="pt-0.5 text-muted-foreground">Due</dt>
@@ -121,8 +577,7 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
               type="date"
               value={dueValue}
               onChange={(e) => {
-                const time = getTimePart(item.due);
-                updateWorkItem(item.id, { due: time ? `${e.target.value}T${time}` : e.target.value });
+                void onDueChange(e.target.value);
               }}
               className="rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
             />
@@ -133,7 +588,9 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
             <input
               type="date"
               value={startValue}
-              onChange={(e) => updateWorkItem(item.id, { start: e.target.value })}
+              onChange={(e) => {
+                void onStartChange(e.target.value);
+              }}
               className="rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
             />
           </dd>
@@ -141,8 +598,11 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
           <dt className="pt-0.5 text-muted-foreground">Label</dt>
           <dd>
             <input
-              value={item.label}
-              onChange={(e) => updateWorkItem(item.id, { label: e.target.value })}
+              value={labelDraft}
+              onChange={(e) => setLabelDraft(e.target.value)}
+              onBlur={() => {
+                void onLabelCommit();
+              }}
               className="w-32 rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
             />
           </dd>
@@ -151,7 +611,9 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
           <dd>
             <select
               value={item.project}
-              onChange={(e) => updateWorkItem(item.id, { project: e.target.value })}
+              onChange={(e) => {
+                void onProjectChange(e.target.value);
+              }}
               className="rounded border bg-card px-2 py-1 text-[12px] outline-none focus:border-ring"
             >
               {projects.map((project) => (
@@ -163,7 +625,6 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
           </dd>
         </dl>
 
-        {/* ── Checklist ── */}
         <div className="mt-8 border-t pt-6">
           <div className="mb-3 flex items-baseline gap-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Checklist</h3>
@@ -179,12 +640,12 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
                 <input
                   type="checkbox"
                   checked={c.done}
-                  onChange={() => toggleChecklistItem(item.id, c.id)}
+                  onChange={() => onToggleChecklistItem(c.id)}
                   className="h-3.5 w-3.5 accent-[var(--color-primary)]"
                 />
                 <span className={`flex-1 ${c.done ? "text-muted-foreground line-through" : ""}`}>{c.text}</span>
                 <button
-                  onClick={() => removeChecklistItem(item.id, c.id)}
+                  onClick={() => onRemoveChecklistItem(c.id)}
                   title="Remove"
                   className="lov-icon-btn h-5 w-5 opacity-0 hover:text-red-700 group-hover:opacity-100"
                 >
@@ -199,18 +660,16 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
                 onChange={(e) => setNewChecklistText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newChecklistText.trim()) {
-                    addChecklistItem(item.id, newChecklistText);
-                    setNewChecklistText("");
+                    onAddChecklistItem();
                   }
                 }}
-                placeholder={checklist.length === 0 ? "Add a checklist item…" : "Add another…"}
+                placeholder={checklist.length === 0 ? "Add a checklist item." : "Add another."}
                 className="h-7 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
               />
             </li>
           </ul>
         </div>
 
-        {/* ── Linked notes ── */}
         <div className="mt-8 border-t pt-6">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -274,9 +733,119 @@ function DrawerContent({ item, onClose, focusTitle, onTitleFocused }: DrawerCont
             )
           )}
         </div>
-      </div>
 
-      {/* ── Footer ── */}
+        {serverMode && (
+          <div ref={commentsSectionRef} className="mt-8 border-t pt-6">
+            <div className="mb-3 flex items-center gap-1.5">
+              <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <MessageSquare className="h-3 w-3" /> Comments
+              </h3>
+              <span className="text-[11px] text-muted-foreground">{comments.length}</span>
+            </div>
+
+            <div className="mb-3">
+              <textarea
+                ref={commentRef}
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    void postComment();
+                  }
+                }}
+                placeholder="Add a comment. Use @name to mention someone."
+                rows={3}
+                className="w-full resize-y rounded border bg-card px-2 py-1.5 text-[12px] outline-none focus:border-ring"
+              />
+
+              {mentionCandidates.length > 0 && (
+                <div className="mt-1 rounded border bg-card p-1">
+                  {mentionCandidates.slice(0, 4).map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => insertMention(member)}
+                      className="lov-menu-item px-2 py-1 text-[12px]"
+                    >
+                      {member.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void postComment();
+                  }}
+                  disabled={!commentDraft.trim() || postingComment}
+                  className="lov-btn lov-btn-primary h-7 px-2 text-[11px] disabled:opacity-50"
+                >
+                  <Send className="h-3 w-3" />
+                  Comment
+                </button>
+              </div>
+            </div>
+
+            {commentsLoading ? (
+              <p className="px-1 text-[12px] text-muted-foreground">Loading comments...</p>
+            ) : comments.length === 0 ? (
+              <p className="px-1 text-[12px] text-muted-foreground">No comments yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {comments.map((comment) => {
+                  const authorName =
+                    comment.author.name ??
+                    members.find((member) => member.id === comment.author.id)?.name ??
+                    comment.author.email;
+                  return (
+                    <li key={comment.id} className="rounded border bg-card px-2 py-1.5">
+                      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                        <span className="truncate font-medium text-foreground">{authorName}</span>
+                        <span className="shrink-0">{formatTimestamp(comment.createdAt)}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap text-[12px]">{comment.body}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {serverMode && (
+          <div ref={historySectionRef} className="mt-8 border-t pt-6">
+            <div className="mb-3 flex items-center gap-1.5">
+              <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <History className="h-3 w-3" /> History
+              </h3>
+              <span className="text-[11px] text-muted-foreground">{historyEvents.length}</span>
+            </div>
+
+            {commentsLoading ? (
+              <p className="px-1 text-[12px] text-muted-foreground">Loading history...</p>
+            ) : historyEvents.length === 0 ? (
+              <p className="px-1 text-[12px] text-muted-foreground">No history yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {historyEvents.map((event) => (
+                  <li key={event.id} className="rounded border bg-card px-2 py-1.5">
+                    <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                      <span className="truncate font-medium">
+                        {event.actor?.name ?? event.actor?.email ?? "System"} · {prettyActionLabel(event.action)}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">{formatTimestamp(event.createdAt)}</span>
+                    </div>
+                    <p className="text-[12px] text-muted-foreground">{event.summary ?? "Updated work item"}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
     </motion.aside>
   );
 }
@@ -297,16 +866,18 @@ function StatusSelect({ value, onChange }: { value: Status; onChange: (s: Status
 }
 
 function AssigneeSelect({ members, value, onChange }: { members: { id: string; name: string }[]; value: string; onChange: (id: string) => void }) {
-  const current = members.find((member) => member.id === value) ?? members[0];
+  const fallback = members[0] ?? { id: "unassigned", name: "Unassigned" };
+  const current = members.find((member) => member.id === value) ?? fallback;
+  const options = members.length > 0 ? members : [fallback];
   return (
     <span className="flex items-center gap-2">
-      <Avatar id={current.id} />
+      <Avatar id={current.id} name={current.name} />
       <select
-        value={value}
+        value={members.some((member) => member.id === value) ? value : current.id}
         onChange={(e) => onChange(e.target.value)}
         className="bg-transparent text-[12px] outline-none hover:underline"
       >
-        {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        {options.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
     </span>
   );
@@ -327,5 +898,4 @@ function PrioritySelect({ value, onChange }: { value: Priority; onChange: (p: Pr
   );
 }
 
-// Re-export Chip so caller imports still work if they referenced it via the drawer module.
 export { Chip };

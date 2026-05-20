@@ -6,12 +6,19 @@ import { FileText, Inbox, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/lovable/shell";
-import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { useStore } from "@/lib/store";
 import { type WorkItem } from "@/lib/mock-data";
 import { compareLocalDateStrings, formatDueLabel, getDatePart } from "@/lib/dates";
 import { Avatar, PriorityIcon } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
+import { getServerSession } from "@/lib/server-session-client";
+import {
+  type ApiNote,
+  type ApiWorkItem,
+  toApiWorkStatus,
+  toUiNotePreview,
+  toUiWorkItem,
+} from "@/lib/server-ui-mappers";
 
 function localDateKey(date: Date) {
   const year = date.getFullYear();
@@ -125,19 +132,21 @@ function PulseSection({ title, icon, href, children }: { title: string; icon: Re
 }
 
 export default function HomePage() {
-  const workItems = useStore((state) => state.workItems);
   const inboxItems = useStore((state) => state.inboxItems);
-  const notes = useStore((state) => state.notes);
   const activeProjectId = useStore((state) => state.settings.activeProjectId);
-  const members = useStore((state) => state.members);
-  const setStatus = useStore((state) => state.setWorkItemStatus);
   const addInboxItem = useStore((state) => state.addInboxItem);
 
   const [capture, setCapture] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([{ id: "unassigned", name: "Unassigned" }]);
+  const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; tag: string; updated: string; excerpt: string }>>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<string[]>([]);
   const [now, setNow] = useState(() => new Date());
-  const selectedTask = workItems.find((item) => item.id === selectedTaskId) ?? null;
   const captureRef = useRef<HTMLInputElement>(null);
   const todayKey = localDateKey(now);
 
@@ -156,6 +165,52 @@ export default function HomePage() {
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+        if (session.members?.length) {
+          setMembers(session.members.map((member) => ({ id: member.id, name: member.name })));
+        } else {
+          setMembers([{ id: session.user.id, name: session.user.name ?? session.user.email }]);
+        }
+
+        const [itemsRes, notesRes] = await Promise.all([
+          fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          fetch(`/api/notes?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+        ]);
+
+        if (!itemsRes.ok) throw new Error("Failed to load Home tasks");
+        if (!notesRes.ok) throw new Error("Failed to load Home notes");
+
+        const itemsPayload = (await itemsRes.json()) as { workItems: ApiWorkItem[] };
+        const notesPayload = (await notesRes.json()) as { notes: ApiNote[] };
+        if (!active) return;
+
+        setWorkItems(itemsPayload.workItems.map((item) => toUiWorkItem(item, session.user.id)));
+        setRecentNotes(notesPayload.notes.slice(0, 5).map(toUiNotePreview));
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load Home");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const buckets = useMemo(() => {
@@ -186,36 +241,77 @@ export default function HomePage() {
     return { today, overdue, upcoming, completed };
   }, [workItems, activeProjectId, todayKey, recentlyCompletedIds]);
 
-  const recentNotes = notes.slice(0, 5);
-
-  const completeWithUndo = (id: string) => {
+  const completeWithUndo = async (id: string) => {
+    if (!workspaceId) return;
     const previous = workItems.find((item) => item.id === id);
     if (!previous || previous.status === "Done") return;
 
     setRecentlyCompletedIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
-    setStatus(id, "Done");
+    setWorkItems((current) => current.map((item) => (item.id === id ? { ...item, status: "Done" } : item)));
     window.setTimeout(() => {
       setRecentlyCompletedIds((ids) => ids.filter((completedId) => completedId !== id));
     }, 1800);
+
+    const response = await fetch(
+      `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
+        body: JSON.stringify({ status: toApiWorkStatus("Done"), completedAt: new Date().toISOString() }),
+      }
+    );
+
+    if (!response.ok) {
+      setWorkItems((current) => current.map((item) => (item.id === id ? previous : item)));
+      setError("Failed to update task status");
+      return;
+    }
+
     toast.success(`Marked ${id} done`, {
       description: previous.title,
       duration: 6000,
       action: {
         label: "Undo",
-        onClick: () => {
+        onClick: async () => {
           setRecentlyCompletedIds((ids) => ids.filter((completedId) => completedId !== id));
-          setStatus(id, previous.status);
+          setWorkItems((current) => current.map((item) => (item.id === id ? { ...item, status: previous.status } : item)));
+          await fetch(
+            `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+            {
+              method: "PATCH",
+              headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
+              body: JSON.stringify({ status: toApiWorkStatus(previous.status), completedAt: null }),
+            }
+          );
         },
       },
     });
   };
 
-  const onCaptureKey = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && capture.trim()) {
+  const onCaptureKey = async (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && capture.trim() && workspaceId) {
       const text = capture.trim();
       addInboxItem(text, { createWorkItem: true });
-      toast.success("Captured to Inbox and My Tasks", { description: text });
-      setCapture("");
+      try {
+        const response = await fetch("/api/work-items", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
+          body: JSON.stringify({
+            workspaceId,
+            title: text,
+            status: "BACKLOG",
+            priority: "MEDIUM",
+            dueDate: `${todayKey}T00:00:00.000Z`,
+          }),
+        });
+        if (!response.ok) throw new Error("Failed to create task");
+        const payload = (await response.json()) as { workItem: ApiWorkItem };
+        setWorkItems((current) => [toUiWorkItem(payload.workItem, currentUserId), ...current]);
+        toast.success("Captured to Inbox and My Tasks", { description: text });
+        setCapture("");
+      } catch {
+        setError("Capture saved to Inbox only; server task creation failed");
+      }
     }
   };
 
@@ -226,7 +322,7 @@ export default function HomePage() {
       meta={meta}
       selected={selectedTaskId === item.id}
       onOpen={() => setSelectedTaskId(item.id)}
-      onComplete={() => completeWithUndo(item.id)}
+      onComplete={() => { void completeWithUndo(item.id); }}
       members={members}
     />
   );
@@ -238,6 +334,7 @@ export default function HomePage() {
           <div className="grid w-full max-w-none gap-8 px-4 py-6 lg:px-6 xl:grid-cols-[260px_minmax(0,760px)]">
             <div className="min-w-0 xl:order-2">
             <div className="space-y-4">
+              {error && <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -306,6 +403,7 @@ export default function HomePage() {
             </div>
 
             <main className="min-w-0 space-y-12">
+                {loading && <div className="px-2 py-2 text-[12px] text-muted-foreground">Loading home data...</div>}
                 <TaskSection
                   title="Overdue"
                   count={buckets.overdue.length}
@@ -381,7 +479,6 @@ export default function HomePage() {
             </aside>
           </div>
         </div>
-        <TaskDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
       </div>
     </AppShell>
   );

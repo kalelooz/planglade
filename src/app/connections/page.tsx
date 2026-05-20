@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Calendar,
@@ -286,7 +286,7 @@ function InspectorRow({ icon: Icon, label, value }: { icon: typeof CircleDot; la
   );
 }
 
-export default function GraphPage() {
+function GraphPageContent() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const projects = useStore((s) => s.projects);
@@ -958,5 +958,13 @@ export default function GraphPage() {
         </aside>
       </div>
     </AppShell>
+  );
+}
+
+export default function GraphPage() {
+  return (
+    <Suspense fallback={null}>
+      <GraphPageContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CalendarClock,
@@ -19,8 +19,9 @@ import { AppShell } from "@/components/lovable/shell";
 import { Avatar, PriorityIcon, StatusIcon } from "@/components/lovable/icons";
 import { Chip, Toolbar } from "@/components/lovable/page";
 import { byInitials, type Member, type Priority, type Project, type Status, type WorkItem } from "@/lib/mock-data";
-import { useStore } from "@/lib/store";
 import { getDatePart, getTimePart, localDateKey, parseLocalDate, parseLocalDateTime } from "@/lib/dates";
+import { getServerSession } from "@/lib/server-session-client";
+import { type ApiProject, type ApiWorkItem, toIsoDateTime, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 
 type Scale = "Day" | "Week" | "Month" | "Quarter";
 type GroupBy = "Project" | "Assignee" | "Status";
@@ -379,14 +380,19 @@ function InspectorRow({ label, value }: { label: string; value: React.ReactNode 
   );
 }
 
-export default function TimelinePage() {
+function TimelinePageContent() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
-  const projects = useStore((state) => state.projects);
-  const workItems = useStore((state) => state.workItems);
-  const members = useStore((state) => state.members);
-  const activeProjectId = useStore((state) => state.settings.activeProjectId);
-  const updateWorkItem = useStore((state) => state.updateWorkItem);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [members, setMembers] = useState<Member[]>([
+    { id: "unassigned", name: "Unassigned", role: "Contributor", color: "oklch(0.55 0.02 260)" },
+  ]);
 
   const [scale, setScale] = useState<Scale>("Month");
   const [groupBy, setGroupBy] = useState<GroupBy>("Project");
@@ -408,6 +414,77 @@ export default function TimelinePage() {
   const scopedProjectId = routeProjectId ?? activeProjectId;
   const activeProject = scopedProjectId ? projects.find((project) => project.id === scopedProjectId) ?? null : null;
   const useProjectScope = scopeMode === "Current project" && scopedProjectId != null;
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+        const memberRows = (session.members ?? []).map((member) => ({
+          id: member.id,
+          name: member.name,
+          role: member.role,
+          color: "oklch(0.55 0.02 260)",
+        }));
+        if (memberRows.length > 0) setMembers(memberRows);
+
+        const [projectsRes, workItemsRes] = await Promise.all([
+          fetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+        ]);
+        if (!projectsRes.ok) throw new Error("Failed to load projects");
+        if (!workItemsRes.ok) throw new Error("Failed to load timeline tasks");
+
+        const projectsPayload = (await projectsRes.json()) as { projects: ApiProject[] };
+        const workItemsPayload = (await workItemsRes.json()) as { workItems: ApiWorkItem[] };
+        if (!active) return;
+
+        setProjects(projectsPayload.projects.map((project) => toUiProject(project, session.user.id)));
+        const mapped = workItemsPayload.workItems.map((item) => toUiWorkItem(item, session.user.id));
+        setWorkItems(mapped);
+        setActiveProjectId(mapped[0]?.project ?? null);
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load Timeline");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const patchWorkItem = async (id: string, localPatch: Partial<WorkItem>, apiPatch: Record<string, unknown>) => {
+    if (!workspaceId) return false;
+    const snapshot = workItems;
+    setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, ...localPatch } : workItem)));
+
+    const response = await fetch(
+      `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": currentUserId ?? "",
+        },
+        body: JSON.stringify(apiPatch),
+      }
+    );
+    if (!response.ok) {
+      setWorkItems(snapshot);
+      setError("Failed to update timeline item");
+      return false;
+    }
+    return true;
+  };
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
@@ -592,7 +669,8 @@ export default function TimelinePage() {
 
   const nudgeSelectedDue = (days: number) => {
     if (!selected) return;
-    updateWorkItem(selected.item.id, { due: nudgeDate(selected.item.due, days, selected.item) });
+    const due = nudgeDate(selected.item.due, days, selected.item);
+    void patchWorkItem(selected.item.id, { due }, { dueDate: toIsoDateTime(due) });
   };
 
   return (
@@ -631,6 +709,8 @@ export default function TimelinePage() {
       }
     >
       <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_22rem] overflow-hidden lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-[auto_minmax(0,1fr)]">
+        {error && <div className="mx-3 mt-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700 lg:col-span-2">{error}</div>}
+        {loading && <div className="px-3 py-2 text-[12px] text-muted-foreground lg:col-span-2">Loading timeline data...</div>}
         <div className="border-b bg-background px-3 py-2 lg:col-span-2">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-64 max-w-full">
@@ -875,13 +955,19 @@ export default function TimelinePage() {
                     <input
                       type="date"
                       value={toDateInputValue(selected.window?.end)}
-                      onChange={(event) => updateWorkItem(selected.item.id, { due: toStoredDue(event.target.value, toTimeInputValue(selected.window?.end)) })}
+                      onChange={(event) => {
+                        const due = toStoredDue(event.target.value, toTimeInputValue(selected.window?.end));
+                        void patchWorkItem(selected.item.id, { due }, { dueDate: toIsoDateTime(due) });
+                      }}
                       className="min-w-0 flex-1 bg-transparent outline-none"
                     />
                     <input
                       type="time"
                       value={toTimeInputValue(selected.window?.end)}
-                      onChange={(event) => updateWorkItem(selected.item.id, { due: toStoredDue(toDateInputValue(selected.window?.end), event.target.value) })}
+                      onChange={(event) => {
+                        const due = toStoredDue(toDateInputValue(selected.window?.end), event.target.value);
+                        void patchWorkItem(selected.item.id, { due }, { dueDate: toIsoDateTime(due) });
+                      }}
                       className="w-[5.5rem] bg-transparent outline-none"
                     />
                   </div>
@@ -891,7 +977,13 @@ export default function TimelinePage() {
                   <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Description</div>
                   <textarea
                     value={selected.item.description ?? ""}
-                    onChange={(event) => updateWorkItem(selected.item.id, { description: event.target.value })}
+                    onChange={(event) => {
+                      void patchWorkItem(
+                        selected.item.id,
+                        { description: event.target.value },
+                        { description: event.target.value }
+                      );
+                    }}
                     placeholder="Add planning context."
                     rows={4}
                     className="w-full resize-y rounded border bg-card px-3 py-2 text-[12px] outline-none placeholder:text-muted-foreground/60 focus:border-primary"
@@ -923,5 +1015,13 @@ export default function TimelinePage() {
         </aside>
       </div>
     </AppShell>
+  );
+}
+
+export default function TimelinePage() {
+  return (
+    <Suspense fallback={null}>
+      <TimelinePageContent />
+    </Suspense>
   );
 }

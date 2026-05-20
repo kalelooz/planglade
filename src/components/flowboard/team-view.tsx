@@ -17,7 +17,6 @@ import {
   type DrawerTask,
   type DrawerMember,
   type TaskStatus,
-  taskStatusColor,
   priorityBadgeStyle,
 } from "@/components/flowboard/drawer-data"
 import { useDrawer } from "@/components/flowboard/drawer-context"
@@ -26,8 +25,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { Users } from "lucide-react"
-
-// ── Helpers ──────────────────────────────────────────────────────────────
 
 type Availability = "Available" | "Busy" | "Overloaded"
 
@@ -52,8 +49,6 @@ const statusDotColor = (status: TaskStatus): string => {
   }
 }
 
-// ── Enriched member type ─────────────────────────────────────────────────
-
 interface EnrichedMember {
   member: DrawerMember
   memberTasks: DrawerTask[]
@@ -66,12 +61,48 @@ interface EnrichedMember {
   recentTasks: DrawerTask[]
 }
 
-// ── Component ────────────────────────────────────────────────────────────
+function WorkloadBar({ em }: { em: EnrichedMember }) {
+  const total = em.activeCount
+  if (total === 0) {
+    return <div className="h-2.5 w-full rounded-full bg-muted/40" />
+  }
+  const highPct = (em.highCount / total) * 100
+  const medPct = (em.mediumCount / total) * 100
+  const lowPct = (em.lowCount / total) * 100
+
+  return (
+    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/30">
+      {em.highCount > 0 && (
+        <div className="bg-red-500 transition-all" style={{ width: `${highPct}%` }} />
+      )}
+      {em.mediumCount > 0 && (
+        <div className="bg-amber-400 transition-all" style={{ width: `${medPct}%` }} />
+      )}
+      {em.lowCount > 0 && (
+        <div className="bg-gray-400 dark:bg-gray-500 transition-all" style={{ width: `${lowPct}%` }} />
+      )}
+    </div>
+  )
+}
+
+function CustomChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-lg border bg-popover px-3 py-2 shadow-md text-xs">
+      <p className="font-semibold text-sm mb-1">{label}</p>
+      {payload.map((entry: any) => (
+        <div key={entry.dataKey} className="flex items-center gap-2">
+          <span className="size-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span className="text-muted-foreground">{entry.dataKey}:</span>
+          <span className="font-semibold">{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function TeamView() {
   const { openDrawer } = useDrawer()
-
-  // ── Enrich members with task data ────────────────────────────────────────
 
   const enrichedMembers: EnrichedMember[] = React.useMemo(
     () =>
@@ -83,7 +114,6 @@ export function TeamView() {
         const lowCount = activeTasks.filter((t) => t.priority === "Low").length
         const activeCount = activeTasks.length
         const availability = getAvailability(activeCount)
-        // 3 most recent non-Done tasks (by status: In Progress > In Review > Backlog)
         const statusOrder: Record<TaskStatus, number> = { "In Progress": 0, "In Review": 1, Backlog: 2, Done: 3 }
         const recentTasks = [...activeTasks]
           .sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
@@ -94,12 +124,10 @@ export function TeamView() {
     []
   )
 
-  // ── Chart data: tasks per member grouped by priority ─────────────────────
-
   const chartData = React.useMemo(
     () =>
       enrichedMembers.map((em) => ({
-        name: em.member.name.split(" ")[0], // first name only for chart labels
+        name: em.member.name.split(" ")[0],
         High: em.highCount,
         Medium: em.mediumCount,
         Low: em.lowCount,
@@ -107,53 +135,8 @@ export function TeamView() {
     [enrichedMembers]
   )
 
-  // ── Stacked workload bar component for each card ─────────────────────────
-
-  const WorkloadBar = ({ em }: { em: EnrichedMember }) => {
-    const total = em.activeCount
-    if (total === 0) {
-      return <div className="h-2.5 w-full rounded-full bg-muted/40" />
-    }
-    const highPct = (em.highCount / total) * 100
-    const medPct = (em.mediumCount / total) * 100
-    const lowPct = (em.lowCount / total) * 100
-
-    return (
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/30">
-        {em.highCount > 0 && (
-          <div className="bg-red-500 transition-all" style={{ width: `${highPct}%` }} />
-        )}
-        {em.mediumCount > 0 && (
-          <div className="bg-amber-400 transition-all" style={{ width: `${medPct}%` }} />
-        )}
-        {em.lowCount > 0 && (
-          <div className="bg-gray-400 dark:bg-gray-500 transition-all" style={{ width: `${lowPct}%` }} />
-        )}
-      </div>
-    )
-  }
-
-  // ── Custom Recharts tooltip ──────────────────────────────────────────────
-
-  const CustomChartTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="rounded-lg border bg-popover px-3 py-2 shadow-md text-xs">
-        <p className="font-semibold text-sm mb-1">{label}</p>
-        {payload.map((entry: any) => (
-          <div key={entry.dataKey} className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-muted-foreground">{entry.dataKey}:</span>
-            <span className="font-semibold">{entry.value}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-6">
-      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="size-5 text-primary" />
@@ -164,7 +147,6 @@ export function TeamView() {
         </div>
       </div>
 
-      {/* ── Workload Summary Chart ── */}
       <Card className="py-0">
         <CardContent className="p-5">
           <div className="mb-4">
@@ -201,7 +183,6 @@ export function TeamView() {
         </CardContent>
       </Card>
 
-      {/* ── Member Cards Grid ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {enrichedMembers.map((em) => {
           const avail = availabilityConfig[em.availability]
@@ -213,7 +194,6 @@ export function TeamView() {
               onClick={() => openDrawer("member", em.member.initials)}
             >
               <CardContent className="p-5">
-                {/* Top: Avatar + name + role + availability */}
                 <div className="flex items-start gap-3.5">
                   <Avatar className="size-12 shrink-0 ring-2 ring-offset-2 ring-offset-background group-hover:ring-primary/30 transition-all">
                     <AvatarFallback
@@ -226,7 +206,6 @@ export function TeamView() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-sm truncate">{em.member.name}</h4>
-                      {/* Availability dot */}
                       <span className="flex items-center gap-1">
                         <span className={cn("size-2 rounded-full shrink-0", avail.dot)} />
                         <span className={cn("text-[10px] font-medium", avail.bg, "px-1.5 py-0.5 rounded-full")}>
@@ -238,7 +217,6 @@ export function TeamView() {
                   </div>
                 </div>
 
-                {/* Active tasks badge */}
                 <div className="mt-3.5 flex items-center gap-2">
                   <Badge
                     variant="secondary"
@@ -256,7 +234,6 @@ export function TeamView() {
                   </span>
                 </div>
 
-                {/* Stacked workload bar */}
                 <div className="mt-3">
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
                     <span>Workload</span>
@@ -284,7 +261,6 @@ export function TeamView() {
                   <WorkloadBar em={em} />
                 </div>
 
-                {/* Recent task chips */}
                 <div className="mt-3.5 space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Current tasks</p>
                   {em.recentTasks.length === 0 ? (

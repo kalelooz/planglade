@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { notFound, parseJsonBody, parseQuery, serverError } from "@/lib/api-utils"
+import { notFound, parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { updateLabelSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
@@ -18,6 +18,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!parsed.ok) return parsed.response
 
   try {
+    const access = await requireWorkspaceRole(
+      query.data.workspaceId,
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
+    )
+    if (!access.ok) return access.response
+
     const existing = await db.label.findUnique({
       where: { id: labelId },
       select: { id: true, workspaceId: true },
@@ -47,6 +54,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!query.ok) return query.response
 
   try {
+    const access = await requireWorkspaceRole(
+      query.data.workspaceId,
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
+    )
+    if (!access.ok) return access.response
+
     const existing = await db.label.findUnique({
       where: { id: labelId },
       select: { id: true, workspaceId: true },

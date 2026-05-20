@@ -11,15 +11,39 @@ import { type ProjectStatus, type WorkItem } from "@/lib/mock-data";
 import { compareLocalDateStrings, formatDueLabel, getDatePart, localDateKey, parseLocalDate } from "@/lib/dates";
 import { Avatar, PriorityIcon, StatusIcon } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
-import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { WorkItemRow } from "@/components/lovable/work-item-row";
 import { ProjectIcon, IconPicker } from "@/components/lovable/project-icon";
+import { getServerSession } from "@/lib/server-session-client";
+import {
+  type ApiProject,
+  type ApiWorkItem,
+  toApiWorkStatus,
+  toUiProject,
+  toUiWorkItem,
+} from "@/lib/server-ui-mappers";
 
 const STATUSES: ProjectStatus[] = ["Active", "In Review", "On Hold", "Archived"];
 const TASK_TABS = ["All", "Today", "Upcoming", "Overdue", "No date", "Completed"] as const;
 type TaskTab = (typeof TASK_TABS)[number];
 type TaskScope = "mine" | "team" | "all";
-const ME = "AM";
+type ProjectActivityEvent = {
+  id: string;
+  action: "CREATED" | "UPDATED" | "MOVED" | "COMPLETED" | "DELETED" | "COMMENTED" | "ASSIGNED" | "UNASSIGNED";
+  target: string;
+  createdAt: string;
+  actor: { id: string; name: string | null; email: string } | null;
+};
+
+function activityActionLabel(action: ProjectActivityEvent["action"]) {
+  if (action === "CREATED") return "created";
+  if (action === "UPDATED") return "updated";
+  if (action === "MOVED") return "moved";
+  if (action === "COMPLETED") return "completed";
+  if (action === "DELETED") return "deleted";
+  if (action === "COMMENTED") return "commented on";
+  if (action === "ASSIGNED") return "assigned";
+  return "unassigned";
+}
 
 function isInTab(item: WorkItem, tab: TaskTab, today: Date): boolean {
   if (tab === "All") return true;
@@ -49,28 +73,29 @@ function startOfLocalDay(date: Date) {
 
 function ProjectsInner() {
   const params = useSearchParams();
-  const projects = useStore((s) => s.projects);
-  const workItems = useStore((s) => s.workItems);
   const notes = useStore((s) => s.notes);
-  const activity = useStore((s) => s.activity);
-  const members = useStore((s) => s.members);
-  const addProject = useStore((s) => s.addProject);
-  const updateProject = useStore((s) => s.updateProject);
-  const removeProject = useStore((s) => s.removeProject);
-  const addWorkItem = useStore((s) => s.addWorkItem);
-  const deleteWorkItem = useStore((s) => s.deleteWorkItem);
-  const setWorkItemStatus = useStore((s) => s.setWorkItemStatus);
+  const storeMembers = useStore((s) => s.members);
   const updateSettings = useStore((s) => s.updateSettings);
   const activeProjectId = useStore((s) => s.settings.activeProjectId);
   const router = useRouter();
 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ReturnType<typeof toUiProject>[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(
+    storeMembers.map((member) => ({ id: member.id, name: member.name }))
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [iconEditingId, setIconEditingId] = useState<string | null>(null);
   const [taskTab, setTaskTab] = useState<TaskTab>("All");
   const [taskScope, setTaskScope] = useState<TaskScope>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [focusNewTask, setFocusNewTask] = useState(false);
+  const [projectActivity, setProjectActivity] = useState<ProjectActivityEvent[]>([]);
+  const [projectActivityLoading, setProjectActivityLoading] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const cols = "grid-cols-[minmax(64px,0.7fr)_minmax(140px,1.7fr)_minmax(96px,1fr)_minmax(100px,1fr)_minmax(72px,0.7fr)_minmax(44px,0.45fr)_minmax(44px,0.45fr)]";
@@ -85,10 +110,229 @@ function ProjectsInner() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+        setWorkspaceId(session.workspace.id);
+        setCurrentUserId(session.user.id);
+        const nextMembers = (session.members ?? []).map((member) => ({ id: member.id, name: member.name }));
+        if (nextMembers.length > 0) {
+          setMembers(nextMembers);
+        }
+
+        const [projectsRes, workItemsRes] = await Promise.all([
+          fetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+        ]);
+
+        if (!projectsRes.ok) throw new Error("Failed to load projects");
+        if (!workItemsRes.ok) throw new Error("Failed to load project tasks");
+
+        const projectsPayload = (await projectsRes.json()) as { projects: ApiProject[] };
+        const itemsPayload = (await workItemsRes.json()) as { workItems: ApiWorkItem[] };
+        if (!active) return;
+
+        setProjects(projectsPayload.projects.map((project) => toUiProject(project, session.user.id)));
+        setWorkItems(itemsPayload.workItems.map((item) => toUiWorkItem(item, session.user.id)));
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load Projects");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const createProject = async (input: { name: string; status: ProjectStatus; owner: string; due: string; icon: string }) => {
+    if (!workspaceId) return null;
+    const slug = input.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 50) || `project-${Date.now()}`;
+
+    const status =
+      input.status === "Active"
+        ? "ACTIVE"
+        : input.status === "In Review"
+          ? "IN_REVIEW"
+          : input.status === "On Hold"
+            ? "ON_HOLD"
+            : "ARCHIVED";
+
+    const response = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
+      body: JSON.stringify({
+        workspaceId,
+        name: input.name,
+        slug,
+        status,
+        dueDate: input.due ? `${input.due}T00:00:00.000Z` : undefined,
+        color: "oklch(0.52 0.09 195)",
+      }),
+    });
+    if (!response.ok) {
+      setError("Failed to create project");
+      return null;
+    }
+
+    const payload = (await response.json()) as { project: ApiProject };
+    const next = { ...toUiProject(payload.project, currentUserId), icon: input.icon };
+    setProjects((current) => [next, ...current]);
+    return next.id;
+  };
+
+  const patchProject = async (id: string, input: { name: string; status: ProjectStatus; due: string; icon: string }) => {
+    if (!workspaceId) return;
+    const status =
+      input.status === "Active"
+        ? "ACTIVE"
+        : input.status === "In Review"
+          ? "IN_REVIEW"
+          : input.status === "On Hold"
+            ? "ON_HOLD"
+            : "ARCHIVED";
+    const response = await fetch(`/api/projects/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: input.name,
+        status,
+        dueDate: input.due ? `${input.due}T00:00:00.000Z` : null,
+      }),
+    });
+    if (!response.ok) {
+      setError("Failed to update project");
+      return;
+    }
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === id ? { ...project, name: input.name, status: input.status, due: input.due, icon: input.icon } : project
+      )
+    );
+  };
+
+  const destroyProject = async (id: string) => {
+    if (!workspaceId) return false;
+    const response = await fetch(`/api/projects/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      setError("Failed to delete project");
+      return false;
+    }
+    setProjects((current) => current.filter((project) => project.id !== id));
+    setWorkItems((current) => current.filter((item) => item.project !== id));
+    return true;
+  };
+
+  const createAndFocusTask = async (projectId: string, status: WorkItem["status"] = "Backlog") => {
+    if (!workspaceId) return;
+    const apiStatus = toApiWorkStatus(status);
+    const response = await fetch("/api/work-items", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
+      body: JSON.stringify({
+        workspaceId,
+        projectId,
+        title: "Untitled task",
+        status: apiStatus,
+        priority: "MEDIUM",
+      }),
+    });
+    if (!response.ok) {
+      setError("Failed to create task");
+      return;
+    }
+    const payload = (await response.json()) as { workItem: ApiWorkItem };
+    const next = toUiWorkItem(payload.workItem, currentUserId);
+    setWorkItems((current) => [next, ...current]);
+    setSelectedTaskId(next.id);
+    toast.success("Task created");
+  };
+
+  const patchTaskStatus = async (taskId: string, nextStatus: WorkItem["status"]) => {
+    if (!workspaceId) return;
+    const snapshot = workItems;
+    setWorkItems((current) => current.map((item) => (item.id === taskId ? { ...item, status: nextStatus } : item)));
+    const response = await fetch(`/api/work-items/${encodeURIComponent(taskId)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        status: toApiWorkStatus(nextStatus),
+        completedAt: nextStatus === "Done" ? new Date().toISOString() : null,
+      }),
+    });
+    if (!response.ok) {
+      setWorkItems(snapshot);
+      setError("Failed to move task");
+    }
+  };
+
+  const destroyTask = async (taskId: string) => {
+    if (!workspaceId) return;
+    const snapshot = workItems;
+    setWorkItems((current) => current.filter((item) => item.id !== taskId));
+    const response = await fetch(`/api/work-items/${encodeURIComponent(taskId)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      setWorkItems(snapshot);
+      setError("Failed to delete task");
+      return;
+    }
+    if (selectedTaskId === taskId) setSelectedTaskId(null);
+  };
+
+  useEffect(() => {
     if (selectedProject && selectedProject.id !== activeProjectId) {
       updateSettings({ activeProjectId: selectedProject.id });
     }
   }, [activeProjectId, selectedProject, updateSettings]);
+
+  useEffect(() => {
+    if (!workspaceId || !currentUserId || !selectedProjectId) {
+      setProjectActivity([]);
+      return;
+    }
+
+    let active = true;
+    setProjectActivityLoading(true);
+
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/activity?workspaceId=${encodeURIComponent(workspaceId)}&projectId=${encodeURIComponent(selectedProjectId)}&limit=8`,
+          {
+            cache: "no-store",
+            headers: { "x-flowboard-user-id": currentUserId },
+          }
+        );
+        if (!response.ok || !active) return;
+        const payload = (await response.json()) as { events: ProjectActivityEvent[] };
+        if (!active) return;
+        setProjectActivity(payload.events ?? []);
+      } finally {
+        if (active) setProjectActivityLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [workspaceId, currentUserId, selectedProjectId]);
 
   const projectItems = useMemo(() => {
     if (!selectedProjectId) return [];
@@ -96,10 +340,11 @@ function ProjectsInner() {
   }, [selectedProjectId, workItems]);
 
   const scopedItems = useMemo(() => {
-    if (taskScope === "mine") return projectItems.filter((w) => w.assignee === ME);
-    if (taskScope === "team") return projectItems.filter((w) => w.assignee !== ME);
+    if (!currentUserId) return projectItems;
+    if (taskScope === "mine") return projectItems.filter((w) => w.assignee === currentUserId);
+    if (taskScope === "team") return projectItems.filter((w) => w.assignee !== currentUserId);
     return projectItems;
-  }, [projectItems, taskScope]);
+  }, [projectItems, taskScope, currentUserId]);
 
   const filteredItems = useMemo(
     () => scopedItems.filter((w) => isInTab(w, taskTab, today)),
@@ -108,11 +353,11 @@ function ProjectsInner() {
 
   const scopeCounts = useMemo(
     () => ({
-      mine: projectItems.filter((w) => w.assignee === ME && w.status !== "Done").length,
-      team: projectItems.filter((w) => w.assignee !== ME && w.status !== "Done").length,
+      mine: currentUserId ? projectItems.filter((w) => w.assignee === currentUserId && w.status !== "Done").length : 0,
+      team: currentUserId ? projectItems.filter((w) => w.assignee !== currentUserId && w.status !== "Done").length : 0,
       all: projectItems.filter((w) => w.status !== "Done").length,
     }),
-    [projectItems]
+    [projectItems, currentUserId]
   );
 
   const tabCounts: Record<TaskTab, number> = useMemo(
@@ -127,15 +372,6 @@ function ProjectsInner() {
     [scopedItems, today]
   );
 
-  const selectedTask = selectedTaskId ? projectItems.find((workItem) => workItem.id === selectedTaskId) ?? null : null;
-
-  const createAndFocusTask = (status: WorkItem["status"] = "Backlog") => {
-    const id = addWorkItem({ title: "Untitled task", status, project: selectedProjectId ?? selectedProject?.id ?? "core" });
-    setSelectedTaskId(id);
-    setFocusNewTask(true);
-    toast.success("Task created");
-  };
-
   if (selectedProject) {
     const owner = members.find((member) => member.id === selectedProject.owner) ?? members[0];
     const items = projectItems;
@@ -148,19 +384,13 @@ function ProjectsInner() {
     const projectNotes = notes
       .filter((note) => projectNoteIds.has(note.id) || [...projectItemIds].some((id) => `${note.title} ${note.excerpt}`.includes(id)))
       .slice(0, 4);
-    const projectActivity = activity
-      .flatMap((day) => day.items.map((item) => ({ ...item, date: day.date })))
-      .filter((item) => {
-        const match = item.target.match(/\bFB-\d+\b/);
-        return match ? projectItemIds.has(match[0]) : false;
-      })
-      .slice(0, 5);
-
     return (
       <AppShell title={<span className="font-medium">Projects / {selectedProject.name}</span>}>
         <div className="flex h-full min-h-0">
           <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
             <div className="mx-auto w-full max-w-4xl px-6 py-8 lg:px-8">
+            {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
+            {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading project data...</div>}
             <div className="mb-6 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="mb-2 flex items-center gap-2">
@@ -170,15 +400,16 @@ function ProjectsInner() {
                 <p className="text-[13px] text-muted-foreground">Project overview with live work items and progress.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => createAndFocusTask()} className="lov-btn lov-btn-primary">
+                <button onClick={() => { void createAndFocusTask(selectedProject.id); }} className="lov-btn lov-btn-primary">
                   <Plus className="h-3.5 w-3.5" /> New task
                 </button>
                 <button onClick={() => setEditingProjectId(selectedProject.id)} className="lov-btn lov-btn-ghost">
                   <Pencil className="h-3.5 w-3.5" /> Edit
                 </button>
                 <button
-                  onClick={() => {
-                    removeProject(selectedProject.id);
+                  onClick={async () => {
+                    const deleted = await destroyProject(selectedProject.id);
+                    if (!deleted) return;
                     updateSettings({ activeProjectId: null });
                     router.push("/projects");
                     toast.success("Project deleted");
@@ -244,21 +475,24 @@ function ProjectsInner() {
               </ProjectContextSection>
 
               <ProjectContextSection title="Project activity" icon={<Activity className="h-3.5 w-3.5" />} href={`/activity?project=${selectedProject.id}`}>
-                {projectActivity.length === 0 ? (
+                {projectActivityLoading ? (
+                  <div className="px-1 py-5 text-[12px] text-muted-foreground">Loading project changes...</div>
+                ) : projectActivity.length === 0 ? (
                   <div className="px-1 py-5 text-[12px] text-muted-foreground">No recent project changes.</div>
                 ) : (
-                  projectActivity.map((item, index) => {
-                    const member = members.find((m) => m.id === item.who) ?? members[0];
+                  projectActivity.map((item) => {
+                    const actorName = item.actor?.name ?? item.actor?.email ?? "System";
+                    const action = activityActionLabel(item.action);
                     return (
-                      <Link key={`${item.date}-${index}`} href={`/activity?project=${selectedProject.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-[var(--fb-row-py)] text-[13px] last:border-b-0 hover:text-foreground">
+                      <Link key={item.id} href={`/activity?project=${selectedProject.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-[var(--fb-row-py)] text-[13px] last:border-b-0 hover:text-foreground">
                         <span className="min-w-0 truncate">
-                          <span className="font-medium">{member?.name ?? item.who}</span>{" "}
-                          <span className="text-muted-foreground">{item.action}</span>{" "}
+                          <span className="font-medium">{actorName}</span>{" "}
+                          <span className="text-muted-foreground">{action}</span>{" "}
                           <span>{item.target}</span>
                         </span>
                         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Clock3 className="h-3 w-3" />
-                          {item.time}
+                          {new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
                         </span>
                       </Link>
                     );
@@ -323,12 +557,12 @@ function ProjectsInner() {
                         <WorkItemRow
                           key={workItem.id}
                           item={workItem}
+                          membersOverride={members}
                           selected={selectedTaskId === workItem.id}
                           onClick={() => setSelectedTaskId(workItem.id)}
-                          onMove={(nextStatus) => setWorkItemStatus(workItem.id, nextStatus)}
+                          onMove={(nextStatus) => { void patchTaskStatus(workItem.id, nextStatus); }}
                           onDelete={() => {
-                            deleteWorkItem(workItem.id);
-                            if (selectedTaskId === workItem.id) setSelectedTaskId(null);
+                            void destroyTask(workItem.id);
                           }}
                         />
                       );
@@ -339,16 +573,6 @@ function ProjectsInner() {
             </section>
             </div>
           </div>
-
-          <TaskDrawer
-            item={selectedTask}
-            focusTitle={focusNewTask}
-            onTitleFocused={() => setFocusNewTask(false)}
-            onClose={() => {
-              setSelectedTaskId(null);
-              setFocusNewTask(false);
-            }}
-          />
         </div>
       </AppShell>
     );
@@ -358,6 +582,8 @@ function ProjectsInner() {
     <AppShell title={<span className="font-medium">Projects</span>}>
       <div className="h-full overflow-y-scroll [scrollbar-gutter:stable]">
         <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-8">
+          {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
+          {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading projects...</div>}
           <div className="mb-1 flex items-baseline justify-between gap-3">
             <h1 className="text-[20px] font-semibold tracking-tight">Projects</h1>
             <div className="flex items-center gap-3">
@@ -423,7 +649,12 @@ function ProjectsInner() {
                             <IconPicker
                               value={p.icon ?? "Folder"}
                               accent={p.accent}
-                              onChange={(name) => { updateProject(p.id, { icon: name }); setIconEditingId(null); }}
+                              onChange={(name) => {
+                                setProjects((current) =>
+                                  current.map((project) => (project.id === p.id ? { ...project, icon: name } : project))
+                                );
+                                setIconEditingId(null);
+                              }}
                             />
                           </div>
                         </>
@@ -455,8 +686,9 @@ function ProjectsInner() {
         <NewProjectModal
           members={members}
           onClose={() => setModalOpen(false)}
-          onCreate={(input) => {
-            const id = addProject(input);
+          onCreate={async (input) => {
+            const id = await createProject(input);
+            if (!id) return;
             updateSettings({ activeProjectId: id });
             toast.success(`Created project "${input.name}"`);
             setModalOpen(false);
@@ -472,8 +704,8 @@ function ProjectsInner() {
           title="Edit project"
           submitLabel="Save project"
           onClose={() => setEditingProjectId(null)}
-          onCreate={(input) => {
-            updateProject(editingProjectId, input);
+          onCreate={async (input) => {
+            await patchProject(editingProjectId, input);
             toast.success(`Updated project "${input.name}"`);
             setEditingProjectId(null);
           }}

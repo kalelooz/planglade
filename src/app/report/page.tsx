@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { AppShell } from "@/components/lovable/shell";
@@ -17,7 +17,7 @@ const statusColors: Record<Status, string> = {
   "Done": "oklch(0.55 0.13 145)",
 };
 
-export default function ReportPage() {
+function ReportPageContent() {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const workItems = useStore((s) => s.workItems);
@@ -161,5 +161,13 @@ export default function ReportPage() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+export default function ReportPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReportPageContent />
+    </Suspense>
   );
 }

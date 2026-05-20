@@ -89,9 +89,8 @@ These are known project-level issues from the audit. Do not report them as fixed
 
 - Build/start scripts still need production hardening and cross-platform verification.
 - `npm run lint` has existing failures.
-- `next.config.ts` currently has `typescript.ignoreBuildErrors: true`.
 - The app still uses client-side local persistence instead of server-backed product data.
-- Auth, Prisma schema, and product API routes are placeholders for the actual product.
+- Auth is still frontend-mocked and most product views are still local-store backed instead of fully server-backed.
 
 ## Definition of Done
 

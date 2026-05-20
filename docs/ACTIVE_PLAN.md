@@ -44,13 +44,13 @@ Build the full-stack foundation without expanding the product surface.
 
 The next milestone is Phase 1 from `docs/FULLSTACK_ROADMAP.md`:
 
-- [ ] Choose deployment target and database path for v1 production. Recommended default: Next.js app plus PostgreSQL through Prisma.
+- [x] Choose deployment target and database path for v1 production. Decision: Vercel-hosted Next.js with managed PostgreSQL (Neon) via Prisma; local/dev keeps SQLite (`db/custom.db`).
 - [x] Replace the sample Prisma schema with FlowBoard domain models.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
 - [x] Replace the hello-world API route with real health/bootstrap routes.
-- [ ] Replace mocked auth direction with a production auth adapter plan and server session checks.
-- [ ] Fix project red gates before production: TypeScript build errors cannot be ignored, build/start scripts must be cross-platform, and package-manager usage must be normalized.
+- [x] Replace mocked auth direction with a production auth adapter plan and server session checks.
+- [x] Fix project red gates before production: TypeScript build errors cannot be ignored, build/start scripts must be cross-platform, and package-manager usage must be normalized.
 
 Verify: the app still runs the completed frontend loop, Prisma can validate/migrate the real schema, and no advanced surface is promoted before it reads/writes real data.
 
@@ -60,6 +60,78 @@ Additional progress completed during Phase 1 execution:
 - [x] Added initial `workspace/import-local` API route for local-to-server migration.
 - [x] Added initial Prisma-backed API CRUD routes for labels, saved views, and user settings.
 - [x] Enforced workspace scoping on project/work item/note update and delete routes.
+- [x] Added `GET /api/auth/session` scaffold route that resolves a real DB-backed dev user/workspace session.
+- [x] Removed `typescript.ignoreBuildErrors` from `next.config.ts`.
+- [x] Replaced Bun-only production start script with cross-platform Node standalone start.
+- [x] Fixed Prisma API typing issues that blocked `tsc --noEmit` after removing build-error ignores.
+- [x] Locked production deployment/database decision (Vercel + Neon PostgreSQL + Prisma).
+
+## Phase Breakdown (Pending vs Done)
+
+### Phase 1 - Foundation (in progress)
+
+- [x] FlowBoard Prisma schema and typed API contracts.
+- [x] Core CRUD routes (projects/work-items/notes/labels/saved-views/settings).
+- [x] Workspace-scoped update/delete guards.
+- [x] Dev session scaffold for server-side actor/workspace resolution.
+- [x] Remove TypeScript-ignore build gate and Bun-only start gate.
+- [x] Finalize production auth provider decision and migration plan.
+- [x] Normalize package-manager usage and dependency scripts.
+
+### Phase 2 - Server-backed Core Loop (in progress)
+
+- [x] `My Tasks` now reads from `/api/work-items` and performs server-backed complete/delete mutations.
+- [x] Added client-side shared server-session helper and reused it in `My Tasks` bootstrap.
+- [x] Added Settings UI flow for one-time local-to-server migration (`append`/`replace`) using `workspace/import-local`.
+- [x] Wired `Home` read path to server work-items and notes, with server-backed complete and quick-capture task creation.
+- [x] Wired `Projects` read path to server projects/work-items, plus server-backed project/task create, update, move, and delete actions.
+- [x] Wire Inbox, Notes, Calendar, and Timeline to server data.
+- [x] Complete server-backed drawer edit flows for work items (title/description/assignee/dates/labels/project).
+- [x] Add UI affordance for one-time localStorage import using existing `workspace/import-local` route.
+
+Additional progress in this batch:
+
+- [x] Converted Inbox to server-backed capture flow using `BACKLOG` work items with server triage/move/delete.
+- [x] Converted Notes read/create/update/delete to server-backed routes and server task extraction from checklist markdown.
+- [x] Converted Calendar and Timeline reads to server-backed work-item/project loading.
+- [x] Added optimistic server mutation + rollback for task changes in Inbox and Timeline.
+- [x] Updated `TaskDrawer` core edits to PATCH server state (status, priority, title, description, assignee, dates, label, project) with optimistic rollback behavior.
+- [x] Added NextAuth adapter scaffolding (`/api/auth/[...nextauth]`) with provider-based server sessions and dev-session fallback in `/api/auth/session`.
+- [x] Extended session payload with workspace member identities and rewired server-backed pages to use real assignee user IDs for scope and assignment.
+- [x] Added server persistence for task `noteIds` and `checklist` across contracts/API/import route and drawer mutations.
+- [x] Normalized package manager declaration to npm in `package.json`.
+
+### Phase 3 - Collaboration + Hardening (pending)
+
+- [x] Workspace roles and membership workflows.
+- [ ] Activity generation from real mutations.
+- [ ] Comments, mentions, and task history backed by real server records.
+- [ ] Notifications backed by real notification records and user preferences.
+- [ ] Durable settings/theme/import-export flows.
+- [ ] Project-level feature flags for optional modules before adding subtasks, custom fields, SLA, docs, or ITSM-lite.
+- [ ] Attachments/search, then CI/deployment/security hardening.
+
+Additional progress in this batch:
+
+- [x] Added workspace member management APIs (`GET/POST /api/workspace/members`, `PATCH/DELETE /api/workspace/members/:memberUserId`) with role checks.
+- [x] Added reusable role-based authorization helpers in `src/lib/api-utils.ts`.
+- [x] Enforced `MEMBER`+ write authorization on project/work-item/note/label/saved-view/settings/import mutation routes.
+- [x] Enforced `ADMIN`+ authorization on workspace membership and local-import workflows.
+
+## Consolidated Next Implementation Order
+
+Use `docs/audits/2026-05-20-consolidated-product-implementation-report.md` and `flowboard-collaboration-foundation-plan.md` as reference material for the next implementation slices. Keep this order unless a blocking production defect appears:
+
+1. Generate real `ActivityEvent` rows and make Activity/task history server-backed.
+2. Add real task comments and mention parsing.
+3. Add in-app notification records for mentions, assignments, due-date changes, and comments.
+4. Make settings durable: light/dark/system theme, density/accent if retained, notification preferences, and import/export.
+5. Add project settings and feature flags before exposing optional modules.
+6. Add subtasks and relations behind project flags.
+7. Add project docs, custom fields, and service-desk/ITSM-lite mode later.
+8. Add SLA only for service-desk projects after the event/comment/notification foundation works.
+
+Do not prioritize a marketing landing page, Jira-style workflow complexity, formula custom fields, broad reports, or public request portals before the collaboration foundation is real.
 
 ## Completed Frontend Milestone
 

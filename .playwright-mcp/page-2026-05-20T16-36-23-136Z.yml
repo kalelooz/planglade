@@ -1,0 +1,108 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - banner [ref=e4]:
+        - generic [ref=e5]:
+          - button "FlowBoard" [ref=e6] [cursor=pointer]
+          - navigation [ref=e7]:
+            - button "Sign in" [ref=e8]
+      - main [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]:
+            - heading "FlowBoard" [level=1] [ref=e13]
+            - paragraph [ref=e14]: A quieter project workspace for capturing, planning, and finishing work without project-management theater.
+            - generic [ref=e15]:
+              - button "Sign in" [ref=e16]
+              - button "View product preview" [ref=e17]
+          - generic [ref=e20]:
+            - generic [ref=e21]:
+              - generic [ref=e22]: Inbox
+              - generic [ref=e23]: Today
+              - generic [ref=e24]: Projects
+              - generic [ref=e25]: Notes
+            - generic [ref=e26]:
+              - generic [ref=e27]:
+                - generic [ref=e29]: Draft Q3 planning brief
+                - generic [ref=e30]: Inbox
+              - generic [ref=e31]:
+                - img [ref=e33]
+                - generic [ref=e35]: Review design tokens
+                - generic [ref=e36]: Inbox
+              - generic [ref=e37]:
+                - generic [ref=e39]: Schedule 1:1 with Meret
+                - generic [ref=e40]: Inbox
+              - generic [ref=e41]:
+                - img [ref=e43]
+                - generic [ref=e46]: "Notes: API rate-limit behavior"
+                - generic [ref=e47]: Notes
+            - generic [ref=e49]:
+              - generic [ref=e50]: Also in
+              - generic [ref=e51]:
+                - generic [ref=e52]: Home
+                - generic [ref=e53]: My Tasks
+                - generic [ref=e54]: Calendar
+                - generic [ref=e55]: Timeline
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - generic [ref=e60]:
+              - img [ref=e61]
+              - heading "Capture first" [level=3] [ref=e64]
+            - paragraph [ref=e65]: Drop tasks, notes, and loose thoughts into Inbox before they get lost.
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - img [ref=e68]
+              - heading "Triage once" [level=3] [ref=e70]
+            - paragraph [ref=e71]: Turn captures into dated, assigned, project-linked work without duplicating data.
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - img [ref=e74]
+              - heading "Plan from the same source" [level=3] [ref=e79]
+            - paragraph [ref=e80]: Home, My Tasks, Projects, Calendar, and Timeline all read from the same work items.
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - img [ref=e83]
+              - heading "Built for small teams" [level=3] [ref=e88]
+            - paragraph [ref=e89]: Roles, comments, activity, and notifications are added only where the underlying data is real.
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - heading "One source of truth, multiple views" [level=2] [ref=e93]
+            - paragraph [ref=e94]: Every task, note, and deadline lives once. Home, Inbox, Projects, My Tasks, Calendar, and Timeline are different lenses onto the same underlying work items — not separate systems that drift apart.
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e98]: Inbox
+              - generic [ref=e99]: Today
+              - generic [ref=e100]: Projects
+              - generic [ref=e101]: Notes
+            - generic [ref=e102]:
+              - generic [ref=e103]:
+                - generic [ref=e105]: Draft Q3 planning brief
+                - generic [ref=e106]: Inbox
+              - generic [ref=e107]:
+                - img [ref=e109]
+                - generic [ref=e111]: Review design tokens
+                - generic [ref=e112]: Inbox
+              - generic [ref=e113]:
+                - generic [ref=e115]: Schedule 1:1 with Meret
+                - generic [ref=e116]: Inbox
+              - generic [ref=e117]:
+                - img [ref=e119]
+                - generic [ref=e122]: "Notes: API rate-limit behavior"
+                - generic [ref=e123]: Notes
+            - generic [ref=e125]:
+              - generic [ref=e126]: Also in
+              - generic [ref=e127]:
+                - generic [ref=e128]: Home
+                - generic [ref=e129]: My Tasks
+                - generic [ref=e130]: Calendar
+                - generic [ref=e131]: Timeline
+      - contentinfo [ref=e132]:
+        - generic [ref=e133]:
+          - generic [ref=e134]: FlowBoard
+          - generic [ref=e135]: A quieter project workspace
+    - group [ref=e137]:
+      - img [ref=e140] [cursor=pointer]
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e149] [cursor=pointer]:
+    - img [ref=e150]
+  - alert [ref=e153]

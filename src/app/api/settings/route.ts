@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
+import type { Prisma } from "@prisma/client"
 
-import { parseJsonBody, parseQuery, serverError } from "@/lib/api-utils"
+import { forbidden, hasMinimumWorkspaceRole, parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { updateUserSettingsSchema, workspaceUserQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import {
+  extractReadNotificationIds,
+  extractNotificationLastReadAt,
+  mergeReadNotificationIds,
+  mergeNotificationMetadata,
+  normalizeNotificationPreferences,
+} from "@/lib/notification-preferences"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -15,6 +23,20 @@ export async function GET(request: NextRequest) {
   if (!query.ok) return query.response
 
   try {
+    const access = await requireWorkspaceRole(
+      query.data.workspaceId,
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
+    )
+    if (!access.ok) return access.response
+
+    if (
+      access.actor.userId !== query.data.userId &&
+      !hasMinimumWorkspaceRole(access.actor.role, "ADMIN")
+    ) {
+      return forbidden("You can only read your own settings unless you are admin or owner")
+    }
+
     const settings = await db.userSettings.findUnique({
       where: {
         workspaceId_userId: {
@@ -34,6 +56,43 @@ export async function PUT(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
+    const access = await requireWorkspaceRole(
+      parsed.data.workspaceId,
+      request.headers.get("x-flowboard-user-id") ?? undefined,
+      "MEMBER"
+    )
+    if (!access.ok) return access.response
+
+    if (
+      access.actor.userId !== parsed.data.userId &&
+      !hasMinimumWorkspaceRole(access.actor.role, "ADMIN")
+    ) {
+      return forbidden("You can only update your own settings unless you are admin or owner")
+    }
+
+    let notificationsPayload: Prisma.InputJsonValue | undefined
+    if (parsed.data.notifications !== undefined) {
+      const existing = await db.userSettings.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: parsed.data.workspaceId,
+            userId: parsed.data.userId,
+          },
+        },
+        select: { notifications: true },
+      })
+      const normalized = normalizeNotificationPreferences(parsed.data.notifications)
+      const existingReadIds = extractReadNotificationIds(existing?.notifications)
+      const metadata = mergeNotificationMetadata(existing?.notifications, {
+        lastReadAt: extractNotificationLastReadAt(existing?.notifications),
+        readNotificationIds: mergeReadNotificationIds(existingReadIds, []),
+      })
+      notificationsPayload = {
+        ...normalized,
+        ...metadata,
+      } as Prisma.InputJsonValue
+    }
+
     const settings = await db.userSettings.upsert({
       where: {
         workspaceId_userId: {
@@ -46,7 +105,7 @@ export async function PUT(request: NextRequest) {
         ...(parsed.data.density !== undefined ? { density: parsed.data.density } : {}),
         ...(parsed.data.accent !== undefined ? { accent: parsed.data.accent } : {}),
         ...(parsed.data.notifications !== undefined
-          ? { notifications: parsed.data.notifications }
+          ? { notifications: notificationsPayload }
           : {}),
       },
       create: {
@@ -55,7 +114,7 @@ export async function PUT(request: NextRequest) {
         theme: parsed.data.theme,
         density: parsed.data.density,
         accent: parsed.data.accent,
-        notifications: parsed.data.notifications,
+        notifications: notificationsPayload ?? parsed.data.notifications,
       },
     })
 

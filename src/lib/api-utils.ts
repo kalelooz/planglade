@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import type { WorkspaceRole } from "@prisma/client"
 import { ZodSchema } from "zod"
 
 import { db } from "@/lib/db"
@@ -11,6 +12,10 @@ export function badRequest(message: string, details?: unknown) {
 
 export function notFound(message: string) {
   return NextResponse.json({ error: message }, { status: 404 })
+}
+
+export function forbidden(message: string, details?: unknown) {
+  return NextResponse.json({ error: message, details }, { status: 403 })
 }
 
 export function serverError(message: string, details?: unknown) {
@@ -59,12 +64,59 @@ export async function resolveActorUserId(workspaceId: string, requestedUserId?: 
   })
   if (!workspace) return null
 
-  if (!requestedUserId) return workspace.ownerId
+  if (!requestedUserId) {
+    return workspace.ownerId
+  }
 
   const membership = await db.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: requestedUserId } },
     select: { userId: true },
   })
 
-  return membership?.userId ?? workspace.ownerId
+  return membership?.userId ?? null
+}
+
+const ROLE_RANK: Record<WorkspaceRole, number> = {
+  OWNER: 4,
+  ADMIN: 3,
+  MEMBER: 2,
+  VIEWER: 1,
+}
+
+export async function resolveWorkspaceActor(workspaceId: string, requestedUserId?: string) {
+  const workspace = await db.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { id: true, ownerId: true },
+  })
+  if (!workspace) return null
+
+  if (!requestedUserId) {
+    return { userId: workspace.ownerId, role: "OWNER" as WorkspaceRole }
+  }
+
+  const membership = await db.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: requestedUserId } },
+    select: { userId: true, role: true },
+  })
+  if (!membership) return null
+
+  return { userId: membership.userId, role: membership.role }
+}
+
+export function hasMinimumWorkspaceRole(actual: WorkspaceRole, minimum: WorkspaceRole) {
+  return ROLE_RANK[actual] >= ROLE_RANK[minimum]
+}
+
+export async function requireWorkspaceRole(workspaceId: string, requestedUserId: string | undefined, minimumRole: WorkspaceRole) {
+  const actor = await resolveWorkspaceActor(workspaceId, requestedUserId)
+  if (!actor) {
+    return { ok: false as const, response: forbidden("You do not have access to this workspace") }
+  }
+  if (!hasMinimumWorkspaceRole(actor.role, minimumRole)) {
+    return {
+      ok: false as const,
+      response: forbidden(`This action requires ${minimumRole} role or higher`, { role: actor.role }),
+    }
+  }
+  return { ok: true as const, actor }
 }

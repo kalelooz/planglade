@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Minimal FlowBoard server with built-in keep-alive
 const { createServer } = require('http')
 const { join } = require('path')
