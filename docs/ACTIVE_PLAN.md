@@ -45,10 +45,10 @@ Build the full-stack foundation without expanding the product surface.
 The next milestone is Phase 1 from `docs/FULLSTACK_ROADMAP.md`:
 
 - [ ] Choose deployment target and database path for v1 production. Recommended default: Next.js app plus PostgreSQL through Prisma.
-- [ ] Replace the sample Prisma schema with FlowBoard domain models.
-- [ ] Add Zod schemas for core create/update payloads.
-- [ ] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
-- [ ] Replace the hello-world API route with real health/bootstrap routes.
+- [x] Replace the sample Prisma schema with FlowBoard domain models.
+- [x] Add Zod schemas for core create/update payloads.
+- [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
+- [x] Replace the hello-world API route with real health/bootstrap routes.
 - [ ] Replace mocked auth direction with a production auth adapter plan and server session checks.
 - [ ] Fix project red gates before production: TypeScript build errors cannot be ignored, build/start scripts must be cross-platform, and package-manager usage must be normalized.
 

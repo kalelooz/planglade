@@ -11,8 +11,8 @@ FlowBoard is not production-ready yet.
 - The frontend MVP loop is now local-first and wired through shared client state.
 - User-created workspace data persists in `localStorage`.
 - Auth is mocked.
-- Prisma still contains sample models, not the product schema.
-- The API route is still a placeholder, not the product backend.
+- Prisma now contains draft FlowBoard domain models, but migrations and server data wiring are still pending.
+- The API now exposes health/bootstrap endpoints, but product mutations are not server-backed yet.
 - Team, Activity, Reports, Connections, Board, and Work Items remain secondary until their data is real.
 - The next milestone is the full-stack foundation: real schema, auth direction, typed API contracts, and server-backed persistence.
 

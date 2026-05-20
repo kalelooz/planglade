@@ -87,8 +87,8 @@ Use Leantime for product scope, not immediate feature breadth.
 
 ## What to Update or Remove
 
-- [ ] Replace `src/app/api/route.ts` hello-world behavior with real health and product API routes.
-- [ ] Replace Prisma sample `User`/`Post` schema with FlowBoard domain models.
+- [x] Replace `src/app/api/route.ts` hello-world behavior with real health and initial workspace bootstrap API routes.
+- [x] Replace Prisma sample `User`/`Post` schema with FlowBoard domain models.
 - [ ] Replace mocked `auth-context.tsx` with a production auth adapter and server session checks.
 - [ ] Remove or keep disabled any Team, Activity, Reports, Connections, Board, and Work Items actions that do not read/write real data.
 - [x] Update README status so it no longer says local persistence is still the next milestone.
@@ -114,9 +114,9 @@ Status: done.
 Goal: make the app structurally ready for real persistence.
 
 - [ ] Choose deployment target and database path for v1 production. Recommended default: Next.js app plus PostgreSQL through Prisma.
-- [ ] Replace sample Prisma schema with FlowBoard schema.
-- [ ] Add Zod schemas for core create/update payloads.
-- [ ] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
+- [x] Replace sample Prisma schema with FlowBoard schema.
+- [x] Add Zod schemas for core create/update payloads.
+- [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
 - [ ] Add auth provider decision and environment validation.
 - [ ] Fix project-level red gates: TypeScript build errors must fail builds, build/start scripts must be cross-platform, and package-manager usage must be consistent.
 
