@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { notFound, parseJsonBody, resolveActorUserId, serverError } from "@/lib/api-utils"
-import { updateNoteSchema } from "@/lib/contracts"
+import { badRequest, notFound, parseJsonBody, resolveActorUserId, serverError } from "@/lib/api-utils"
+import { updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ noteId: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { noteId } = await params
+  const query = workspaceQuerySchema.safeParse({
+    workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+  })
+  if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+
   const parsed = await parseJsonBody(request, updateNoteSchema)
   if (!parsed.ok) return parsed.response
 
@@ -17,6 +22,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       select: { id: true, workspaceId: true },
     })
     if (!existing) return notFound("Note not found")
+    if (existing.workspaceId !== query.data.workspaceId) return notFound("Note not found in workspace")
 
     const actorUserId = await resolveActorUserId(
       existing.workspaceId,
@@ -44,9 +50,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { noteId } = await params
+  const query = workspaceQuerySchema.safeParse({
+    workspaceId: _request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+  })
+  if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+
   try {
-    const existing = await db.note.findUnique({ where: { id: noteId }, select: { id: true } })
+    const existing = await db.note.findUnique({
+      where: { id: noteId },
+      select: { id: true, workspaceId: true },
+    })
     if (!existing) return notFound("Note not found")
+    if (existing.workspaceId !== query.data.workspaceId) return notFound("Note not found in workspace")
 
     await db.note.delete({ where: { id: noteId } })
     return NextResponse.json({ deleted: true })

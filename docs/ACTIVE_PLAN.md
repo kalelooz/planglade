@@ -58,6 +58,8 @@ Additional progress completed during Phase 1 execution:
 
 - [x] Added initial Prisma-backed API CRUD routes for projects, work items, and notes.
 - [x] Added initial `workspace/import-local` API route for local-to-server migration.
+- [x] Added initial Prisma-backed API CRUD routes for labels, saved views, and user settings.
+- [x] Enforced workspace scoping on project/work item/note update and delete routes.
 
 ## Completed Frontend Milestone
 

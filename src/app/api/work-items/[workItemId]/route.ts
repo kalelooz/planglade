@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { notFound, parseDateValue, parseJsonBody, serverError } from "@/lib/api-utils"
-import { updateWorkItemSchema } from "@/lib/contracts"
+import { badRequest, notFound, parseDateValue, parseJsonBody, serverError } from "@/lib/api-utils"
+import { updateWorkItemSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ workItemId: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { workItemId } = await params
+  const query = workspaceQuerySchema.safeParse({
+    workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+  })
+  if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+
   const parsed = await parseJsonBody(request, updateWorkItemSchema)
   if (!parsed.ok) return parsed.response
 
   try {
-    const existing = await db.workItem.findUnique({ where: { id: workItemId }, select: { id: true } })
+    const existing = await db.workItem.findUnique({
+      where: { id: workItemId },
+      select: { id: true, workspaceId: true },
+    })
     if (!existing) return notFound("Work item not found")
+    if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
 
     const updated = await db.$transaction(async (tx) => {
       await tx.workItem.update({
@@ -60,9 +69,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { workItemId } = await params
+  const query = workspaceQuerySchema.safeParse({
+    workspaceId: _request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+  })
+  if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+
   try {
-    const existing = await db.workItem.findUnique({ where: { id: workItemId }, select: { id: true } })
+    const existing = await db.workItem.findUnique({
+      where: { id: workItemId },
+      select: { id: true, workspaceId: true },
+    })
     if (!existing) return notFound("Work item not found")
+    if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
 
     await db.workItem.delete({ where: { id: workItemId } })
     return NextResponse.json({ deleted: true })

@@ -14,6 +14,7 @@ FlowBoard is not production-ready yet.
 - Prisma now contains draft FlowBoard domain models, but migrations and server data wiring are still pending.
 - The API now exposes health/bootstrap endpoints and initial server-backed CRUD, but wiring is not complete across all entities.
 - Initial server CRUD routes now exist for projects, work items, and notes.
+- Initial server CRUD routes now exist for labels, saved views, and user settings.
 - Initial `workspace/import-local` route now exists for local-to-server data migration.
 - Team, Activity, Reports, Connections, Board, and Work Items remain secondary until their data is real.
 - The next milestone is the full-stack foundation: real schema, auth direction, typed API contracts, and server-backed persistence.

@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { notFound, parseDateValue, parseJsonBody, serverError } from "@/lib/api-utils"
-import { updateProjectSchema } from "@/lib/contracts"
+import { badRequest, notFound, parseDateValue, parseJsonBody, serverError } from "@/lib/api-utils"
+import { updateProjectSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 
 type Params = { params: Promise<{ projectId: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { projectId } = await params
+  const query = workspaceQuerySchema.safeParse({
+    workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+  })
+  if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+
   const parsed = await parseJsonBody(request, updateProjectSchema)
   if (!parsed.ok) return parsed.response
 
   try {
-    const existing = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+    const existing = await db.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, workspaceId: true },
+    })
     if (!existing) return notFound("Project not found")
+    if (existing.workspaceId !== query.data.workspaceId) return notFound("Project not found in workspace")
 
     const project = await db.project.update({
       where: { id: projectId },
@@ -38,9 +47,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { projectId } = await params
+  const query = workspaceQuerySchema.safeParse({
+    workspaceId: _request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+  })
+  if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+
   try {
-    const existing = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+    const existing = await db.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, workspaceId: true },
+    })
     if (!existing) return notFound("Project not found")
+    if (existing.workspaceId !== query.data.workspaceId) return notFound("Project not found in workspace")
 
     await db.project.delete({ where: { id: projectId } })
     return NextResponse.json({ deleted: true })

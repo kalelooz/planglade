@@ -36,6 +36,20 @@ export const noteListQuerySchema = workspaceQuerySchema.extend({
   pinned: z.enum(["true", "false"]).optional(),
 })
 
+export const workspaceUserQuerySchema = workspaceQuerySchema.extend({
+  userId: z.string().min(1),
+})
+
+export const createLabelSchema = z.object({
+  workspaceId: z.string().min(1),
+  name: z.string().trim().min(1).max(64),
+  color: z.string().trim().max(32).optional(),
+})
+
+export const updateLabelSchema = createLabelSchema.partial().extend({
+  workspaceId: z.string().min(1).optional(),
+})
+
 export const createProjectSchema = z.object({
   workspaceId: z.string().min(1),
   name: z.string().trim().min(1).max(120),
@@ -148,6 +162,8 @@ export const importLocalWorkspaceSchema = z.object({
 })
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>
+export type CreateLabelInput = z.infer<typeof createLabelSchema>
+export type UpdateLabelInput = z.infer<typeof updateLabelSchema>
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>
 export type CreateWorkItemInput = z.infer<typeof createWorkItemSchema>
 export type UpdateWorkItemInput = z.infer<typeof updateWorkItemSchema>
