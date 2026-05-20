@@ -23,8 +23,8 @@ FlowBoard is not production-ready yet. The app is currently a strong local-first
 
 - [ ] Real auth: replace mocked session storage auth with production sessions, OAuth/email login, account lifecycle, and server-side authorization.
 - [ ] Real data model: replace the sample Prisma `User` and `Post` models with FlowBoard models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
-- [ ] API mutation layer: replace the placeholder `src/app/api/route.ts` with typed routes or server actions for create, update, move, complete, delete, search, and settings mutations.
-- [ ] Persistence migration: migrate from client-only `localStorage` to Prisma-backed persistence, with a one-time import path for existing local workspace data.
+- [ ] API mutation layer: replace the placeholder `src/app/api/route.ts` with typed routes or server actions for create, update, move, complete, delete, search, and settings mutations. Initial CRUD routes for projects/work items/notes are in place.
+- [ ] Persistence migration: migrate from client-only `localStorage` to Prisma-backed persistence, with a one-time import path for existing local workspace data. Initial import route exists.
 - [ ] Authorization boundaries: enforce user/workspace/project permissions on every read and mutation.
 - [ ] Validation and errors: use Zod schemas at API boundaries and return consistent field and request errors.
 - [ ] Server-derived activity: generate activity entries from real mutations instead of static or inferred UI data.
@@ -89,6 +89,8 @@ Use Leantime for product scope, not immediate feature breadth.
 
 - [x] Replace `src/app/api/route.ts` hello-world behavior with real health and initial workspace bootstrap API routes.
 - [x] Replace Prisma sample `User`/`Post` schema with FlowBoard domain models.
+- [x] Add initial Prisma-backed CRUD API routes for projects, work items, and notes.
+- [x] Add initial `workspace/import-local` API route for local-to-server migration.
 - [ ] Replace mocked `auth-context.tsx` with a production auth adapter and server session checks.
 - [ ] Remove or keep disabled any Team, Activity, Reports, Connections, Board, and Work Items actions that do not read/write real data.
 - [x] Update README status so it no longer says local persistence is still the next milestone.
@@ -127,10 +129,10 @@ Done when: Prisma can migrate a real FlowBoard schema, API contracts are documen
 Goal: move the current local-first loop onto the server without expanding scope.
 
 - [ ] Implement authenticated workspace bootstrap.
-- [ ] Implement CRUD for projects, work items, notes, labels, saved views, and settings.
+- [ ] Implement CRUD for projects, work items, notes, labels, saved views, and settings. Projects/work items/notes are implemented; labels/views/settings remain.
 - [ ] Connect Home, Inbox, Projects, My Tasks, Notes, Calendar, and Timeline to server data.
 - [ ] Preserve optimistic UI where it is already useful, but reconcile with server state.
-- [ ] Add one-time localStorage import/reset affordance.
+- [ ] Add one-time localStorage import/reset affordance. Server-side import route exists; UI affordance is still pending.
 - [ ] Generate activity records from create/update/complete/delete/move mutations.
 
 Done when: a signed-in user can create, edit, move, complete, delete, refresh, sign out, sign back in, and see the same data.

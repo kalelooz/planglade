@@ -54,6 +54,11 @@ The next milestone is Phase 1 from `docs/FULLSTACK_ROADMAP.md`:
 
 Verify: the app still runs the completed frontend loop, Prisma can validate/migrate the real schema, and no advanced surface is promoted before it reads/writes real data.
 
+Additional progress completed during Phase 1 execution:
+
+- [x] Added initial Prisma-backed API CRUD routes for projects, work items, and notes.
+- [x] Added initial `workspace/import-local` API route for local-to-server migration.
+
 ## Completed Frontend Milestone
 
 The core loop is honest across the primary app surfaces.

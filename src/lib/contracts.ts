@@ -17,6 +17,25 @@ export const workspaceBootstrapQuerySchema = z.object({
   workspaceSlug: workspaceSlugSchema.optional(),
 })
 
+export const workspaceQuerySchema = z.object({
+  workspaceId: z.string().min(1),
+})
+
+export const projectListQuerySchema = workspaceQuerySchema.extend({
+  status: projectStatusSchema.optional(),
+})
+
+export const workItemListQuerySchema = workspaceQuerySchema.extend({
+  projectId: z.string().min(1).optional(),
+  status: workItemStatusSchema.optional(),
+  assigneeId: z.string().min(1).optional(),
+})
+
+export const noteListQuerySchema = workspaceQuerySchema.extend({
+  projectId: z.string().min(1).optional(),
+  pinned: z.enum(["true", "false"]).optional(),
+})
+
 export const createProjectSchema = z.object({
   workspaceId: z.string().min(1),
   name: z.string().trim().min(1).max(120),
@@ -91,6 +110,43 @@ export const updateUserSettingsSchema = z.object({
   notifications: z.record(z.string(), z.boolean()).optional(),
 })
 
+const localProjectSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  status: z.string().min(1),
+  due: z.string().optional(),
+  accent: z.string().optional(),
+})
+
+const localWorkItemSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  status: z.string().min(1),
+  priority: z.string().min(1),
+  assignee: z.string().optional(),
+  due: z.string().optional(),
+  start: z.string().optional(),
+  project: z.string().optional(),
+  description: z.string().optional(),
+})
+
+const localNoteSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  tag: z.string().optional(),
+  excerpt: z.string().optional(),
+  body: z.string().optional(),
+})
+
+export const importLocalWorkspaceSchema = z.object({
+  workspaceId: z.string().min(1),
+  actorUserId: z.string().min(1).optional(),
+  mode: z.enum(["append", "replace"]).default("append"),
+  projects: z.array(localProjectSchema).default([]),
+  workItems: z.array(localWorkItemSchema).default([]),
+  notes: z.array(localNoteSchema).default([]),
+})
+
 export type CreateProjectInput = z.infer<typeof createProjectSchema>
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>
 export type CreateWorkItemInput = z.infer<typeof createWorkItemSchema>
@@ -100,3 +156,4 @@ export type UpdateNoteInput = z.infer<typeof updateNoteSchema>
 export type CreateSavedViewInput = z.infer<typeof createSavedViewSchema>
 export type UpdateSavedViewInput = z.infer<typeof updateSavedViewSchema>
 export type UpdateUserSettingsInput = z.infer<typeof updateUserSettingsSchema>
+export type ImportLocalWorkspaceInput = z.infer<typeof importLocalWorkspaceSchema>
