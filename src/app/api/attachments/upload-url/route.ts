@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 
 import { badRequest, forbidden, parseJsonBody, requireWorkspaceRole, serverError } from "@/lib/api-utils"
+import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { createAttachmentUploadUrlSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
 import { createAttachmentUploadTarget } from "@/lib/storage"
 
 function sanitizeFilename(input: string) {
@@ -59,13 +59,14 @@ async function ensureProjectAttachmentsEnabled(workspaceId: string, projectId: s
     where: { id: projectId },
     select: { id: true, workspaceId: true, featureFlags: true },
   })
-  if (!project || project.workspaceId !== workspaceId) {
-    return badRequest("Project not found in workspace")
-  }
-
-  const flags = normalizeProjectFeatureFlags(project.featureFlags)
-  if (!flags.attachments) {
-    return forbidden("Attachments are disabled for this project")
+  const boundary = validateAttachmentProjectBoundary({
+    workspaceId,
+    project,
+  })
+  if (!boundary.ok) {
+    return boundary.kind === "forbidden"
+      ? forbidden(boundary.message)
+      : badRequest(boundary.message)
   }
   return null
 }

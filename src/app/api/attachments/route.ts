@@ -9,9 +9,9 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
+import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { attachmentListQuerySchema, createAttachmentSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
 import { readStorageObjectMetadata, storageObjectExists } from "@/lib/storage"
 
 async function validateAttachmentTarget(
@@ -67,13 +67,14 @@ async function ensureProjectAttachmentsEnabled(workspaceId: string, projectId: s
     where: { id: projectId },
     select: { id: true, workspaceId: true, featureFlags: true },
   })
-  if (!project || project.workspaceId !== workspaceId) {
-    return badRequest("Project not found in workspace")
-  }
-
-  const flags = normalizeProjectFeatureFlags(project.featureFlags)
-  if (!flags.attachments) {
-    return forbidden("Attachments are disabled for this project")
+  const boundary = validateAttachmentProjectBoundary({
+    workspaceId,
+    project,
+  })
+  if (!boundary.ok) {
+    return boundary.kind === "forbidden"
+      ? forbidden(boundary.message)
+      : badRequest(boundary.message)
   }
   return null
 }

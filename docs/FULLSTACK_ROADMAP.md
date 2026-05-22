@@ -26,7 +26,7 @@ FlowBoard is not production-ready yet. The app is currently a strong local-first
 - [x] Real data model: Prisma now uses FlowBoard domain models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
 - [x] API mutation layer baseline: typed CRUD/mutation routes now include attachments, work-item relations, and unified search; project mode/feature-flags are enforced on currently mutable optional modules (comments/mentions/notifications/subtasks/relations/attachments).
 - [ ] Persistence migration completion: one-time local-to-server import and server snapshot export/import are in place, but full server-authoritative restore hardening and rollback QA are still pending.
-- [ ] Authorization boundaries: role checks are enforced on core mutation routes, and relation boundary tests now cover cross-workspace/cross-project checks; broader route-level authorization coverage is still pending.
+- [ ] Authorization boundaries: role checks are enforced on core mutation routes; relation and attachment boundary tests now cover cross-workspace/cross-project and feature-flag checks, while broader route-level authorization coverage is still pending.
 - [x] Validation and errors baseline: Zod is in use at API boundaries for core payloads, with consistent error helpers.
 - [x] Server-derived activity baseline: core work-item/project/note/comment mutations now generate activity events.
 - [ ] Collaboration completion: members/roles/comments/mentions are live, while invitation lifecycle and deeper project membership workflows remain.
@@ -151,7 +151,7 @@ Goal: support small teams without turning the app into enterprise admin software
 - [ ] Add assignment, comments, mentions, and simple invitations. (partial: comments and mention parsing are live; invitations and full assignment workflows remain)
 - [x] Add in-app notifications for mentions, assignment, due changes, and comments.
 - [ ] Make Team, Activity, and Notifications real or keep them out of primary navigation.
-- [ ] Add authorization tests for cross-workspace and cross-project access. (partial: relation boundary guard tests now cover project existence/workspace boundary/feature-flag checks)
+- [ ] Add authorization tests for cross-workspace and cross-project access. (partial: relation + attachment boundary guard tests now cover project existence/workspace boundary/feature-flag checks)
 
 Done when: two users can collaborate in one workspace without seeing data from another workspace.
 

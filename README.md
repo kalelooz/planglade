@@ -24,6 +24,7 @@ FlowBoard is not production-ready yet.
 - Attachment download now supports short-lived signed read URLs (`GET /api/attachments/:attachmentId/download-url`).
 - Attachment storage now supports provider selection: `FLOWBOARD_STORAGE_PROVIDER=firebase` (production) or `FLOWBOARD_STORAGE_PROVIDER=local` (local signed binary upload/download routes).
 - Relation authorization boundary tests now cover cross-workspace/cross-project project checks for work-item relation guards.
+- Attachment authorization boundary tests now cover cross-workspace and feature-flag checks for project attachment access.
 - Unified workspace search API now exists across projects/work-items/notes/labels (`GET /api/search`).
 - `My Tasks` now reads from server work-items and uses server-backed complete/delete mutations.
 - `Home` now reads server work-items/notes and uses server-backed complete + quick-capture task creation.

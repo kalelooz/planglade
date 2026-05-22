@@ -130,6 +130,7 @@ Additional progress in this batch:
 - [x] Added Firebase Storage signed upload URL route (`POST /api/attachments/upload-url`) and storage-object validation on attachment metadata persistence.
 - [x] Added storage-provider abstraction (`firebase` + `local`), plus signed local binary upload/download routes for development (`/api/attachments/upload-binary`, `/api/attachments/download-binary`).
 - [x] Added shared work-item relation boundary guard + automated tests for cross-workspace/cross-project/feature-flag relation checks.
+- [x] Added shared attachment project-boundary guard + automated tests for cross-workspace and attachment-flag enforcement checks.
 - [x] Added Firebase App Hosting baseline config (`apphosting.yaml`) and GitHub Actions CI workflow (`.github/workflows/ci.yml`).
 
 ## Consolidated Next Implementation Order
