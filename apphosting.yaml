@@ -20,6 +20,12 @@ env:
       - BUILD
       - RUNTIME
 
+  - variable: FLOWBOARD_STORAGE_PROVIDER
+    value: firebase
+    availability:
+      - BUILD
+      - RUNTIME
+
   # Public Firebase web config
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyCpP_sRO0bWxrZgX1muII8moAJn019LMZw

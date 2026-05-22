@@ -1,10 +1,10 @@
 const mode = (process.env.FLOWBOARD_AUTH_MODE ?? "dev").toLowerCase()
-const storageProvider = (
-  process.env.FLOWBOARD_STORAGE_PROVIDER ??
-  (process.env.NODE_ENV === "production" ? "firebase" : "local")
-).toLowerCase()
 const isProductionLike =
   process.env.NODE_ENV === "production" || process.env.CI === "true"
+const storageProvider = (
+  process.env.FLOWBOARD_STORAGE_PROVIDER ??
+  (isProductionLike ? "firebase" : "local")
+).toLowerCase()
 
 function fail(message) {
   console.error(`[auth-config] ${message}`)
