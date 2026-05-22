@@ -12,7 +12,7 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { createWorkItemRelationSchema, workItemRelationListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { validateRelationProjectsBoundary } from "@/lib/work-item-relation-guards"
 
 async function ensureRelationsEnabled(workspaceId: string, projectIds: Array<string | null | undefined>) {
   const uniqueProjectIds = Array.from(
@@ -24,16 +24,15 @@ async function ensureRelationsEnabled(workspaceId: string, projectIds: Array<str
     where: { id: { in: uniqueProjectIds } },
     select: { id: true, workspaceId: true, featureFlags: true },
   })
-  if (projects.length !== uniqueProjectIds.length) {
-    return badRequest("One or more related projects were not found")
-  }
-  if (projects.some((project) => project.workspaceId !== workspaceId)) {
-    return badRequest("One or more related projects are outside this workspace")
-  }
-
-  const blocked = projects.find((project) => !normalizeProjectFeatureFlags(project.featureFlags).relations)
-  if (blocked) {
-    return forbidden("Work-item relations are disabled for one or more related projects")
+  const boundary = validateRelationProjectsBoundary({
+    workspaceId,
+    projectIds,
+    projects,
+  })
+  if (!boundary.ok) {
+    return boundary.kind === "forbidden"
+      ? forbidden(boundary.message)
+      : badRequest(boundary.message)
   }
   return null
 }

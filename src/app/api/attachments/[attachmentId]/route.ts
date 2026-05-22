@@ -12,8 +12,8 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { updateAttachmentSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { getFirebaseStorageBucket } from "@/lib/firebase-admin"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { storageObjectExists } from "@/lib/storage"
 
 type Params = { params: Promise<{ attachmentId: string }> }
 
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (!parsed.data.storageKey.startsWith(expectedPrefix)) {
         return badRequest("Invalid storageKey for workspace")
       }
-      const [exists] = await getFirebaseStorageBucket().file(parsed.data.storageKey).exists()
+      const exists = await storageObjectExists(parsed.data.storageKey)
       if (!exists) {
         return badRequest("Uploaded file not found in storage for the provided storageKey")
       }

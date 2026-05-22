@@ -128,6 +128,8 @@ Additional progress in this batch:
 - [x] Added workspace-scoped unified search API (`GET /api/search`) across projects/work-items/notes/labels.
 - [x] Enforced `subtasks` feature flag on work-item create/update parent-child mutations.
 - [x] Added Firebase Storage signed upload URL route (`POST /api/attachments/upload-url`) and storage-object validation on attachment metadata persistence.
+- [x] Added storage-provider abstraction (`firebase` + `local`), plus signed local binary upload/download routes for development (`/api/attachments/upload-binary`, `/api/attachments/download-binary`).
+- [x] Added shared work-item relation boundary guard + automated tests for cross-workspace/cross-project/feature-flag relation checks.
 - [x] Added Firebase App Hosting baseline config (`apphosting.yaml`) and GitHub Actions CI workflow (`.github/workflows/ci.yml`).
 
 ## Consolidated Next Implementation Order
@@ -135,8 +137,8 @@ Additional progress in this batch:
 Use `docs/audits/2026-05-20-consolidated-product-implementation-report.md` and `flowboard-collaboration-foundation-plan.md` as reference material for the next implementation slices. Keep this order unless a blocking production defect appears:
 
 1. Complete production auth bootstrap validation (Firebase/NextAuth sign-in, sign-out, expiry behavior, and protected-route verification).
-2. Add authorization tests for cross-workspace and cross-project boundaries on the new collaboration/data routes.
-3. Add attachment storage pipeline hardening (local dev storage + production object storage wiring) and secure upload flow.
+2. Extend authorization tests beyond relation boundaries to cover remaining collaboration/data routes.
+3. Complete attachment storage hardening (cross-workspace tests, tighter limits, cleanup lifecycle) on top of the new local+firebase storage pipeline.
 4. Add project docs, custom fields, and service-desk/ITSM-lite mode later, behind explicit flags.
 5. Add SLA only for service-desk projects after the event/comment/notification foundation works.
 

@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { badRequest, forbidden, parseJsonBody, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { createAttachmentUploadUrlSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { getFirebaseStorageBucket } from "@/lib/firebase-admin"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { createAttachmentUploadTarget } from "@/lib/storage"
 
 function sanitizeFilename(input: string) {
   const cleaned = input.trim().replace(/[^\w.\- ]+/g, "_")
@@ -95,24 +95,18 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     const safeName = sanitizeFilename(parsed.data.name)
     const storageKey = `${parsed.data.workspaceId}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}-${safeName}`
-    const bucket = getFirebaseStorageBucket()
-    const file = bucket.file(storageKey)
-
-    const [uploadUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "write",
-      expires: Date.now() + 15 * 60 * 1000,
-      contentType: parsed.data.mimeType,
+    const uploadTarget = await createAttachmentUploadTarget({
+      storageKey,
+      mimeType: parsed.data.mimeType,
+      expiresInSeconds: 900,
     })
 
     return NextResponse.json({
-      uploadUrl,
+      uploadUrl: uploadTarget.uploadUrl,
       storageKey,
-      method: "PUT",
-      expiresInSeconds: 900,
-      requiredHeaders: {
-        "Content-Type": parsed.data.mimeType,
-      },
+      method: uploadTarget.method,
+      expiresInSeconds: uploadTarget.expiresInSeconds,
+      requiredHeaders: uploadTarget.requiredHeaders,
       finalizePayload: {
         workspaceId: parsed.data.workspaceId,
         workItemId: parsed.data.workItemId ?? undefined,

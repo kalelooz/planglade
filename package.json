@@ -8,6 +8,7 @@
     "validate:auth-config": "node scripts/validate-auth-config.mjs",
     "build": "npm run validate:auth-config && next build && node scripts/postbuild-copy.js",
     "start": "npm run validate:auth-config && node .next/standalone/server.js",
+    "test": "node --import tsx --test tests/**/*.test.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "ci:check": "npm run typecheck && npm run lint",
@@ -98,6 +99,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4",
+    "tsx": "^4.22.3",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   }

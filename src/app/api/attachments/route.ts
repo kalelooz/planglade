@@ -11,8 +11,8 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { attachmentListQuerySchema, createAttachmentSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { getFirebaseStorageBucket } from "@/lib/firebase-admin"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { readStorageObjectMetadata, storageObjectExists } from "@/lib/storage"
 
 async function validateAttachmentTarget(
   workspaceId: string,
@@ -174,24 +174,24 @@ export async function POST(request: NextRequest) {
       return badRequest("Invalid storageKey for workspace")
     }
 
-    const storageFile = getFirebaseStorageBucket().file(parsed.data.storageKey)
-    const [exists] = await storageFile.exists()
+    const exists = await storageObjectExists(parsed.data.storageKey)
     if (!exists) {
       return badRequest("Uploaded file not found in storage for the provided storageKey")
     }
-    const [metadata] = await storageFile.getMetadata()
-    if (
-      parsed.data.mimeType &&
-      metadata.contentType &&
-      metadata.contentType !== parsed.data.mimeType
-    ) {
+
+    const metadata = await readStorageObjectMetadata(parsed.data.storageKey)
+    if (!metadata) {
+      return badRequest("Could not load uploaded file metadata from storage")
+    }
+    if (parsed.data.mimeType && metadata.mimeType && metadata.mimeType !== parsed.data.mimeType) {
       return badRequest("Uploaded file MIME type does not match attachment payload")
     }
-    if (parsed.data.sizeBytes !== undefined && metadata.size) {
-      const uploadedSize = Number(metadata.size)
-      if (!Number.isNaN(uploadedSize) && uploadedSize !== parsed.data.sizeBytes) {
-        return badRequest("Uploaded file size does not match attachment payload")
-      }
+    if (
+      parsed.data.sizeBytes !== undefined &&
+      metadata.sizeBytes !== null &&
+      metadata.sizeBytes !== parsed.data.sizeBytes
+    ) {
+      return badRequest("Uploaded file size does not match attachment payload")
     }
 
     const attachment = await db.$transaction(async (tx) => {

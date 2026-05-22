@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { badRequest, forbidden, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { getFirebaseStorageBucket } from "@/lib/firebase-admin"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { createAttachmentDownloadTarget, storageObjectExists } from "@/lib/storage"
 
 type Params = { params: Promise<{ attachmentId: string }> }
 
@@ -65,17 +65,16 @@ export async function GET(request: NextRequest, { params }: Params) {
       return badRequest("Invalid attachment storage key")
     }
 
-    const file = getFirebaseStorageBucket().file(attachment.storageKey)
-    const [exists] = await file.exists()
+    const exists = await storageObjectExists(attachment.storageKey)
     if (!exists) {
       return NextResponse.json({ error: "Attachment file is missing from storage" }, { status: 404 })
     }
 
-    const [downloadUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "read",
-      expires: Date.now() + 10 * 60 * 1000,
-      responseDisposition: `attachment; filename="${attachment.name.replace(/"/g, "_")}"`,
+    const downloadTarget = await createAttachmentDownloadTarget({
+      storageKey: attachment.storageKey,
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      expiresInSeconds: 600,
     })
 
     return NextResponse.json({
@@ -85,8 +84,8 @@ export async function GET(request: NextRequest, { params }: Params) {
         mimeType: attachment.mimeType,
         sizeBytes: attachment.sizeBytes,
       },
-      downloadUrl,
-      expiresInSeconds: 600,
+      downloadUrl: downloadTarget.downloadUrl,
+      expiresInSeconds: downloadTarget.expiresInSeconds,
     })
   } catch (error) {
     return serverError("Failed to create attachment download URL", String(error))

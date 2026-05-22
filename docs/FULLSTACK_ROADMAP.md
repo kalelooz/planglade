@@ -26,11 +26,11 @@ FlowBoard is not production-ready yet. The app is currently a strong local-first
 - [x] Real data model: Prisma now uses FlowBoard domain models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
 - [x] API mutation layer baseline: typed CRUD/mutation routes now include attachments, work-item relations, and unified search; project mode/feature-flags are enforced on currently mutable optional modules (comments/mentions/notifications/subtasks/relations/attachments).
 - [ ] Persistence migration completion: one-time local-to-server import and server snapshot export/import are in place, but full server-authoritative restore hardening and rollback QA are still pending.
-- [ ] Authorization boundaries: role checks are enforced on core mutation routes; cross-workspace and cross-project test coverage is still pending.
+- [ ] Authorization boundaries: role checks are enforced on core mutation routes, and relation boundary tests now cover cross-workspace/cross-project checks; broader route-level authorization coverage is still pending.
 - [x] Validation and errors baseline: Zod is in use at API boundaries for core payloads, with consistent error helpers.
 - [x] Server-derived activity baseline: core work-item/project/note/comment mutations now generate activity events.
 - [ ] Collaboration completion: members/roles/comments/mentions are live, while invitation lifecycle and deeper project membership workflows remain.
-- [ ] Files and uploads: task/note attachment authorization + signed upload URL flow are live; storage/upload pipeline hardening is still pending.
+- [ ] Files and uploads: task/note attachment authorization, signed upload/finalize flow, short-lived download URLs, and local-dev binary storage routes are live; remaining hardening is coverage, abuse controls, and file lifecycle cleanup.
 - [x] Search baseline: workspace-scoped search API now covers work items, notes, projects, and labels.
 - [x] Notifications: durable in-app notification records now back mentions, assignments, due/status updates, and comments. Email delivery remains deferred.
 - [ ] Production build hygiene completion: package manager and start script normalization are done; CI/deployment validation gates are still pending. (partial: GitHub Actions CI baseline committed)
@@ -151,7 +151,7 @@ Goal: support small teams without turning the app into enterprise admin software
 - [ ] Add assignment, comments, mentions, and simple invitations. (partial: comments and mention parsing are live; invitations and full assignment workflows remain)
 - [x] Add in-app notifications for mentions, assignment, due changes, and comments.
 - [ ] Make Team, Activity, and Notifications real or keep them out of primary navigation.
-- [ ] Add authorization tests for cross-workspace and cross-project access.
+- [ ] Add authorization tests for cross-workspace and cross-project access. (partial: relation boundary guard tests now cover project existence/workspace boundary/feature-flag checks)
 
 Done when: two users can collaborate in one workspace without seeing data from another workspace.
 
@@ -159,7 +159,7 @@ Done when: two users can collaborate in one workspace without seeing data from a
 
 Goal: add the data features expected of a dependable PM tool.
 
-- [ ] Add attachments with local development storage and production object storage. (partial: attachment CRUD/auth + project-flag guards + signed upload URL route implemented)
+- [ ] Add attachments with local development storage and production object storage. (partial: attachment CRUD/auth + project-flag guards + signed upload/finalize/download routes + `FLOWBOARD_STORAGE_PROVIDER` local/firebase abstraction implemented)
 - [x] Add search across projects, work items, notes, and labels.
 - [ ] Add saved custom views using the Plane/Focalboard-inspired view preference model.
 - [x] Add task relations: parent, blocked by, blocking, related.
@@ -198,6 +198,6 @@ Done when: the app can be deployed, monitored, upgraded, backed up, and rolled b
 Continue with the collaboration foundation from `flowboard-collaboration-foundation-plan.md`:
 
 1. Complete production auth validation for Firebase Google login mode (sign-in, sign-out, refresh/expiry, and protected-route behavior).
-2. Add authorization tests for cross-workspace and cross-project access on collaboration and optional-module routes.
-3. Harden attachment storage/upload path (dev + production object storage) and associated security boundaries.
+2. Extend authorization tests from relation boundaries to the rest of collaboration and optional-module routes.
+3. Complete remaining attachment storage hardening (cross-workspace tests, abuse limits, and lifecycle cleanup) on top of the new dev/prod storage pipeline.
 4. Complete production auth lifecycle validation across all core routes.

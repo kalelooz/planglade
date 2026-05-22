@@ -1,6 +1,6 @@
 # Firebase App Hosting Deployment (Simple Guide)
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 This project is configured to deploy on Firebase App Hosting (no Vercel required).
 
@@ -45,6 +45,7 @@ Production auth mode is Firebase:
 
 - `FLOWBOARD_AUTH_MODE=firebase`
 - `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE=firebase`
+- `FLOWBOARD_STORAGE_PROVIDER=firebase`
 
 Configured in `apphosting.yaml`.
 
@@ -61,3 +62,14 @@ If GitHub connection is not set, rollout creation by branch/commit will fail.
 ## 6. Local development
 
 Use `.env.example` as reference and keep real secrets only in local `.env` (never commit).
+
+If you do not want Firebase Storage locally, set:
+
+- `FLOWBOARD_STORAGE_PROVIDER=local`
+- optional: `FLOWBOARD_LOCAL_STORAGE_DIR=storage/local-attachments`
+- optional: `FLOWBOARD_STORAGE_SIGNING_SECRET=...`
+
+Local attachment binary endpoints are:
+
+- `PUT /api/attachments/upload-binary`
+- `GET /api/attachments/download-binary`

@@ -1,4 +1,8 @@
 const mode = (process.env.FLOWBOARD_AUTH_MODE ?? "dev").toLowerCase()
+const storageProvider = (
+  process.env.FLOWBOARD_STORAGE_PROVIDER ??
+  (process.env.NODE_ENV === "production" ? "firebase" : "local")
+).toLowerCase()
 const isProductionLike =
   process.env.NODE_ENV === "production" || process.env.CI === "true"
 
@@ -10,6 +14,11 @@ function fail(message) {
 const validModes = new Set(["dev", "firebase", "nextauth"])
 if (!validModes.has(mode)) {
   fail("FLOWBOARD_AUTH_MODE must be one of: dev, firebase, nextauth.")
+}
+
+const validStorageProviders = new Set(["firebase", "local"])
+if (!validStorageProviders.has(storageProvider)) {
+  fail("FLOWBOARD_STORAGE_PROVIDER must be one of: firebase, local.")
 }
 
 if (!isProductionLike) {
@@ -42,4 +51,13 @@ if (mode === "firebase") {
 if (mode === "nextauth") {
   if (!process.env.NEXTAUTH_SECRET) fail("Missing NEXTAUTH_SECRET for nextauth mode.")
   if (!process.env.NEXTAUTH_URL) fail("Missing NEXTAUTH_URL for nextauth mode.")
+}
+
+if (storageProvider === "local") {
+  fail("FLOWBOARD_STORAGE_PROVIDER=local is not allowed in production-like environments.")
+}
+
+if (storageProvider === "firebase") {
+  if (!process.env.FIREBASE_PROJECT_ID) fail("Missing FIREBASE_PROJECT_ID for firebase storage provider.")
+  if (!process.env.FIREBASE_STORAGE_BUCKET) fail("Missing FIREBASE_STORAGE_BUCKET for firebase storage provider.")
 }

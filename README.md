@@ -22,6 +22,8 @@ FlowBoard is not production-ready yet.
 - Project mode and feature-flag enforcement now gates comments/mentions/notifications/subtasks/relations/attachments on mutable routes.
 - Firebase Storage attachment upload pipeline now supports signed upload URLs (`POST /api/attachments/upload-url`) and validated metadata persistence (`POST /api/attachments`).
 - Attachment download now supports short-lived signed read URLs (`GET /api/attachments/:attachmentId/download-url`).
+- Attachment storage now supports provider selection: `FLOWBOARD_STORAGE_PROVIDER=firebase` (production) or `FLOWBOARD_STORAGE_PROVIDER=local` (local signed binary upload/download routes).
+- Relation authorization boundary tests now cover cross-workspace/cross-project project checks for work-item relation guards.
 - Unified workspace search API now exists across projects/work-items/notes/labels (`GET /api/search`).
 - `My Tasks` now reads from server work-items and uses server-backed complete/delete mutations.
 - `Home` now reads server work-items/notes and uses server-backed complete + quick-capture task creation.
@@ -161,6 +163,12 @@ npm run dev
 
 The app runs at `http://localhost:3000`.
 
+### Run Tests
+
+```bash
+npm test
+```
+
 ### Auth Modes
 
 - Default local mode: `FLOWBOARD_AUTH_MODE=dev` (or unset) uses the seeded dev session.
@@ -173,6 +181,16 @@ The app runs at `http://localhost:3000`.
 - Also set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` for provider mode.
 - Keep client/server mode aligned by also setting `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE` to the same value (`dev` / `firebase` / `nextauth`).
 - Production guardrail: `npm run build` and `npm run start` now run `validate:auth-config` to fail fast on invalid auth/env configuration.
+
+### Attachment Storage Modes
+
+- Production: set `FLOWBOARD_STORAGE_PROVIDER=firebase` with `FIREBASE_PROJECT_ID` and `FIREBASE_STORAGE_BUCKET`.
+- Local development: set `FLOWBOARD_STORAGE_PROVIDER=local` to use local signed binary routes:
+  - `PUT /api/attachments/upload-binary`
+  - `GET /api/attachments/download-binary`
+- Optional local overrides:
+  - `FLOWBOARD_LOCAL_STORAGE_DIR` (default `storage/local-attachments`)
+  - `FLOWBOARD_STORAGE_SIGNING_SECRET` (recommended even in local mode)
 
 ## Deployment
 
