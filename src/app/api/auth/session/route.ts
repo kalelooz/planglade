@@ -28,6 +28,16 @@ export async function GET(request: Request) {
         { status: 500 }
       )
     }
+    const isProduction = process.env.NODE_ENV === "production"
+    if (isProduction && requestedMode === "dev") {
+      return NextResponse.json(
+        {
+          error:
+            "FLOWBOARD_AUTH_MODE=dev is disabled in production. Use firebase (recommended) or nextauth.",
+        },
+        { status: 500 }
+      )
+    }
 
     const useFirebaseAuth = requestedMode === "firebase"
     const nextAuthEnabled = hasAuthProviders()

@@ -171,6 +171,7 @@ The app runs at `http://localhost:3000`.
   - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
 - Also set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` for provider mode.
 - Keep client/server mode aligned by also setting `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE` to the same value (`dev` / `firebase` / `nextauth`).
+- Production guardrail: `npm run build` and `npm run start` now run `validate:auth-config` to fail fast on invalid auth/env configuration.
 
 ## Deployment
 

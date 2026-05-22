@@ -5,8 +5,9 @@
   "packageManager": "npm@10",
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build && node scripts/postbuild-copy.js",
-    "start": "node .next/standalone/server.js",
+    "validate:auth-config": "node scripts/validate-auth-config.mjs",
+    "build": "npm run validate:auth-config && next build && node scripts/postbuild-copy.js",
+    "start": "npm run validate:auth-config && node .next/standalone/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "ci:check": "npm run typecheck && npm run lint",
