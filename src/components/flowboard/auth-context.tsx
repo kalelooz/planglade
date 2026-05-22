@@ -1,6 +1,19 @@
 "use client"
 
 import * as React from "react"
+import {
+  onIdTokenChanged,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  type User as FirebaseUser,
+} from "firebase/auth"
+import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react"
+
+import {
+  firebaseAuth,
+  FIREBASE_ID_TOKEN_STORAGE_KEY,
+  googleAuthProvider,
+} from "@/lib/firebase-client"
 
 // ---------------------------------------------------------------------------
 // Types — mirrors Firebase Auth's User interface for easy future swap
@@ -24,45 +37,53 @@ export interface AuthContextValue {
   user: AuthUser | null
   /** True while checking initial auth state (e.g. session restore) */
   loading: boolean
-  /** Sign in with Google OAuth (mock — simulates popup flow) */
-  signInWithGoogle: () => Promise<void>
+  /** Active auth mode configured for the client */
+  authMode: "dev" | "firebase" | "nextauth"
+  /** Sign in with Google OAuth */
+  signInWithGoogle: (nextPath?: string) => Promise<void>
   /** Sign out and clear session */
-  signOut: () => Promise<void>
+  signOut: (nextPath?: string) => Promise<void>
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null)
-
-// ---------------------------------------------------------------------------
-// Mock Google OAuth — simulates a popup sign-in flow
-// ---------------------------------------------------------------------------
-
-const MOCK_GOOGLE_USER: AuthUser = {
-  uid: "mock-google-uid-001",
-  displayName: "Alex Morgan",
-  email: "alex.morgan@flowboard.dev",
-  photoURL: null,
-  providerId: "google.com",
-}
-
-const SESSION_KEY = "flowboard-auth-session"
-
-function getStoredUser(): AuthUser | null {
-  if (typeof window === "undefined") return null
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as AuthUser
-  } catch {
-    return null
-  }
-}
+const configuredAuthMode = (
+  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() === "firebase"
+    ? "firebase"
+    : process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() === "nextauth"
+      ? "nextauth"
+      : "dev"
+) as AuthContextValue["authMode"]
 
 function storeUser(user: AuthUser | null) {
   if (typeof window === "undefined") return
   if (user) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user))
+    sessionStorage.setItem("flowboard-auth-session", JSON.stringify(user))
   } else {
-    sessionStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem("flowboard-auth-session")
+  }
+}
+
+function storeIdToken(token: string | null) {
+  if (typeof window === "undefined") return
+  if (token) {
+    localStorage.setItem(FIREBASE_ID_TOKEN_STORAGE_KEY, token)
+  } else {
+    localStorage.removeItem(FIREBASE_ID_TOKEN_STORAGE_KEY)
+  }
+}
+
+function toAuthUser(user: FirebaseUser): AuthUser {
+  const provider =
+    user.providerData.find((entry) => entry.providerId === "google.com")?.providerId ??
+    user.providerData[0]?.providerId ??
+    "google.com"
+
+  return {
+    uid: user.uid,
+    displayName: user.displayName,
+    email: user.email,
+    photoURL: user.photoURL,
+    providerId: provider,
   }
 }
 
@@ -76,45 +97,92 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Restore session on mount
   React.useEffect(() => {
-    const stored = getStoredUser()
-    if (stored) {
-      setUser(stored)
+    if (configuredAuthMode !== "firebase") {
+      setUser(null)
+      storeUser(null)
+      storeIdToken(null)
+      setLoading(false)
+      return undefined
     }
-    setLoading(false)
+
+    if (!firebaseAuth) {
+      setUser(null)
+      storeUser(null)
+      storeIdToken(null)
+      setLoading(false)
+      return undefined
+    }
+
+    const unsubscribe = onIdTokenChanged(firebaseAuth, async (nextUser) => {
+      if (!nextUser) {
+        setUser(null)
+        storeUser(null)
+        storeIdToken(null)
+        setLoading(false)
+        return
+      }
+
+      const mappedUser = toAuthUser(nextUser)
+      setUser(mappedUser)
+      storeUser(mappedUser)
+
+      try {
+        // Keep local token storage aligned with Firebase token refresh/rotation.
+        const token = await nextUser.getIdToken()
+        storeIdToken(token)
+      } catch {
+        storeIdToken(null)
+      }
+      setLoading(false)
+    })
+    return () => unsubscribe()
   }, [])
 
-  const signInWithGoogle = React.useCallback(async () => {
-    // Simulate a brief loading state like a real OAuth popup
+  const signInWithGoogle = React.useCallback(async (nextPath?: string) => {
+    if (configuredAuthMode === "nextauth") {
+      await nextAuthSignIn("google", {
+        callbackUrl: nextPath ?? "/",
+      })
+      return
+    }
+
+    if (!firebaseAuth) {
+      throw new Error("Firebase Auth is not configured in this environment.")
+    }
+
     setLoading(true)
-
-    // Mock delay to simulate network round-trip
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    // In production, replace this block with:
-    //   const provider = new GoogleAuthProvider()
-    //   const result = await signInWithPopup(auth, provider)
-    //   const user = result.user
-    const mockUser = { ...MOCK_GOOGLE_USER }
-
-    setUser(mockUser)
-    storeUser(mockUser)
-    setLoading(false)
+    try {
+      const result = await signInWithPopup(firebaseAuth, googleAuthProvider)
+      const mappedUser = toAuthUser(result.user)
+      setUser(mappedUser)
+      storeUser(mappedUser)
+      storeIdToken(await result.user.getIdToken())
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const signOut = React.useCallback(async () => {
-    setLoading(true)
-    // Brief delay to simulate async sign-out
-    await new Promise((resolve) => setTimeout(resolve, 300))
+  const signOut = React.useCallback(async (nextPath?: string) => {
+    if (configuredAuthMode === "nextauth") {
+      await nextAuthSignOut({
+        callbackUrl: nextPath ?? "/login",
+      })
+      return
+    }
 
-    // In production, replace with:
-    //   await firebaseSignOut(auth)
-    setUser(null)
-    storeUser(null)
-    setLoading(false)
+    setLoading(true)
+    try {
+      if (firebaseAuth) await firebaseSignOut(firebaseAuth)
+    } finally {
+      setUser(null)
+      storeUser(null)
+      storeIdToken(null)
+      setLoading(false)
+    }
   }, [])
 
   const value = React.useMemo<AuthContextValue>(
-    () => ({ user, loading, signInWithGoogle, signOut }),
+    () => ({ user, loading, authMode: configuredAuthMode, signInWithGoogle, signOut }),
     [user, loading, signInWithGoogle, signOut]
   )
 

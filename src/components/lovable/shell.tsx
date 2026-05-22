@@ -5,6 +5,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText, BarChart3, CheckSquare,
   Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo, Bell,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -13,6 +14,7 @@ import { getServerSession } from "@/lib/server-session-client";
 import { CommandPalette } from "./command-palette";
 import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
+import { useAuth } from "@/components/flowboard/auth-context";
 
 const STORAGE_KEY = "fb.sidebarOpen";
 const PROJECTS_STORAGE_KEY = "fb.sidebarProjectsOpen";
@@ -35,6 +37,12 @@ type HeaderNotification = {
   actor: { id: string; name: string | null; email: string } | null;
 };
 
+type SessionIdentity = {
+  name: string;
+  email: string;
+  authMode: string;
+};
+
 export function AppShell(props: AppShellProps) {
   return (
     <Suspense fallback={<AppShellLayout {...props} routeProjectId={null} />}>
@@ -50,6 +58,7 @@ function AppShellWithSearchParams(props: AppShellProps) {
 }
 
 function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppShellProps & { routeProjectId: string | null }) {
+  const { user: authUser, signOut, authMode: clientAuthMode } = useAuth();
   const path = usePathname() ?? "/";
   const projects = useStore((s) => s.projects);
   const workspaceName = useStore((s) => s.settings.workspaceName);
@@ -78,6 +87,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(null);
+  const [sessionIdentity, setSessionIdentity] = useState<SessionIdentity | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
 
@@ -175,8 +185,16 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         const session = await getServerSession();
         if (!active) return;
         setNotificationScope({ workspaceId: session.workspace.id, userId: session.user.id });
+        setSessionIdentity({
+          name: session.user.name ?? session.user.email,
+          email: session.user.email,
+          authMode: session.authMode ?? "dev-session-scaffold",
+        });
       } catch {
-        if (active) setNotificationScope(null);
+        if (active) {
+          setNotificationScope(null);
+          setSessionIdentity(null);
+        }
       }
     })();
     return () => {
@@ -274,6 +292,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       minute: "2-digit",
     });
   };
+  const displayName = authUser?.displayName ?? sessionIdentity?.name ?? "User";
+  const displayAvatarId = authUser?.uid ?? sessionIdentity?.email ?? "user";
+  const shouldShowSignOut = (sessionIdentity?.authMode ?? clientAuthMode) !== "dev-session-scaffold" && clientAuthMode !== "dev";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
@@ -555,8 +576,21 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <Avatar id="AM" name="Alex Morgan" size={26} />
-            <span className="max-w-28 truncate text-[12px] font-medium text-foreground">Alex Morgan</span>
+            <Avatar id={displayAvatarId} name={displayName} size={26} />
+            <span className="max-w-28 truncate text-[12px] font-medium text-foreground">{displayName}</span>
+            {shouldShowSignOut && (
+              <button
+                type="button"
+                onClick={() => {
+                  void signOut("/login");
+                }}
+                className="lov-icon-btn"
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </header>
 

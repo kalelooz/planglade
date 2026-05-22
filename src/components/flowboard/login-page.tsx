@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Layers, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/flowboard/auth-context"
@@ -38,13 +39,23 @@ function GoogleLogo({ className }: { className?: string }) {
 // ---------------------------------------------------------------------------
 
 export function LoginPage() {
-  const { signInWithGoogle, loading } = useAuth()
+  const { signInWithGoogle, loading, authMode } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [signingIn, setSigningIn] = React.useState(false)
+  const [signInError, setSignInError] = React.useState<string | null>(null)
+  const nextPath = searchParams.get("next") || "/"
 
   const handleGoogleSignIn = async () => {
     setSigningIn(true)
+    setSignInError(null)
     try {
-      await signInWithGoogle()
+      await signInWithGoogle(nextPath)
+      if (authMode !== "nextauth") {
+        router.replace(nextPath)
+      }
+    } catch {
+      setSignInError("Google sign-in failed. Check Firebase client configuration.")
     } finally {
       setSigningIn(false)
     }
@@ -76,10 +87,12 @@ export function LoginPage() {
           {/* Sign-in heading */}
           <div className="text-center mb-6">
             <h2 className="text-lg font-semibold">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Sign in to your account to continue
-            </p>
-          </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {authMode === "nextauth"
+                  ? "Sign in with your provider to continue"
+                  : "Sign in to your account to continue"}
+              </p>
+            </div>
 
           {/* Google Sign-in Button */}
           <Button
@@ -95,6 +108,11 @@ export function LoginPage() {
             )}
             {signingIn ? "Signing in..." : "Continue with Google"}
           </Button>
+          {signInError && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {signInError}
+            </p>
+          )}
 
           {/* Divider */}
           <div className="relative my-6">
@@ -130,7 +148,7 @@ export function LoginPage() {
 
         {/* Bottom tagline */}
         <p className="text-xs text-muted-foreground/60 text-center mt-6">
-          Demo mode — mock authentication for preview purposes
+          Sign in with your Google account to continue to FlowBoard
         </p>
       </motion.div>
     </div>

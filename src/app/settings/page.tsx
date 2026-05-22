@@ -15,6 +15,44 @@ import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } fr
 const sections = ["General", "Appearance", "Notifications", "Data", "Account"] as const;
 type Section = (typeof sections)[number];
 
+type WorkspaceSnapshot = {
+  version?: number;
+  generatedAt?: string;
+  workspace?: { id: string; slug?: string; name?: string };
+  settings?: {
+    userId?: string;
+    theme?: "system" | "light" | "dark" | null;
+    density?: "compact" | "comfortable" | null;
+    accent?: string | null;
+    notifications?: Record<string, boolean> | null;
+  } | null;
+  data?: {
+    projects?: Array<{
+      id: string;
+      name: string;
+      status: string;
+      mode?: string;
+      featureFlags?: Record<string, boolean>;
+      due?: string;
+      accent?: string;
+    }>;
+    workItems?: Array<{
+      id: string;
+      title: string;
+      status: string;
+      priority: string;
+      assignee?: string;
+      due?: string;
+      start?: string;
+      project?: string;
+      description?: string;
+      noteIds?: string[];
+      checklist?: Array<{ id: string; text: string; done: boolean }>;
+    }>;
+    notes?: Array<{ id: string; title: string; tag?: string; excerpt?: string; body?: string }>;
+  };
+};
+
 const ACCENTS = [
   { value: "oklch(0.24 0.006 286)", label: "Slate" },
   { value: "oklch(0.52 0.09 195)", label: "Teal" },
@@ -113,6 +151,7 @@ function AppearancePreview({
 export default function SettingsPage() {
   const [section, setSection] = useState<Section>("General");
   const [serverImportBusy, setServerImportBusy] = useState(false);
+  const [snapshotImportMode, setSnapshotImportMode] = useState<"append" | "replace">("append");
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const settings = useStore((s) => s.settings);
@@ -203,28 +242,108 @@ export default function SettingsPage() {
     };
   }, [setTheme, updateSettings]);
 
-  const exportJSON = () => {
-    const data = useStore.getState();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const exportWorkspaceSnapshot = async () => {
+    if (!workspaceId || !currentUserId) {
+      toast.error("Session not ready for export");
+      return;
+    }
+
+    const response = await fetch(
+      `/api/workspace/export?workspaceId=${encodeURIComponent(workspaceId)}&userId=${encodeURIComponent(currentUserId)}`,
+      {
+        cache: "no-store",
+        headers: { "x-flowboard-user-id": currentUserId },
+      }
+    );
+
+    if (!response.ok) {
+      toast.error("Failed to export workspace snapshot");
+      return;
+    }
+
+    const payload = (await response.json()) as WorkspaceSnapshot;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `flowboard-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `flowboard-workspace-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Exported workspace JSON");
+    toast.success("Exported workspace snapshot");
   };
 
-  const importJSON = (file: File) => {
-    file.text().then((text) => {
-      try {
-        const parsed = JSON.parse(text);
-        useStore.setState(parsed);
-        toast.success("Imported workspace from JSON");
-      } catch {
-        toast.error("Invalid JSON file");
+  const importWorkspaceSnapshot = async (file: File, mode: "append" | "replace") => {
+    if (!workspaceId || !currentUserId) {
+      toast.error("Session not ready for import");
+      return;
+    }
+
+    setServerImportBusy(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as WorkspaceSnapshot;
+      const projectsPayload = parsed.data?.projects ?? [];
+      const workItemsPayload = parsed.data?.workItems ?? [];
+      const notesPayload = parsed.data?.notes ?? [];
+
+      const importResponse = await fetch("/api/workspace/import-local", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": currentUserId,
+        },
+        body: JSON.stringify({
+          workspaceId,
+          actorUserId: currentUserId,
+          mode,
+          projects: projectsPayload,
+          workItems: workItemsPayload,
+          notes: notesPayload,
+        }),
+      });
+
+      if (!importResponse.ok) {
+        throw new Error("Failed to import workspace snapshot");
       }
-    });
+
+      if (parsed.settings) {
+        const notifications = normalizeNotificationPreferences(parsed.settings.notifications ?? {});
+        const settingsResponse = await fetch("/api/settings", {
+          method: "PUT",
+          headers: {
+            "content-type": "application/json",
+            "x-flowboard-user-id": currentUserId,
+          },
+          body: JSON.stringify({
+            workspaceId,
+            userId: currentUserId,
+            ...(parsed.settings.theme ? { theme: parsed.settings.theme } : {}),
+            ...(parsed.settings.density ? { density: parsed.settings.density } : {}),
+            ...(parsed.settings.accent ? { accent: parsed.settings.accent } : {}),
+            notifications,
+          }),
+        });
+        if (!settingsResponse.ok) {
+          throw new Error("Workspace data imported, but restoring settings failed");
+        }
+
+        updateSettings({
+          ...(parsed.settings.theme ? { theme: parsed.settings.theme } : {}),
+          ...(parsed.settings.density ? { density: parsed.settings.density } : {}),
+          ...(parsed.settings.accent ? { accent: parsed.settings.accent } : {}),
+          notifications,
+        });
+        if (parsed.settings.theme) {
+          setTheme(parsed.settings.theme);
+        }
+      }
+
+      toast.success(`Imported workspace snapshot (${mode})`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Invalid snapshot JSON");
+    } finally {
+      setServerImportBusy(false);
+    }
   };
 
   const onReset = () => {
@@ -473,17 +592,42 @@ export default function SettingsPage() {
 
           {section === "Data" && (
             <div className="mt-8 space-y-6">
-              <Field label="JSON snapshot" hint="Full workspace including projects, notes, settings.">
+              <Field label="JSON snapshot" hint="Server-backed workspace snapshot (active workspace only), including user settings.">
                 <input
                   ref={fileRef}
                   type="file"
                   accept="application/json"
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) importJSON(f); e.target.value = ""; }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void importWorkspaceSnapshot(f, snapshotImportMode);
+                    e.target.value = "";
+                  }}
                 />
                 <div className="flex gap-2">
-                  <button onClick={() => fileRef.current?.click()} className="lov-btn">Import JSON</button>
-                  <button onClick={exportJSON} className="lov-btn">Export JSON</button>
+                  <button
+                    onClick={() => {
+                      setSnapshotImportMode("append");
+                      fileRef.current?.click();
+                    }}
+                    disabled={serverImportBusy}
+                    className="lov-btn"
+                  >
+                    {serverImportBusy ? "Importing..." : "Import JSON (append)"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSnapshotImportMode("replace");
+                      fileRef.current?.click();
+                    }}
+                    disabled={serverImportBusy}
+                    className="lov-btn lov-btn-danger"
+                  >
+                    {serverImportBusy ? "Importing..." : "Import JSON (replace)"}
+                  </button>
+                  <button onClick={() => void exportWorkspaceSnapshot()} className="lov-btn">
+                    Export JSON
+                  </button>
                 </div>
               </Field>
               <Field label="Work items (CSV)" hint="Import or export tasks for spreadsheet workflows.">

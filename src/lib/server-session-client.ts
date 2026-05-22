@@ -1,3 +1,5 @@
+import { firebaseAuth, FIREBASE_ID_TOKEN_STORAGE_KEY } from "@/lib/firebase-client"
+
 export type ServerSessionPayload = {
   user: { id: string; email: string; name: string | null }
   workspace: { id: string; slug: string; name: string }
@@ -5,10 +7,50 @@ export type ServerSessionPayload = {
   authMode?: string
 }
 
+async function resolveAuthToken() {
+  if (typeof window === "undefined") return null
+
+  if (firebaseAuth?.currentUser) {
+    try {
+      const token = await firebaseAuth.currentUser.getIdToken()
+      localStorage.setItem(FIREBASE_ID_TOKEN_STORAGE_KEY, token)
+      return token
+    } catch {
+      localStorage.removeItem(FIREBASE_ID_TOKEN_STORAGE_KEY)
+      return null
+    }
+  }
+
+  return localStorage.getItem(FIREBASE_ID_TOKEN_STORAGE_KEY)
+}
+
 export async function getServerSession(): Promise<ServerSessionPayload> {
-  const response = await fetch("/api/auth/session", { cache: "no-store" })
+  const headers: Record<string, string> = {}
+  const token = await resolveAuthToken()
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  const response = await fetch("/api/auth/session", {
+    cache: "no-store",
+    headers,
+  })
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    const next = `${window.location.pathname}${window.location.search}`
+    window.location.assign(`/login?next=${encodeURIComponent(next)}`)
+    throw new Error("Authentication required")
+  }
+
   if (!response.ok) {
-    throw new Error("Failed to bootstrap session")
+    let details = ""
+    try {
+      const payload = (await response.json()) as { error?: string }
+      details = payload.error ? `: ${payload.error}` : ""
+    } catch {
+      details = ""
+    }
+    throw new Error(`Failed to bootstrap session${details}`)
   }
   return (await response.json()) as ServerSessionPayload
 }

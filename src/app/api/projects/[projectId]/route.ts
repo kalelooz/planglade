@@ -4,6 +4,7 @@ import { badRequest, notFound, parseDateValue, parseJsonBody, requireWorkspaceRo
 import { logActivityEvent } from "@/lib/activity"
 import { updateProjectSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { toProjectFeatureFlagsJson } from "@/lib/project-flags"
 
 type Params = { params: Promise<{ projectId: string }> }
 
@@ -45,6 +46,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ...(parsed.data.slug !== undefined ? { slug: parsed.data.slug } : {}),
           ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
           ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+          ...(parsed.data.mode !== undefined ? { mode: parsed.data.mode } : {}),
+          ...(parsed.data.featureFlags !== undefined
+            ? { featureFlags: toProjectFeatureFlagsJson(parsed.data.featureFlags) }
+            : {}),
           ...(parsed.data.color !== undefined ? { color: parsed.data.color } : {}),
           ...(parsed.data.startDate !== undefined
             ? { startDate: parseDateValue(parsed.data.startDate) }

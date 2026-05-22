@@ -11,6 +11,10 @@ export async function GET() {
       workspaceBootstrap: "/api/workspace/bootstrap",
       workspaceMembers: "/api/workspace/members",
       authSession: "/api/auth/session",
+      search: "/api/search",
+      attachments: "/api/attachments",
+      attachmentUploadUrl: "/api/attachments/upload-url",
+      workItemRelations: "/api/work-item-relations",
     },
   })
 }

@@ -13,10 +13,15 @@ FlowBoard is not production-ready yet.
 - Auth now supports a production adapter path via NextAuth providers, with a dev-session fallback for local bootstrapping.
 - Prisma contains FlowBoard domain models; migration/deployment hardening and broader server wiring are still pending.
 - The API exposes health/bootstrap/session endpoints and server-backed CRUD; client wiring is still incomplete across views.
+- Google login is now available through Firebase Auth when `FLOWBOARD_AUTH_MODE=firebase`.
 - Initial server CRUD routes now exist for projects, work items, and notes.
 - Initial server CRUD routes now exist for labels, saved views, and user settings.
 - Initial `workspace/import-local` route now exists for local-to-server data migration.
 - Settings now includes local-to-server migration actions (`append` / `replace`) that call `workspace/import-local`.
+- Settings now supports server-backed workspace JSON snapshot export/import (active workspace only) and restores user settings from snapshot payloads.
+- Project mode and feature-flag enforcement now gates comments/mentions/notifications/subtasks/relations/attachments on mutable routes.
+- Firebase Storage attachment upload pipeline now supports signed upload URLs (`POST /api/attachments/upload-url`) and validated metadata persistence (`POST /api/attachments`).
+- Unified workspace search API now exists across projects/work-items/notes/labels (`GET /api/search`).
 - `My Tasks` now reads from server work-items and uses server-backed complete/delete mutations.
 - `Home` now reads server work-items/notes and uses server-backed complete + quick-capture task creation.
 - `Projects` now reads server projects/work-items and uses server-backed project/task core mutations.
@@ -158,15 +163,25 @@ The app runs at `http://localhost:3000`.
 ### Auth Modes
 
 - Default local mode: `FLOWBOARD_AUTH_MODE=dev` (or unset) uses the seeded dev session.
-- Provider mode: set `FLOWBOARD_AUTH_MODE=nextauth` and configure at least one provider:
+- Recommended production mode: set `FLOWBOARD_AUTH_MODE=firebase` and configure client + admin env vars:
+  - Client: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID` (optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`)
+  - Admin: `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (or `FIREBASE_PRIVATE_KEY_BASE64`)
+- Legacy provider mode: set `FLOWBOARD_AUTH_MODE=nextauth` and configure at least one provider:
   - `GITHUB_ID` + `GITHUB_SECRET`, or
   - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
 - Also set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` for provider mode.
+- Keep client/server mode aligned by also setting `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE` to the same value (`dev` / `firebase` / `nextauth`).
+
+## Deployment
+
+- CI is configured in `.github/workflows/ci.yml`.
+- Firebase App Hosting runtime config is in `apphosting.yaml`.
+- Deployment runbook: `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`.
 
 ## Known Quality Issues
 
 - Prisma client regeneration can fail when query-engine binaries are locked by a running process; stop active dev servers before `npm run db:generate` if needed.
-- Most core views still rely on local store data and are not fully server-backed.
+- Production auth lifecycle validation is still pending across sign-in/sign-out/refresh-expiry flows in `firebase` and `nextauth` modes.
 
 See `docs/ACTIVE_PLAN.md`, `docs/FULLSTACK_ROADMAP.md`, and `docs/QUALITY-GATES.md` before claiming a slice is complete.
 

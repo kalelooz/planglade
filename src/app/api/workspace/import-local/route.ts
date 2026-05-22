@@ -12,9 +12,16 @@ function toProjectStatus(value: string) {
   return "ARCHIVED"
 }
 
+function toProjectMode(value?: string) {
+  const normalized = value?.trim().toUpperCase().replace(/\s+/g, "_")
+  if (normalized === "SERVICE_DESK") return "SERVICE_DESK"
+  return "STANDARD"
+}
+
 function toWorkItemStatus(value: string) {
   const normalized = value.trim().toUpperCase().replace(/\s+/g, "_")
   if (normalized === "BACKLOG") return "BACKLOG"
+  if (normalized === "TODO") return "TODO"
   if (normalized === "TO_DO") return "TODO"
   if (normalized === "IN_PROGRESS") return "IN_PROGRESS"
   if (normalized === "IN_REVIEW") return "IN_REVIEW"
@@ -67,6 +74,11 @@ export async function POST(request: NextRequest) {
       }
 
       const projectMap = new Map<string, string>()
+      const workspaceMembers = await tx.workspaceMember.findMany({
+        where: { workspaceId },
+        select: { userId: true },
+      })
+      const memberUserIds = new Set(workspaceMembers.map((member) => member.userId))
       let createdProjects = 0
       let createdWorkItems = 0
       let skippedWorkItems = 0
@@ -80,6 +92,8 @@ export async function POST(request: NextRequest) {
           update: {
             name: project.name,
             status: toProjectStatus(project.status),
+            mode: toProjectMode(project.mode),
+            featureFlags: project.featureFlags,
             dueDate: parseDateValue(project.due) ?? undefined,
             color: project.accent,
           },
@@ -88,6 +102,8 @@ export async function POST(request: NextRequest) {
             name: project.name,
             slug,
             status: toProjectStatus(project.status),
+            mode: toProjectMode(project.mode),
+            featureFlags: project.featureFlags,
             dueDate: parseDateValue(project.due) ?? undefined,
             color: project.accent,
             createdById: actorUserId,
@@ -125,6 +141,7 @@ export async function POST(request: NextRequest) {
             startDate: parseDateValue(item.start) ?? undefined,
             dueDate: parseDateValue(item.due) ?? undefined,
             createdById: actorUserId,
+            assigneeId: item.assignee && memberUserIds.has(item.assignee) ? item.assignee : undefined,
           },
         })
         createdWorkItems += 1

@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const workspaceRoleSchema = z.enum(["OWNER", "ADMIN", "MEMBER", "VIEWER"])
 export const projectStatusSchema = z.enum(["ACTIVE", "IN_REVIEW", "ON_HOLD", "ARCHIVED"])
+export const projectModeSchema = z.enum(["STANDARD", "SERVICE_DESK"])
 export const workItemStatusSchema = z.enum(["BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"])
 export const workItemPrioritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"])
 export const noteVisibilitySchema = z.enum(["PRIVATE", "WORKSPACE"])
@@ -19,6 +20,10 @@ export const workspaceBootstrapQuerySchema = z.object({
 
 export const workspaceQuerySchema = z.object({
   workspaceId: z.string().min(1),
+})
+
+export const workspaceExportQuerySchema = workspaceQuerySchema.extend({
+  userId: z.string().min(1).optional(),
 })
 
 export const projectListQuerySchema = workspaceQuerySchema.extend({
@@ -42,6 +47,65 @@ export const workspaceUserQuerySchema = workspaceQuerySchema.extend({
 
 export const workspaceMemberQuerySchema = workspaceQuerySchema.extend({
   memberUserId: z.string().min(1).optional(),
+})
+
+export const attachmentListQuerySchema = workspaceQuerySchema.extend({
+  workItemId: z.string().min(1).optional(),
+  noteId: z.string().min(1).optional(),
+})
+
+export const createAttachmentSchema = z.object({
+  workspaceId: z.string().min(1),
+  workItemId: z.string().min(1).optional(),
+  noteId: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(240),
+  storageKey: z.string().trim().min(1).max(500),
+  mimeType: z.string().trim().max(120).optional(),
+  sizeBytes: z.number().int().nonnegative().max(50 * 1024 * 1024).optional(),
+})
+
+export const createAttachmentUploadUrlSchema = z.object({
+  workspaceId: z.string().min(1),
+  workItemId: z.string().min(1).optional(),
+  noteId: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(240),
+  mimeType: z.string().trim().min(1).max(120),
+  sizeBytes: z.number().int().positive().max(50 * 1024 * 1024), // 50 MB
+})
+
+export const updateAttachmentSchema = z.object({
+  name: z.string().trim().min(1).max(240).optional(),
+  storageKey: z.string().trim().min(1).max(500).optional(),
+  mimeType: z.string().trim().max(120).nullable().optional(),
+  sizeBytes: z.number().int().nonnegative().nullable().optional(),
+})
+
+export const searchQuerySchema = workspaceQuerySchema.extend({
+  q: z.string().trim().min(1).max(120),
+  projectId: z.string().min(1).optional(),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+})
+
+export const workItemRelationTypeSchema = z.enum([
+  "BLOCKS",
+  "BLOCKED_BY",
+  "RELATES_TO",
+  "DUPLICATES",
+  "PARENT_OF",
+  "CHILD_OF",
+])
+
+export const workItemRelationListQuerySchema = workspaceQuerySchema.extend({
+  sourceId: z.string().min(1).optional(),
+  targetId: z.string().min(1).optional(),
+  relationType: workItemRelationTypeSchema.optional(),
+})
+
+export const createWorkItemRelationSchema = z.object({
+  workspaceId: z.string().min(1),
+  sourceId: z.string().min(1),
+  targetId: z.string().min(1),
+  relationType: workItemRelationTypeSchema,
 })
 
 export const createWorkspaceMemberSchema = z.object({
@@ -72,6 +136,8 @@ export const createProjectSchema = z.object({
   slug: workspaceSlugSchema,
   description: z.string().trim().max(1000).optional(),
   status: projectStatusSchema.default("ACTIVE"),
+  mode: projectModeSchema.default("STANDARD"),
+  featureFlags: z.record(z.string(), z.boolean()).optional(),
   color: z.string().trim().max(32).optional(),
   startDate: z.string().datetime().optional(),
   dueDate: z.string().datetime().optional(),
@@ -159,6 +225,8 @@ const localProjectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   status: z.string().min(1),
+  mode: z.string().optional(),
+  featureFlags: z.record(z.string(), z.boolean()).optional(),
   due: z.string().optional(),
   accent: z.string().optional(),
 })
@@ -211,6 +279,10 @@ export type UpdateWorkItemInput = z.infer<typeof updateWorkItemSchema>
 export type CreateCommentInput = z.infer<typeof createCommentSchema>
 export type CreateNoteInput = z.infer<typeof createNoteSchema>
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>
+export type CreateAttachmentInput = z.infer<typeof createAttachmentSchema>
+export type CreateAttachmentUploadUrlInput = z.infer<typeof createAttachmentUploadUrlSchema>
+export type UpdateAttachmentInput = z.infer<typeof updateAttachmentSchema>
+export type CreateWorkItemRelationInput = z.infer<typeof createWorkItemRelationSchema>
 export type CreateSavedViewInput = z.infer<typeof createSavedViewSchema>
 export type UpdateSavedViewInput = z.infer<typeof updateSavedViewSchema>
 export type UpdateUserSettingsInput = z.infer<typeof updateUserSettingsSchema>

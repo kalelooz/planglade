@@ -4,6 +4,7 @@ import { parseDateValue, parseJsonBody, parseQuery, requireWorkspaceRole, server
 import { logActivityEvent } from "@/lib/activity"
 import { createProjectSchema, projectListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { toProjectFeatureFlagsJson } from "@/lib/project-flags"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -50,6 +51,11 @@ export async function POST(request: NextRequest) {
           slug: parsed.data.slug,
           description: parsed.data.description,
           status: parsed.data.status,
+          mode: parsed.data.mode,
+          featureFlags:
+            parsed.data.featureFlags !== undefined
+              ? toProjectFeatureFlagsJson(parsed.data.featureFlags)
+              : undefined,
           color: parsed.data.color,
           startDate: parseDateValue(parsed.data.startDate) ?? undefined,
           dueDate: parseDateValue(parsed.data.dueDate) ?? undefined,
@@ -67,6 +73,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           status: createdProject.status,
           slug: createdProject.slug,
+          mode: createdProject.mode,
         },
       })
 

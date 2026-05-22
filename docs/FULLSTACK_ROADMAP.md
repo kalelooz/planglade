@@ -1,6 +1,6 @@
 # FlowBoard Full-Stack Roadmap
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 This document records where FlowBoard is now, what has already been completed, what is missing for a production full-stack app, and which ideas from `external/pm-repos/` should influence the next build phases.
 
@@ -21,19 +21,19 @@ FlowBoard is not production-ready yet. The app is currently a strong local-first
 
 ## Missing for a Full-Stack App
 
-- [ ] Real auth: replace mocked session storage auth with production sessions, OAuth/email login, account lifecycle, and server-side authorization.
-- [ ] Session bootstrap: `GET /api/auth/session` now returns a DB-backed dev user/workspace pair for server-backed slices; production auth/session provider is still pending.
-- [ ] Real data model: replace the sample Prisma `User` and `Post` models with FlowBoard models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
-- [ ] API mutation layer: replace the placeholder `src/app/api/route.ts` with typed routes or server actions for create, update, move, complete, delete, search, and settings mutations. Initial CRUD routes for projects/work items/notes/labels/saved-views/settings are in place.
-- [ ] Persistence migration: migrate from client-only `localStorage` to Prisma-backed persistence, with a one-time import path for existing local workspace data. Initial import route exists.
-- [ ] Authorization boundaries: enforce user/workspace/project permissions on every read and mutation.
-- [ ] Validation and errors: use Zod schemas at API boundaries and return consistent field and request errors.
-- [ ] Server-derived activity: generate activity entries from real mutations instead of static or inferred UI data.
-- [ ] Collaboration basics: members, roles, assignments, comments, mentions, and invitations. (partial: workspace member role-management APIs and server-side role guards are now in place)
-- [ ] Files and uploads: task/note attachments with local development storage and production object storage.
-- [ ] Search: indexed search across work items, notes, projects, and labels.
-- [ ] Notifications: in-app notification records first, email later.
-- [ ] Production build hygiene: cross-platform start/build scripts, no ignored TypeScript errors, stable package-manager usage, CI checks, and deployment configuration. (partial: npm package-manager normalization and cross-platform start script updates completed)
+- [ ] Production auth lifecycle hardening: Firebase Google login mode is wired, client token refresh/bootstrap hardening is in place (`onIdTokenChanged` + fresh token resolution in session bootstrap), and app-shell sign-out is now mode-aware (`firebase` / `nextauth`), but full sign-in/sign-out/session-expiry and account lifecycle validation across all core routes is still pending.
+- [ ] Authenticated session bootstrap completion: `GET /api/auth/session` supports `dev`, `nextauth`, and `firebase` modes, with invalid-mode/provider-misconfig guards; full production env validation and provider deployment checks are still pending.
+- [x] Real data model: Prisma now uses FlowBoard domain models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
+- [x] API mutation layer baseline: typed CRUD/mutation routes now include attachments, work-item relations, and unified search; project mode/feature-flags are enforced on currently mutable optional modules (comments/mentions/notifications/subtasks/relations/attachments).
+- [ ] Persistence migration completion: one-time local-to-server import and server snapshot export/import are in place, but full server-authoritative restore hardening and rollback QA are still pending.
+- [ ] Authorization boundaries: role checks are enforced on core mutation routes; cross-workspace and cross-project test coverage is still pending.
+- [x] Validation and errors baseline: Zod is in use at API boundaries for core payloads, with consistent error helpers.
+- [x] Server-derived activity baseline: core work-item/project/note/comment mutations now generate activity events.
+- [ ] Collaboration completion: members/roles/comments/mentions are live, while invitation lifecycle and deeper project membership workflows remain.
+- [ ] Files and uploads: task/note attachment authorization + signed upload URL flow are live; storage/upload pipeline hardening is still pending.
+- [x] Search baseline: workspace-scoped search API now covers work items, notes, projects, and labels.
+- [x] Notifications: durable in-app notification records now back mentions, assignments, due/status updates, and comments. Email delivery remains deferred.
+- [ ] Production build hygiene completion: package manager and start script normalization are done; CI/deployment validation gates are still pending. (partial: GitHub Actions CI baseline committed)
 - [ ] Operations: environment validation, migrations, backups, logging, error reporting, rate limits, and rollback procedure.
 
 ## External Repo Lessons
@@ -94,12 +94,12 @@ Use Leantime for product scope, not immediate feature breadth.
 - [x] Add initial `workspace/import-local` API route for local-to-server migration.
 - [x] Add initial Prisma-backed CRUD API routes for labels, saved views, and user settings.
 - [x] Enforce workspace scoping on update/delete routes for core entities.
-- [ ] Replace mocked `auth-context.tsx` with a production auth adapter and server session checks.
+- [x] Replace mocked `auth-context.tsx` with Firebase-backed Google auth support and server session token handoff.
 - [x] Add `GET /api/auth/session` server session scaffold for workspace/user resolution in API-backed views.
 - [ ] Remove or keep disabled any Team, Activity, Reports, Connections, Board, and Work Items actions that do not read/write real data.
 - [x] Update README status so it no longer says local persistence is still the next milestone.
 - [x] Update `AGENTS.md` so project instructions point to the full-stack foundation.
-- [ ] Update build/start scripts to be Windows-safe and deployment-safe. (partial: `start` now uses cross-platform Node standalone command; broader deployment validation pending)
+- [ ] Update build/start scripts to be Windows-safe and deployment-safe. (partial: `start` now uses cross-platform Node standalone command and CI baseline exists; broader deployment validation gates pending)
 - [x] Remove `typescript.ignoreBuildErrors` from `next.config.ts` before production.
 - [x] Normalize package-manager usage before dependency cleanup.
 
@@ -119,11 +119,11 @@ Status: done.
 
 Goal: make the app structurally ready for real persistence.
 
-- [x] Choose deployment target and database path for v1 production. Decision: Vercel-hosted Next.js app plus managed PostgreSQL (Neon) via Prisma. Keep SQLite for local development.
+- [x] Choose deployment target and database path for v1 production. Decision (updated on May 21, 2026): Firebase App Hosting for Next.js runtime plus managed PostgreSQL (Neon) via Prisma. Keep SQLite for local development.
 - [x] Replace sample Prisma schema with FlowBoard schema.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
-- [ ] Add auth provider decision and environment validation. (partial: dev session scaffold done; production provider/env contract pending)
+- [ ] Add auth provider decision and environment validation. (partial: `firebase` and `nextauth` modes are wired; production provider/env contract and deployment validation pending)
 - [ ] Fix project-level red gates: TypeScript build errors must fail builds, build/start scripts must be cross-platform, and package-manager usage must be consistent. (partial: TypeScript ignore gate removed and start script normalized; package-manager normalization pending)
 
 Done when: Prisma can migrate a real FlowBoard schema, API contracts are documented, and the app can still run the frontend loop.
@@ -132,12 +132,12 @@ Done when: Prisma can migrate a real FlowBoard schema, API contracts are documen
 
 Goal: move the current local-first loop onto the server without expanding scope.
 
-- [ ] Implement authenticated workspace bootstrap.
+- [ ] Implement authenticated workspace bootstrap. (partial: session bootstrap now supports Firebase ID-token verification and NextAuth sessions)
 - [x] Implement CRUD for projects, work items, notes, labels, saved views, and settings.
 - [x] Connect Home, Inbox, Projects, My Tasks, Notes, Calendar, and Timeline to server data.
 - [ ] Preserve optimistic UI where it is already useful, but reconcile with server state.
 - [x] Add one-time localStorage import/reset affordance. Settings now provides `append`/`replace` migration controls backed by `workspace/import-local`.
-- [ ] Generate activity records from create/update/complete/delete/move mutations.
+- [x] Generate activity records from create/update/complete/delete/move/comment mutations for core entities.
 
 Done when: a signed-in user can create, edit, move, complete, delete, refresh, sign out, sign back in, and see the same data.
 
@@ -148,8 +148,8 @@ Goal: support small teams without turning the app into enterprise admin software
 - [x] Add workspace members and project memberships. (workspace member CRUD APIs implemented; project-specific membership still pending)
 - [x] Add roles: owner, admin, member, viewer. (role model and server authorization gates implemented on core mutation routes)
 - [ ] Generate server-derived activity and task history from real mutations.
-- [ ] Add assignment, comments, mentions, and simple invitations.
-- [ ] Add in-app notifications for mentions, assignment, due changes, and comments.
+- [ ] Add assignment, comments, mentions, and simple invitations. (partial: comments and mention parsing are live; invitations and full assignment workflows remain)
+- [x] Add in-app notifications for mentions, assignment, due changes, and comments.
 - [ ] Make Team, Activity, and Notifications real or keep them out of primary navigation.
 - [ ] Add authorization tests for cross-workspace and cross-project access.
 
@@ -159,12 +159,12 @@ Done when: two users can collaborate in one workspace without seeing data from a
 
 Goal: add the data features expected of a dependable PM tool.
 
-- [ ] Add attachments with local development storage and production object storage.
-- [ ] Add search across projects, work items, notes, and labels.
+- [ ] Add attachments with local development storage and production object storage. (partial: attachment CRUD/auth + project-flag guards + signed upload URL route implemented)
+- [x] Add search across projects, work items, notes, and labels.
 - [ ] Add saved custom views using the Plane/Focalboard-inspired view preference model.
-- [ ] Add task relations: parent, blocked by, blocking, related.
-- [ ] Add server-backed settings import/export and workspace JSON export.
-- [ ] Add project-level feature flags before exposing optional modules such as docs, custom fields, SLA, and service-desk mode.
+- [x] Add task relations: parent, blocked by, blocking, related.
+- [x] Add server-backed settings import/export and workspace JSON export.
+- [x] Add project-level feature flags before exposing optional modules such as docs, custom fields, SLA, and service-desk mode. (`Project.mode` + `featureFlags` plus comments/mentions/notifications/subtasks/relations/attachments enforcement on mutable routes; docs/custom-fields/SLA remain unsurfaced)
 
 Done when: users can organize, retrieve, and link work without relying on browser-local state.
 
@@ -184,12 +184,12 @@ Done when: advanced screens summarize real data and no longer contradict primary
 
 Goal: prepare for real users.
 
-- [ ] CI for lint, TypeScript, unit tests, Prisma validation, and a small Playwright smoke suite.
+- [ ] CI for lint, TypeScript, unit tests, Prisma validation, and a small Playwright smoke suite. (partial: GitHub Actions lint+typecheck baseline implemented)
 - [ ] Database migration and backup procedure.
 - [ ] Logging, error reporting, and request tracing.
 - [ ] Rate limiting and abuse controls for auth and mutations.
 - [ ] Security review for auth, authorization, file upload, secrets, and tenant boundaries.
-- [ ] Deployment runbook with rollback steps.
+- [x] Deployment runbook baseline for Firebase App Hosting is documented (`docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`).
 
 Done when: the app can be deployed, monitored, upgraded, backed up, and rolled back with documented procedures.
 
@@ -197,9 +197,7 @@ Done when: the app can be deployed, monitored, upgraded, backed up, and rolled b
 
 Continue with the collaboration foundation from `flowboard-collaboration-foundation-plan.md`:
 
-1. Generate `ActivityEvent` rows from project/work-item/note/member/settings create/update/move/complete/delete mutations.
-2. Replace mock Activity with server-backed Activity and task-drawer history.
-3. Add task comments, mention parsing, and notification records.
-4. Make settings/theme/import-export durable through server APIs.
-5. Add project feature flags before subtasks, custom fields, SLA, docs, or ITSM-lite are surfaced.
-6. Add authorization tests for cross-workspace and cross-project access as these routes are added.
+1. Complete production auth validation for Firebase Google login mode (sign-in, sign-out, refresh/expiry, and protected-route behavior).
+2. Add authorization tests for cross-workspace and cross-project access on collaboration and optional-module routes.
+3. Harden attachment storage/upload path (dev + production object storage) and associated security boundaries.
+4. Complete production auth lifecycle validation across all core routes.

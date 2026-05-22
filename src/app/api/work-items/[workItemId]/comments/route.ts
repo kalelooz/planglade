@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { badRequest, parseJsonBody, requireWorkspaceRole, serverError } from "@/lib/api-utils"
+import { badRequest, forbidden, parseJsonBody, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
 import { createCommentSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { extractMentionUserIds } from "@/lib/mentions"
+import { createNotificationRecord } from "@/lib/notifications"
+import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
 
 type Params = { params: Promise<{ workItemId: string }> }
 
@@ -77,10 +79,22 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const workItem = await db.workItem.findUnique({
       where: { id: workItemId },
-      select: { id: true, workspaceId: true, title: true },
+      select: { id: true, workspaceId: true, title: true, assigneeId: true, projectId: true },
     })
     if (!workItem || workItem.workspaceId !== query.data.workspaceId) {
       return badRequest("Work item not found in workspace")
+    }
+
+    const project = workItem.projectId
+      ? await db.project.findUnique({
+          where: { id: workItem.projectId },
+          select: { id: true, featureFlags: true },
+        })
+      : null
+
+    const featureFlags = normalizeProjectFeatureFlags(project?.featureFlags)
+    if (project && !featureFlags.comments) {
+      return forbidden("Comments are disabled for this project")
     }
 
     const members = await db.workspaceMember.findMany({
@@ -90,7 +104,9 @@ export async function POST(request: NextRequest, { params }: Params) {
         user: { select: { name: true, email: true } },
       },
     })
-    const mentionUserIds = extractMentionUserIds(parsed.data.body, members).filter((userId) => userId !== actorUserId)
+    const mentionUserIds = featureFlags.mentions
+      ? extractMentionUserIds(parsed.data.body, members).filter((userId) => userId !== actorUserId)
+      : []
 
     const created = await db.$transaction(async (tx) => {
       const comment = await tx.comment.create({
@@ -121,6 +137,38 @@ export async function POST(request: NextRequest, { params }: Params) {
           mentionUserIds,
         },
       })
+
+      if (featureFlags.notifications) {
+        for (const mentionUserId of mentionUserIds) {
+          await createNotificationRecord(tx, {
+            workspaceId: query.data.workspaceId,
+            userId: mentionUserId,
+            actorId: actorUserId,
+            workItemId,
+            type: "MENTION",
+            title: "You were mentioned",
+            body: `You were mentioned on "${workItem.title}"`,
+            sourceKey: `comment:${comment.id}:mention:${mentionUserId}`,
+          })
+        }
+
+        if (
+          workItem.assigneeId &&
+          workItem.assigneeId !== actorUserId &&
+          !mentionUserIds.includes(workItem.assigneeId)
+        ) {
+          await createNotificationRecord(tx, {
+            workspaceId: query.data.workspaceId,
+            userId: workItem.assigneeId,
+            actorId: actorUserId,
+            workItemId,
+            type: "COMMENT",
+            title: "Comment on your task",
+            body: `New comment on "${workItem.title}"`,
+            sourceKey: `comment:${comment.id}:assignee:${workItem.assigneeId}`,
+          })
+        }
+      }
 
       return comment
     })

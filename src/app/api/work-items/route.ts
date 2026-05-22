@@ -11,6 +11,8 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { createWorkItemSchema, workItemListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { createNotificationRecord } from "@/lib/notifications"
+import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -57,6 +59,40 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 
+    if (parsed.data.parentId) {
+      const parentWorkItem = await db.workItem.findUnique({
+        where: { id: parsed.data.parentId },
+        select: { id: true, workspaceId: true, projectId: true },
+      })
+
+      if (!parentWorkItem || parentWorkItem.workspaceId !== parsed.data.workspaceId) {
+        return badRequest("Parent work item not found in workspace")
+      }
+
+      if (
+        parsed.data.projectId &&
+        parentWorkItem.projectId &&
+        parsed.data.projectId !== parentWorkItem.projectId
+      ) {
+        return badRequest("Subtask and parent work item must belong to the same project")
+      }
+
+      const projectForSubtasksId = parsed.data.projectId ?? parentWorkItem.projectId ?? null
+      if (projectForSubtasksId) {
+        const targetProject = await db.project.findUnique({
+          where: { id: projectForSubtasksId },
+          select: { id: true, workspaceId: true, featureFlags: true },
+        })
+        if (!targetProject || targetProject.workspaceId !== parsed.data.workspaceId) {
+          return badRequest("Project not found in workspace")
+        }
+        const featureFlags = normalizeProjectFeatureFlags(targetProject.featureFlags)
+        if (!featureFlags.subtasks) {
+          return badRequest("Subtasks are disabled for this project")
+        }
+      }
+    }
+
     const created = await db.$transaction(async (tx) => {
       const workItem = await tx.workItem.create({
         data: {
@@ -98,6 +134,28 @@ export async function POST(request: NextRequest) {
           ...(workItem.projectId ? { projectId: workItem.projectId } : {}),
         },
       })
+
+      if (workItem.assigneeId && workItem.assigneeId !== actorUserId) {
+        const project = workItem.projectId
+          ? await tx.project.findUnique({
+              where: { id: workItem.projectId },
+              select: { featureFlags: true },
+            })
+          : null
+        const featureFlags = normalizeProjectFeatureFlags(project?.featureFlags)
+        if (featureFlags.notifications) {
+          await createNotificationRecord(tx, {
+            workspaceId: parsed.data.workspaceId,
+            userId: workItem.assigneeId,
+            actorId: actorUserId,
+            workItemId: workItem.id,
+            type: "ASSIGNED",
+            title: "Task assigned to you",
+            body: `You were assigned "${workItem.title}"`,
+            sourceKey: `work-item:${workItem.id}:created-assignment:${workItem.assigneeId}`,
+          })
+        }
+      }
 
       return tx.workItem.findUnique({
         where: { id: workItem.id },

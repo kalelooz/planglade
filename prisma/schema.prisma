@@ -27,6 +27,11 @@ enum ProjectStatus {
   ARCHIVED
 }
 
+enum ProjectMode {
+  STANDARD
+  SERVICE_DESK
+}
+
 enum WorkItemStatus {
   BACKLOG
   TODO
@@ -73,6 +78,13 @@ enum ActivityActionType {
   UNASSIGNED
 }
 
+enum NotificationType {
+  MENTION
+  ASSIGNED
+  COMMENT
+  STATUS
+}
+
 enum WorkItemRelationType {
   BLOCKS
   BLOCKED_BY
@@ -100,6 +112,8 @@ model User {
   attachments       Attachment[]
   createdViews      SavedView[]       @relation("ViewCreator")
   activityEvents    ActivityEvent[]   @relation("ActivityActor")
+  notifications     Notification[]    @relation("NotificationRecipient")
+  actedNotifications Notification[]   @relation("NotificationActor")
   settings          UserSettings[]
   invitesSent       WorkspaceInvite[] @relation("InviteSender")
   createdAt         DateTime          @default(now())
@@ -119,6 +133,7 @@ model Workspace {
   notes         Note[]
   views         SavedView[]
   activities    ActivityEvent[]
+  notifications Notification[]
   settings      UserSettings[]
   invites       WorkspaceInvite[]
   comments      Comment[]
@@ -148,6 +163,8 @@ model Project {
   slug         String
   description  String?
   status       ProjectStatus @default(ACTIVE)
+  mode         ProjectMode   @default(STANDARD)
+  featureFlags Json?
   color        String?
   startDate    DateTime?
   dueDate      DateTime?
@@ -194,6 +211,7 @@ model WorkItem {
   attachments      Attachment[]
   sourceRelations  WorkItemRelation[]   @relation("RelationSource")
   targetRelations  WorkItemRelation[]   @relation("RelationTarget")
+  notifications   Notification[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -300,6 +318,30 @@ model ActivityEvent {
   createdAt   DateTime           @default(now())
 
   @@index([workspaceId, createdAt])
+}
+
+model Notification {
+  id           String           @id @default(cuid())
+  workspaceId  String
+  userId       String
+  actorId      String?
+  workItemId   String?
+  type         NotificationType
+  title        String
+  body         String
+  sourceKey    String?
+  isRead       Boolean          @default(false)
+  readAt       DateTime?
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor        User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  workItem     WorkItem?        @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([workspaceId, userId, sourceKey])
+  @@index([workspaceId, userId, createdAt])
+  @@index([workspaceId, userId, isRead, createdAt])
 }
 
 model Comment {

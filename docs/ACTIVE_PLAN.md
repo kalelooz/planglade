@@ -2,7 +2,7 @@
 
 > AI agents: this is the single source of truth for execution planning. Read this after `AGENTS.md` and before changing code. Do not treat archived audits, rollback patches, worklogs, or completed slice plans as active roadmap items.
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 ## Current Status
 
@@ -44,7 +44,7 @@ Build the full-stack foundation without expanding the product surface.
 
 The next milestone is Phase 1 from `docs/FULLSTACK_ROADMAP.md`:
 
-- [x] Choose deployment target and database path for v1 production. Decision: Vercel-hosted Next.js with managed PostgreSQL (Neon) via Prisma; local/dev keeps SQLite (`db/custom.db`).
+- [x] Choose deployment target and database path for v1 production. Decision (updated on May 21, 2026): Firebase App Hosting for Next.js runtime, managed PostgreSQL (Neon) via Prisma for production data, and SQLite (`db/custom.db`) for local/dev.
 - [x] Replace the sample Prisma schema with FlowBoard domain models.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
@@ -64,7 +64,7 @@ Additional progress completed during Phase 1 execution:
 - [x] Removed `typescript.ignoreBuildErrors` from `next.config.ts`.
 - [x] Replaced Bun-only production start script with cross-platform Node standalone start.
 - [x] Fixed Prisma API typing issues that blocked `tsc --noEmit` after removing build-error ignores.
-- [x] Locked production deployment/database decision (Vercel + Neon PostgreSQL + Prisma).
+- [x] Locked production deployment/database decision (Firebase App Hosting + Neon PostgreSQL + Prisma).
 
 ## Phase Breakdown (Pending vs Done)
 
@@ -104,12 +104,14 @@ Additional progress in this batch:
 ### Phase 3 - Collaboration + Hardening (pending)
 
 - [x] Workspace roles and membership workflows.
-- [ ] Activity generation from real mutations.
-- [ ] Comments, mentions, and task history backed by real server records.
-- [ ] Notifications backed by real notification records and user preferences.
-- [ ] Durable settings/theme/import-export flows.
-- [ ] Project-level feature flags for optional modules before adding subtasks, custom fields, SLA, docs, or ITSM-lite.
-- [ ] Attachments/search, then CI/deployment/security hardening.
+- [x] Activity generation from core work-item/project/note mutations and server-backed task history.
+- [x] Work-item comments and mention parsing against workspace members.
+- [x] Notifications now use durable server-side notification records with read/unread persistence and preference-aware delivery.
+- [x] Settings persistence and server-backed workspace JSON snapshot import/export are live for active workspace data.
+- [ ] Authenticated bootstrap and full sign-in lifecycle validation for production auth mode (`firebase` / `nextauth`) across core views.
+- [x] Project-level feature flags baseline is implemented (`mode` + `featureFlags`) and enforced for currently mutable optional-module surfaces (comments, mentions, notifications, subtasks, relations, attachments). Docs/custom-fields/SLA surfaces remain unsurfaced.
+- [x] Attachments and indexed search baseline APIs are implemented with workspace auth + project-flag guards.
+- [ ] CI/deployment/security hardening. (partial: GitHub Actions CI baseline + Firebase App Hosting deployment runbook/config now committed)
 
 Additional progress in this batch:
 
@@ -117,19 +119,25 @@ Additional progress in this batch:
 - [x] Added reusable role-based authorization helpers in `src/lib/api-utils.ts`.
 - [x] Enforced `MEMBER`+ write authorization on project/work-item/note/label/saved-view/settings/import mutation routes.
 - [x] Enforced `ADMIN`+ authorization on workspace membership and local-import workflows.
+- [x] Hardened Firebase session bootstrap token lifecycle on the client: ID token storage now tracks `onIdTokenChanged`, and `/api/auth/session` bootstrap requests now prefer fresh `currentUser.getIdToken()` tokens when available.
+- [x] Added auth-mode-aware client sign-in/sign-out wiring (`firebase` + `nextauth`) and connected the main app shell identity/sign-out controls to live session/user context.
+- [x] Added auth mode validation in `/api/auth/session` for invalid mode and `nextauth` provider misconfiguration, and improved client session-bootstrap error surfacing for faster auth diagnostics.
+- [x] Added attachment APIs (`GET/POST /api/attachments`, `PATCH/DELETE /api/attachments/:attachmentId`) with workspace role checks, target validation, project-level `attachments` flag enforcement, and activity logging.
+- [x] Added work-item relation APIs (`GET/POST /api/work-item-relations`, `DELETE /api/work-item-relations/:relationId`) with workspace role checks, relation validation, project-level `relations` flag enforcement, and activity logging.
+- [x] Added workspace-scoped unified search API (`GET /api/search`) across projects/work-items/notes/labels.
+- [x] Enforced `subtasks` feature flag on work-item create/update parent-child mutations.
+- [x] Added Firebase Storage signed upload URL route (`POST /api/attachments/upload-url`) and storage-object validation on attachment metadata persistence.
+- [x] Added Firebase App Hosting baseline config (`apphosting.yaml`) and GitHub Actions CI workflow (`.github/workflows/ci.yml`).
 
 ## Consolidated Next Implementation Order
 
 Use `docs/audits/2026-05-20-consolidated-product-implementation-report.md` and `flowboard-collaboration-foundation-plan.md` as reference material for the next implementation slices. Keep this order unless a blocking production defect appears:
 
-1. Generate real `ActivityEvent` rows and make Activity/task history server-backed.
-2. Add real task comments and mention parsing.
-3. Add in-app notification records for mentions, assignments, due-date changes, and comments.
-4. Make settings durable: light/dark/system theme, density/accent if retained, notification preferences, and import/export.
-5. Add project settings and feature flags before exposing optional modules.
-6. Add subtasks and relations behind project flags.
-7. Add project docs, custom fields, and service-desk/ITSM-lite mode later.
-8. Add SLA only for service-desk projects after the event/comment/notification foundation works.
+1. Complete production auth bootstrap validation (Firebase/NextAuth sign-in, sign-out, expiry behavior, and protected-route verification).
+2. Add authorization tests for cross-workspace and cross-project boundaries on the new collaboration/data routes.
+3. Add attachment storage pipeline hardening (local dev storage + production object storage wiring) and secure upload flow.
+4. Add project docs, custom fields, and service-desk/ITSM-lite mode later, behind explicit flags.
+5. Add SLA only for service-desk projects after the event/comment/notification foundation works.
 
 Do not prioritize a marketing landing page, Jira-style workflow complexity, formula custom fields, broad reports, or public request portals before the collaboration foundation is real.
 

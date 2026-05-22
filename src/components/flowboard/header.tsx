@@ -87,7 +87,9 @@ export function Header() {
         <TooltipTrigger asChild>
           <button
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/80 transition-colors cursor-pointer"
-            onClick={signOut}
+            onClick={() => {
+              void signOut("/login")
+            }}
           >
             <Avatar className="size-7">
               <AvatarFallback className="text-[10px] font-semibold bg-primary/10 text-primary">
