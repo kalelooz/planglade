@@ -46,6 +46,35 @@ export function LoginPage() {
   const [signInError, setSignInError] = React.useState<string | null>(null)
   const nextPath = searchParams.get("next") || "/"
 
+  const toFriendlySignInError = (error: unknown) => {
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : null
+
+    if (!code) {
+      return "Google sign-in failed. Please check Firebase Authentication settings."
+    }
+
+    if (code === "auth/unauthorized-domain") {
+      return "Google sign-in blocked: this domain is not authorized in Firebase Auth."
+    }
+    if (code === "auth/operation-not-allowed") {
+      return "Google sign-in is disabled in Firebase Auth provider settings."
+    }
+    if (code === "auth/popup-blocked") {
+      return "Popup blocked by browser. Allow popups and try again."
+    }
+    if (code === "auth/popup-closed-by-user") {
+      return "Sign-in popup was closed before completing login."
+    }
+
+    return `Google sign-in failed (${code}).`
+  }
+
   const handleGoogleSignIn = async () => {
     setSigningIn(true)
     setSignInError(null)
@@ -54,8 +83,8 @@ export function LoginPage() {
       if (authMode !== "nextauth") {
         router.replace(nextPath)
       }
-    } catch {
-      setSignInError("Google sign-in failed. Check Firebase client configuration.")
+    } catch (error) {
+      setSignInError(toFriendlySignInError(error))
     } finally {
       setSigningIn(false)
     }
