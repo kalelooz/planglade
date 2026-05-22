@@ -21,6 +21,7 @@ FlowBoard is not production-ready yet.
 - Settings now supports server-backed workspace JSON snapshot export/import (active workspace only) and restores user settings from snapshot payloads.
 - Project mode and feature-flag enforcement now gates comments/mentions/notifications/subtasks/relations/attachments on mutable routes.
 - Firebase Storage attachment upload pipeline now supports signed upload URLs (`POST /api/attachments/upload-url`) and validated metadata persistence (`POST /api/attachments`).
+- Attachment download now supports short-lived signed read URLs (`GET /api/attachments/:attachmentId/download-url`).
 - Unified workspace search API now exists across projects/work-items/notes/labels (`GET /api/search`).
 - `My Tasks` now reads from server work-items and uses server-backed complete/delete mutations.
 - `Home` now reads server work-items/notes and uses server-backed complete + quick-capture task creation.

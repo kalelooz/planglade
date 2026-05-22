@@ -14,6 +14,7 @@ export async function GET() {
       search: "/api/search",
       attachments: "/api/attachments",
       attachmentUploadUrl: "/api/attachments/upload-url",
+      attachmentDownloadUrl: "/api/attachments/:attachmentId/download-url",
       workItemRelations: "/api/work-item-relations",
     },
   })
