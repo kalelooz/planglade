@@ -1,6 +1,6 @@
 # FlowBoard Full-Stack Roadmap
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 This document records where FlowBoard is now, what has already been completed, what is missing for a production full-stack app, and which ideas from `external/pm-repos/` should influence the next build phases.
 
@@ -22,7 +22,7 @@ FlowBoard is not production-ready yet. The app is currently a strong local-first
 ## Missing for a Full-Stack App
 
 - [ ] Production auth lifecycle hardening: Firebase Google login mode is wired, client token refresh/bootstrap hardening is in place (`onIdTokenChanged` + fresh token resolution in session bootstrap), and app-shell sign-out is now mode-aware (`firebase` / `nextauth`), but full sign-in/sign-out/session-expiry and account lifecycle validation across all core routes is still pending.
-- [ ] Authenticated session bootstrap completion: `GET /api/auth/session` supports `dev`, `nextauth`, and `firebase` modes, with invalid-mode/provider-misconfig guards; full production env validation and provider deployment checks are still pending.
+- [ ] Authenticated session bootstrap completion: `GET /api/auth/session` supports `dev`, `nextauth`, and `firebase` modes, with invalid-mode/provider-misconfig guards, shared env validation, and `/api/health` auth diagnostics; provider deployment checks and full lifecycle verification are still pending.
 - [x] Real data model: Prisma now uses FlowBoard domain models for workspace, membership, project, work item, note, label, saved view, activity, settings, comments, attachments, and task relations.
 - [x] API mutation layer baseline: typed CRUD/mutation routes now include attachments, work-item relations, and unified search; project mode/feature-flags are enforced on currently mutable optional modules (comments/mentions/notifications/subtasks/relations/attachments).
 - [ ] Persistence migration completion: one-time local-to-server import and server snapshot export/import are in place, but full server-authoritative restore hardening and rollback QA are still pending.
@@ -123,7 +123,7 @@ Goal: make the app structurally ready for real persistence.
 - [x] Replace sample Prisma schema with FlowBoard schema.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
-- [ ] Add auth provider decision and environment validation. (partial: `firebase` and `nextauth` modes are wired; production provider/env contract and deployment validation pending)
+- [x] Add auth provider decision and environment validation baseline. (`firebase` and `nextauth` modes are wired, production env guard script is enforced in build/start, and `/api/auth/session` + `/api/health` now surface auth misconfiguration early)
 - [ ] Fix project-level red gates: TypeScript build errors must fail builds, build/start scripts must be cross-platform, and package-manager usage must be consistent. (partial: TypeScript ignore gate removed and start script normalized; package-manager normalization pending)
 
 Done when: Prisma can migrate a real FlowBoard schema, API contracts are documented, and the app can still run the frontend loop.

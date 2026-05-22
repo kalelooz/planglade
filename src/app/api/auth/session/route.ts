@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 
 import { authOptions, hasAuthProviders } from "@/lib/auth-options"
+import { getAuthConfigErrors } from "@/lib/auth-config"
 import { db } from "@/lib/db"
 import { verifyFirebaseIdToken } from "@/lib/firebase-admin"
 
@@ -17,27 +18,28 @@ const DEV_WORKSPACE = {
 
 export async function GET(request: Request) {
   try {
-    const requestedMode = process.env.FLOWBOARD_AUTH_MODE?.toLowerCase() ?? "dev"
-    const validModes = new Set(["dev", "firebase", "nextauth"])
-    if (!validModes.has(requestedMode)) {
+    const authConfig = getAuthConfigErrors({ includeProductionDevBlock: true })
+    if (authConfig.mode === "invalid") {
       return NextResponse.json(
         {
-          error:
-            "Invalid FLOWBOARD_AUTH_MODE. Use one of: dev, firebase, nextauth.",
+          error: authConfig.errors[0] ?? "Invalid FLOWBOARD_AUTH_MODE.",
         },
         { status: 500 }
       )
     }
-    const isProduction = process.env.NODE_ENV === "production"
-    if (isProduction && requestedMode === "dev") {
+
+    const blockingConfigErrors = authConfig.errors
+    if (blockingConfigErrors.length > 0) {
       return NextResponse.json(
         {
-          error:
-            "FLOWBOARD_AUTH_MODE=dev is disabled in production. Use firebase (recommended) or nextauth.",
+          error: blockingConfigErrors[0],
+          errors: blockingConfigErrors,
         },
         { status: 500 }
       )
     }
+
+    const requestedMode = authConfig.mode
 
     const useFirebaseAuth = requestedMode === "firebase"
     const nextAuthEnabled = hasAuthProviders()

@@ -2,7 +2,7 @@
 
 > AI agents: this is the single source of truth for execution planning. Read this after `AGENTS.md` and before changing code. Do not treat archived audits, rollback patches, worklogs, or completed slice plans as active roadmap items.
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Current Status
 
@@ -122,6 +122,7 @@ Additional progress in this batch:
 - [x] Hardened Firebase session bootstrap token lifecycle on the client: ID token storage now tracks `onIdTokenChanged`, and `/api/auth/session` bootstrap requests now prefer fresh `currentUser.getIdToken()` tokens when available.
 - [x] Added auth-mode-aware client sign-in/sign-out wiring (`firebase` + `nextauth`) and connected the main app shell identity/sign-out controls to live session/user context.
 - [x] Added auth mode validation in `/api/auth/session` for invalid mode and `nextauth` provider misconfiguration, and improved client session-bootstrap error surfacing for faster auth diagnostics.
+- [x] Centralized auth mode/env validation in a shared helper and added auth-readiness diagnostics to `/api/health` for faster production triage.
 - [x] Added attachment APIs (`GET/POST /api/attachments`, `PATCH/DELETE /api/attachments/:attachmentId`) with workspace role checks, target validation, project-level `attachments` flag enforcement, and activity logging.
 - [x] Added work-item relation APIs (`GET/POST /api/work-item-relations`, `DELETE /api/work-item-relations/:relationId`) with workspace role checks, relation validation, project-level `relations` flag enforcement, and activity logging.
 - [x] Added workspace-scoped unified search API (`GET /api/search`) across projects/work-items/notes/labels.
