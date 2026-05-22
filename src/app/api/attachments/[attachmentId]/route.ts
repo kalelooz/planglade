@@ -79,6 +79,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       .map(([key]) => key)
 
     if (parsed.data.storageKey !== undefined) {
+      const expectedPrefix = `${existing.workspaceId}/`
+      if (!parsed.data.storageKey.startsWith(expectedPrefix)) {
+        return badRequest("Invalid storageKey for workspace")
+      }
       const [exists] = await getFirebaseStorageBucket().file(parsed.data.storageKey).exists()
       if (!exists) {
         return badRequest("Uploaded file not found in storage for the provided storageKey")

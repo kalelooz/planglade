@@ -169,6 +169,11 @@ export async function POST(request: NextRequest) {
     const flagError = await ensureProjectAttachmentsEnabled(parsed.data.workspaceId, target.target.projectId)
     if (flagError) return flagError
 
+    const expectedPrefix = `${parsed.data.workspaceId}/`
+    if (!parsed.data.storageKey.startsWith(expectedPrefix)) {
+      return badRequest("Invalid storageKey for workspace")
+    }
+
     const storageFile = getFirebaseStorageBucket().file(parsed.data.storageKey)
     const [exists] = await storageFile.exists()
     if (!exists) {
