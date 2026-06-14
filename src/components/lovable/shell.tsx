@@ -3,8 +3,8 @@ import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
-  Home, Inbox, FolderKanban, Calendar, FileText, BarChart3, CheckSquare,
-  Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, LayoutGrid, ListTodo, Bell,
+  Home, Inbox, FolderKanban, Calendar, FileText, CheckSquare,
+  Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, Bell,
   LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -61,14 +61,13 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const { user: authUser, signOut, authMode: clientAuthMode } = useAuth();
   const path = usePathname() ?? "/";
   const projects = useStore((s) => s.projects);
-  const workspaceName = useStore((s) => s.settings.workspaceName);
   const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
   const inboxCount = useStore((s) => s.inboxItems.length);
   const workItems = useStore((s) => s.workItems);
   const addInboxItem = useStore((s) => s.addInboxItem);
-  const addProject = useStore((s) => s.addProject);
-  const activeProjectId = routeProjectId ?? (activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null);
+  const projectsListRoute = path.startsWith("/app/projects") && !routeProjectId;
+  const activeProjectId = routeProjectId ?? (!projectsListRoute && activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null);
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
   const [now, setNow] = useState(() => new Date());
 
@@ -92,16 +91,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const router = useRouter();
 
   const createProject = () => {
-    const id = addProject({ name: "New Project" });
-    updateSettings({ activeProjectId: id });
-    router.push(`/projects?project=${id}`);
+    router.push("/app/projects?new=1");
   };
 
   const applyProjectScope = (id: string | null) => {
     updateSettings({ activeProjectId: id });
     setProjectScopeOpen(false);
 
-    const scopedRoutes = ["/projects", "/work-items", "/board", "/calendar", "/timeline"];
+    const scopedRoutes = ["/app/projects", "/app/tasks", "/app/calendar", "/timeline"];
     if (scopedRoutes.some((route) => path.startsWith(route))) {
       router.push(id ? `${path}?project=${id}` : path);
     }
@@ -110,7 +107,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   // Keep SSR and first client render stable to avoid hydration mismatches.
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [projectsOpen, setProjectsOpen] = useState<boolean>(true);
-  const [moreOpen, setMoreOpen] = useState<boolean>(false);
   const [hydrated, setHydrated] = useState(false);
   const [logoHover, setLogoHover] = useState(false);
   const projectScopeRef = useRef<HTMLDivElement>(null);
@@ -123,26 +119,21 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   }, []);
 
   const navBeforeProjects: NavItem[] = [
-    { to: "/", label: "Home", icon: Home, count: todayCount },
-    { to: "/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
-    { to: "/my-tasks", label: "My Tasks", icon: CheckSquare, count: myTasksCount },
+    { to: "/app", label: "Home", icon: Home, count: todayCount },
+    { to: "/app/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
   ];
 
   const navAfterProjects: NavItem[] = [
-    { to: "/notes", label: "Notes", icon: FileText },
-    { to: "/calendar", label: "Calendar", icon: Calendar },
-  ];
-
-  const navMore = [
-    { to: "/work-items", label: "Tasks", icon: ListTodo },
-    { to: "/board", label: "Board", icon: LayoutGrid },
-    { to: "/timeline", label: "Timeline", icon: BarChart3 },
+    { to: "/app/tasks", label: "Tasks", icon: CheckSquare, count: myTasksCount },
+    { to: "/app/notes", label: "Notes", icon: FileText },
+    { to: "/app/calendar", label: "Calendar", icon: Calendar },
+    { to: "/app/settings", label: "Settings", icon: Settings },
   ];
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
     ...navBeforeProjects,
-    { to: "/projects", label: "Projects", icon: FolderKanban },
+    { to: "/app/projects", label: "Projects", icon: FolderKanban },
     ...navAfterProjects,
   ];
 
@@ -150,11 +141,23 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     const v = quickValue.trim();
     if (v) {
       addInboxItem(v, { createWorkItem: true });
-      toast.success("Captured to Inbox and My Tasks", { description: v });
+      toast.success("Captured to Inbox and Tasks", { description: v });
     }
     setQuickValue("");
     setQuickOpen(false);
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedSidebar = window.localStorage.getItem(STORAGE_KEY);
+    const savedProjects = window.localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (savedSidebar === "0" || savedSidebar === "1") {
+      setSidebarOpen(savedSidebar === "1");
+    }
+    if (savedProjects === "0" || savedProjects === "1") {
+      setProjectsOpen(savedProjects === "1");
+    }
+  }, []);
 
   useEffect(() => {
     // Enable width transitions only after the first client paint,
@@ -172,11 +175,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     if (typeof window === "undefined") return;
     window.localStorage.setItem(PROJECTS_STORAGE_KEY, projectsOpen ? "1" : "0");
   }, [projectsOpen]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("fb.sidebarMoreOpen", moreOpen ? "1" : "0");
-  }, [moreOpen]);
 
   useEffect(() => {
     let active = true;
@@ -266,7 +264,10 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [projectScopeOpen, quickOpen, notificationsOpen]);
 
-  const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
+  const isActive = (to: string) => {
+    if (to === "/app") return path === "/app";
+    return path === to || path.startsWith(`${to}/`);
+  };
   const markNotificationsRead = async (notificationIds?: string[]) => {
     if (!notificationScope) return;
     await fetch("/api/notifications", {
@@ -306,9 +307,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
           {sidebarOpen ? (
             <>
-              <Link href="/" title="FlowBoard home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">FB</span>
-                <span className="truncate">{workspaceName}</span>
+              <Link href="/app" title="PlanGlade home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
+                <span className="truncate">PlanGlade</span>
               </Link>
               <button
                 onClick={() => setSidebarOpen(false)}
@@ -334,11 +335,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </button>
               ) : (
                 <Link
-                  href="/"
-                  title="FlowBoard home"
+                  href="/app"
+                  title="PlanGlade home"
                   className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background"
                 >
-                  FB
+                  PG
                 </Link>
               )}
             </div>
@@ -350,8 +351,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <>
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} />
               <ProjectsNavItem
-                href="/projects"
-                active={isActive("/projects")}
+                href="/app/projects"
+                active={isActive("/app/projects")}
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onCreate={createProject}
@@ -361,7 +362,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   {projects.map((p) => {
                     const active = (routeProjectId ?? activeProjectId) === p.id;
                     return (
-                      <Link key={p.id} href={`/projects?project=${p.id}`} onClick={() => updateSettings({ activeProjectId: p.id })}
+                      <Link key={p.id} href={`/app/projects?project=${p.id}`} onClick={() => updateSettings({ activeProjectId: p.id })}
                         className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
                         <ProjectIcon name={p.icon} accent={p.accent} size={13} />
                         <span className="truncate">{p.name}</span>
@@ -371,13 +372,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </div>
               )}
               <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} />
-              <SidebarCollapsible
-                label="More"
-                open={moreOpen}
-                onToggle={() => setMoreOpen((v) => !v)}
-              >
-                <SidebarSection items={navMore} isActive={isActive} collapsed={false} />
-              </SidebarCollapsible>
             </>
           ) : (
             <>
@@ -386,18 +380,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </nav>
 
-        <div className={`border-t ${sidebarOpen ? "p-3" : "flex justify-center py-2"}`}>
-          {sidebarOpen ? (
-            <Link href="/settings" className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive("/settings") ? "lov-nav-item-active" : ""}`}>
-              <Settings className="h-3.5 w-3.5" />
-              <span>Settings</span>
-            </Link>
-          ) : (
-            <Link href="/settings" title="Settings" className={`lov-nav-item h-8 w-8 justify-center ${isActive("/settings") ? "lov-nav-item-active" : ""}`}>
-              <Settings className="h-4 w-4" />
-            </Link>
-          )}
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -406,20 +388,18 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 items-center gap-2 text-[13px]">
-            {title ?? <span className="font-medium">FlowBoard</span>}
+            {title ?? <span className="font-medium">PlanGlade</span>}
           </div>
           <div className="flex-1" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 hidden w-[min(74vw,58rem)] -translate-x-1/2 -translate-y-1/2 grid-cols-[minmax(18rem,1fr)_minmax(15rem,0.62fr)_max-content] items-center gap-2 sm:grid">
-            <div ref={projectScopeRef} className="pointer-events-auto relative">
+          <div ref={projectScopeRef} className="relative hidden w-52 lg:block">
               <button
                 onClick={() => {
                   setQuickOpen(false);
                   setProjectScopeOpen((open) => !open);
                 }}
-                className="lov-btn h-8 w-full min-w-0 justify-start border-foreground/15 bg-card px-3 text-[13px] shadow-xs"
+                className="lov-btn h-8 w-full min-w-0 justify-start border-foreground/15 bg-card px-2.5 text-[13px] shadow-xs"
                 title={activeProject ? `Project scope: ${activeProject.name}` : "Project scope: All projects"}
               >
-                <span className="shrink-0 text-[11px] font-medium uppercase text-muted-foreground">Project</span>
                 <span className="flex h-4 w-4 shrink-0 items-center justify-center">
                   {activeProject ? <ProjectIcon name={activeProject.icon} accent={activeProject.accent} size={14} /> : <FolderKanban className="h-3.5 w-3.5" />}
                 </span>
@@ -451,14 +431,22 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                     ))}
                 </div>
               )}
-            </div>
-            <button onClick={() => setCmdOpen(true)}
-              className="lov-btn pointer-events-auto w-full min-w-0 justify-start bg-sidebar text-muted-foreground hover:text-foreground">
+          </div>
+          <button onClick={() => setCmdOpen(true)}
+            className="lov-btn hidden w-56 min-w-0 justify-start bg-sidebar text-muted-foreground hover:text-foreground md:inline-flex">
               <Search className="h-3 w-3" />
               <span className="min-w-0 truncate">Search or jump...</span>
-              <kbd className="ml-auto rounded border bg-background px-1 font-mono text-[10px]">Ctrl K</kbd>
+              <kbd className="ml-auto hidden rounded border bg-background px-1 font-mono text-[10px] xl:inline-flex">Ctrl K</kbd>
+          </button>
+          {false && !path.startsWith("/app/projects") && (
+            <button
+              onClick={createProject}
+              className="lov-btn lov-btn-primary hidden whitespace-nowrap sm:inline-flex"
+            >
+              <FolderKanban className="h-3.5 w-3.5" /> New project
             </button>
-            <div ref={quickCaptureRef} className="pointer-events-auto relative">
+          )}
+          <div ref={quickCaptureRef} className="relative hidden sm:block">
               <button
                 onClick={() => {
                   setProjectScopeOpen(false);
@@ -466,10 +454,16 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 }}
                 className="lov-btn whitespace-nowrap"
               >
-                <Plus className="h-3 w-3" /> Quick capture
+                <Plus className="h-3 w-3" />
+                <span>Quick capture</span>
+                {inboxCount > 0 && (
+                  <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground tabular-nums">
+                    {inboxCount}
+                  </span>
+                )}
               </button>
               {quickOpen && (
-                <div className="absolute left-1/2 top-9 z-[80] w-80 -translate-x-1/2 rounded-md border bg-popover p-2 shadow-lg">
+                <div className="absolute right-0 top-9 z-[80] w-80 rounded-md border bg-popover p-2 shadow-lg">
                     <input
                       autoFocus
                       value={quickValue}
@@ -479,12 +473,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                       className="h-8 w-full rounded border bg-card px-2 text-[13px] outline-none focus:border-ring"
                     />
                     <div className="mt-1.5 flex items-center justify-between px-1 text-[10px] text-muted-foreground">
-                      <span>Saves to <Link href="/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link> + Tasks</span>
+                      <span>Saves to <Link href="/app/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link> + Tasks</span>
                       <kbd className="rounded border bg-muted px-1 font-mono">Enter</kbd>
                     </div>
                 </div>
               )}
-            </div>
           </div>
           <button onClick={() => setCmdOpen(true)} className="lov-icon-btn sm:hidden">
             <Command className="h-4 w-4" />
@@ -552,7 +545,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                             return;
                           }
                           const focus = notification.type === "COMMENT" || notification.type === "MENTION" ? "comments" : "history";
-                          router.push(`/my-tasks?taskId=${encodeURIComponent(notification.workItemId)}&focus=${focus}`);
+                          router.push(`/app/tasks?taskId=${encodeURIComponent(notification.workItemId)}&focus=${focus}`);
                         }}
                         className={`block w-full border-b px-3 py-2 text-left last:border-b-0 hover:bg-[var(--color-hover)]/60 ${notification.isUnread ? "bg-primary/[0.045]" : ""}`}
                       >
@@ -577,7 +570,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           </div>
           <div className="flex items-center gap-1.5">
             <Avatar id={displayAvatarId} name={displayName} size={26} />
-            <span className="max-w-28 truncate text-[12px] font-medium text-foreground">{displayName}</span>
+            <span className="hidden max-w-28 truncate text-[12px] font-medium text-foreground">{displayName}</span>
             {shouldShowSignOut && (
               <button
                 type="button"
@@ -616,9 +609,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} />
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl">
             <div className="flex h-12 items-center justify-between border-b px-3">
-              <Link href="/" onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">FB</span>
-                <span className="truncate">{workspaceName}</span>
+              <Link href="/app" onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
+                <span className="truncate">PlanGlade</span>
               </Link>
               <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn" aria-label="Close navigation">
                 <X className="h-4 w-4" />
@@ -627,8 +620,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <nav className="flex-1 overflow-y-auto px-2 py-3">
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <ProjectsNavItem
-                href="/projects"
-                active={isActive("/projects")}
+                href="/app/projects"
+                active={isActive("/app/projects")}
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onNavigate={() => setMobileNavOpen(false)}
@@ -639,7 +632,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   {projects.map((p) => {
                     const active = (routeProjectId ?? activeProjectId) === p.id;
                     return (
-                      <Link key={p.id} href={`/projects?project=${p.id}`} onClick={() => { updateSettings({ activeProjectId: p.id }); setMobileNavOpen(false); }}
+                      <Link key={p.id} href={`/app/projects?project=${p.id}`} onClick={() => { updateSettings({ activeProjectId: p.id }); setMobileNavOpen(false); }}
                         className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
                         <ProjectIcon name={p.icon} accent={p.accent} size={13} />
                         <span className="truncate">{p.name}</span>
@@ -649,20 +642,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </div>
               )}
               <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
-              <SidebarCollapsible
-                label="More"
-                open={moreOpen}
-                onToggle={() => setMoreOpen((v) => !v)}
-              >
-                <SidebarSection items={navMore} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
-              </SidebarCollapsible>
             </nav>
-            <div className="border-t p-3">
-              <Link href="/settings" onClick={() => setMobileNavOpen(false)} className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive("/settings") ? "lov-nav-item-active" : ""}`}>
-                <Settings className="h-3.5 w-3.5" />
-                <span>Settings</span>
-              </Link>
-            </div>
           </div>
         </div>
       )}
@@ -678,7 +658,7 @@ function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }:
       <Link
         href={href}
         onClick={onNavigate}
-        className={`flex flex-1 items-center gap-2 rounded px-2 py-1 text-[13px] ${active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
+        className={`lov-nav-item flex flex-1 items-center gap-2 rounded px-2 py-1 text-[13px] ${active ? "lov-nav-item-active text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
       >
         <FolderKanban className="h-3.5 w-3.5" />
         <span className="flex-1">Projects</span>
@@ -702,28 +682,6 @@ function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }:
       >
         <ChevronRight className={`h-3 w-3 transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
-    </div>
-  );
-}
-
-function SidebarCollapsible({ label, open, onToggle, children }: {
-  label: string;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="mt-1">
-      <div className={`group flex items-center gap-px rounded hover:bg-[var(--color-hover)]`}>
-        <button
-          onClick={onToggle}
-          className="flex flex-1 items-center gap-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-        >
-          <ChevronRight className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
-          {label}
-        </button>
-      </div>
-      {open && <div className="mt-0.5">{children}</div>}
     </div>
   );
 }
@@ -753,8 +711,8 @@ function SidebarSection({ items, isActive, collapsed, onNavigate }: { items: Nav
             className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${active ? "lov-nav-item-active" : ""}`}>
             <Icon className="h-3.5 w-3.5" />
             <span className="flex-1">{n.label}</span>
-            {n.count != null ? (
-              <span className="text-[11px] text-muted-foreground">{n.count}</span>
+            {n.count != null && n.count > 0 ? (
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">{n.count}</span>
             ) : null}
           </Link>
         );
