@@ -32,151 +32,151 @@ import {
 const INITIAL_TASKS = [
   {
     id: 'task-1',
-    title: 'Review PlanGlade homepage layout',
-    project: 'PlanGlade Public MVP',
+    title: 'Validate production auth bootstrap',
+    project: 'Production Foundation',
     priority: 'High',
     status: 'In progress',
     due: 'Today',
     dueRaw: '2026-06-17',
-    desc: 'Review the new Home UI direction and make sure it stays simple, calm, and product-first.',
+    desc: 'Exercise Firebase/NextAuth sign-in, sign-out, expiry, and protected-route behavior before treating production auth as done.',
     subtasks: [
-      { id: 'sub-1', title: 'Check spacing', completed: true },
-      { id: 'sub-2', title: 'Check sidebar clarity', completed: false },
-      { id: 'sub-3', title: 'Check mobile-safe layout', completed: false }
+      { id: 'sub-1', title: 'Check sign-in path', completed: true },
+      { id: 'sub-2', title: 'Check token expiry behavior', completed: false },
+      { id: 'sub-3', title: 'Check protected-route redirect', completed: false }
     ],
-    linkedNote: 'Landing page positioning ideas'
+    linkedNote: 'Auth bootstrap validation notes'
   },
   {
     id: 'task-2',
-    title: 'Convert inbox notes into tasks',
-    project: 'PlanGlade Public MVP',
+    title: 'Extend authorization route tests',
+    project: 'Collaboration Hardening',
     priority: 'Medium',
     status: 'Todo',
     due: 'Today',
     dueRaw: '2026-06-17',
-    desc: 'Go through captured manual notes and synthesize them into actionable sprint deliverables.',
+    desc: 'Add focused coverage for collaboration/data routes beyond relation and attachment boundaries.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-3',
-    title: 'Draft Nakhla pricing section',
-    project: 'Nakhla Digital Website',
+    title: 'Harden attachment storage limits',
+    project: 'Collaboration Hardening',
     priority: 'Medium',
     status: 'Todo',
     due: 'Today',
     dueRaw: '2026-06-17',
-    desc: 'Outline multi-tier engagement models for Nakhla localization and website launch clients.',
+    desc: 'Tighten upload limits, cross-workspace checks, and cleanup lifecycle for local/Firebase attachment storage.',
     subtasks: [],
-    linkedNote: 'Nakhla client offer structure'
+    linkedNote: 'Attachment storage checklist'
   },
   {
     id: 'task-4',
-    title: 'Check backup status on home server',
-    project: 'Home Server Cleanup',
+    title: 'Keep server-backed core loop honest',
+    project: 'Server-backed Core Loop',
     priority: 'Low',
     status: 'Todo',
     due: 'Today',
     dueRaw: '2026-06-17',
-    desc: 'Verify backup sync cronjobs are reporting healthy exits and secondary mirror is operational.',
+    desc: 'Make sure Home, Inbox, Projects, My Tasks, Notes, Calendar, and Timeline still agree after frontend changes.',
     subtasks: [],
-    linkedNote: 'Home server service map'
+    linkedNote: 'Core loop QA notes'
   },
   {
     id: 'task-5',
-    title: 'Finalize self-hosting README',
-    project: 'PlanGlade Public MVP',
+    title: 'Document production deployment path',
+    project: 'Production Foundation',
     priority: 'High',
     status: 'Todo',
     due: 'Jun 14',
     dueRaw: '2026-06-14',
-    desc: 'Ensure Docker compose guides, volume configurations, and environment variable descriptions are bulletproof.',
+    desc: 'Keep Firebase App Hosting, Neon, Prisma, and local SQLite setup instructions aligned with the committed config.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-6',
     title: 'Polish task drawer interactions',
-    project: 'PlanGlade Public MVP',
+    project: 'Frontend Workspace',
     priority: 'High',
     status: 'Blocked',
     due: 'Jun 18',
     dueRaw: '2026-06-18',
-    desc: 'Fix CSS transitions and micro-interactions on panel dismiss gestures.',
+    desc: 'Restore a side drawer that can inspect and edit task metadata without leaving the current view.',
     subtasks: [],
     linkedNote: 'UI feedback notes'
   },
   {
     id: 'task-7',
-    title: 'Clean old landing copy',
-    project: 'PlanGlade Public MVP',
+    title: 'Keep advanced surfaces demoted',
+    project: 'Frontend Workspace',
     priority: 'Medium',
     status: 'Todo',
     due: 'Jun 13',
     dueRaw: '2026-06-13',
-    desc: 'Get rid of marketing jargon and fake enterprise buzzwords. Re-write for core visual minimalism.',
+    desc: 'Avoid promoting reports, portals, custom fields, or SLA until the underlying server data is real.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-8',
     title: 'Review UI implementation',
-    project: 'PlanGlade Public MVP',
+    project: 'Frontend Workspace',
     priority: 'High',
     status: 'Todo',
     due: 'Jun 17',
     dueRaw: '2026-06-17',
-    desc: 'Sanity check the rendered elements against pure design tokens.',
+    desc: 'Check the new workspace shell for dense, calm FlowBoard styling and no fake dashboard chrome.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-9',
-    title: 'Write public README',
-    project: 'PlanGlade Public MVP',
+    title: 'Wire project docs behind flags later',
+    project: 'Collaboration Hardening',
     priority: 'Medium',
     status: 'Todo',
     due: 'Jun 18',
     dueRaw: '2026-06-18',
-    desc: 'Prepare markdown detailing PlanGlades core mission and self-hosting capabilities.',
+    desc: 'Project docs, custom fields, and service-desk surfaces wait until the collaboration foundation is durable.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-10',
-    title: 'Prepare demo screenshots',
-    project: 'PlanGlade Public MVP',
+    title: 'Verify local dev preview',
+    project: 'Frontend Workspace',
     priority: 'Low',
     status: 'Todo',
     due: 'Jun 20',
     dueRaw: '2026-06-20',
-    desc: 'Take clean, high-resolution screens showcasing light mode surfaces and the capture stream.',
+    desc: 'Keep the dev server running and smoke-check the redesigned root page in the browser.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-11',
-    title: 'Public MVP checkpoint',
-    project: 'PlanGlade Public MVP',
+    title: 'Production foundation checkpoint',
+    project: 'Production Foundation',
     priority: 'High',
     status: 'Todo',
     due: 'Jun 30',
     dueRaw: '2026-06-30',
-    desc: 'First public release milestone checklist validation.',
+    desc: 'Confirm auth, API contracts, server persistence, and deployment config are ready before expanding product surface.',
     subtasks: [],
     linkedNote: ''
   },
   {
     id: 'task-12',
-    title: 'Document current Docker services',
-    project: 'Home Server Cleanup',
+    title: 'Normalize local workspace import',
+    project: 'Server-backed Core Loop',
     priority: 'Medium',
     status: 'Todo',
     due: 'No date',
     dueRaw: '',
-    desc: 'Log and catalog running containers, active ports, and automated state backups.',
+    desc: 'Keep the one-time localStorage-to-server import understandable and safe for existing prototype data.',
     subtasks: [],
-    linkedNote: 'Home server service map'
+    linkedNote: 'Core loop QA notes'
   }
 ];
 
@@ -216,57 +216,59 @@ const INITIAL_INBOX = [
 const INITIAL_NOTES = [
   {
     id: 'note-1',
-    title: 'Landing page positioning ideas',
-    project: 'PlanGlade Public MVP',
+    title: 'Auth bootstrap validation notes',
+    project: 'Production Foundation',
     updated: '18 min ago',
-    content: `Keep the message product-first: capture fast, organize later, and keep work visible across tasks, projects, notes, and calendar.
-
-Avoid SaaS bloat language. No "unleash productivity." The tone is calm, honest, and a little plain.
-
-Hero candidates:
-- Capture first, organize later.
-- One calm place for tasks, projects, notes, and your calendar.
-- Solo-first. Open-source. Self-hostable.
+    content: `Production auth validation should prove the real lifecycle:
+- sign in
+- sign out
+- token expiry
+- protected routes
+- clear diagnostics when auth mode is misconfigured
 
 Checklist:
-[ ] Turn hero copy into final version
-[ ] Add honest roadmap section
-[ ] Check screenshot consistency`
+[ ] Firebase mode smoke
+[ ] NextAuth mode smoke
+[ ] Protected route verification`
   },
   {
     id: 'note-2',
-    title: 'Nakhla client offer structure',
-    project: 'Nakhla Digital Website',
+    title: 'Attachment storage checklist',
+    project: 'Collaboration Hardening',
     updated: 'Yesterday',
-    content: `Build out client pricing with predictable metrics:
-- Base development sprint (2 weeks)
-- Localization and right-to-left layout alignment support
-- Self-host handoff training & continuous deployment hooks`
+    content: `Attachment hardening:
+- enforce project flags
+- test cross-workspace boundaries
+- tighten upload size and type limits
+- define cleanup path for orphaned objects`
   },
   {
     id: 'note-3',
-    title: 'Home server service map',
-    project: 'Home Server Cleanup',
+    title: 'Core loop QA notes',
+    project: 'Server-backed Core Loop',
     updated: 'Jun 15',
-    content: `Local services currently deployed:
-- DNS-based blocker
-- File synchronization node
-- Media indexing pipeline
-- Nightly snapshot backup script`
+    content: `Core views must agree:
+- Home
+- Inbox
+- Projects
+- My Tasks
+- Notes
+- Calendar
+- Timeline`
   },
   {
     id: 'note-4',
-    title: 'Arabic lesson 12 vocabulary',
-    project: 'Arabic Study Notes',
+    title: 'UI feedback notes',
+    project: 'Frontend Workspace',
     updated: 'Jun 13',
-    content: `Core verbal stems and noun phrases used in daily transactions and active projects. Need to integrate interactive cards later.`
+    content: `Keep the new frontend dense, neutral, and tool-like. Restore the side drawer for task inspection instead of relying on a separate detail page.`
   }
 ];
 
 const PROJECTS = [
   {
     id: 'p-1',
-    name: 'PlanGlade Public MVP',
+    name: 'Production Foundation',
     status: 'Active',
     progress: 62,
     openTasks: 14,
@@ -275,41 +277,41 @@ const PROJECTS = [
     notes: 6,
     docs: 3,
     due: 'Jun 30',
-    nextTask: 'Polish task drawer interactions',
-    desc: 'Prepare the first honest public version of PlanGlade with capture, tasks, projects, notes/docs, calendar, self-hosting, and clear public positioning.'
+    nextTask: 'Validate production auth bootstrap',
+    desc: 'Turn FlowBoard into a production-ready full-stack app with real auth, database, API contracts, and deployment path.'
   },
   {
     id: 'p-2',
-    name: 'Nakhla Digital Website',
+    name: 'Server-backed Core Loop',
     status: 'Active',
-    progress: 38,
-    openTasks: 7,
+    progress: 72,
+    openTasks: 8,
     blocked: 0,
     overdue: 0,
     notes: 2,
     docs: 1,
     due: 'Jul 08',
-    nextTask: 'Write homepage service copy',
-    desc: 'Design and deploy the modern localized digital presence for Nakhla Creative Agency.'
+    nextTask: 'Keep server-backed core loop honest',
+    desc: 'Keep Home, Inbox, Projects, My Tasks, Notes, Calendar, and Timeline reading and mutating the same server-backed data.'
   },
   {
     id: 'p-3',
-    name: 'Arabic Study Notes',
+    name: 'Collaboration Hardening',
     status: 'Active',
-    progress: 18,
-    openTasks: 3,
+    progress: 44,
+    openTasks: 9,
     blocked: 0,
     overdue: 0,
     notes: 4,
     docs: 0,
     due: 'Jul 20',
-    nextTask: 'Review lesson 12 vocabulary',
-    desc: 'Systematic grammar, reading comprehension, and localized script drills.'
+    nextTask: 'Extend authorization route tests',
+    desc: 'Harden memberships, permissions, comments, mentions, notifications, attachments, relations, and indexed search.'
   },
   {
     id: 'p-4',
-    name: 'Home Server Cleanup',
-    status: 'Paused',
+    name: 'Frontend Workspace',
+    status: 'Active',
     progress: 24,
     openTasks: 5,
     blocked: 0,
@@ -317,20 +319,20 @@ const PROJECTS = [
     notes: 1,
     docs: 0,
     due: 'No date',
-    nextTask: 'Document current Docker services',
-    desc: 'Refactor host operating systems, clean redundant image packages, and automate backup cycles.'
+    nextTask: 'Polish task drawer interactions',
+    desc: 'Keep the redesigned interface calm, compact, useful, and honest about what is wired.'
   }
 ];
 
 const PROJECT_DOCS = [
-  { id: 'doc-1', projectId: 'p-1', title: 'Self-hosting guide draft', category: 'Self-hosting' },
-  { id: 'doc-2', projectId: 'p-1', title: 'Project scope rules', category: 'Product Strategy' },
-  { id: 'doc-3', projectId: 'p-1', title: 'Public MVP checklist', category: 'Milestone' }
+  { id: 'doc-1', projectId: 'p-1', title: 'Firebase App Hosting runbook', category: 'Deployment' },
+  { id: 'doc-2', projectId: 'p-1', title: 'Auth adapter plan', category: 'Auth' },
+  { id: 'doc-3', projectId: 'p-1', title: 'Full-stack roadmap', category: 'Milestone' }
 ];
 
 export default function App() {
   const [activePage, setActivePage] = useState('Home'); // Home, Inbox, Tasks, Projects, ProjectDetail, Notes, Calendar, Settings
-  const [selectedProjectId, setSelectedProjectId] = useState('p-1'); // Default to PlanGlade MVP
+  const [selectedProjectId, setSelectedProjectId] = useState('p-1'); // Default to Production Foundation
   
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [inboxItems, setInboxItems] = useState(INITIAL_INBOX);
@@ -340,6 +342,7 @@ export default function App() {
   
   const [taskView, setTaskView] = useState('list'); // 'list' | 'board'
   const [selectedTaskId, setSelectedTaskId] = useState('task-1'); 
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [taskFilter, setTaskFilter] = useState('All'); 
   const [calendarSelectedDay, setCalendarSelectedDay] = useState(17); 
   
@@ -351,6 +354,12 @@ export default function App() {
     setTimeout(() => {
       setToasts((prev) => prev.filter(t => t.id !== id));
     }, 3200);
+  };
+
+  const openTask = (id, page = 'Tasks') => {
+    setSelectedTaskId(id);
+    setActivePage(page);
+    setDrawerOpen(true);
   };
 
   const handleQuickCapture = (e) => {
@@ -380,7 +389,7 @@ export default function App() {
     const newTask = {
       id: `task-${Date.now()}`,
       title: item.title,
-      project: 'PlanGlade Public MVP', 
+      project: 'Production Foundation', 
       priority: 'Medium',
       status: 'Todo',
       due: 'Today',
@@ -392,7 +401,7 @@ export default function App() {
 
     setTasks([newTask, ...tasks]);
     setInboxItems(inboxItems.filter(i => i.id !== id));
-    setSelectedTaskId(newTask.id);
+    openTask(newTask.id);
     addToast(`Moved to active tasks!`);
   };
 
@@ -452,6 +461,20 @@ export default function App() {
     return PROJECTS.find(p => p.id === selectedProjectId) || PROJECTS[0];
   }, [selectedProjectId]);
 
+  const updateSelectedTask = (patch) => {
+    if (!selectedTask) return;
+    setTasks(prev => prev.map(task => task.id === selectedTask.id ? { ...task, ...patch } : task));
+  };
+
+  const toggleSelectedSubtask = (subtaskId) => {
+    if (!selectedTask?.subtasks) return;
+    updateSelectedTask({
+      subtasks: selectedTask.subtasks.map(subtask =>
+        subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+      )
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-zinc-900 font-sans selection:bg-zinc-100 antialiased flex flex-col md:flex-row relative">
       
@@ -483,17 +506,17 @@ export default function App() {
         <div className="p-5 flex items-center justify-between border-b border-zinc-100">
           <div className="flex items-center gap-2.5">
             <div className="w-5.5 h-5.5 rounded bg-zinc-900 flex items-center justify-center text-white text-[10px] font-bold tracking-tight">
-              PG
+              FB
             </div>
             <div>
-              <h1 className="font-semibold text-xs tracking-tight text-zinc-900">PlanGlade</h1>
+              <h1 className="font-semibold text-xs tracking-tight text-zinc-900">FlowBoard</h1>
               <p className="text-[9px] text-zinc-400 font-medium uppercase tracking-wider">Workspace</p>
             </div>
           </div>
           
           <div className="flex items-center gap-1.5 bg-zinc-100 px-2 py-0.5 rounded text-[10px] font-medium text-zinc-600">
             <span className="w-1 h-1 rounded-full bg-zinc-950"></span>
-            Khalil
+            Mohamed
           </div>
         </div>
 
@@ -501,7 +524,7 @@ export default function App() {
         <div className="px-5 py-2.5 bg-zinc-50/50 border-b border-zinc-100 flex items-center justify-between">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Active Workspace</span>
-            <span className="text-xs font-medium text-zinc-700 truncate">Khalil Workspace</span>
+            <span className="text-xs font-medium text-zinc-700 truncate">Mohamed Workspace</span>
           </div>
           <span className="text-[9px] text-zinc-500 font-mono bg-white px-1.5 py-0.5 rounded border border-zinc-200/60 shadow-sm">Free</span>
         </div>
@@ -621,7 +644,7 @@ export default function App() {
           
           {/* Breadcrumbs Navigation Route Tracking */}
           <div className="flex items-center gap-2 text-xs text-zinc-500 font-medium">
-            <span className="text-zinc-400">Khalil Workspace</span>
+            <span className="text-zinc-400">Mohamed Workspace</span>
             <ChevronRight className="w-3 h-3 text-zinc-300" />
             {activePage === 'ProjectDetail' ? (
               <>
@@ -667,7 +690,7 @@ export default function App() {
               {/* Heading Layout */}
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Overview Dashboard</p>
-                <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Good afternoon, Khalil</h2>
+                <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Good afternoon, Mohamed</h2>
                 <p className="text-zinc-500 text-xs font-light mt-0.5">Here’s the calm path through today’s work.</p>
               </div>
 
@@ -697,7 +720,7 @@ export default function App() {
                               {task.status === 'Completed' && <Check className="w-2.5 h-2.5" />}
                             </button>
                             <span 
-                              onClick={() => { setSelectedTaskId(task.id); setActivePage('Tasks'); }}
+                              onClick={() => openTask(task.id)}
                               className={`text-xs tracking-tight truncate cursor-pointer hover:text-zinc-950 transition-colors ${task.status === 'Completed' ? 'line-through text-zinc-400' : 'text-zinc-800 font-medium'}`}
                             >
                               {task.title}
@@ -733,7 +756,7 @@ export default function App() {
                               <Check className="w-2.5 h-2.5 text-white" />
                             </button>
                             <span 
-                              onClick={() => { setSelectedTaskId(task.id); setActivePage('Tasks'); }}
+                              onClick={() => openTask(task.id)}
                               className="text-xs text-zinc-800 tracking-tight truncate cursor-pointer font-medium hover:underline"
                             >
                               {task.title}
@@ -898,7 +921,7 @@ export default function App() {
                   <span>Note Extractions: <strong className="text-zinc-950">{inboxItems.filter(i => i.source === 'Note').length}</strong></span>
                 </div>
                 <div className="text-zinc-400 italic text-[11px]">
-                  *Converting appends tasks instantly onto PlanGlade MVP.
+                  *Converting appends tasks instantly onto Production Foundation.
                 </div>
               </div>
 
@@ -974,7 +997,7 @@ export default function App() {
                       .map((task) => (
                         <div 
                           key={task.id} 
-                          onClick={() => setSelectedTaskId(task.id)}
+                          onClick={() => openTask(task.id)}
                           className={`flex items-center justify-between py-2.5 px-3 rounded-md transition-all cursor-pointer ${selectedTaskId === task.id ? 'bg-zinc-100/80 text-zinc-950 font-medium' : 'hover:bg-zinc-50'}`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -1103,7 +1126,7 @@ export default function App() {
                           {columnTasks.map(t => (
                             <div 
                               key={t.id}
-                              onClick={() => { setSelectedTaskId(t.id); setTaskView('list'); }}
+                              onClick={() => { setTaskView('list'); openTask(t.id); }}
                               className="bg-white p-3.5 rounded-lg border border-zinc-200/80 hover:border-zinc-950 hover:shadow-xs transition-all cursor-pointer space-y-2.5"
                             >
                               <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-mono block">{t.project}</span>
@@ -1508,7 +1531,7 @@ export default function App() {
                       <p className="text-xs text-zinc-500 font-medium">Workspace Name</p>
                       <input 
                         type="text" 
-                        defaultValue="Khalil Workspace"
+                        defaultValue="Mohamed Workspace"
                         className="mt-1 w-full bg-white border border-zinc-200/80 rounded-md px-3 py-1.5 text-xs text-zinc-800 outline-none focus:ring-1 focus:ring-zinc-950"
                       />
                     </div>
@@ -1549,7 +1572,7 @@ export default function App() {
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.download = 'planglade-workspace-export.json';
+                        link.download = 'flowboard-workspace-export.json';
                         link.click();
                         addToast('Workspace configuration export completed.');
                       }}
@@ -1570,8 +1593,8 @@ export default function App() {
                 <div className="space-y-3 pb-6 border-b border-zinc-200/80">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-800">Account Profile</h3>
                   <div className="text-xs text-zinc-600 space-y-1.5">
-                    <p>User profile: <strong className="text-zinc-900">Khalil</strong></p>
-                    <p>Contact link: <strong className="text-zinc-900">khalil@example.com</strong></p>
+                    <p>User profile: <strong className="text-zinc-900">Mohamed</strong></p>
+                    <p>Contact link: <strong className="text-zinc-900">mohamed@example.com</strong></p>
                   </div>
                   <div className="flex gap-4 pt-2.5">
                     <button onClick={() => addToast('Locked.')} className="text-xs text-zinc-700 hover:text-zinc-950 font-bold">Edit profile details</button>
@@ -1595,6 +1618,162 @@ export default function App() {
         </div>
 
       </main>
+
+      {drawerOpen && selectedTask && (
+        <>
+          <button
+            type="button"
+            aria-label="Close task drawer"
+            onClick={() => setDrawerOpen(false)}
+            className="fixed inset-0 z-40 bg-zinc-950/10 backdrop-blur-[1px]"
+          />
+          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col border-l border-zinc-200 bg-white shadow-2xl">
+            <div className="flex h-14 items-center justify-between border-b border-zinc-200 px-5">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Task drawer</p>
+                <p className="truncate text-xs font-semibold text-zinc-700">{selectedTask.project}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="rounded-md p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              <input
+                value={selectedTask.title}
+                onChange={(event) => updateSelectedTask({ title: event.target.value })}
+                className="w-full bg-transparent text-lg font-semibold tracking-tight text-zinc-950 outline-none focus:underline"
+                aria-label="Task title"
+              />
+
+              <textarea
+                value={selectedTask.desc}
+                onChange={(event) => updateSelectedTask({ desc: event.target.value })}
+                rows={4}
+                className="mt-3 w-full resize-none rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-700 outline-none focus:border-zinc-900"
+                aria-label="Task description"
+              />
+
+              <div className="mt-6 grid grid-cols-[90px_1fr] gap-y-4 text-xs">
+                <span className="text-zinc-500">Status</span>
+                <select
+                  value={selectedTask.status}
+                  onChange={(event) => updateSelectedTask({ status: event.target.value })}
+                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 outline-none focus:border-zinc-900"
+                >
+                  {['Todo', 'In progress', 'Blocked', 'Completed'].map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+
+                <span className="text-zinc-500">Priority</span>
+                <select
+                  value={selectedTask.priority}
+                  onChange={(event) => updateSelectedTask({ priority: event.target.value })}
+                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 outline-none focus:border-zinc-900"
+                >
+                  {['High', 'Medium', 'Low'].map(priority => (
+                    <option key={priority} value={priority}>{priority}</option>
+                  ))}
+                </select>
+
+                <span className="text-zinc-500">Project</span>
+                <select
+                  value={selectedTask.project}
+                  onChange={(event) => updateSelectedTask({ project: event.target.value })}
+                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 outline-none focus:border-zinc-900"
+                >
+                  {PROJECTS.map(project => (
+                    <option key={project.id} value={project.name}>{project.name}</option>
+                  ))}
+                </select>
+
+                <span className="text-zinc-500">Due</span>
+                <input
+                  type="date"
+                  value={selectedTask.dueRaw}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    updateSelectedTask({ dueRaw: value, due: value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No date' });
+                  }}
+                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 outline-none focus:border-zinc-900"
+                />
+              </div>
+
+              <div className="mt-7 border-t border-zinc-100 pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Checklist</h3>
+                  <span className="font-mono text-[10px] text-zinc-400">
+                    {(selectedTask.subtasks || []).filter(item => item.completed).length}/{(selectedTask.subtasks || []).length}
+                  </span>
+                </div>
+                {(selectedTask.subtasks || []).length === 0 ? (
+                  <p className="text-xs text-zinc-400">No checklist items.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedTask.subtasks.map(subtask => (
+                      <label key={subtask.id} className="flex items-center gap-2 text-xs text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={subtask.completed}
+                          onChange={() => toggleSelectedSubtask(subtask.id)}
+                          className="h-3.5 w-3.5 accent-zinc-900"
+                        />
+                        <span className={subtask.completed ? 'text-zinc-400 line-through' : ''}>{subtask.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-7 border-t border-zinc-100 pt-5">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Linked note</h3>
+                {selectedTask.linkedNote ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const note = notes.find(item => item.title === selectedTask.linkedNote);
+                      if (note) {
+                        setSelectedNoteId(note.id);
+                        setActivePage('Notes');
+                        setDrawerOpen(false);
+                      }
+                    }}
+                    className="mt-2 flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:border-zinc-900"
+                  >
+                    <span>{selectedTask.linkedNote}</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
+                  </button>
+                ) : (
+                  <p className="mt-2 text-xs text-zinc-400">No note linked.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-zinc-200 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => handleToggleTaskStatus(selectedTask.id)}
+                className="rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800"
+              >
+                {selectedTask.status === 'Completed' ? 'Re-open task' : 'Mark complete'}
+              </button>
+              <button
+                type="button"
+                onClick={() => updateSelectedTask({ due: 'Tomorrow', dueRaw: '2026-06-18' })}
+                className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:border-zinc-900"
+              >
+                Move to tomorrow
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
 
     </div>
   );
