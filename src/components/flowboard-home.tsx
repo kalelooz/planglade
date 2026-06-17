@@ -101,12 +101,11 @@ function TaskRow({
 }
 
 export function FlowBoardHome() {
-  const localInboxItems = useStore((state) => state.inboxItems);
   const activeProjectId = useStore((state) => state.settings.activeProjectId);
-  const addInboxItem = useStore((state) => state.addInboxItem);
   const captureRef = useRef<HTMLInputElement>(null);
 
   const [capture, setCapture] = useState("");
+  const [captureSaving, setCaptureSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -245,32 +244,36 @@ export function FlowBoardHome() {
 
   const submitCapture = async () => {
     const text = capture.trim();
-    if (!text || !workspaceId) return;
-    addInboxItem(text, { createWorkItem: true });
+    if (!text || !workspaceId || captureSaving) return;
 
-    const response = await fetch("/api/work-items", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-flowboard-user-id": currentUserId ?? "" },
-      body: JSON.stringify({
-        workspaceId,
-        title: text,
-        status: "BACKLOG",
-        priority: "MEDIUM",
-        dueDate: `${todayKey}T00:00:00.000Z`,
-      }),
-    });
+    setCaptureSaving(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/work-items", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          title: text,
+          status: "BACKLOG",
+          priority: "MEDIUM",
+          dueDate: `${todayKey}T00:00:00.000Z`,
+        }),
+      });
 
-    if (!response.ok) {
-      setError("Capture saved locally; server task creation failed");
-      return;
+      if (!response.ok) throw new Error("Failed to capture item");
+
+      const payload = (await response.json()) as { workItem: ApiWorkItem };
+      const next = toUiWorkItem(payload.workItem, currentUserId);
+      setWorkItems((current) => [next, ...current]);
+      setSelectedTaskId(next.id);
+      setCapture("");
+      toast.success("Captured to Inbox", { description: text });
+    } catch (captureError) {
+      setError(captureError instanceof Error ? captureError.message : "Failed to capture item");
+    } finally {
+      setCaptureSaving(false);
     }
-
-    const payload = (await response.json()) as { workItem: ApiWorkItem };
-    const next = toUiWorkItem(payload.workItem, currentUserId);
-    setWorkItems((current) => [next, ...current]);
-    setSelectedTaskId(next.id);
-    setCapture("");
-    toast.success("Captured to Inbox", { description: text });
   };
 
   const onCaptureKey = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -310,7 +313,7 @@ export function FlowBoardHome() {
                   </div>
                   <Link href="/app/inbox" className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-900">
                     <Inbox className="h-4 w-4" />
-                    {buckets.inbox.length + localInboxItems.length} inbox
+                    {buckets.inbox.length} inbox
                   </Link>
                 </div>
 
@@ -322,15 +325,16 @@ export function FlowBoardHome() {
                     onChange={(event) => setCapture(event.target.value)}
                     onKeyDown={onCaptureKey}
                     placeholder="Capture a task, note, or idea..."
+                    disabled={captureSaving}
                     className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
                   />
                   <button
                     type="button"
                     onClick={() => void submitCapture()}
-                    disabled={!capture.trim() || !workspaceId}
+                    disabled={!capture.trim() || !workspaceId || captureSaving}
                     className="rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
                   >
-                    Add
+                    {captureSaving ? "Saving" : "Add"}
                   </button>
                   <kbd className="hidden rounded border bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 sm:inline">/</kbd>
                 </div>
