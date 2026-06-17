@@ -1,111 +1,24 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 
-import { authOptions, hasAuthProviders } from "@/lib/auth-options"
-import { getAuthConfigErrors } from "@/lib/auth-config"
 import { db } from "@/lib/db"
-import { verifyFirebaseIdToken } from "@/lib/firebase-admin"
-
-const DEV_USER = {
-  email: "alex.morgan@flowboard.dev",
-  name: "Alex Morgan",
-}
+import { resolveAuthenticatedUser } from "@/lib/permissions/session"
 
 const DEV_WORKSPACE = {
-  slug: "flowboard",
-  name: "FlowBoard Workspace",
+  slug: "planglade",
+  name: "PlanGlade Workspace",
 }
 
 export async function GET(request: Request) {
   try {
-    const authConfig = getAuthConfigErrors({ includeProductionDevBlock: true })
-    if (authConfig.mode === "invalid") {
+    const session = await resolveAuthenticatedUser(request)
+    if (!session.ok) {
       return NextResponse.json(
-        {
-          error: authConfig.errors[0] ?? "Invalid FLOWBOARD_AUTH_MODE.",
-        },
-        { status: 500 }
+        { error: session.message, details: session.details },
+        { status: session.status }
       )
     }
 
-    const blockingConfigErrors = authConfig.errors
-    if (blockingConfigErrors.length > 0) {
-      return NextResponse.json(
-        {
-          error: blockingConfigErrors[0],
-          errors: blockingConfigErrors,
-        },
-        { status: 500 }
-      )
-    }
-
-    const requestedMode = authConfig.mode
-
-    const useFirebaseAuth = requestedMode === "firebase"
-    const nextAuthEnabled = hasAuthProviders()
-    const shouldUseNextAuth = requestedMode === "nextauth" && nextAuthEnabled
-
-    if (requestedMode === "nextauth" && !nextAuthEnabled) {
-      return NextResponse.json(
-        {
-          error:
-            "FLOWBOARD_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
-        },
-        { status: 500 }
-      )
-    }
-
-    let userIdentity = DEV_USER
-    let authMode = "dev-session-scaffold"
-
-    if (useFirebaseAuth) {
-      const tokenFromHeader = request.headers.get("authorization")
-      const tokenFromCustomHeader = request.headers.get("x-flowboard-firebase-id-token")
-      const authToken =
-        tokenFromHeader?.startsWith("Bearer ")
-          ? tokenFromHeader.slice("Bearer ".length).trim()
-          : tokenFromCustomHeader?.trim() || null
-      if (!authToken) {
-        return NextResponse.json(
-          { error: "No Firebase ID token provided" },
-          { status: 401 }
-        )
-      }
-
-      const verified = await verifyFirebaseIdToken(authToken)
-      userIdentity = {
-        email: verified.email,
-        name: verified.name ?? verified.email.split("@")[0],
-      }
-      authMode = "firebase"
-    } else if (shouldUseNextAuth) {
-      const session = await getServerSession(authOptions)
-      if (!session?.user?.email) {
-        return NextResponse.json(
-          { error: "No authenticated session" },
-          { status: 401 }
-        )
-      }
-      userIdentity = {
-        email: session.user.email,
-        name: session.user.name ?? session.user.email.split("@")[0],
-      }
-      authMode = "nextauth"
-    }
-
-    const user = await db.user.upsert({
-      where: { email: userIdentity.email },
-      update: { name: userIdentity.name },
-      create: {
-        email: userIdentity.email,
-        name: userIdentity.name,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-      },
-    })
+    const { user, authMode } = session
 
     const workspace = await db.workspace.upsert({
       where: { slug: process.env.FLOWBOARD_WORKSPACE_SLUG ?? DEV_WORKSPACE.slug },

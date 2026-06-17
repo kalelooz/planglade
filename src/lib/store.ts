@@ -74,6 +74,7 @@ type Actions = {
   addProject: (partial: Partial<Project> & { name: string }) => string;
   updateProject: (id: string, patch: Partial<Project>) => void;
   removeProject: (id: string) => void;
+  setProjects: (projects: Project[]) => void;
 
   // members
   updateMember: (id: string, patch: Partial<Member>) => void;
@@ -92,9 +93,9 @@ const defaultSettings: Settings = {
   theme: "system",
   accent: "oklch(0.24 0.006 286)",
   density: "compact",
-  workspaceName: "Acme Inc.",
+  workspaceName: "PlanGlade Workspace",
   priorityStyle: "arrows",
-  activeProjectId: "core",
+  activeProjectId: "general",
   notifications: {
     "Assigned to me": true,
     "Mentioned": true,
@@ -218,7 +219,7 @@ export const useStore = create<State & Actions>()(
           label: partial.label ?? "Task",
           due: partial.due ?? new Date().toISOString().slice(0, 10),
           start: partial.start ?? ((partial.due ?? new Date().toISOString().slice(0, 10)).split("T")[0]),
-          project: partial.project ?? "core",
+          project: partial.project ?? "general",
         };
         const logActivity = options?.logActivity !== false;
         set((s) => ({
@@ -327,7 +328,7 @@ export const useStore = create<State & Actions>()(
               {
                 title: trimmed,
                 due: localDateKey(),
-                project: state.settings.activeProjectId ?? "core",
+                project: state.settings.activeProjectId ?? "general",
               },
               { logActivity: false }
             )
@@ -360,7 +361,7 @@ export const useStore = create<State & Actions>()(
           const workItemPatch: Partial<WorkItem> = {};
           const summaryParts: string[] = [];
           if ("project" in patch) {
-            const nextProject = patch.project ?? s.settings.activeProjectId ?? "core";
+            const nextProject = patch.project ?? s.settings.activeProjectId ?? "general";
             workItemPatch.project = nextProject;
             const name = s.projects.find((p) => p.id === nextProject)?.name ?? "Project";
             summaryParts.push(`project ${name}`);
@@ -476,6 +477,17 @@ export const useStore = create<State & Actions>()(
           },
         })),
 
+      setProjects: (projects) =>
+        set((s) => ({
+          projects,
+          settings: {
+            ...s.settings,
+            activeProjectId: projects.some((project) => project.id === s.settings.activeProjectId)
+              ? s.settings.activeProjectId
+              : null,
+          },
+        })),
+
       updateMember: (id, patch) =>
         set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
 
@@ -486,7 +498,7 @@ export const useStore = create<State & Actions>()(
       resetData: () => set(() => ({ ...initialState, settings: get().settings })),
     }),
     {
-      name: "fb.store.v1",
+      name: "fb.store.v2",
       storage: createJSONStorage(() => (typeof window !== "undefined" ? window.localStorage : (undefined as unknown as Storage))),
       version: 5,
       migrate: (persisted: unknown) => {

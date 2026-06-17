@@ -50,6 +50,31 @@ const nextConfig: NextConfig = {
         destination: "/app/projects",
         permanent: false,
       },
+      {
+        source: "/timeline",
+        destination: "/app/calendar",
+        permanent: false,
+      },
+      {
+        source: "/team",
+        destination: "/app/settings",
+        permanent: false,
+      },
+      {
+        source: "/activity",
+        destination: "/app",
+        permanent: false,
+      },
+      {
+        source: "/connections",
+        destination: "/app/projects",
+        permanent: false,
+      },
+      {
+        source: "/work-map",
+        destination: "/app/projects",
+        permanent: false,
+      },
     ];
   },
   allowedDevOrigins: [

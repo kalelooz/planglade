@@ -65,7 +65,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const updateSettings = useStore((s) => s.updateSettings);
   const inboxCount = useStore((s) => s.inboxItems.length);
   const workItems = useStore((s) => s.workItems);
-  const addInboxItem = useStore((s) => s.addInboxItem);
   const projectsListRoute = path.startsWith("/app/projects") && !routeProjectId;
   const activeProjectId = routeProjectId ?? (!projectsListRoute && activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null);
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
@@ -80,6 +79,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const [cmdOpen, setCmdOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickValue, setQuickValue] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
   const [projectScopeOpen, setProjectScopeOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -137,14 +137,38 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     ...navAfterProjects,
   ];
 
-  const submitQuick = () => {
+  const submitQuick = async () => {
     const v = quickValue.trim();
-    if (v) {
-      addInboxItem(v, { createWorkItem: true });
-      toast.success("Captured to Inbox and Tasks", { description: v });
+    if (!v || quickSaving) return;
+
+    setQuickSaving(true);
+    try {
+      const session = await getServerSession();
+      const response = await fetch("/api/work-items", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": session.user.id,
+        },
+        body: JSON.stringify({
+          workspaceId: session.workspace.id,
+          title: v,
+          status: "BACKLOG",
+          priority: "MEDIUM",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to capture item");
+
+      toast.success("Captured to Inbox", { description: v });
+      setQuickValue("");
+      setQuickOpen(false);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to capture item", { description: v });
+    } finally {
+      setQuickSaving(false);
     }
-    setQuickValue("");
-    setQuickOpen(false);
   };
 
   useEffect(() => {
@@ -307,9 +331,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
           {sidebarOpen ? (
             <>
-              <Link href="/app" title="FlowBoard home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">FB</span>
-                <span className="truncate">FlowBoard</span>
+              <Link href="/app" title="PlanGlade home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
+                <span className="truncate">PlanGlade</span>
               </Link>
               <button
                 onClick={() => setSidebarOpen(false)}
@@ -336,10 +360,10 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               ) : (
                 <Link
                   href="/app"
-                  title="FlowBoard home"
+                  title="PlanGlade home"
                   className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background"
                 >
-                  FB
+                  PG
                 </Link>
               )}
             </div>
@@ -388,7 +412,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 items-center gap-2 text-[13px]">
-            {title ?? <span className="font-medium">FlowBoard</span>}
+            {title ?? <span className="font-medium">PlanGlade</span>}
           </div>
           <div className="flex-1" />
           <div ref={projectScopeRef} className="relative hidden w-52 lg:block">
@@ -468,13 +492,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                       autoFocus
                       value={quickValue}
                       onChange={(e) => setQuickValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") submitQuick(); if (e.key === "Escape") setQuickOpen(false); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") void submitQuick(); if (e.key === "Escape" && !quickSaving) setQuickOpen(false); }}
                       placeholder="Capture a task, note, or idea..."
+                      disabled={quickSaving}
                       className="h-8 w-full rounded border bg-card px-2 text-[13px] outline-none focus:border-ring"
                     />
                     <div className="mt-1.5 flex items-center justify-between px-1 text-[10px] text-muted-foreground">
                       <span>Saves to <Link href="/app/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link> + Tasks</span>
-                      <kbd className="rounded border bg-muted px-1 font-mono">Enter</kbd>
+                      <kbd className="rounded border bg-muted px-1 font-mono">{quickSaving ? "Saving" : "Enter"}</kbd>
                     </div>
                 </div>
               )}
@@ -610,8 +635,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl">
             <div className="flex h-12 items-center justify-between border-b px-3">
               <Link href="/app" onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">FB</span>
-                <span className="truncate">FlowBoard</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
+                <span className="truncate">PlanGlade</span>
               </Link>
               <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn" aria-label="Close navigation">
                 <X className="h-4 w-4" />

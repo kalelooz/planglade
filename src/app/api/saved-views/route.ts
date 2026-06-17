@@ -28,11 +28,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const access = await requireWorkspaceRole(
-      parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, parsed.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 

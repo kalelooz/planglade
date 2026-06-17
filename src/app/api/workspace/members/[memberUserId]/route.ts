@@ -16,11 +16,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   try {
-    const access = await requireWorkspaceRole(
-      parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "ADMIN"
-    )
+    const access = await requireWorkspaceRole(request, parsed.data.workspaceId, "ADMIN")
     if (!access.ok) return access.response
 
     const workspace = await db.workspace.findUnique({
@@ -75,11 +71,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!workspaceId) return badRequest("workspaceId query is required")
 
   try {
-    const access = await requireWorkspaceRole(
-      workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "ADMIN"
-    )
+    const access = await requireWorkspaceRole(request, workspaceId, "ADMIN")
     if (!access.ok) return access.response
 
     const workspace = await db.workspace.findUnique({

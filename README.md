@@ -1,17 +1,17 @@
-# FlowBoard
+# PlanGlade
 
-FlowBoard is a frontend-first project management prototype built with Next.js 16, TypeScript, Tailwind CSS, and shadcn/ui. The current goal is to turn the existing polished demo into a simple, fast, trustworthy product for solo users and small teams.
+PlanGlade is a calm, frontend-first project workspace built with Next.js 16, TypeScript, Tailwind CSS, and shadcn/ui. The current goal is to turn the existing polished prototype into a simple, fast, trustworthy product for solo users and small teams.
 
 The product direction is intentionally narrow: help someone capture work quickly, know what matters now, organize tasks without friction, and avoid losing context.
 
 ## Current Status
 
-FlowBoard is not production-ready yet.
+PlanGlade is not production-ready yet.
 
 - The frontend MVP loop is now local-first and wired through shared client state.
 - User-created workspace data persists in `localStorage`.
 - Auth now supports a production adapter path via NextAuth providers, with a dev-session fallback for local bootstrapping.
-- Prisma contains FlowBoard domain models; migration/deployment hardening and broader server wiring are still pending.
+- Prisma contains the current project workspace domain models; migration/deployment hardening and broader server wiring are still pending.
 - The API exposes health/bootstrap/session endpoints and server-backed CRUD; client wiring is still incomplete across views.
 - Google login is now available through Firebase Auth when `FLOWBOARD_AUTH_MODE=firebase`.
 - Initial server CRUD routes now exist for projects, work items, and notes.
@@ -43,7 +43,7 @@ Use the fast lane by default: keep investigation narrow, make the smallest usefu
 Current priority:
 
 1. Preserve the completed frontend core loop.
-2. Replace placeholder Prisma/API/auth pieces with real FlowBoard foundations.
+2. Replace placeholder Prisma/API/auth pieces with real PlanGlade foundations.
 3. Move tasks, projects, notes, settings, saved views, and activity from local client state to server-backed persistence.
 4. Add collaboration only after single-user server persistence is durable.
 
@@ -73,7 +73,7 @@ For UI work, prefer existing shadcn/ui, Radix, Tailwind variables, Lucide icons,
 
 ### Build Next
 
-- Real Prisma schema for FlowBoard domain models.
+- Real Prisma schema for PlanGlade domain models.
 - Production auth adapter and server session checks.
 - Typed API/server-action mutation layer.
 - Server-backed workspace bootstrap and CRUD.

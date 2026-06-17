@@ -18,11 +18,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
     const workItem = await db.workItem.findUnique({
@@ -69,11 +65,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 

@@ -106,9 +106,9 @@ export function LoginPage() {
               <Layers className="size-8 text-primary" />
             </div>
             <div className="text-center">
-              <h1 className="text-2xl font-bold tracking-tight">FlowBoard</h1>
+              <h1 className="text-2xl font-bold tracking-tight">PlanGlade</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Project management, simplified
+                A calm clearing for your projects.
               </p>
             </div>
           </div>
@@ -177,7 +177,7 @@ export function LoginPage() {
 
         {/* Bottom tagline */}
         <p className="text-xs text-muted-foreground/60 text-center mt-6">
-          Sign in with your Google account to continue to FlowBoard
+          Sign in with your Google account to continue to PlanGlade
         </p>
       </motion.div>
     </div>

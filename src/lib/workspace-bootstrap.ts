@@ -4,7 +4,7 @@ export interface BootstrapWorkspaceSummary {
   id: string
   slug: string
   name: string
-  mode: "mock"
+  mode: "starter"
 }
 
 export interface WorkspaceBootstrapPayload {
@@ -26,9 +26,9 @@ export interface WorkspaceBootstrapPayload {
 
 const DEFAULT_WORKSPACE: BootstrapWorkspaceSummary = {
   id: "ws-local-seed",
-  slug: "flowboard",
-  name: "FlowBoard Workspace",
-  mode: "mock",
+  slug: "planglade",
+  name: "PlanGlade Workspace",
+  mode: "starter",
 }
 
 export function getWorkspaceBootstrap(workspaceSlug?: string): WorkspaceBootstrapPayload {

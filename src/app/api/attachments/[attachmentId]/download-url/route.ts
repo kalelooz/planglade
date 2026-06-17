@@ -38,11 +38,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (!query.ok) return query.response
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
     const attachment = await db.attachment.findUnique({

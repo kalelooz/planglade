@@ -6,8 +6,8 @@ import { AuthProvider } from "@/components/flowboard/auth-context";
 import { AppSettingsBridge } from "@/components/lovable/app-settings-bridge";
 
 export const metadata: Metadata = {
-  title: "FlowBoard",
-  description: "A quieter project tool. Capture work fast. Organize later.",
+  title: "PlanGlade",
+  description: "A calm clearing for your projects.",
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },

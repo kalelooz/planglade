@@ -19,11 +19,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 
@@ -85,11 +81,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      _request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(_request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 

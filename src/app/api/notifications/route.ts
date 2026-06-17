@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { z } from "zod"
 
-import { badRequest, parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
+import { parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 import {
   NOTIFICATION_KEYS,
@@ -13,13 +13,11 @@ import {
 
 const notificationsQuerySchema = z.object({
   workspaceId: z.string().min(1),
-  userId: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 const markReadSchema = z.object({
   workspaceId: z.string().min(1),
-  userId: z.string().min(1).optional(),
   lastReadAt: z.string().datetime().optional(),
   notificationIds: z.array(z.string().min(1)).optional(),
 })
@@ -35,7 +33,6 @@ export async function GET(request: NextRequest) {
   const query = parseQuery(
     {
       workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
-      userId: request.nextUrl.searchParams.get("userId") ?? undefined,
       limit: request.nextUrl.searchParams.get("limit") ?? "20",
     },
     notificationsQuerySchema
@@ -43,17 +40,10 @@ export async function GET(request: NextRequest) {
   if (!query.ok) return query.response
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? query.data.userId,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
-    const targetUserId = query.data.userId ?? access.actor.userId
-    if (targetUserId !== access.actor.userId && access.actor.role !== "ADMIN" && access.actor.role !== "OWNER") {
-      return badRequest("Cannot fetch notifications for another user")
-    }
+    const targetUserId = access.actor.userId
 
     const userSettings = await db.userSettings.findUnique({
       where: {
@@ -124,17 +114,10 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const access = await requireWorkspaceRole(
-      parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? parsed.data.userId,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, parsed.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
-    const targetUserId = parsed.data.userId ?? access.actor.userId
-    if (targetUserId !== access.actor.userId && access.actor.role !== "ADMIN" && access.actor.role !== "OWNER") {
-      return badRequest("Cannot update notifications for another user")
-    }
+    const targetUserId = access.actor.userId
 
     const existing = await db.userSettings.findUnique({
       where: {

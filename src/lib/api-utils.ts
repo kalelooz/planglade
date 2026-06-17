@@ -2,12 +2,20 @@ import { NextResponse } from "next/server"
 import type { WorkspaceRole } from "@prisma/client"
 import { ZodSchema } from "zod"
 
-import { db } from "@/lib/db"
+import { resolveAuthenticatedUser } from "@/lib/permissions/session"
+import {
+  hasMinimumWorkspaceRole as hasMinimumWorkspaceRoleForSession,
+  resolveWorkspaceActor,
+} from "@/lib/permissions/workspace"
 
 type Dict = Record<string, unknown>
 
 export function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details }, { status: 400 })
+}
+
+export function unauthorized(message: string, details?: unknown) {
+  return NextResponse.json({ error: message, details }, { status: 401 })
 }
 
 export function notFound(message: string) {
@@ -49,7 +57,7 @@ export function parseQuery<T extends Dict>(input: Dict, schema: ZodSchema<T>) {
   return { ok: true as const, data: parsed.data }
 }
 
-export function parseDateValue(value?: string) {
+export function parseDateValue(value?: string | null) {
   if (!value) return null
   const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value
   const date = new Date(normalized)
@@ -57,58 +65,21 @@ export function parseDateValue(value?: string) {
   return date
 }
 
-export async function resolveActorUserId(workspaceId: string, requestedUserId?: string) {
-  const workspace = await db.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { ownerId: true },
-  })
-  if (!workspace) return null
-
-  if (!requestedUserId) {
-    return workspace.ownerId
-  }
-
-  const membership = await db.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: requestedUserId } },
-    select: { userId: true },
-  })
-
-  return membership?.userId ?? null
-}
-
-const ROLE_RANK: Record<WorkspaceRole, number> = {
-  OWNER: 4,
-  ADMIN: 3,
-  MEMBER: 2,
-  VIEWER: 1,
-}
-
-export async function resolveWorkspaceActor(workspaceId: string, requestedUserId?: string) {
-  const workspace = await db.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { id: true, ownerId: true },
-  })
-  if (!workspace) return null
-
-  if (!requestedUserId) {
-    return { userId: workspace.ownerId, role: "OWNER" as WorkspaceRole }
-  }
-
-  const membership = await db.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: requestedUserId } },
-    select: { userId: true, role: true },
-  })
-  if (!membership) return null
-
-  return { userId: membership.userId, role: membership.role }
-}
-
 export function hasMinimumWorkspaceRole(actual: WorkspaceRole, minimum: WorkspaceRole) {
-  return ROLE_RANK[actual] >= ROLE_RANK[minimum]
+  return hasMinimumWorkspaceRoleForSession(actual, minimum)
 }
 
-export async function requireWorkspaceRole(workspaceId: string, requestedUserId: string | undefined, minimumRole: WorkspaceRole) {
-  const actor = await resolveWorkspaceActor(workspaceId, requestedUserId)
+export async function requireWorkspaceRole(request: Request, workspaceId: string, minimumRole: WorkspaceRole) {
+  const session = await resolveAuthenticatedUser(request)
+  if (!session.ok) {
+    const response =
+      session.status === 401
+        ? unauthorized(session.message, session.details)
+        : serverError(session.message, session.details)
+    return { ok: false as const, response }
+  }
+
+  const actor = await resolveWorkspaceActor(workspaceId, session.user.id)
   if (!actor) {
     return { ok: false as const, response: forbidden("You do not have access to this workspace") }
   }

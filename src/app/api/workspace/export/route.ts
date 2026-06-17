@@ -8,21 +8,16 @@ export async function GET(request: NextRequest) {
   const query = parseQuery(
     {
       workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
-      userId: request.nextUrl.searchParams.get("userId") ?? undefined,
     },
     workspaceExportQuerySchema
   )
   if (!query.ok) return query.response
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? query.data.userId,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
-    const targetUserId = query.data.userId ?? access.actor.userId
+    const targetUserId = access.actor.userId
 
     const [workspace, projects, workItems, notes, settings] = await Promise.all([
       db.workspace.findUnique({

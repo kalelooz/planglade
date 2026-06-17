@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 
-import { forbidden, hasMinimumWorkspaceRole, parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
-import { updateUserSettingsSchema, workspaceUserQuerySchema } from "@/lib/contracts"
+import { parseJsonBody, parseQuery, requireWorkspaceRole, serverError } from "@/lib/api-utils"
+import { updateUserSettingsSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import {
   extractReadNotificationIds,
@@ -16,32 +16,22 @@ export async function GET(request: NextRequest) {
   const query = parseQuery(
     {
       workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
-      userId: request.nextUrl.searchParams.get("userId") ?? undefined,
     },
-    workspaceUserQuerySchema
+    workspaceQuerySchema
   )
   if (!query.ok) return query.response
 
   try {
-    const access = await requireWorkspaceRole(
-      query.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, query.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
-    if (
-      access.actor.userId !== query.data.userId &&
-      !hasMinimumWorkspaceRole(access.actor.role, "ADMIN")
-    ) {
-      return forbidden("You can only read your own settings unless you are admin or owner")
-    }
+    const targetUserId = access.actor.userId
 
     const settings = await db.userSettings.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId: query.data.workspaceId,
-          userId: query.data.userId,
+          userId: targetUserId,
         },
       },
     })
@@ -56,19 +46,10 @@ export async function PUT(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   try {
-    const access = await requireWorkspaceRole(
-      parsed.data.workspaceId,
-      request.headers.get("x-flowboard-user-id") ?? undefined,
-      "MEMBER"
-    )
+    const access = await requireWorkspaceRole(request, parsed.data.workspaceId, "MEMBER")
     if (!access.ok) return access.response
 
-    if (
-      access.actor.userId !== parsed.data.userId &&
-      !hasMinimumWorkspaceRole(access.actor.role, "ADMIN")
-    ) {
-      return forbidden("You can only update your own settings unless you are admin or owner")
-    }
+    const targetUserId = access.actor.userId
 
     let notificationsPayload: Prisma.InputJsonValue | undefined
     if (parsed.data.notifications !== undefined) {
@@ -76,7 +57,7 @@ export async function PUT(request: NextRequest) {
         where: {
           workspaceId_userId: {
             workspaceId: parsed.data.workspaceId,
-            userId: parsed.data.userId,
+            userId: targetUserId,
           },
         },
         select: { notifications: true },
@@ -97,7 +78,7 @@ export async function PUT(request: NextRequest) {
       where: {
         workspaceId_userId: {
           workspaceId: parsed.data.workspaceId,
-          userId: parsed.data.userId,
+          userId: targetUserId,
         },
       },
       update: {
@@ -110,7 +91,7 @@ export async function PUT(request: NextRequest) {
       },
       create: {
         workspaceId: parsed.data.workspaceId,
-        userId: parsed.data.userId,
+        userId: targetUserId,
         theme: parsed.data.theme,
         density: parsed.data.density,
         accent: parsed.data.accent,
