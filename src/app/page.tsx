@@ -1,7 +1,5 @@
-"use client";
-
-import PlangladeWorkspace from "@/components/planglade-workspace";
+import { FlowBoardHome } from "@/components/flowboard-home";
 
 export default function HomePage() {
-  return <PlangladeWorkspace />;
+  return <FlowBoardHome />;
 }

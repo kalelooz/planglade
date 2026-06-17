@@ -307,9 +307,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
           {sidebarOpen ? (
             <>
-              <Link href="/app" title="PlanGlade home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
-                <span className="truncate">PlanGlade</span>
+              <Link href="/app" title="FlowBoard home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">FB</span>
+                <span className="truncate">FlowBoard</span>
               </Link>
               <button
                 onClick={() => setSidebarOpen(false)}
@@ -336,10 +336,10 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               ) : (
                 <Link
                   href="/app"
-                  title="PlanGlade home"
+                  title="FlowBoard home"
                   className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background"
                 >
-                  PG
+                  FB
                 </Link>
               )}
             </div>
@@ -388,7 +388,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 items-center gap-2 text-[13px]">
-            {title ?? <span className="font-medium">PlanGlade</span>}
+            {title ?? <span className="font-medium">FlowBoard</span>}
           </div>
           <div className="flex-1" />
           <div ref={projectScopeRef} className="relative hidden w-52 lg:block">
@@ -610,8 +610,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl">
             <div className="flex h-12 items-center justify-between border-b px-3">
               <Link href="/app" onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
-                <span className="truncate">PlanGlade</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">FB</span>
+                <span className="truncate">FlowBoard</span>
               </Link>
               <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn" aria-label="Close navigation">
                 <X className="h-4 w-4" />
