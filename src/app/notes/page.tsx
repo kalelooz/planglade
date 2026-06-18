@@ -6,7 +6,6 @@ import {
   Plus, Search, Hash, Link2, Trash2, CheckSquare, Pencil, FileText, ChevronRight,
 } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
-import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { Chip } from "@/components/lovable/page";
 import { MarkdownEditor } from "@/components/notes/markdown-editor";
 import type { WorkItem } from "@/lib/mock-data";
@@ -80,12 +79,18 @@ function mapTag(value: unknown) {
 }
 
 function mapNote(note: ApiNote): UiNote {
+  const body = note.body ?? "";
+  const firstBodyLine = body
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^#+\s*/, "").trim())
+    .find(Boolean);
+  const title = note.title.trim() === "Untitled" && firstBodyLine ? firstBodyLine.slice(0, 80) : note.title;
   return {
     id: note.id,
-    title: note.title,
+    title,
     tag: mapTag(note.tags),
     updated: new Date(note.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    excerpt: note.body ?? "",
+    excerpt: body,
   };
 }
 
@@ -99,7 +104,6 @@ function NotesInner() {
   const [error, setError] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
   const [notes, setNotes] = useState<UiNote[]>([]);
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -108,7 +112,6 @@ function NotesInner() {
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [linkedOpen, setLinkedOpen] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -121,8 +124,6 @@ function NotesInner() {
 
         setWorkspaceId(session.workspace.id);
         setCurrentUserId(session.user.id);
-        setMembers((session.members ?? []).map((member) => ({ id: member.id, name: member.name })));
-
         const [notesRes, workItemsRes] = await Promise.all([
           fetch(`/api/notes?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
           fetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
@@ -153,7 +154,20 @@ function NotesInner() {
     return () => {
       active = false;
     };
-  }, [idFromUrl]);
+  }, []);
+
+  useEffect(() => {
+    if (idFromUrl) {
+      if (notes.some((note) => note.id === idFromUrl)) {
+        setSelId(idFromUrl);
+      }
+      return;
+    }
+
+    if (!selId && notes.length > 0) {
+      setSelId(notes[0].id);
+    }
+  }, [idFromUrl, notes, selId]);
 
   useEffect(() => {
     return () => {
@@ -268,8 +282,6 @@ function NotesInner() {
 
   const selectedId = idFromUrl && notes.some((n) => n.id === idFromUrl) ? idFromUrl : selId;
   const sel = notes.find((n) => n.id === selectedId) ?? filtered[0] ?? null;
-  const selectedTask = workItems.find((w) => w.id === selectedTaskId) ?? null;
-
   const linkedTasks = useMemo(() => {
     if (!sel) return [];
     const refs = new Set(extractTaskRefs(`${sel.title}\n${sel.excerpt}`));
@@ -315,9 +327,9 @@ function NotesInner() {
 
   return (
     <AppShell title={<span className="font-medium">Notes</span>}>
-      <div className="flex h-full bg-background">
-        <aside className="ml-4 mb-4 mt-4 flex w-72 shrink-0 flex-col rounded-md border bg-card">
-          <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2">
+      <div className="flex h-full flex-col gap-4 overflow-y-auto bg-[#fafafa] p-4 md:flex-row md:gap-6 md:p-6 lg:p-8">
+        <aside className="flex max-h-[42vh] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-zinc-200/80 bg-white md:max-h-none md:w-72">
+          <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2.5">
             <Search className="h-3 w-3 text-muted-foreground" />
             <input
               value={query}
@@ -338,8 +350,8 @@ function NotesInner() {
               <Plus className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="border-b border-border/40 p-2">
-            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Capture</label>
+          <div className="border-b border-zinc-100 p-2.5">
+            <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-zinc-400">Quick note</label>
             <div className="flex items-center gap-1">
               <input
                 value={draft}
@@ -373,13 +385,13 @@ function NotesInner() {
                 <button
                   key={n.id}
                   onClick={() => selectNote(n.id)}
-                  className={`block w-full border-b border-border/40 px-3 py-3 text-left transition-colors hover:bg-[var(--color-hover)]/40 ${sel?.id === n.id ? "border-l-2 border-l-primary bg-[var(--color-hover)]/60 pl-[10px]" : ""}`}
+                  className={`block w-full border-b border-zinc-100 px-3 py-2.5 text-left transition-colors hover:bg-zinc-50 ${sel?.id === n.id ? "border-l-2 border-l-zinc-900 bg-zinc-100/80 pl-[10px]" : ""}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate text-[13px] font-medium text-foreground">
                       {highlightText(n.title, normalizedQuery)}
                     </span>
-                    <span className="shrink-0 pl-2 text-[11px] text-muted-foreground">{n.updated}</span>
+                    <span className="shrink-0 pl-2 font-mono text-[10px] text-zinc-400">{n.updated}</span>
                   </div>
                   {n.excerpt && (
                     <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
@@ -393,12 +405,12 @@ function NotesInner() {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-zinc-200/80 bg-white">
           {error && <div className="mx-5 mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
           {sel ? (
             <>
-              <div className="flex h-12 items-center gap-3 border-b border-border/40 px-5 text-[12px]">
-                <span className="rounded border bg-muted/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-zinc-100 px-4 py-2 text-xs">
+                <span className="rounded border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400">
                   Editing
                 </span>
                 <label className="group flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 hover:border-ring focus-within:border-ring">
@@ -432,7 +444,7 @@ function NotesInner() {
                         {linkedTasks.map((task) => (
                           <button
                             key={task.id}
-                            onClick={() => { setSelectedTaskId(task.id); setLinkedOpen(false); }}
+                            onClick={() => setLinkedOpen(false)}
                             className="lov-menu-item border-b border-border/40 px-3 py-2 text-[13px] last:border-b-0"
                           >
                             <FileText className="h-3 w-3 text-muted-foreground" />
@@ -445,7 +457,7 @@ function NotesInner() {
                   )}
                 </div>
 
-                <span className="ml-auto text-[11px] text-muted-foreground">Edited {sel.updated}</span>
+                <span className="ml-auto font-mono text-[10px] text-zinc-400">Edited {sel.updated}</span>
 
                 <div className="flex items-center gap-px rounded-md border bg-card p-0.5">
                   <button
@@ -474,7 +486,7 @@ function NotesInner() {
                 </div>
               </div>
 
-              <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-8 py-6">
+              <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto p-5 md:p-8">
                 <MarkdownEditor
                   key={sel.id}
                   markdown={`# ${sel.title}\n\n${sel.excerpt}`}
@@ -496,19 +508,6 @@ function NotesInner() {
           )}
         </div>
 
-        <TaskDrawer
-          item={selectedTask}
-          onClose={() => setSelectedTaskId(null)}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-          membersOverride={members}
-          onItemPatched={(id, patch) => {
-            setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, ...patch } : workItem)));
-          }}
-          onItemReplaced={(next) => {
-            setWorkItems((current) => current.map((workItem) => (workItem.id === next.id ? next : workItem)));
-          }}
-        />
       </div>
     </AppShell>
   );

@@ -3,15 +3,15 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { Activity, Clock3, FileText, Plus, X, FolderPlus, Pencil, Trash2 } from "lucide-react";
+import { Activity, Clock3, FileText, Plus, X, FolderPlus, Pencil, Trash2, LayoutGrid, List } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/lovable/shell";
+import { TaskDrawer } from "@/components/tasks/task-drawer";
 import { useStore } from "@/lib/store";
 import { type ProjectStatus, type WorkItem } from "@/lib/mock-data";
-import { compareLocalDateStrings, formatDueLabel, getDatePart, localDateKey, parseLocalDate } from "@/lib/dates";
-import { Avatar, PriorityIcon, StatusIcon } from "@/components/lovable/icons";
+import { compareLocalDateStrings, formatDueLabel, getDatePart, localDateKey } from "@/lib/dates";
+import { Avatar, StatusIcon } from "@/components/lovable/icons";
 import { Chip } from "@/components/lovable/page";
-import { WorkItemRow } from "@/components/lovable/work-item-row";
 import { ProjectIcon, IconPicker } from "@/components/lovable/project-icon";
 import { getServerSession } from "@/lib/server-session-client";
 import {
@@ -23,9 +23,6 @@ import {
 } from "@/lib/server-ui-mappers";
 
 const STATUSES: ProjectStatus[] = ["Active", "In Review", "On Hold", "Archived"];
-const TASK_TABS = ["All", "Today", "Upcoming", "Overdue", "No date", "Completed"] as const;
-type TaskTab = (typeof TASK_TABS)[number];
-type TaskScope = "mine" | "team" | "all";
 type ProjectActivityEvent = {
   id: string;
   action: "CREATED" | "UPDATED" | "MOVED" | "COMPLETED" | "DELETED" | "COMMENTED" | "ASSIGNED" | "UNASSIGNED";
@@ -33,6 +30,12 @@ type ProjectActivityEvent = {
   createdAt: string;
   actor: { id: string; name: string | null; email: string } | null;
 };
+
+const PROJECT_BOARD_COLUMNS: Array<{ key: string; label: string; statuses: WorkItem["status"][] }> = [
+  { key: "todo", label: "To Do", statuses: ["Backlog", "To Do"] },
+  { key: "progress", label: "In Progress", statuses: ["In Progress"] },
+  { key: "review", label: "In Review", statuses: ["In Review"] },
+];
 
 function activityActionLabel(action: ProjectActivityEvent["action"]) {
   if (action === "CREATED") return "created";
@@ -45,24 +48,8 @@ function activityActionLabel(action: ProjectActivityEvent["action"]) {
   return "unassigned";
 }
 
-function isInTab(item: WorkItem, tab: TaskTab, today: Date): boolean {
-  if (tab === "All") return true;
-  const isDone = item.status === "Done";
-  if (tab === "Completed") return isDone;
-  if (isDone) return false;
-  if (tab === "No date") return !item.due;
-  if (!item.due) return false;
-  const due = parseLocalDate(item.due);
-  if (!due || Number.isNaN(due.getTime())) return false;
-  const sameDay = localDateKey(due) === localDateKey(today);
-  if (tab === "Overdue") return due < today && !sameDay;
-  if (tab === "Today") return sameDay;
-  if (tab === "Upcoming") return due > today && !sameDay;
-  return true;
-}
-
 function formatDueDate(due?: string) {
-  return due ? formatDueLabel(due) : "—";
+  return due ? formatDueLabel(due) : "-";
 }
 
 function startOfLocalDay(date: Date) {
@@ -91,14 +78,13 @@ function ProjectsInner() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [iconEditingId, setIconEditingId] = useState<string | null>(null);
-  const [taskTab, setTaskTab] = useState<TaskTab>("All");
-  const [taskScope, setTaskScope] = useState<TaskScope>("all");
+  const [taskView, setTaskView] = useState<"board" | "list">("board");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [projectActivity, setProjectActivity] = useState<ProjectActivityEvent[]>([]);
   const [projectActivityLoading, setProjectActivityLoading] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
-  const cols = "grid-cols-[minmax(64px,0.7fr)_minmax(140px,1.7fr)_minmax(96px,1fr)_minmax(100px,1fr)_minmax(72px,0.7fr)_minmax(44px,0.45fr)_minmax(44px,0.45fr)]";
+  const cols = "grid-cols-[minmax(72px,0.7fr)_minmax(0,1.7fr)] md:grid-cols-[minmax(64px,0.7fr)_minmax(140px,1.7fr)_minmax(96px,1fr)_minmax(100px,1fr)_minmax(72px,0.7fr)_minmax(44px,0.45fr)_minmax(44px,0.45fr)]";
   const today = useMemo(() => startOfLocalDay(now), [now]);
   const todayKey = localDateKey(today);
   const selectedProjectId = params.get("project");
@@ -314,7 +300,7 @@ function ProjectsInner() {
     void (async () => {
       try {
         const response = await fetch(
-          `/api/activity?workspaceId=${encodeURIComponent(workspaceId)}&projectId=${encodeURIComponent(selectedProjectId)}&limit=8`,
+          `/api/activity?workspaceId=${encodeURIComponent(workspaceId)}&projectId=${encodeURIComponent(selectedProjectId)}&limit=6`,
           {
             cache: "no-store",
             headers: { "x-flowboard-user-id": currentUserId },
@@ -339,38 +325,16 @@ function ProjectsInner() {
     return workItems.filter((workItem) => workItem.project === selectedProjectId);
   }, [selectedProjectId, workItems]);
 
-  const scopedItems = useMemo(() => {
-    if (!currentUserId) return projectItems;
-    if (taskScope === "mine") return projectItems.filter((w) => w.assignee === currentUserId);
-    if (taskScope === "team") return projectItems.filter((w) => w.assignee !== currentUserId);
-    return projectItems;
-  }, [projectItems, taskScope, currentUserId]);
+  const scopedItems = useMemo(() => projectItems, [projectItems]);
+  const selectedTask = selectedTaskId ? workItems.find((item) => item.id === selectedTaskId) ?? null : null;
 
-  const filteredItems = useMemo(
-    () => scopedItems.filter((w) => isInTab(w, taskTab, today)),
-    [scopedItems, taskTab, today]
-  );
-
-  const scopeCounts = useMemo(
-    () => ({
-      mine: currentUserId ? projectItems.filter((w) => w.assignee === currentUserId && w.status !== "Done").length : 0,
-      team: currentUserId ? projectItems.filter((w) => w.assignee !== currentUserId && w.status !== "Done").length : 0,
-      all: projectItems.filter((w) => w.status !== "Done").length,
-    }),
-    [projectItems, currentUserId]
-  );
-
-  const tabCounts: Record<TaskTab, number> = useMemo(
-    () => ({
-      All: scopedItems.length,
-      Today: scopedItems.filter((w) => isInTab(w, "Today", today)).length,
-      Upcoming: scopedItems.filter((w) => isInTab(w, "Upcoming", today)).length,
-      Overdue: scopedItems.filter((w) => isInTab(w, "Overdue", today)).length,
-      "No date": scopedItems.filter((w) => isInTab(w, "No date", today)).length,
-      Completed: scopedItems.filter((w) => isInTab(w, "Completed", today)).length,
-    }),
-    [scopedItems, today]
-  );
+  const boardBuckets = useMemo(() => {
+    const openItems = scopedItems.filter((item) => item.status !== "Done");
+    return PROJECT_BOARD_COLUMNS.map((column) => {
+      const items = openItems.filter((item) => column.statuses.includes(item.status));
+      return { ...column, items };
+    });
+  }, [scopedItems]);
 
   if (selectedProject) {
     const owner = members.find((member) => member.id === selectedProject.owner) ?? members[0];
@@ -381,23 +345,28 @@ function ProjectsInner() {
     const progress = items.length === 0 ? 0 : Math.round((done / items.length) * 100);
     const projectItemIds = new Set(items.map((item) => item.id));
     const projectNoteIds = new Set(items.flatMap((item) => item.noteIds ?? []));
-    const projectNotes = notes
+    const allProjectNotes = notes
       .filter((note) => projectNoteIds.has(note.id) || [...projectItemIds].some((id) => `${note.title} ${note.excerpt}`.includes(id)))
-      .slice(0, 4);
+    const projectNotes = allProjectNotes.slice(0, 5);
+    const hasMoreProjectNotes = allProjectNotes.length > 5;
+    const recentProjectActivity = projectActivity.slice(0, 5);
+    const hasMoreProjectActivity = projectActivity.length > 5;
     return (
       <AppShell title={<span className="font-medium">Projects / {selectedProject.name}</span>}>
-        <div className="flex h-full min-h-0">
+        <div className="flex h-full min-h-0 flex-col bg-[#fafafa] lg:flex-row">
           <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-            <div className="mx-auto w-full max-w-4xl px-6 py-8 lg:px-8">
+            <div className="mx-auto w-full max-w-5xl p-6 md:p-8 lg:p-12">
             {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading project data...</div>}
+            <button onClick={() => router.push("/app/projects")} className="mb-4 text-[11px] font-medium text-zinc-500 hover:text-zinc-900">← All projects</button>
             <div className="mb-6 flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="mb-2 flex items-center gap-2">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">{selectedProject.status} project</p>
+                <div className="mb-1 flex items-center gap-2">
                   <ProjectIcon name={selectedProject.icon} accent={selectedProject.accent} size={18} />
-                  <h1 className="truncate text-[22px] font-semibold tracking-tight">{selectedProject.name}</h1>
+                  <h1 className="truncate text-2xl font-semibold tracking-tight text-zinc-900">{selectedProject.name}</h1>
                 </div>
-                <p className="text-[13px] text-muted-foreground">Project overview with live work items and progress.</p>
+                <p className="text-xs font-light text-zinc-500">Project overview with live work items and progress.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => { void createAndFocusTask(selectedProject.id); }} className="lov-btn lov-btn-primary">
@@ -411,18 +380,24 @@ function ProjectsInner() {
                     const deleted = await destroyProject(selectedProject.id);
                     if (!deleted) return;
                     updateSettings({ activeProjectId: null });
-                    router.push("/projects");
+                    router.push("/app/projects");
                     toast.success("Project deleted");
                   }}
                   className="lov-btn lov-btn-danger"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </button>
-                <button onClick={() => router.push("/projects")} className="lov-btn lov-btn-ghost">All projects</button>
               </div>
             </div>
 
-            <section className="border-y py-4">
+            <nav className="mb-6 flex items-center gap-1 border-b border-zinc-200/80 pb-2 text-xs">
+              <a href="#project-overview" className="rounded-md bg-zinc-900 px-2.5 py-1.5 font-medium text-white">Overview</a>
+              <a href="#project-tasks" className="rounded-md px-2.5 py-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900">Tasks</a>
+              <a href="#project-notes" className="rounded-md px-2.5 py-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900">Docs</a>
+              <Link href={`/app/calendar?project=${selectedProject.id}`} className="rounded-md px-2.5 py-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900">Calendar</Link>
+            </nav>
+
+            <section id="project-overview" className="rounded-lg border border-zinc-200/80 bg-white px-4 py-3">
               <dl className="grid grid-cols-2 gap-y-3 text-[13px] md:grid-cols-4">
                 <div>
                   <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</dt>
@@ -443,136 +418,240 @@ function ProjectsInner() {
               </dl>
             </section>
 
-            <section className="mt-8 grid gap-4 md:grid-cols-4">
+            <section className="mt-4 grid overflow-hidden rounded-lg border border-zinc-200/80 bg-white md:grid-cols-4 md:divide-x md:divide-zinc-100">
               {[
                 ["Open", open],
                 ["Done", done],
                 ["Overdue", overdue],
                 ["Total", items.length],
               ].map(([label, value]) => (
-                <div key={label} className="border-t pt-3">
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-                  <div className="mt-1 text-[24px] font-semibold tracking-tight">{value}</div>
+                <div key={label} className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 last:border-b-0 md:block md:border-b-0">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{label}</div>
+                  <div className="mt-0.5 text-sm font-semibold text-zinc-900">{value}</div>
                 </div>
               ))}
             </section>
 
-            <section className="mt-10 grid gap-8 lg:grid-cols-2">
-              <ProjectContextSection title="Project notes" icon={<FileText className="h-3.5 w-3.5" />} href="/notes">
+            <section className={`mt-8 grid gap-8 ${projectActivity.length > 0 ? "lg:grid-cols-2" : ""}`}>
+              <div id="project-notes">
+              <ProjectContextSection title="Project docs" icon={<FileText className="h-3.5 w-3.5" />} href="/app/notes">
                 {projectNotes.length === 0 ? (
                   <div className="px-1 py-5 text-[12px] text-muted-foreground">No notes linked to this project yet.</div>
                 ) : (
-                  projectNotes.map((note) => (
-                    <Link key={note.id} href={`/notes?id=${note.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-[var(--fb-row-py)] text-[13px] last:border-b-0 hover:text-foreground">
-                      <span className="min-w-0 truncate font-medium">{note.title}</span>
-                      <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span>{note.tag}</span>
-                        <span>{note.updated}</span>
-                      </span>
-                    </Link>
-                  ))
-                )}
-              </ProjectContextSection>
-
-              <ProjectContextSection title="Project activity" icon={<Activity className="h-3.5 w-3.5" />} href={`/activity?project=${selectedProject.id}`}>
-                {projectActivityLoading ? (
-                  <div className="px-1 py-5 text-[12px] text-muted-foreground">Loading project changes...</div>
-                ) : projectActivity.length === 0 ? (
-                  <div className="px-1 py-5 text-[12px] text-muted-foreground">No recent project changes.</div>
-                ) : (
-                  projectActivity.map((item) => {
-                    const actorName = item.actor?.name ?? item.actor?.email ?? "System";
-                    const action = activityActionLabel(item.action);
-                    return (
-                      <Link key={item.id} href={`/activity?project=${selectedProject.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-[var(--fb-row-py)] text-[13px] last:border-b-0 hover:text-foreground">
-                        <span className="min-w-0 truncate">
-                          <span className="font-medium">{actorName}</span>{" "}
-                          <span className="text-muted-foreground">{action}</span>{" "}
-                          <span>{item.target}</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Clock3 className="h-3 w-3" />
-                          {new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                  <>
+                    {projectNotes.map((note) => (
+                      <Link key={note.id} href={`/app/notes?id=${note.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-[var(--fb-row-py)] text-xs last:border-b-0 hover:text-foreground">
+                        <span className="min-w-0 truncate font-medium">{note.title}</span>
+                        <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <span>{note.tag}</span>
+                          <span>{note.updated}</span>
                         </span>
                       </Link>
-                    );
-                  })
+                    ))}
+                    {hasMoreProjectNotes && (
+                      <div className="px-1 py-2">
+                        <Link href="/app/notes" className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]">
+                          Show all
+                        </Link>
+                      </div>
+                    )}
+                  </>
                 )}
               </ProjectContextSection>
+              </div>
+
+              {projectActivity.length > 0 && <ProjectContextSection title="Recent changes" icon={<Activity className="h-3.5 w-3.5" />} href={`/activity?project=${selectedProject.id}`}>
+                {projectActivityLoading ? (
+                  <div className="px-1 py-5 text-[12px] text-muted-foreground">Loading project changes...</div>
+                ) : (
+                  <>
+                    {recentProjectActivity.map((item) => {
+                      const actorName = item.actor?.name ?? item.actor?.email ?? "System";
+                      const action = activityActionLabel(item.action);
+                      return (
+                        <Link key={item.id} href={`/activity?project=${selectedProject.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-[var(--fb-row-py)] text-[13px] last:border-b-0 hover:text-foreground">
+                          <span className="min-w-0 truncate">
+                            <span className="font-medium">{actorName}</span>{" "}
+                            <span className="text-muted-foreground">{action}</span>{" "}
+                            <span>{item.target}</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Clock3 className="h-3 w-3" />
+                            {new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                    {hasMoreProjectActivity && (
+                      <div className="px-1 py-2">
+                        <Link href={`/activity?project=${selectedProject.id}`} className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]">
+                          Show all
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                )}
+              </ProjectContextSection>}
             </section>
 
-            <section className="mt-10">
-              <div className="mb-2 flex items-center justify-between gap-3">
+            <section id="project-tasks" className="mt-10">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-[14px] font-semibold tracking-tight">Tasks</h2>
-                <span className="text-[12px] text-muted-foreground">{filteredItems.length} shown</span>
-              </div>
-
-              <div className="mb-3 flex flex-wrap items-center gap-1 text-[13px]">
-                <button
-                  onClick={() => setTaskScope("mine")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 font-medium ${taskScope === "mine" ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <span>Assigned to me</span>
-                  <span className="text-[11px] text-muted-foreground">({scopeCounts.mine})</span>
-                </button>
-                <button
-                  onClick={() => setTaskScope("team")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 font-medium ${taskScope === "team" ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <span>Team</span>
-                  <span className="text-[11px] text-muted-foreground">({scopeCounts.team})</span>
-                </button>
-                <button
-                  onClick={() => setTaskScope("all")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 font-medium ${taskScope === "all" ? "bg-[var(--color-hover)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <span>All tasks</span>
-                  <span className="text-[11px] text-muted-foreground">({scopeCounts.all})</span>
-                </button>
-              </div>
-
-              <div className="mb-3 flex flex-wrap items-center gap-1 border-b text-[13px]">
-                {TASK_TABS.map((t) => (
+                <div className="inline-flex items-center gap-1 rounded-md border bg-card p-1">
                   <button
-                    key={t}
-                    onClick={() => setTaskTab(t)}
-                    className={`relative flex items-center gap-1.5 rounded-t px-2.5 py-2 ${taskTab === t ? "bg-transparent text-foreground font-semibold border-b-2 border-foreground -mb-px" : "text-muted-foreground hover:text-foreground"}`}
+                    type="button"
+                    onClick={() => setTaskView("board")}
+                    className={`lov-icon-btn h-7 w-7 ${taskView === "board" ? "lov-btn-active" : ""}`}
+                    title="Board view"
+                    aria-label="Board view"
                   >
-                    <span>{t}</span>
-                    <span className="text-[11px] text-muted-foreground">{tabCounts[t]}</span>
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskView("list")}
+                    className={`lov-icon-btn h-7 w-7 ${taskView === "list" ? "lov-btn-active" : ""}`}
+                    title="List view"
+                    aria-label="List view"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {projects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => {
+                      updateSettings({ activeProjectId: project.id });
+                      router.push(`/app/projects?project=${project.id}`);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium ${
+                      selectedProject.id === project.id
+                        ? "bg-[var(--color-hover)] text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ background: project.accent }} />
+                    <span className="truncate">{project.name}</span>
                   </button>
                 ))}
               </div>
 
-              <div className="border-t">
-                {items.length === 0 ? (
-                  <div className="px-3 py-12 text-center text-[13px] text-muted-foreground">No tasks in this project yet.</div>
-                ) : (
+              <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+                <span>{scopedItems.length} total</span>
+                <span>·</span>
+                <span>{open} open</span>
+                <span>·</span>
+                <span>{done} done</span>
+                {overdue > 0 ? (
                   <>
-                    {filteredItems.length === 0 && (
-                      <div className="px-3 py-12 text-center text-[13px] text-muted-foreground">No tasks in this view yet.</div>
-                    )}
-                    {filteredItems.map((workItem) => {
-                      return (
-                        <WorkItemRow
-                          key={workItem.id}
-                          item={workItem}
-                          membersOverride={members}
-                          selected={selectedTaskId === workItem.id}
-                          onClick={() => setSelectedTaskId(workItem.id)}
-                          onMove={(nextStatus) => { void patchTaskStatus(workItem.id, nextStatus); }}
-                          onDelete={() => {
-                            void destroyTask(workItem.id);
-                          }}
-                        />
-                      );
-                    })}
+                    <span>·</span>
+                    <span className="font-medium text-red-600">{overdue} overdue</span>
                   </>
-                )}
+                ) : null}
               </div>
+
+              {items.length === 0 ? (
+                <div className="rounded-md border px-3 py-12 text-center text-[13px] text-muted-foreground">No tasks in this project yet.</div>
+              ) : taskView === "list" ? (
+                <div className="divide-y rounded-md border">
+                  {scopedItems.map((workItem) => {
+                    const member = members.find((m) => m.id === workItem.assignee) ?? members[0];
+                    return (
+                      <div key={workItem.id} className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={workItem.status === "Done"}
+                          onChange={() => {
+                            void patchTaskStatus(workItem.id, workItem.status === "Done" ? "To Do" : "Done");
+                          }}
+                          className="h-3.5 w-3.5 accent-[var(--color-primary)]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTaskId(workItem.id)}
+                          className={`min-w-0 truncate text-left text-[14px] font-medium ${
+                            workItem.status === "Done" ? "text-muted-foreground line-through" : "text-foreground hover:underline"
+                          }`}
+                        >
+                          {workItem.title}
+                        </button>
+                        <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-full" style={{ background: selectedProject.accent }} />
+                            {selectedProject.name}
+                          </span>
+                          <Chip>{workItem.priority}</Chip>
+                          <span className="inline-flex items-center gap-1"><StatusIcon s={workItem.status} /> {workItem.status}</span>
+                          <span className={workItem.status !== "Done" && workItem.due && compareLocalDateStrings(workItem.due, todayKey) < 0 ? "font-medium text-red-600" : ""}>
+                            {formatDueDate(workItem.due)}
+                          </span>
+                          <span className="inline-flex items-center gap-1"><Avatar id={member.id} name={member.name} />{member.name}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {PROJECT_BOARD_COLUMNS.map((column) => {
+                    const columnItems = boardBuckets.find((bucket) => bucket.key === column.key)?.items ?? [];
+                    return (
+                      <section key={column.key} className="rounded-md border">
+                        <header className="flex items-center justify-between border-b px-3 py-2">
+                          <h3 className="inline-flex items-center gap-1.5 text-[13px] font-semibold">
+                            <StatusIcon s={column.statuses[0] === "Backlog" ? "To Do" : column.statuses[0]} />
+                            {column.label}
+                          </h3>
+                          <span className="text-[11px] text-muted-foreground">{columnItems.length}</span>
+                        </header>
+                        <div className="p-2">
+                          {columnItems.length === 0 ? (
+                            <div className="rounded border border-dashed px-3 py-8 text-center text-[12px] text-muted-foreground">No tasks</div>
+                          ) : (
+                            <div className="space-y-2">
+                              {columnItems.map((workItem) => (
+                                <button
+                                  key={workItem.id}
+                                  type="button"
+                                  onClick={() => setSelectedTaskId(workItem.id)}
+                                  className="w-full rounded-md border bg-card px-3 py-2 text-left hover:bg-[var(--color-hover)]/50"
+                                >
+                                  <p className="truncate text-[13px] font-medium">{workItem.title}</p>
+                                  <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                    <Chip>{workItem.priority}</Chip>
+                                    <span>{formatDueDate(workItem.due)}</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
             </section>
             </div>
           </div>
+          <TaskDrawer
+            item={selectedTask}
+            onClose={() => setSelectedTaskId(null)}
+            workspaceId={workspaceId}
+            currentUserId={currentUserId}
+            membersOverride={members}
+            projectsOverride={projects}
+            onItemPatched={(id, patch) => {
+              setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, ...patch } : workItem)));
+            }}
+            onItemReplaced={(next) => {
+              setWorkItems((current) => current.map((workItem) => (workItem.id === next.id ? next : workItem)));
+            }}
+          />
         </div>
       </AppShell>
     );
@@ -581,11 +660,14 @@ function ProjectsInner() {
   return (
     <AppShell title={<span className="font-medium">Projects</span>}>
       <div className="h-full overflow-y-scroll [scrollbar-gutter:stable]">
-        <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-8">
+        <div className="mx-auto w-full max-w-5xl p-6 md:p-8 lg:p-12">
           {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
           {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading projects...</div>}
-          <div className="mb-1 flex items-baseline justify-between gap-3">
-            <h1 className="text-[20px] font-semibold tracking-tight">Projects</h1>
+          <div className="mb-1 flex items-end justify-between gap-3">
+            <div>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Collections</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Projects</h1>
+            </div>
             <div className="flex items-center gap-3">
               <span className="text-[12px] text-muted-foreground">{projects.length} in your workspace</span>
               <button
@@ -596,21 +678,22 @@ function ProjectsInner() {
               </button>
             </div>
           </div>
-          <p className="mb-6 text-[13px] text-muted-foreground">Click a project to open its overview.</p>
+          <p className="mb-6 text-xs font-light text-zinc-500">Open a project to review its work, notes, and dates.</p>
 
           {projects.length === 0 ? (
             <EmptyState onCreate={() => setModalOpen(true)} />
           ) : (
             <>
+              <div className="overflow-hidden rounded-lg border border-zinc-200/80 bg-white">
               {/* Column headers */}
-              <div className={`grid ${cols} items-center gap-3 border-b border-border px-2 pb-2 pt-1 text-[13px] font-semibold tracking-tight text-foreground`}>
+              <div className={`grid ${cols} items-center gap-3 border-b border-zinc-100 bg-zinc-50/50 px-4 py-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400`}>
                 <span>Status</span>
                 <span>Project</span>
-                <span>Manager</span>
-                <span>Progress</span>
-                <span>Due</span>
-                <span className="text-right">Tasks</span>
-                <span className="text-right">Done</span>
+                <span className="hidden md:block">Manager</span>
+                <span className="hidden md:block">Progress</span>
+                <span className="hidden md:block">Due</span>
+                <span className="hidden text-right md:block">Tasks</span>
+                <span className="hidden text-right md:block">Done</span>
               </div>
 
               {projects.map((p) => {
@@ -625,9 +708,9 @@ function ProjectsInner() {
                     role="link"
                     tabIndex={0}
                     aria-label={`Open project ${p.name}`}
-                    onClick={() => { updateSettings({ activeProjectId: p.id }); router.push(`/projects?project=${p.id}`); }}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateSettings({ activeProjectId: p.id }); router.push(`/projects?project=${p.id}`); } }}
-                    className={`grid ${cols} cursor-pointer items-center gap-3 border-b border-border/40 px-2 py-3 text-[13px] hover:bg-[var(--color-hover)]/40 focus:bg-[var(--color-hover)]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
+                    onClick={() => { updateSettings({ activeProjectId: p.id }); router.push(`/app/projects?project=${p.id}`); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateSettings({ activeProjectId: p.id }); router.push(`/app/projects?project=${p.id}`); } }}
+                    className={`grid ${cols} cursor-pointer items-center gap-3 border-b border-zinc-100 px-4 py-4 text-xs last:border-b-0 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30`}
                   >
                     <span>
                       <Chip tone={p.status === "Active" ? "accent" : p.status === "On Hold" ? "warning" : "neutral"}>{p.status}</Chip>
@@ -660,23 +743,24 @@ function ProjectsInner() {
                         </>
                       )}
                     </span>
-                    <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                    <span className="hidden min-w-0 items-center gap-2 text-muted-foreground md:flex">
                       <Avatar id={m.id} name={m.name} /> <span className="truncate">{m.name}</span>
                     </span>
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-20 overflow-hidden rounded-full bg-muted">
-                        <span className="block h-full transition-all" style={{ width: `${progress}%`, background: p.accent }} />
+                    <span className="hidden items-center gap-2 md:flex">
+                      <span className="h-1 w-16 overflow-hidden rounded-full bg-zinc-200">
+                        <span className="block h-full bg-zinc-900 transition-all" style={{ width: `${progress}%` }} />
                       </span>
                       <span className="shrink-0 text-[11px] text-muted-foreground">{progress}%</span>
                     </span>
-                    <span className={overdue ? "font-medium text-red-600" : "text-muted-foreground"}>
+                    <span className={`hidden md:block ${overdue ? "font-medium text-red-600" : "text-muted-foreground"}`}>
                       {p.due ? new Date(`${getDatePart(p.due)}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                     </span>
-                    <span className="text-right text-muted-foreground">{items.length}</span>
-                    <span className="text-right text-muted-foreground">{done}</span>
+                    <span className="hidden text-right text-muted-foreground md:block">{items.length}</span>
+                    <span className="hidden text-right text-muted-foreground md:block">{done}</span>
                   </div>
                 );
               })}
+              </div>
             </>
           )}
         </div>
@@ -692,7 +776,7 @@ function ProjectsInner() {
             updateSettings({ activeProjectId: id });
             toast.success(`Created project "${input.name}"`);
             setModalOpen(false);
-            router.push(`/projects?project=${id}`);
+            router.push(`/app/projects?project=${id}`);
           }}
         />
       )}

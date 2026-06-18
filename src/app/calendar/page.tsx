@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/lovable/shell";
 import { Toolbar } from "@/components/lovable/page";
-import { TaskDrawer } from "@/components/lovable/task-drawer";
+import { TaskDrawer } from "@/components/tasks/task-drawer";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import type { WorkItem, Project } from "@/lib/mock-data";
 import { getDatePart, localDateKey, parseLocalDate } from "@/lib/dates";
@@ -65,7 +65,6 @@ function fullDateLabel(key: string): string {
 function chipStyle(accent: string): CSSProperties {
   return {
     borderLeftColor: accent,
-    background: `color-mix(in oklch, ${accent} 10%, transparent)`,
   };
 }
 
@@ -86,7 +85,7 @@ function TaskChip({
   const dueKey = getDatePart(item.due);
   const isOverdue = !!dueKey && dueKey < todayKey && !isDone;
   const sizing =
-    size === "sm" ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-[12px]";
+    size === "sm" ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-1 text-[11px]";
   const textTone = isDone
     ? "text-muted-foreground/70 line-through"
     : isOverdue
@@ -100,7 +99,7 @@ function TaskChip({
         ...chipStyle(accent),
         opacity: isDone ? 0.55 : 1,
       }}
-      className={`flex w-full items-center gap-1 truncate rounded border-l-2 text-left transition-opacity hover:opacity-80 ${sizing} ${textTone}`}
+      className={`flex w-full items-center gap-1 truncate rounded border border-zinc-200/40 border-l-2 bg-zinc-100 text-left font-medium transition-opacity hover:opacity-80 ${sizing} ${textTone}`}
     >
       {isOverdue && (
         <span
@@ -109,6 +108,54 @@ function TaskChip({
         />
       )}
       <span className="min-w-0 flex-1 truncate">{item.title}</span>
+    </button>
+  );
+}
+
+function TaskListItem({
+  item,
+  accent,
+  todayKey,
+  onSelect,
+}: {
+  item: WorkItem;
+  accent: string;
+  todayKey: string;
+  onSelect: (id: string) => void;
+}) {
+  const dueKey = getDatePart(item.due);
+  const isDone = item.status === "Done";
+  const isOverdue = !!dueKey && dueKey < todayKey && !isDone;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(item.id)}
+      className="flex w-full min-w-0 items-start gap-2 rounded border bg-card px-2.5 py-2 text-left hover:bg-[var(--color-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span
+        aria-hidden
+        style={{ backgroundColor: accent }}
+        className="mt-1.5 size-2 shrink-0 rounded-full"
+      />
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate text-[13px] font-medium ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>
+          {item.title}
+        </span>
+        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span>{item.status}</span>
+          <span aria-hidden>·</span>
+          <span>{item.priority}</span>
+          {dueKey && (
+            <>
+              <span aria-hidden>·</span>
+              <span className={isOverdue ? "font-medium text-destructive" : ""}>
+                {isOverdue ? "Overdue" : dueKey}
+              </span>
+            </>
+          )}
+        </span>
+      </span>
     </button>
   );
 }
@@ -218,11 +265,11 @@ function MonthView({
   }, [cursor]);
 
   return (
-    <div className="grid h-full min-w-[720px] grid-cols-7 border-b border-l text-[12px] md:min-w-0">
+    <div className="grid grid-cols-7 gap-2 text-xs">
       {WEEKDAY_HEADERS.map((d, index) => (
         <div
           key={`${d.long}-${index}`}
-          className="border-r border-t bg-sidebar/50 px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+          className="px-2 py-1 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-400"
         >
           <span className="sm:hidden">{d.short}</span>
           <span className="hidden sm:inline">{d.long}</span>
@@ -240,15 +287,15 @@ function MonthView({
         return (
           <div
             key={idx}
-            className={`min-h-24 border-r border-t p-1.5 sm:min-h-28 ${day ? "" : "bg-sidebar/30"}`}
+            className={`group/day min-h-[80px] rounded-lg border p-2 sm:min-h-24 ${day ? "border-zinc-200/80 bg-white hover:border-zinc-400" : "border-transparent bg-zinc-50/50"}`}
           >
             {day && (
               <>
                 <div
-                  className={`mb-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] ${
+                  className={`mb-1 inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 font-mono text-[10px] ${
                     isToday
-                      ? "bg-primary font-semibold text-primary-foreground"
-                      : "text-muted-foreground"
+                      ? "border border-zinc-950 font-bold text-zinc-950 ring-1 ring-zinc-950"
+                      : "font-bold text-zinc-400"
                   }`}
                 >
                   {day}
@@ -277,7 +324,7 @@ function MonthView({
                     <button
                       type="button"
                       onClick={() => onCreate(key)}
-                      className="flex h-6 w-full items-center justify-center rounded border border-dashed text-[10px] text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+                      className="flex h-6 w-full items-center justify-center rounded border border-dashed text-[10px] text-muted-foreground opacity-0 transition-opacity hover:border-foreground/25 hover:text-foreground group-hover/day:opacity-100 focus-visible:opacity-100"
                     >
                       <Plus className="mr-1 h-3 w-3" /> Add
                     </button>
@@ -379,6 +426,151 @@ function WeekView({
   );
 }
 
+function MobileAgenda({
+  selectedDateKey,
+  cursor,
+  itemsByKey,
+  datedItems,
+  undatedItems,
+  todayKey,
+  projectsById,
+  onSelectDate,
+  onSelect,
+  onCreate,
+}: {
+  selectedDateKey: string;
+  cursor: Date;
+  itemsByKey: Record<string, WorkItem[]>;
+  datedItems: WorkItem[];
+  undatedItems: WorkItem[];
+  todayKey: string;
+  projectsById: Record<string, Project>;
+  onSelectDate: (dateKey: string) => void;
+  onSelect: (id: string) => void;
+  onCreate: (dateKey: string) => void;
+}) {
+  const days = useMemo(() => {
+    const dim = daysInMonth(cursor);
+    return Array.from({ length: dim }, (_, index) => {
+      const day = index + 1;
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return { day, key };
+    });
+  }, [cursor]);
+  const selectedItems = itemsByKey[selectedDateKey] ?? [];
+  const upcomingItems = datedItems
+    .filter((item) => getDatePart(item.due) >= todayKey)
+    .slice(0, 6);
+
+  return (
+    <div className="space-y-4 px-3 py-3 md:hidden">
+      <div className="grid grid-cols-7 gap-1">
+        {days.map(({ day, key }) => {
+          const count = itemsByKey[key]?.length ?? 0;
+          const active = key === selectedDateKey;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSelectDate(key)}
+              className={`flex h-12 min-w-10 flex-col items-center justify-center rounded border text-[12px] ${active ? "border-primary bg-primary text-primary-foreground" : "bg-card text-foreground"}`}
+            >
+              <span className="font-medium">{day}</span>
+              <span className="text-[10px] opacity-75">{count || ""}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {fullDateLabel(selectedDateKey)}
+          </h2>
+          <button
+            type="button"
+            onClick={() => onCreate(selectedDateKey)}
+            className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]"
+          >
+            <Plus className="h-3 w-3" /> Add
+          </button>
+        </div>
+        {selectedItems.length > 0 ? (
+          selectedItems.map((item) => (
+            <TaskListItem
+              key={item.id}
+              item={item}
+              accent={accentFor(item, projectsById)}
+              todayKey={todayKey}
+              onSelect={onSelect}
+            />
+          ))
+        ) : (
+          <p className="rounded border border-dashed px-3 py-4 text-[12px] text-muted-foreground">
+            No dated tasks for this day.
+          </p>
+        )}
+      </section>
+
+      <TaskSection
+        title="Upcoming"
+        empty="No upcoming dated tasks."
+        items={upcomingItems}
+        todayKey={todayKey}
+        projectsById={projectsById}
+        onSelect={onSelect}
+      />
+      <TaskSection
+        title="No date"
+        empty="No tasks without a due date."
+        items={undatedItems}
+        todayKey={todayKey}
+        projectsById={projectsById}
+        onSelect={onSelect}
+      />
+    </div>
+  );
+}
+
+function TaskSection({
+  title,
+  empty,
+  items,
+  todayKey,
+  projectsById,
+  onSelect,
+}: {
+  title: string;
+  empty: string;
+  items: WorkItem[];
+  todayKey: string;
+  projectsById: Record<string, Project>;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h2>
+      {items.length > 0 ? (
+        items.map((item) => (
+          <TaskListItem
+            key={item.id}
+            item={item}
+            accent={accentFor(item, projectsById)}
+            todayKey={todayKey}
+            onSelect={onSelect}
+          />
+        ))
+      ) : (
+        <p className="rounded border border-dashed px-3 py-3 text-[12px] text-muted-foreground">
+          {empty}
+        </p>
+      )}
+    </section>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 type CalView = "month" | "week";
@@ -398,6 +590,7 @@ function CalendarPageContent() {
   const [cursor, setCursor] = useState(() => new Date());
   const [now, setNow] = useState(() => new Date());
   const [view, setView] = useState<CalView>("month");
+  const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusNewTask, setFocusNewTask] = useState(false);
 
@@ -427,7 +620,7 @@ function CalendarPageContent() {
         setProjects(projectsPayload.projects.map((project) => toUiProject(project, session.user.id)));
         const mappedItems = workItemsPayload.workItems.map((item) => toUiWorkItem(item, session.user.id));
         setWorkItems(mappedItems);
-        setActiveProjectId(mappedItems[0]?.project ?? null);
+        setActiveProjectId(null);
       } catch (loadError) {
         if (!active) return;
         setError(loadError instanceof Error ? loadError.message : "Failed to load Calendar");
@@ -443,10 +636,6 @@ function CalendarPageContent() {
   }, []);
 
   const scopedProjectId = routeProjectId ?? activeProjectId;
-  const activeProject = scopedProjectId
-    ? (projects.find((p) => p.id === scopedProjectId) ?? null)
-    : null;
-
   const projectsById = useMemo(() => {
     const map: Record<string, Project> = {};
     for (const p of projects) map[p.id] = p;
@@ -484,8 +673,16 @@ function CalendarPageContent() {
     return map;
   }, [scopedWorkItems]);
 
-  const undatedCount = useMemo(
-    () => scopedWorkItems.filter((w) => !parseDue(w.due)).length,
+  const datedItems = useMemo(
+    () =>
+      scopedWorkItems
+        .filter((w) => parseDue(w.due))
+        .sort((a, b) => getDatePart(a.due).localeCompare(getDatePart(b.due))),
+    [scopedWorkItems]
+  );
+
+  const undatedItems = useMemo(
+    () => scopedWorkItems.filter((w) => !parseDue(w.due)),
     [scopedWorkItems]
   );
 
@@ -511,7 +708,9 @@ function CalendarPageContent() {
 
   function prev() {
     if (view === "month") {
-      setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
+      const nextCursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+      setCursor(nextCursor);
+      setSelectedDateKey(toDateKey(nextCursor));
     } else {
       setCursor(addDays(cursor, -7));
     }
@@ -519,7 +718,9 @@ function CalendarPageContent() {
 
   function next() {
     if (view === "month") {
-      setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
+      const nextCursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      setCursor(nextCursor);
+      setSelectedDateKey(toDateKey(nextCursor));
     } else {
       setCursor(addDays(cursor, 7));
     }
@@ -558,13 +759,7 @@ function CalendarPageContent() {
 
   return (
     <AppShell
-      title={
-        <span className="font-medium">
-          {activeProject
-            ? `${activeProject.name} / Calendar`
-            : "All projects / Calendar"}
-        </span>
-      }
+      title={<span className="font-medium">Calendar</span>}
       toolbar={
         <Toolbar>
           <button onClick={prev} className="lov-icon-btn">
@@ -577,7 +772,11 @@ function CalendarPageContent() {
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={() => setCursor(new Date())}
+            onClick={() => {
+              const today = new Date();
+              setCursor(today);
+              setSelectedDateKey(toDateKey(today));
+            }}
             className="lov-btn lov-btn-ghost"
           >
             Today
@@ -598,43 +797,74 @@ function CalendarPageContent() {
             </button>
           </div>
           <span className="ml-auto" />
-          {undatedCount > 0 && (
+          {undatedItems.length > 0 && (
             <span className="hidden text-[12px] text-muted-foreground lg:inline">
-              {undatedCount} task{undatedCount === 1 ? "" : "s"} without a due
+              {undatedItems.length} task{undatedItems.length === 1 ? "" : "s"} without a due
               date
             </span>
           )}
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0 w-full">
+      <div className="flex h-full min-h-0 w-full flex-col lg:flex-row">
         {error && <div className="absolute left-6 right-6 top-3 z-40 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {loading && <div className="px-4 py-2 text-[12px] text-muted-foreground">Loading calendar data...</div>}
-          {view === "month" ? (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <MonthView
-                cursor={cursor}
-                itemsByKey={itemsByKey}
-                todayKey={todayKey}
-              now={now}
-              projectsById={projectsById}
-              onSelect={setSelectedId}
-              onCreate={createOnDate}
-            />
-          </div>
-        ) : (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <WeekView
-                cursor={cursor}
-                itemsByKey={itemsByKey}
-                todayKey={todayKey}
-                projectsById={projectsById}
-                onSelect={setSelectedId}
-                onCreate={createOnDate}
-              />
+          <MobileAgenda
+            selectedDateKey={selectedDateKey}
+            cursor={cursor}
+            itemsByKey={itemsByKey}
+            datedItems={datedItems}
+            undatedItems={undatedItems}
+            todayKey={todayKey}
+            projectsById={projectsById}
+            onSelectDate={setSelectedDateKey}
+            onSelect={setSelectedId}
+            onCreate={createOnDate}
+          />
+          <div className="hidden min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#fafafa] md:block">
+            <div className="mx-auto w-full max-w-5xl p-6 md:p-8 lg:p-12">
+              <div className="mb-6">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Task timeline</p>
+                <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Calendar</h1>
+                <p className="mt-0.5 text-xs font-light text-zinc-500">Dated work, without a separate events system.</p>
+              </div>
+              <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
+                <div className="min-w-0">
+                  {view === "month" ? (
+                    <MonthView
+                      cursor={cursor}
+                      itemsByKey={itemsByKey}
+                      todayKey={todayKey}
+                      now={now}
+                      projectsById={projectsById}
+                      onSelect={setSelectedId}
+                      onCreate={createOnDate}
+                    />
+                  ) : (
+                    <WeekView
+                      cursor={cursor}
+                      itemsByKey={itemsByKey}
+                      todayKey={todayKey}
+                      projectsById={projectsById}
+                      onSelect={setSelectedId}
+                      onCreate={createOnDate}
+                    />
+                  )}
+                </div>
+                <aside className="rounded-lg border border-zinc-200/80 bg-white p-4">
+                <TaskSection
+                  title="No date"
+                  empty="No tasks without a due date."
+                  items={undatedItems}
+                  todayKey={todayKey}
+                  projectsById={projectsById}
+                  onSelect={setSelectedId}
+                />
+                </aside>
+              </div>
             </div>
-          )}
+          </div>
         </div>
         <TaskDrawer
           item={selectedItem}

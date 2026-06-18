@@ -64,10 +64,10 @@ const ACCENTS = [
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[180px_1fr] gap-6 border-b pb-5">
+    <div className="grid grid-cols-1 gap-3 border-b border-zinc-200/80 pb-5 md:grid-cols-[180px_1fr] md:gap-6">
       <div>
-        <div className="text-[13px] font-medium">{label}</div>
-        {hint && <div className="mt-0.5 text-[12px] text-muted-foreground">{hint}</div>}
+        <div className="text-xs font-bold uppercase tracking-wider text-zinc-800">{label}</div>
+        {hint && <div className="mt-0.5 text-[10px] text-zinc-400">{hint}</div>}
       </div>
       <div>{children}</div>
     </div>
@@ -78,19 +78,17 @@ function AppearancePreview({
   accent,
   density,
   priorityStyle,
+  workItems,
 }: {
   accent: string;
   density: "compact" | "comfortable";
   priorityStyle: PriorityStyle;
+  workItems: WorkItem[];
 }) {
   const relaxed = density === "comfortable";
   const rowPadding = relaxed ? "py-2.5" : "py-1.5";
   const rowGap = relaxed ? "gap-3" : "gap-2";
-  const sampleTasks = [
-    { id: "FB-65", title: "Review integration copy", priority: "High" as Priority, status: "In Progress" },
-    { id: "FB-87", title: "Triage mobile feedback", priority: "Medium" as Priority, status: "To Do" },
-    { id: "FB-111", title: "Archive stale checklist", priority: "Low" as Priority, status: "Backlog" },
-  ];
+  const previewTasks = workItems.slice(0, 3);
 
   return (
     <div className="rounded-md border bg-card">
@@ -110,7 +108,9 @@ function AppearancePreview({
 
       <div className="grid gap-0 md:grid-cols-[1fr_180px]">
         <div className="min-w-0 border-b md:border-r md:border-b-0">
-          {sampleTasks.map((task) => (
+          {previewTasks.length === 0 ? (
+            <div className={`px-3 text-[13px] text-muted-foreground ${rowPadding}`}>No tasks to preview yet.</div>
+          ) : previewTasks.map((task) => (
             <div key={task.id} className={`flex items-center ${rowGap} border-b px-3 text-[13px] last:border-b-0 ${rowPadding}`}>
               <input type="checkbox" className="h-3.5 w-3.5 accent-[var(--color-primary)]" aria-label={`Complete ${task.title}`} />
               <PriorityIcon p={task.priority} style={priorityStyle} />
@@ -121,7 +121,7 @@ function AppearancePreview({
         </div>
 
         <div className="p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Menu sample</div>
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Menu preview</div>
           <div className="overflow-hidden rounded border">
             <div className={`px-2 text-[12px] ${rowPadding}`} style={{ background: `color-mix(in oklch, ${accent} 14%, transparent)` }}>
               Assign to me
@@ -161,7 +161,6 @@ export default function SettingsPage() {
   const workItems = useStore((s) => s.workItems);
   const updateSettings = useStore((s) => s.updateSettings);
   const updateMember = useStore((s) => s.updateMember);
-  const resetData = useStore((s) => s.resetData);
   const { setTheme } = useTheme();
   const fileRef = useRef<HTMLInputElement>(null);
   const csvRef = useRef<HTMLInputElement>(null);
@@ -346,13 +345,6 @@ export default function SettingsPage() {
     }
   };
 
-  const onReset = () => {
-    if (confirm("Reset all data to seed defaults? This cannot be undone.")) {
-      resetData();
-      toast("Workspace reset to seed data");
-    }
-  };
-
   const exportCSV = () => {
     const rows = useStore.getState().workItems;
     const csv = Papa.unparse(rows);
@@ -381,7 +373,7 @@ export default function SettingsPage() {
             assignee: r.assignee ?? "AM",
             label: r.label ?? "Task",
             due: r.due ?? new Date().toISOString().slice(0, 10),
-            project: r.project ?? "core",
+            project: r.project ?? "general",
           }));
         if (parsed.length === 0) { toast.error("No valid rows in CSV"); return; }
         useStore.setState((s) => ({ workItems: [...parsed, ...s.workItems.filter((w) => !parsed.some((p) => p.id === w.id))] }));
@@ -451,21 +443,24 @@ export default function SettingsPage() {
 
   return (
     <AppShell title={<span className="font-medium">Settings</span>}>
-      <div className="flex h-full">
-        <aside className="w-56 shrink-0 border-r bg-sidebar/40 p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace</div>
+      <div className="flex h-full flex-col overflow-y-auto bg-[#fafafa]">
+        <aside className="mx-auto flex w-full max-w-2xl shrink-0 flex-wrap gap-1 border-b border-zinc-200/80 px-6 py-4">
+          <div className="mr-2 flex w-full items-center text-[9px] font-bold uppercase tracking-wider text-zinc-400 sm:w-auto">Workspace</div>
           {sections.map((x) => (
             <button key={x} onClick={() => setSection(x)}
-              className={`lov-menu-item py-1.5 text-[13px] ${section === x ? "lov-menu-item-active" : ""}`}>{x}</button>
+              className={`rounded-md px-2.5 py-1.5 text-xs ${section === x ? "bg-zinc-900 font-medium text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"}`}>{x}</button>
           ))}
         </aside>
 
-        <div className="mx-auto w-full max-w-2xl px-8 py-8">
+        <div className="mx-auto w-full max-w-2xl p-6 md:p-8">
           <div className="flex items-baseline justify-between gap-3">
-            <h1 className="text-[19px] font-semibold tracking-tight">{section}</h1>
+            <div>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Preferences</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{section}</h1>
+            </div>
             <SaveIndicator />
           </div>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Manage your {section.toLowerCase()} preferences. Changes save automatically.</p>
+          <p className="mt-0.5 text-xs font-light text-zinc-500">Manage your {section.toLowerCase()} preferences. Changes save automatically.</p>
 
           {section === "General" && (
             <div className="mt-8 space-y-6">
@@ -475,9 +470,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateSettings({ workspaceName: e.target.value })}
                   className="lov-input"
                 />
-              </Field>
-              <Field label="Danger zone" hint="Reset all tasks, projects, and notes to seed defaults.">
-                <button onClick={onReset} className="lov-btn lov-btn-danger">Reset workspace</button>
               </Field>
             </div>
           )}
@@ -496,7 +488,7 @@ export default function SettingsPage() {
                       }}
                       className={`lov-btn capitalize ${settings.theme === t ? "lov-btn-active" : ""}`}
                     >
-                      {t}
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
                     </button>
                   ))}
                 </div>
@@ -511,9 +503,11 @@ export default function SettingsPage() {
                         void persistUserSettings({ accent: c.value });
                       }}
                       title={c.label}
-                      className={`h-6 w-6 rounded-full ring-offset-2 ${settings.accent === c.value ? "ring-2 ring-ring" : ""}`}
-                      style={{ background: c.value }}
-                    />
+                      className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-[12px] ${settings.accent === c.value ? "border-ring ring-2 ring-ring/30" : "border-border/70"}`}
+                    >
+                      <span className="h-4 w-4 rounded-full" style={{ background: c.value }} />
+                      {c.label}
+                    </button>
                   ))}
                 </div>
               </Field>
@@ -560,7 +554,7 @@ export default function SettingsPage() {
                 </div>
               </Field>
               <Field label="Live preview" hint="Use this to compare accent, density, and priority choices before leaving settings.">
-                <AppearancePreview accent={settings.accent} density={settings.density} priorityStyle={settings.priorityStyle} />
+                <AppearancePreview accent={settings.accent} density={settings.density} priorityStyle={settings.priorityStyle} workItems={workItems} />
               </Field>
             </div>
           )}
@@ -642,9 +636,6 @@ export default function SettingsPage() {
                   <button onClick={() => csvRef.current?.click()} className="lov-btn">Import CSV</button>
                   <button onClick={exportCSV} className="lov-btn">Export CSV</button>
                 </div>
-              </Field>
-              <Field label="Reset" hint="Reload seed data (keeps your settings).">
-                <button onClick={onReset} className="lov-btn lov-btn-danger">Reset to seed</button>
               </Field>
               <Field
                 label="Server migration"
