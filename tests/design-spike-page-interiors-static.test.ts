@@ -59,3 +59,16 @@ test("DESIGN-SPIKE-003 keeps the visual pass reviewable", () => {
   assert.match(sonner, /before:bg-zinc-950/);
   assert.match(globals, /\.toaster \[data-sonner-toast\]::before/);
 });
+
+test("DESIGN-SPIKE-005 keeps Tasks board from using the cramped list split", () => {
+  const tasks = read("src/components/tasks/task-hub.tsx");
+  const drawer = read("src/components/tasks/task-drawer.tsx");
+
+  assert.match(tasks, /view === "board" \? "max-w-none" : "max-w-5xl"/);
+  assert.match(tasks, /w-full overflow-x-auto/);
+  assert.match(tasks, /grid-cols-\[repeat\(5,minmax\(220px,1fr\)\)\]/);
+  assert.match(tasks, /min-w-\[220px\]/);
+  assert.match(tasks, /placement=\{view === "board" \? "overlay" : "inline"\}/);
+  assert.match(drawer, /fixed inset-y-0 right-0/);
+  assert.doesNotMatch(tasks, /const\s+(?:tasks|mockTasks|demoTasks)\s*=/);
+});

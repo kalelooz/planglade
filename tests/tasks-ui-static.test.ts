@@ -75,20 +75,23 @@ test("Ctrl+K command palette keeps keyboard selection visible", () => {
   assert.equal(palette.includes('scrollIntoView({ block: "nearest" })'), true);
 });
 
-test("Tasks board reflows instead of using horizontal scroll", () => {
+test("Tasks board uses one board-level horizontal scroll without crushing columns", () => {
   const hub = readFileSync("src/components/tasks/task-hub.tsx", "utf8");
   const drawer = readFileSync("src/components/tasks/task-drawer.tsx", "utf8");
   const instructions = readFileSync("AGENTS.md", "utf8");
 
-  assert.equal(hub.includes("overflow-x-auto"), false);
+  assert.equal(hub.includes("w-full overflow-x-auto"), true);
   assert.equal(hub.includes("min-w-max"), false);
   assert.equal(hub.includes("w-[280px]"), false);
   assert.equal(hub.includes("xl:w-[300px]"), false);
   assert.equal(hub.includes("repeat(auto-fit"), false);
-  assert.equal(hub.includes("xl:grid-cols-3"), true);
-  assert.equal(hub.includes("lg:grid-cols-[minmax(0,1fr)_360px]"), true);
+  assert.equal(hub.includes("grid-cols-[repeat(5,minmax(220px,1fr))]"), true);
+  assert.equal(hub.includes("min-w-[220px]"), true);
+  assert.equal(hub.includes('view === "list" && selected && "lg:grid-cols-[minmax(0,1fr)_360px]"'), true);
+  assert.equal(hub.includes('placement={view === "board" ? "overlay" : "inline"}'), true);
   assert.equal(hub.includes("min-[1720px]:grid-cols-[minmax(960px,1fr)_360px]"), false);
   assert.equal(drawer.includes("lg:w-[360px]"), true);
+  assert.equal(drawer.includes("fixed inset-y-0 right-0"), true);
   assert.equal(drawer.includes("border border-zinc-200/80 bg-white"), true);
   assert.equal(hub.includes("GripVertical"), true);
   assert.equal(instructions.includes("must not introduce horizontal scrolling in normal app workflows"), true);

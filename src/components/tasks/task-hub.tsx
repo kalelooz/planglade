@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/tasks/task-drawer";
-import { DueMeta, PriorityBadge, ProjectTagMeta, StatusBadge, StatusSelect, TASK_STATUSES, TaskMetaChip } from "@/components/tasks/task-metadata";
+import { DueMeta, PriorityBadge, ProjectTagMeta, StatusBadge, TASK_STATUSES, TaskMetaChip } from "@/components/tasks/task-metadata";
 import { cn } from "@/lib/utils";
 import { isSameLocalDate, parseLocalDate } from "@/lib/dates";
 import { getServerSession } from "@/lib/server-session-client";
@@ -129,7 +129,7 @@ export function TaskHub() {
         setTasks(nextTasks);
         setProjects(projectsPayload.projects.map((project) => toUiProject(project, session.user.id)));
         setNotes(notesPayload.notes.map(toUiNotePreview));
-        setSelectedId((current) => current ?? nextTasks[0]?.id ?? null);
+        setSelectedId((current) => (nextTasks.some((task) => task.id === current) ? current : null));
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "Failed to load tasks");
       } finally {
@@ -244,7 +244,7 @@ export function TaskHub() {
   return (
     <AppShell title={<span className="font-medium">Tasks</span>}>
       <div className="h-full min-h-0 overflow-y-auto bg-zinc-50/50 animate-fade-in">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6 md:p-8 lg:p-12">
+        <div className={cn("mx-auto flex w-full flex-col gap-4 p-4 md:p-6 lg:p-8", view === "board" ? "max-w-none" : "max-w-5xl")}>
           {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div> : null}
 
           <header className="flex flex-col gap-3 border-b border-zinc-200 pb-4 md:flex-row md:items-end md:justify-between">
@@ -290,12 +290,12 @@ export function TaskHub() {
             ))}
           </div>
 
-          <main className={cn("grid min-h-0 grid-cols-1 gap-8", selected && "lg:grid-cols-[minmax(0,1fr)_360px]")}>
-            <section className="min-w-0 rounded-md border border-zinc-200 bg-white">
+          <main className={cn("relative min-h-0", view === "list" && "grid grid-cols-1 gap-8", view === "list" && selected && "lg:grid-cols-[minmax(0,1fr)_360px]")}>
+            <section className={cn("min-w-0", view === "list" && "rounded-md border border-zinc-200 bg-white")}>
               {loading ? (
-                <div className="px-3 py-12 text-center text-[13px] text-zinc-500">Loading tasks...</div>
+                <div className="rounded-md border border-zinc-200 bg-white px-3 py-12 text-center text-[13px] text-zinc-500">Loading tasks...</div>
               ) : filtered.length === 0 ? (
-                <div className="px-3 py-12 text-center text-[13px] text-zinc-500">No tasks match this filter.</div>
+                <div className="rounded-md border border-zinc-200 bg-white px-3 py-12 text-center text-[13px] text-zinc-500">No tasks match this filter.</div>
               ) : view === "list" ? (
                 <div className="divide-y divide-zinc-100">
                   {filtered.map((task) => (
@@ -312,7 +312,8 @@ export function TaskHub() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="w-full overflow-x-auto pb-2">
+                  <div className="grid min-w-[1120px] grid-cols-[repeat(5,minmax(220px,1fr))] gap-3">
                   {grouped.map((column) => (
                     <div
                       key={column.status}
@@ -327,15 +328,15 @@ export function TaskHub() {
                         dropTask(event.dataTransfer.getData("text/plain") || draggedTaskId || "", column.status);
                       }}
                       className={cn(
-                        "flex min-h-40 min-w-0 flex-col rounded-md border bg-zinc-50 transition-colors lg:max-h-[calc(100vh-240px)]",
-                        dragOverStatus === column.status ? "border-zinc-950 bg-zinc-100" : "border-zinc-200"
+                        "flex min-h-40 min-w-[220px] flex-col rounded-lg border border-zinc-200/80 bg-white/70 p-2 transition-colors lg:max-h-[calc(100vh-220px)]",
+                        dragOverStatus === column.status && "border-zinc-950 bg-zinc-100"
                       )}
                     >
-                      <div className="flex items-center justify-between border-b border-zinc-200 px-2.5 py-2">
+                      <div className="flex items-center justify-between border-b border-zinc-200/70 px-1 pb-2">
                         <StatusBadge status={column.status} />
-                        <span className="text-[11px] text-zinc-500">{column.tasks.length}</span>
+                        <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">{column.tasks.length}</span>
                       </div>
-                      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+                      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto py-2 pr-1">
                         {column.tasks.length === 0 ? <p className="px-1 py-4 text-center text-[12px] text-zinc-400">No tasks</p> : null}
                         {column.tasks.map((task) => (
                           <div
@@ -351,13 +352,13 @@ export function TaskHub() {
                               setDragOverStatus(null);
                             }}
                             className={cn(
-                              "w-full cursor-grab rounded-md border bg-white p-2 text-left shadow-sm active:cursor-grabbing",
-                              selectedId === task.id ? "border-zinc-950 ring-1 ring-zinc-950" : "border-zinc-200 hover:border-zinc-300",
+                              "w-full cursor-grab rounded-md border bg-white p-2 text-left active:cursor-grabbing",
+                              selectedId === task.id ? "border-zinc-950 ring-1 ring-zinc-950/70" : "border-zinc-200/80 hover:border-zinc-300",
                               draggedTaskId === task.id && "opacity-60"
                             )}
                           >
                             <div className="flex items-start gap-2">
-                              <button type="button" onClick={() => setSelectedId(task.id)} className="line-clamp-2 min-w-0 flex-1 text-left text-[12px] font-medium text-zinc-950">
+                              <button type="button" onClick={() => setSelectedId(task.id)} className="line-clamp-2 min-w-0 flex-1 text-left text-[12px] font-medium leading-snug text-zinc-950">
                                 {task.title}
                               </button>
                               <span
@@ -369,24 +370,24 @@ export function TaskHub() {
                                 onPointerUp={onPointerDragEnd}
                                 onMouseDown={(event) => onMouseDragStart(event, task.id)}
                                 aria-label={`Drag ${task.title}`}
-                                className="shrink-0 cursor-grab rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 active:cursor-grabbing"
+                                className="shrink-0 cursor-grab rounded p-0.5 text-zinc-300 hover:bg-zinc-100 hover:text-zinc-600 active:cursor-grabbing"
                               >
-                                <GripVertical className="h-3.5 w-3.5" />
+                                <GripVertical className="h-3 w-3" />
                               </span>
                             </div>
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <span className="min-w-0 truncate text-[11px] text-zinc-500">{projectName(projects, task.project) || task.label}</span>
                               <DueMeta due={task.due} overdue={isOverdue(task, today)} />
                             </div>
-                            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
+                            <div className="mt-2 flex min-w-0 items-center gap-1.5">
                               <PriorityBadge priority={task.priority} />
-                              <StatusSelect value={task.status} onChange={(status) => { void patchStatus(task, status); }} />
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </section>
@@ -404,6 +405,7 @@ export function TaskHub() {
               onItemReplaced={(next) => {
                 setTasks((current) => current.map((task) => (task.id === next.id ? next : task)));
               }}
+              placement={view === "board" ? "overlay" : "inline"}
             />
           </main>
         </div>

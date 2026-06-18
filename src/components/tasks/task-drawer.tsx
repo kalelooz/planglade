@@ -554,7 +554,7 @@ function DrawerContent({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16, ease: "easeOut" }}
           onClick={onClose}
-          className="absolute inset-0 z-[80] bg-background/35 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[80] bg-background/35 backdrop-blur-[1px]"
         />
       )}
       <motion.aside
@@ -564,10 +564,10 @@ function DrawerContent({
         exit={panelExit}
         transition={{ duration: 0.18, ease: "easeOut" }}
         className={placement === "overlay"
-          ? "absolute inset-y-0 right-0 z-[90] flex w-full max-w-[420px] flex-col border-l bg-background shadow-2xl"
+          ? "fixed inset-y-0 right-0 z-[90] flex w-full max-w-[420px] flex-col border-l border-zinc-200/80 bg-white shadow-xl"
           : "flex w-full min-w-0 flex-col rounded-lg border border-zinc-200/80 bg-white shadow-xs lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)] lg:w-[360px] lg:shrink-0"}
       >
-      <div className="flex h-12 items-center justify-between border-b border-zinc-100 px-5">
+      <div className="flex h-11 items-center justify-between border-b border-zinc-100 px-4">
         <div className="flex items-center gap-3 text-[12px]">
           <span className="font-medium text-muted-foreground">Task</span>
           <StatusSelect value={item.status} onChange={(s) => { void onStatusChange(s); }} />
@@ -575,7 +575,7 @@ function DrawerContent({
         <button onClick={onClose} title="Close" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-5">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Task details</div>
         <input
           ref={titleRef}
@@ -583,18 +583,18 @@ function DrawerContent({
           onChange={(e) => setTitleDraft(e.target.value)}
           onBlur={() => { void onTitleCommit(); }}
           placeholder="Task title"
-          className="mb-2 w-full bg-transparent text-[18px] font-semibold tracking-tight outline-none focus:underline focus:underline-offset-2"
+          className="mb-1.5 w-full bg-transparent text-[17px] font-semibold tracking-tight outline-none focus:underline focus:underline-offset-2"
         />
         <textarea
           value={descriptionDraft}
           onChange={(e) => setDescriptionDraft(e.target.value)}
           onBlur={() => { void onDescriptionCommit(); }}
           placeholder="Add a description."
-          rows={3}
+          rows={2}
           className="mb-2 w-full resize-y bg-transparent text-[13px] leading-relaxed text-foreground/90 outline-none placeholder:text-muted-foreground/60"
         />
 
-        <dl className="mt-6 grid grid-cols-[96px_1fr] gap-y-4 text-[12px]">
+        <dl className="mt-4 grid grid-cols-[80px_1fr] gap-y-3 text-[12px]">
           <dt className="pt-0.5 text-muted-foreground">Assignee</dt>
           <dd>
             <AssigneeSelect members={members} value={item.assignee} onChange={(id) => { void onAssigneeChange(id); }} />
@@ -659,7 +659,7 @@ function DrawerContent({
           </dd>
         </dl>
 
-        <div className="mt-8 border-t pt-6">
+        <div className="mt-5 border-t pt-4">
           <div className="mb-3 flex items-baseline gap-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Checklist</h3>
             {checklist.length > 0 && (
@@ -704,7 +704,7 @@ function DrawerContent({
           </ul>
         </div>
 
-        <div className="mt-8 border-t pt-6">
+        <div className="mt-5 border-t pt-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <Link2 className="h-3 w-3" /> Linked notes
@@ -769,7 +769,7 @@ function DrawerContent({
         </div>
 
         {serverMode && (
-          <div ref={commentsSectionRef} className="mt-8 border-t pt-6">
+          <div ref={commentsSectionRef} className="mt-5 border-t pt-4">
             <div className="mb-3 flex items-center gap-1.5">
               <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <MessageSquare className="h-3 w-3" /> Comments
@@ -850,7 +850,7 @@ function DrawerContent({
         )}
 
         {serverMode && (
-          <div ref={historySectionRef} className="mt-8 border-t pt-6">
+          <div ref={historySectionRef} className="mt-5 border-t pt-4">
             <div className="mb-3 flex items-center gap-1.5">
               <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <History className="h-3 w-3" /> History
