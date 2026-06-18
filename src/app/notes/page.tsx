@@ -327,7 +327,7 @@ function NotesInner() {
 
   return (
     <AppShell title={<span className="font-medium">Notes</span>}>
-      <div className="flex h-full flex-col gap-4 overflow-y-auto bg-[#fafafa] p-4 md:flex-row md:gap-6 md:p-6 lg:p-8">
+      <div className="flex h-full flex-col gap-4 overflow-y-auto bg-[#fafafa] p-4 animate-fade-in md:flex-row md:gap-6 md:p-6 lg:p-8">
         <aside className="flex max-h-[42vh] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-zinc-200/80 bg-white md:max-h-none md:w-72">
           <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2.5">
             <Search className="h-3 w-3 text-muted-foreground" />

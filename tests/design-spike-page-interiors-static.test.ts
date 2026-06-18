@@ -30,3 +30,32 @@ test("DESIGN-SPIKE-002 reaches every real page interior without demo claims", ()
   assert.doesNotMatch(read("src/app/settings/page.tsx"), />Reset workspace</);
   assert.doesNotMatch(read("src/app/settings/page.tsx"), />Reset to seed</);
 });
+
+test("DESIGN-SPIKE-003 keeps the visual pass reviewable", () => {
+  const tasks = read("src/components/tasks/task-hub.tsx");
+  const calendar = read("src/app/calendar/page.tsx");
+  const sonner = read("src/components/ui/sonner.tsx");
+  const globals = read("src/app/globals.css");
+  const animatedSurfaces = [
+    "src/components/flowboard-home.tsx",
+    "src/app/inbox/page.tsx",
+    "src/components/tasks/task-hub.tsx",
+    "src/app/projects/page.tsx",
+    "src/app/notes/page.tsx",
+    "src/app/calendar/page.tsx",
+    "src/app/settings/page.tsx",
+  ];
+
+  for (const file of animatedSurfaces) {
+    assert.match(read(file), /animate-fade-in/, file);
+  }
+
+  assert.match(tasks, /searchParams\.get\("view"\) === "board"/);
+  assert.match(tasks, /router\.replace\(query \? `\$\{pathname\}\?\$\{query\}` : pathname, \{ scroll: false \}\)/);
+  assert.match(calendar, /selectedDateKey={selectedDateKey}/);
+  assert.match(calendar, /title={fullDateLabel\(selectedDateKey\)}/);
+  assert.match(sonner, /position="bottom-right"/);
+  assert.match(sonner, /animate-slide-up/);
+  assert.match(sonner, /before:bg-zinc-950/);
+  assert.match(globals, /\.toaster \[data-sonner-toast\]::before/);
+});

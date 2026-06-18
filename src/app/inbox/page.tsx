@@ -249,7 +249,7 @@ export default function InboxPage() {
         </div>
       }
     >
-      <div className="flex h-full min-h-0 flex-col bg-[#fafafa] lg:flex-row">
+      <div className="flex h-full min-h-0 flex-col bg-[#fafafa] animate-fade-in lg:flex-row">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
           <div className="mx-auto w-full max-w-5xl p-6 md:p-8 lg:p-12">
             {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}

@@ -239,16 +239,20 @@ function MonthView({
   todayKey,
   now,
   projectsById,
+  selectedDateKey,
   onSelect,
   onCreate,
+  onSelectDate,
 }: {
   cursor: Date;
   itemsByKey: Record<string, WorkItem[]>;
   todayKey: string;
   now: Date;
   projectsById: Record<string, Project>;
+  selectedDateKey: string;
   onSelect: (id: string) => void;
   onCreate: (dateKey: string) => void;
+  onSelectDate: (dateKey: string) => void;
 }) {
   const isThisMonth =
     cursor.getFullYear() === now.getFullYear() &&
@@ -284,14 +288,17 @@ function MonthView({
         const dayItems = day ? (itemsByKey[key] ?? []) : [];
         const visible = dayItems.slice(0, MONTH_VISIBLE);
         const hasOverflow = dayItems.length > MONTH_VISIBLE;
+        const active = key === selectedDateKey;
         return (
           <div
             key={idx}
-            className={`group/day min-h-[80px] rounded-lg border p-2 sm:min-h-24 ${day ? "border-zinc-200/80 bg-white hover:border-zinc-400" : "border-transparent bg-zinc-50/50"}`}
+            className={`group/day min-h-[80px] rounded-lg border p-2 sm:min-h-24 ${day ? active ? "border-zinc-950 bg-white ring-1 ring-zinc-950" : "border-zinc-200/80 bg-white hover:border-zinc-400" : "border-transparent bg-zinc-50/50"}`}
           >
             {day && (
               <>
-                <div
+                <button
+                  type="button"
+                  onClick={() => onSelectDate(key)}
                   className={`mb-1 inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 font-mono text-[10px] ${
                     isToday
                       ? "border border-zinc-950 font-bold text-zinc-950 ring-1 ring-zinc-950"
@@ -299,7 +306,7 @@ function MonthView({
                   }`}
                 >
                   {day}
-                </div>
+                </button>
                 <div className="space-y-0.5">
                   {visible.map((t) => (
                     <TaskChip
@@ -685,6 +692,7 @@ function CalendarPageContent() {
     () => scopedWorkItems.filter((w) => !parseDue(w.due)),
     [scopedWorkItems]
   );
+  const selectedDateItems = itemsByKey[selectedDateKey] ?? [];
 
   const navLabel = useMemo(() => {
     if (view === "month") {
@@ -806,7 +814,7 @@ function CalendarPageContent() {
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0 w-full flex-col lg:flex-row">
+      <div className="flex h-full min-h-0 w-full flex-col animate-fade-in lg:flex-row">
         {error && <div className="absolute left-6 right-6 top-3 z-40 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {loading && <div className="px-4 py-2 text-[12px] text-muted-foreground">Loading calendar data...</div>}
@@ -838,8 +846,10 @@ function CalendarPageContent() {
                       todayKey={todayKey}
                       now={now}
                       projectsById={projectsById}
+                      selectedDateKey={selectedDateKey}
                       onSelect={setSelectedId}
                       onCreate={createOnDate}
+                      onSelectDate={setSelectedDateKey}
                     />
                   ) : (
                     <WeekView
@@ -853,14 +863,24 @@ function CalendarPageContent() {
                   )}
                 </div>
                 <aside className="rounded-lg border border-zinc-200/80 bg-white p-4">
-                <TaskSection
-                  title="No date"
-                  empty="No tasks without a due date."
-                  items={undatedItems}
-                  todayKey={todayKey}
-                  projectsById={projectsById}
-                  onSelect={setSelectedId}
-                />
+                  <div className="space-y-5">
+                    <TaskSection
+                      title={fullDateLabel(selectedDateKey)}
+                      empty="No dated tasks for this day."
+                      items={selectedDateItems}
+                      todayKey={todayKey}
+                      projectsById={projectsById}
+                      onSelect={setSelectedId}
+                    />
+                    <TaskSection
+                      title="No date"
+                      empty="No tasks without a due date."
+                      items={undatedItems}
+                      todayKey={todayKey}
+                      projectsById={projectsById}
+                      onSelect={setSelectedId}
+                    />
+                  </div>
                 </aside>
               </div>
             </div>

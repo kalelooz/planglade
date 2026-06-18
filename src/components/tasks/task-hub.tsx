@@ -2,6 +2,7 @@
 
 import { type MouseEvent as ReactMouseEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Circle, GripVertical, LayoutGrid, List } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/tasks/task-drawer";
@@ -59,7 +60,11 @@ function projectName(projects: Project[], id: string) {
 }
 
 export function TaskHub() {
-  const [view, setView] = useState<View>("list");
+  const searchParams = useSearchParams();
+  const pathname = usePathname() ?? "/app/tasks";
+  const router = useRouter();
+  const routeView: View = searchParams.get("view") === "board" ? "board" : "list";
+  const [view, setView] = useState<View>(routeView);
   const [filter, setFilter] = useState<Filter>("all");
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -73,6 +78,19 @@ export function TaskHub() {
   const [error, setError] = useState<string | null>(null);
   const [today, setToday] = useState(() => new Date());
   const pointerDragTaskId = useRef<string | null>(null);
+
+  useEffect(() => {
+    setView(routeView);
+  }, [routeView]);
+
+  const setTaskView = (nextView: View) => {
+    setView(nextView);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (nextView === "board") nextParams.set("view", "board");
+    else nextParams.delete("view");
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
 
   useEffect(() => {
     const timer = window.setInterval(() => setToday(new Date()), 60_000);
@@ -225,7 +243,7 @@ export function TaskHub() {
 
   return (
     <AppShell title={<span className="font-medium">Tasks</span>}>
-      <div className="h-full min-h-0 overflow-y-auto bg-zinc-50/50">
+      <div className="h-full min-h-0 overflow-y-auto bg-zinc-50/50 animate-fade-in">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6 md:p-8 lg:p-12">
           {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div> : null}
 
@@ -238,15 +256,15 @@ export function TaskHub() {
             <div className="inline-flex w-fit rounded-lg border border-zinc-200/80 bg-zinc-100 p-1 text-xs">
               <button
                 type="button"
-                onClick={() => setView("list")}
-                className={cn("flex h-7 items-center gap-1.5 rounded-md px-2.5", view === "list" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900")}
+                onClick={() => setTaskView("list")}
+                className={cn("flex h-7 items-center gap-1.5 rounded-md px-2.5 transition-colors", view === "list" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900")}
               >
                 <List className="h-3.5 w-3.5" /> List
               </button>
               <button
                 type="button"
-                onClick={() => setView("board")}
-                className={cn("flex h-7 items-center gap-1.5 rounded-md px-2.5", view === "board" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900")}
+                onClick={() => setTaskView("board")}
+                className={cn("flex h-7 items-center gap-1.5 rounded-md px-2.5 transition-colors", view === "board" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900")}
               >
                 <LayoutGrid className="h-3.5 w-3.5" /> Board
               </button>

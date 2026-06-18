@@ -373,6 +373,17 @@ html[data-density="comfortable"] {
   .shadow-xs { box-shadow: 0 1px 2px rgb(0 0 0 / 0.04); }
 }
 
+.toaster [data-sonner-toast]::before {
+  content: "";
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  margin-right: 0.25rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: #09090b;
+}
+
 @media print {
   [data-sidebar], header, .no-print, [data-slot="sidebar-rail"] { display: none !important; }
   [data-slot="sidebar-inset"] { margin-left: 0 !important; }

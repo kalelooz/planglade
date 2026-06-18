@@ -317,7 +317,7 @@ export function PlanGladeHome() {
 
   return (
     <AppShell title={<span className="font-medium">Home</span>}>
-      <div className="flex h-full min-h-0 flex-col bg-[#fafafa] lg:flex-row">
+      <div className="flex h-full min-h-0 flex-col bg-[#fafafa] animate-fade-in lg:flex-row">
         <div className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto grid w-full max-w-5xl gap-8 p-6 md:p-8 lg:grid-cols-12 lg:gap-12 lg:p-12">
             <main className="min-w-0 space-y-5 lg:col-span-8">

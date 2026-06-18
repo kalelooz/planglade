@@ -443,7 +443,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell title={<span className="font-medium">Settings</span>}>
-      <div className="flex h-full flex-col overflow-y-auto bg-[#fafafa]">
+      <div className="flex h-full flex-col overflow-y-auto bg-[#fafafa] animate-fade-in">
         <aside className="mx-auto flex w-full max-w-2xl shrink-0 flex-wrap gap-1 border-b border-zinc-200/80 px-6 py-4">
           <div className="mr-2 flex w-full items-center text-[9px] font-bold uppercase tracking-wider text-zinc-400 sm:w-auto">Workspace</div>
           {sections.map((x) => (
