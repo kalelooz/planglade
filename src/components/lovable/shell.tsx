@@ -118,23 +118,27 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     return () => window.clearInterval(id);
   }, []);
 
-  const navBeforeProjects: NavItem[] = [
+  const navPrimary: NavItem[] = [
     { to: "/app", label: "Home", icon: Home, count: todayCount },
     { to: "/app/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
+    { to: "/app/tasks", label: "Tasks", icon: CheckSquare, count: myTasksCount },
   ];
 
-  const navAfterProjects: NavItem[] = [
-    { to: "/app/tasks", label: "Tasks", icon: CheckSquare, count: myTasksCount },
+  const navCollections: NavItem[] = [
     { to: "/app/notes", label: "Notes", icon: FileText },
     { to: "/app/calendar", label: "Calendar", icon: Calendar },
+  ];
+
+  const navPreferences: NavItem[] = [
     { to: "/app/settings", label: "Settings", icon: Settings },
   ];
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
-    ...navBeforeProjects,
+    ...navPrimary,
     { to: "/app/projects", label: "Projects", icon: FolderKanban },
-    ...navAfterProjects,
+    ...navCollections,
+    ...navPreferences,
   ];
 
   const submitQuick = async () => {
@@ -328,12 +332,15 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         data-collapsed={!sidebarOpen}
         className={`hidden shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-60" : "w-12"}`}
       >
-        <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
+        <div className={`flex shrink-0 items-center border-b border-zinc-100 ${sidebarOpen ? "justify-between p-5" : "h-12 justify-center px-0"}`}>
           {sidebarOpen ? (
             <>
-              <Link href="/app" title="PlanGlade home" className="flex min-w-0 items-center gap-2 text-sm font-medium">
+              <Link href="/app" title="PlanGlade home" className="flex min-w-0 items-center gap-2.5">
                 <span className="flex h-7 w-7 items-center justify-center rounded bg-foreground text-[11px] font-bold tracking-tight text-background">PG</span>
-                <span className="truncate">PlanGlade</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold tracking-tight">PlanGlade</span>
+                  <span className="block text-[9px] uppercase tracking-wider text-zinc-400">Workspace</span>
+                </span>
               </Link>
               <button
                 onClick={() => setSidebarOpen(false)}
@@ -370,10 +377,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </div>
 
+        {sidebarOpen && <div className="border-b border-zinc-100 bg-zinc-50/50 px-5 py-2.5 text-[9px] font-medium uppercase tracking-wider text-zinc-400">Personal workspace</div>}
+
         <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-2" : "px-1"}`}>
           {sidebarOpen ? (
             <>
-              <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} />
+              <SidebarLabel>Primary Views</SidebarLabel>
+              <SidebarSection items={navPrimary} isActive={isActive} collapsed={false} />
+              <SidebarLabel>Collections</SidebarLabel>
               <ProjectsNavItem
                 href="/app/projects"
                 active={isActive("/app/projects")}
@@ -395,7 +406,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   })}
                 </div>
               )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} />
+              <SidebarSection items={navCollections} isActive={isActive} collapsed={false} />
+              <SidebarLabel>Preferences</SidebarLabel>
+              <SidebarSection items={navPreferences} isActive={isActive} collapsed={false} />
             </>
           ) : (
             <>
@@ -407,12 +420,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative z-40 flex h-12 shrink-0 items-center gap-3 border-b bg-background px-4">
+        <header className="sticky top-0 z-40 flex shrink-0 items-center gap-3 border-b border-zinc-200/80 bg-white px-6 py-3.5 md:px-8">
           <button onClick={() => setMobileNavOpen(true)} className="lov-icon-btn md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
-          <div className="flex min-w-0 items-center gap-2 text-[13px]">
-            {title ?? <span className="font-medium">PlanGlade</span>}
+          <div className="flex min-w-0 items-center gap-1.5 text-xs">
+            <span className="hidden text-zinc-400 sm:inline">Workspace</span>
+            <ChevronRight className="hidden h-3 w-3 text-zinc-300 sm:block" />
+            <span className="truncate text-zinc-700">{title ?? "PlanGlade"}</span>
           </div>
           <div className="flex-1" />
           <div ref={projectScopeRef} className="relative hidden w-52 lg:block">
@@ -456,11 +471,24 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </div>
               )}
           </div>
-          <button onClick={() => setCmdOpen(true)}
-            className="lov-btn hidden w-56 min-w-0 justify-start bg-sidebar text-muted-foreground hover:text-foreground md:inline-flex">
-              <Search className="h-3 w-3" />
-              <span className="min-w-0 truncate">Search or jump...</span>
-              <kbd className="ml-auto hidden rounded border bg-background px-1 font-mono text-[10px] xl:inline-flex">Ctrl K</kbd>
+          <form
+            onSubmit={(event) => { event.preventDefault(); void submitQuick(); }}
+            className="hidden w-full max-w-md items-center gap-2 rounded-lg border border-zinc-200/80 bg-zinc-50 px-3.5 py-1.5 focus-within:bg-white focus-within:ring-1 focus-within:ring-zinc-950 md:flex"
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <input
+              value={quickValue}
+              onChange={(event) => setQuickValue(event.target.value)}
+              placeholder="Capture a task, note, or idea..."
+              disabled={quickSaving}
+              className="min-w-0 flex-1 bg-transparent text-xs text-zinc-900 outline-none placeholder:text-zinc-400"
+            />
+            <button type="submit" disabled={!quickValue.trim() || quickSaving} className="rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-bold text-white disabled:opacity-40">
+              {quickSaving ? "Saving" : "Capture"}
+            </button>
+          </form>
+          <button onClick={() => setCmdOpen(true)} className="lov-icon-btn hidden md:inline-flex" title="Search or jump">
+            <Search className="h-3.5 w-3.5" />
           </button>
           {false && !path.startsWith("/app/projects") && (
             <button
@@ -470,7 +498,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               <FolderKanban className="h-3.5 w-3.5" /> New project
             </button>
           )}
-          <div ref={quickCaptureRef} className="relative hidden sm:block">
+          <div ref={quickCaptureRef} className="relative md:hidden">
               <button
                 onClick={() => {
                   setProjectScopeOpen(false);
@@ -479,7 +507,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 className="lov-btn whitespace-nowrap"
               >
                 <Plus className="h-3 w-3" />
-                <span>Quick capture</span>
+                <span className="hidden sm:inline">Quick capture</span>
                 {inboxCount > 0 && (
                   <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground tabular-nums">
                     {inboxCount}
@@ -487,7 +515,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 )}
               </button>
               {quickOpen && (
-                <div className="absolute right-0 top-9 z-[80] w-80 rounded-md border bg-popover p-2 shadow-lg">
+                <div className="absolute right-0 top-9 z-[80] w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-zinc-200/80 bg-white p-2 shadow-lg">
                     <input
                       autoFocus
                       value={quickValue}
@@ -642,8 +670,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 <X className="h-4 w-4" />
               </button>
             </div>
+            <div className="border-b border-zinc-100 bg-zinc-50/50 px-5 py-2.5 text-[9px] font-medium uppercase tracking-wider text-zinc-400">Personal workspace</div>
             <nav className="flex-1 overflow-y-auto px-2 py-3">
-              <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <SidebarLabel>Primary Views</SidebarLabel>
+              <SidebarSection items={navPrimary} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <SidebarLabel>Collections</SidebarLabel>
               <ProjectsNavItem
                 href="/app/projects"
                 active={isActive("/app/projects")}
@@ -666,7 +697,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   })}
                 </div>
               )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <SidebarSection items={navCollections} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <SidebarLabel>Preferences</SidebarLabel>
+              <SidebarSection items={navPreferences} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
             </nav>
           </div>
         </div>
@@ -683,7 +716,7 @@ function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }:
       <Link
         href={href}
         onClick={onNavigate}
-        className={`lov-nav-item flex flex-1 items-center gap-2 rounded px-2 py-1 text-[13px] ${active ? "lov-nav-item-active text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
+        className={`lov-nav-item flex flex-1 items-center gap-2 rounded-md px-3 py-1.5 text-xs ${active ? "lov-nav-item-active pl-2.5 text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
       >
         <FolderKanban className="h-3.5 w-3.5" />
         <span className="flex-1">Projects</span>
@@ -717,6 +750,11 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   count?: number;
 };
+
+function SidebarLabel({ children }: { children: ReactNode }) {
+  return <div className="mb-1 mt-4 px-3 text-[9px] font-bold uppercase tracking-wider text-zinc-400 first:mt-0">{children}</div>;
+}
+
 function SidebarSection({ items, isActive, collapsed, onNavigate }: { items: NavItem[]; isActive: (to: string) => boolean; collapsed: boolean; onNavigate?: () => void }) {
   return (
     <div className="space-y-px">
@@ -733,7 +771,7 @@ function SidebarSection({ items, isActive, collapsed, onNavigate }: { items: Nav
         }
         return (
           <Link key={n.to} href={n.to} onClick={onNavigate}
-            className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${active ? "lov-nav-item-active" : ""}`}>
+            className={`lov-nav-item gap-2 px-3 py-1.5 text-xs ${active ? "lov-nav-item-active pl-2.5" : ""}`}>
             <Icon className="h-3.5 w-3.5" />
             <span className="flex-1">{n.label}</span>
             {n.count != null && n.count > 0 ? (
