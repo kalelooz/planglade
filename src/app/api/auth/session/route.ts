@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions, hasAuthProviders } from "@/lib/auth-options"
 import { getAuthConfigErrors } from "@/lib/auth-config"
 import { db } from "@/lib/db"
+import { readPlanGladeEnv } from "@/lib/env-config"
 import { verifyFirebaseIdToken } from "@/lib/firebase-admin"
 import { DEFAULT_PRIORITY_DISPLAY_STYLE, resolvePriorityDisplayStyle } from "@/lib/appearance-defaults"
 
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     if (authConfig.mode === "invalid") {
       return NextResponse.json(
         {
-          error: authConfig.errors[0] ?? "Invalid FLOWBOARD_AUTH_MODE.",
+          error: authConfig.errors[0] ?? "Invalid PLANGLADE_AUTH_MODE.",
         },
         { status: 500 }
       )
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           error:
-            "FLOWBOARD_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
+            "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
         },
         { status: 500 }
       )
@@ -111,15 +112,17 @@ export async function GET(request: Request) {
     let workspace: { id: string; slug: string; name: string; taskPriorityDisplayStyle: string } | null = null
 
     if (authMode === "dev-session-scaffold") {
-      workspace = await db.workspace.upsert({
-        where: { slug: process.env.FLOWBOARD_WORKSPACE_SLUG ?? DEV_WORKSPACE.slug },
+      const workspaceSlug = readPlanGladeEnv("WORKSPACE_SLUG") ?? DEV_WORKSPACE.slug
+      const workspaceName = readPlanGladeEnv("WORKSPACE_NAME") ?? DEV_WORKSPACE.name
+      const devWorkspace = await db.workspace.upsert({
+        where: { slug: workspaceSlug },
         update: {
-          name: process.env.FLOWBOARD_WORKSPACE_NAME ?? DEV_WORKSPACE.name,
+          name: workspaceName,
           ownerId: user.id,
         },
         create: {
-          slug: process.env.FLOWBOARD_WORKSPACE_SLUG ?? DEV_WORKSPACE.slug,
-          name: process.env.FLOWBOARD_WORKSPACE_NAME ?? DEV_WORKSPACE.name,
+          slug: workspaceSlug,
+          name: workspaceName,
           ownerId: user.id,
           taskPriorityDisplayStyle: DEFAULT_PRIORITY_DISPLAY_STYLE,
         },
@@ -130,17 +133,18 @@ export async function GET(request: Request) {
           taskPriorityDisplayStyle: true,
         },
       })
+      workspace = devWorkspace
 
       await db.workspaceMember.upsert({
         where: {
           workspaceId_userId: {
-            workspaceId: workspace.id,
+            workspaceId: devWorkspace.id,
             userId: user.id,
           },
         },
         update: { role: "OWNER" },
         create: {
-          workspaceId: workspace.id,
+          workspaceId: devWorkspace.id,
           userId: user.id,
           role: "OWNER",
         },

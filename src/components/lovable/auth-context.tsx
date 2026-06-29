@@ -46,10 +46,13 @@ export interface AuthContextValue {
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null)
+const publicAuthMode =
+  process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE ?? process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE
+
 const configuredAuthMode = (
-  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() === "firebase"
+  publicAuthMode?.toLowerCase() === "firebase"
     ? "firebase"
-    : process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() === "nextauth"
+    : publicAuthMode?.toLowerCase() === "nextauth"
       ? "nextauth"
       : "dev"
 ) as AuthContextValue["authMode"]

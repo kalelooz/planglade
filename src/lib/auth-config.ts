@@ -1,22 +1,24 @@
+import { readPlanGladeEnv, readPublicPlanGladeEnv } from "@/lib/env-config"
+
 export const VALID_AUTH_MODES = ["dev", "firebase", "nextauth"] as const
-export type FlowboardAuthMode = (typeof VALID_AUTH_MODES)[number]
+export type PlanGladeAuthMode = (typeof VALID_AUTH_MODES)[number]
 
 function lower(value: string | undefined, fallback: string) {
   return (value ?? fallback).toLowerCase()
 }
 
-export function getConfiguredAuthMode(): FlowboardAuthMode | "invalid" {
-  const mode = lower(process.env.FLOWBOARD_AUTH_MODE, "dev")
+export function getConfiguredAuthMode(): PlanGladeAuthMode | "invalid" {
+  const mode = lower(readPlanGladeEnv("AUTH_MODE"), "dev")
   if ((VALID_AUTH_MODES as readonly string[]).includes(mode)) {
-    return mode as FlowboardAuthMode
+    return mode as PlanGladeAuthMode
   }
   return "invalid"
 }
 
-export function getPublicConfiguredAuthMode(): FlowboardAuthMode | "invalid" {
-  const mode = lower(process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE, "dev")
+export function getPublicConfiguredAuthMode(): PlanGladeAuthMode | "invalid" {
+  const mode = lower(readPublicPlanGladeEnv("AUTH_MODE"), "dev")
   if ((VALID_AUTH_MODES as readonly string[]).includes(mode)) {
-    return mode as FlowboardAuthMode
+    return mode as PlanGladeAuthMode
   }
   return "invalid"
 }
@@ -28,20 +30,20 @@ export function getAuthConfigErrors(options?: { includeProductionDevBlock?: bool
   const errors: string[] = []
 
   if (mode === "invalid") {
-    errors.push("Invalid FLOWBOARD_AUTH_MODE. Use one of: dev, firebase, nextauth.")
+    errors.push("Invalid PLANGLADE_AUTH_MODE. Use one of: dev, firebase, nextauth.")
     return { mode, publicMode, errors, isProduction }
   }
 
   if (publicMode === "invalid") {
-    errors.push("Invalid NEXT_PUBLIC_FLOWBOARD_AUTH_MODE. Use one of: dev, firebase, nextauth.")
+    errors.push("Invalid NEXT_PUBLIC_PLANGLADE_AUTH_MODE. Use one of: dev, firebase, nextauth.")
   }
 
   if (publicMode !== "invalid" && publicMode !== mode) {
-    errors.push("FLOWBOARD_AUTH_MODE and NEXT_PUBLIC_FLOWBOARD_AUTH_MODE must match.")
+    errors.push("PLANGLADE_AUTH_MODE and NEXT_PUBLIC_PLANGLADE_AUTH_MODE must match.")
   }
 
   if (options?.includeProductionDevBlock && isProduction && mode === "dev") {
-    errors.push("FLOWBOARD_AUTH_MODE=dev is disabled in production.")
+    errors.push("PLANGLADE_AUTH_MODE=dev is disabled in production.")
   }
 
   if (mode === "firebase") {

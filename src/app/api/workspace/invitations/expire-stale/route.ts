@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { db } from "@/lib/db"
+import { readPlanGladeEnv } from "@/lib/env-config"
 
 function isAuthorizedMaintenanceRequest(request: NextRequest) {
-  const configured = process.env.FLOWBOARD_MAINTENANCE_TOKEN
+  const configured = readPlanGladeEnv("MAINTENANCE_TOKEN")
   if (!configured) return false
 
   const authHeader = request.headers.get("authorization")

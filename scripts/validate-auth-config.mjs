@@ -1,12 +1,20 @@
-const mode = (process.env.FLOWBOARD_AUTH_MODE ?? "dev").toLowerCase()
+function readPlanGladeEnv(name) {
+  return process.env[`PLANGLADE_${name}`] ?? process.env[`FLOWBOARD_${name}`]
+}
+
+function readPublicPlanGladeEnv(name) {
+  return process.env[`NEXT_PUBLIC_PLANGLADE_${name}`] ?? process.env[`NEXT_PUBLIC_FLOWBOARD_${name}`]
+}
+
+const mode = (readPlanGladeEnv("AUTH_MODE") ?? "dev").toLowerCase()
 const isProductionLike =
   process.env.NODE_ENV === "production" || process.env.CI === "true"
 const storageProvider = (
-  process.env.FLOWBOARD_STORAGE_PROVIDER ??
+  readPlanGladeEnv("STORAGE_PROVIDER") ??
   (isProductionLike ? "firebase" : "local")
 ).toLowerCase()
 const emailProvider = (
-  process.env.FLOWBOARD_EMAIL_PROVIDER ??
+  readPlanGladeEnv("EMAIL_PROVIDER") ??
   (isProductionLike ? "disabled" : "console")
 ).toLowerCase()
 
@@ -17,23 +25,23 @@ function fail(message) {
 
 const validModes = new Set(["dev", "firebase", "nextauth"])
 if (!validModes.has(mode)) {
-  fail("FLOWBOARD_AUTH_MODE must be one of: dev, firebase, nextauth.")
+  fail("PLANGLADE_AUTH_MODE must be one of: dev, firebase, nextauth.")
 }
 
 const validStorageProviders = new Set(["firebase", "local"])
 if (!validStorageProviders.has(storageProvider)) {
-  fail("FLOWBOARD_STORAGE_PROVIDER must be one of: firebase, local.")
+  fail("PLANGLADE_STORAGE_PROVIDER must be one of: firebase, local.")
 }
 
 const validEmailProviders = new Set(["resend", "console", "disabled"])
 if (!validEmailProviders.has(emailProvider)) {
-  fail("FLOWBOARD_EMAIL_PROVIDER must be one of: resend, console, disabled.")
+  fail("PLANGLADE_EMAIL_PROVIDER must be one of: resend, console, disabled.")
 }
 
 if (emailProvider === "resend") {
   if (!process.env.RESEND_API_KEY) fail("Missing RESEND_API_KEY for resend email provider.")
-  if (!process.env.FLOWBOARD_EMAIL_FROM) {
-    fail("Missing FLOWBOARD_EMAIL_FROM for resend email provider.")
+  if (!readPlanGladeEnv("EMAIL_FROM")) {
+    fail("Missing PLANGLADE_EMAIL_FROM for resend email provider.")
   }
 }
 
@@ -42,7 +50,7 @@ if (!isProductionLike) {
 }
 
 if (mode === "dev") {
-  fail("FLOWBOARD_AUTH_MODE=dev is not allowed in production-like environments.")
+  fail("PLANGLADE_AUTH_MODE=dev is not allowed in production-like environments.")
 }
 
 if (mode === "firebase") {
@@ -53,14 +61,17 @@ if (mode === "firebase") {
     "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
     "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
     "NEXT_PUBLIC_FIREBASE_APP_ID",
-    "NEXT_PUBLIC_FLOWBOARD_AUTH_MODE",
   ]
   for (const key of required) {
     if (!process.env[key]) fail(`Missing required env var: ${key}`)
   }
 
-  if (process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() !== "firebase") {
-    fail("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE must be 'firebase' when FLOWBOARD_AUTH_MODE=firebase.")
+  if (!readPublicPlanGladeEnv("AUTH_MODE")) {
+    fail("Missing required env var: NEXT_PUBLIC_PLANGLADE_AUTH_MODE")
+  }
+
+  if (readPublicPlanGladeEnv("AUTH_MODE")?.toLowerCase() !== "firebase") {
+    fail("NEXT_PUBLIC_PLANGLADE_AUTH_MODE must be 'firebase' when PLANGLADE_AUTH_MODE=firebase.")
   }
 }
 
@@ -70,7 +81,7 @@ if (mode === "nextauth") {
 }
 
 if (storageProvider === "local") {
-  fail("FLOWBOARD_STORAGE_PROVIDER=local is not allowed in production-like environments.")
+  fail("PLANGLADE_STORAGE_PROVIDER=local is not allowed in production-like environments.")
 }
 
 if (storageProvider === "firebase") {
