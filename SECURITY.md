@@ -6,7 +6,9 @@ PlanGlade is under active development and is not production-hardened yet. Please
 
 Do not open a public issue with secrets, tokens, database URLs, private keys, exploit details, or private user data.
 
-Until a dedicated security email is published, use GitHub private vulnerability reporting if it is available on the repository. If it is not available, contact the maintainer through GitHub before disclosing publicly. If you do not have a private channel, open a minimal public issue that says you need to report a security concern, without including exploit details or sensitive data.
+Best current path: use GitHub private vulnerability reporting on this repository. If that option is not visible, contact the maintainer through GitHub before disclosing publicly. If you do not have a private channel, open a minimal public issue that says you need to report a security concern, without including exploit details or sensitive data.
+
+Maintainers should keep GitHub private vulnerability reporting enabled for this repository and use GitHub Security Advisories for coordinated fixes when needed.
 
 Helpful report details:
 

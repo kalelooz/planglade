@@ -51,7 +51,7 @@ Not ready yet:
 
 ## Features Available Today
 
-- Home command center (today's focus, attention required, recently captured, project focus, next up, recent context).
+- Home command center (today's focus, attention required, captured inbox items, project focus, next up, recent notes).
 - Quick capture to Inbox.
 - Inbox triage into tasks.
 - Tasks with list and board views.

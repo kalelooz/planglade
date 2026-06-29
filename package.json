@@ -1,9 +1,9 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
+  "name": "planglade",
   "version": "0.2.0",
   "private": true,
   "license": "AGPL-3.0-only",
-  "packageManager": "npm@10",
+  "packageManager": "npm@11.6.2",
   "scripts": {
     "dev": "next dev -p 3000",
     "validate:auth-config": "node scripts/validate-auth-config.mjs",
