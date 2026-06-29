@@ -1,0 +1,115 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/playwright-report/
+/test-results/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+*.log
+*.tmp
+*.temp
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.dev-*.log
+dev.log
+dev.out.log
+dev-server.out.log
+dev-server.err.log
+server.log
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+local-*
+.claude
+.z-ai-config
+.zscripts/*.pid
+.zscripts/rollback-*/
+test
+prompt
+
+# Skills directory
+/skills/
+
+# Reference repositories cloned for local comparison
+/external/pm-repos/
+/external/
+
+# local QA artifacts and screenshots
+/.playwright-mcp/
+/public/landing/source/
+/docs/artifacts/screenshots/
+/docs/artifacts/download/
+/docs/artifacts/screenshots/local/
+/docs/artifacts/
+/output/
+/artifacts/
+/logs/
+/.logs/
+/db/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+/*-page.png
+/flowboard-*.png
+/fullpage-*.png
+/landing-*.png
+/landing.png
+/after-reset.png
+/new-*.png
+/project-*.png
+/projects-*.png
+/settings-*.png
+/team-*.png
+/work-items-*.png
+/inbox-*.png
+/my-tasks-*.png
+/notes-*.png
+
+# private/internal planning and local agent workflow files
+/docs/ACTIVE_PLAN.md
+/docs/archive/
+/docs/audits/
+/docs/slices/
+/docs/sources/
+/docs/superpowers/
+/.agents/
+/.codex/
+/.opencode/
+/.zscripts/
+/Reddit/
+/Introduction to Asana for Absolute Beginners.md

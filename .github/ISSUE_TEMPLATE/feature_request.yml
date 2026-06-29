@@ -1,0 +1,63 @@
+name: Feature request
+description: Suggest a small, scoped improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Keep requests focused and avoid sharing private workspace data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What user problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should PlanGlade do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What simpler options or workarounds did you consider?
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Which area does this mainly affect?
+      options:
+        - Home
+        - Inbox
+        - Tasks
+        - Projects
+        - Notes
+        - Calendar
+        - Timeline
+        - Settings or import/export
+        - Authentication or workspace access
+        - Self-hosting or docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: self_host_relevance
+    attributes:
+      label: Self-host relevance
+      description: Does this matter for people running PlanGlade themselves?
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra context
+      description: Optional screenshots, examples, or constraints. Remove private data first.
+    validations:
+      required: false
