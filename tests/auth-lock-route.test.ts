@@ -205,6 +205,6 @@ test("AUTH-LOCK-1: production blocks dev auth mode", async () => {
     const payload = (await response.json()) as { error?: string }
 
     assert.equal(response.status, 500)
-    assert.equal(payload.error, "FLOWBOARD_AUTH_MODE=dev is disabled in production.")
+    assert.equal(payload.error, "PLANGLADE_AUTH_MODE=dev is disabled in production.")
   })
 })

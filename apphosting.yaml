@@ -12,19 +12,19 @@ runConfig:
 
 env:
   # Example auth/storage mode for Firebase App Hosting.
-  - variable: FLOWBOARD_AUTH_MODE
+  - variable: PLANGLADE_AUTH_MODE
     value: firebase
     availability:
       - BUILD
       - RUNTIME
 
-  - variable: NEXT_PUBLIC_FLOWBOARD_AUTH_MODE
+  - variable: NEXT_PUBLIC_PLANGLADE_AUTH_MODE
     value: firebase
     availability:
       - BUILD
       - RUNTIME
 
-  - variable: FLOWBOARD_STORAGE_PROVIDER
+  - variable: PLANGLADE_STORAGE_PROVIDER
     value: firebase
     availability:
       - BUILD

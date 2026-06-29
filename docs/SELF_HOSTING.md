@@ -61,11 +61,11 @@ For local development, use dev auth and local storage:
 
 ```env
 DATABASE_URL="file:../db/custom.db"
-FLOWBOARD_AUTH_MODE="dev"
-NEXT_PUBLIC_FLOWBOARD_AUTH_MODE="dev"
-FLOWBOARD_STORAGE_PROVIDER="local"
-FLOWBOARD_LOCAL_STORAGE_DIR="storage/local-attachments"
-FLOWBOARD_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
+PLANGLADE_AUTH_MODE="dev"
+NEXT_PUBLIC_PLANGLADE_AUTH_MODE="dev"
+PLANGLADE_STORAGE_PROVIDER="local"
+PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
+PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
 
 Generate Prisma client and create/update the local SQLite database:
@@ -104,16 +104,16 @@ Start from `.env.example`.
 Required for the local/developer path:
 
 - `DATABASE_URL`: SQLite database URL. Example: `file:../db/custom.db`.
-- `FLOWBOARD_AUTH_MODE`: use `dev` locally. Valid modes are `dev`, `firebase`, and `nextauth`.
-- `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE`: browser-visible auth mode. Match `FLOWBOARD_AUTH_MODE`.
-- `FLOWBOARD_STORAGE_PROVIDER`: use `local` locally. Valid providers are `local` and `firebase`.
-- `FLOWBOARD_LOCAL_STORAGE_DIR`: attachment directory for local storage.
-- `FLOWBOARD_STORAGE_SIGNING_SECRET`: random secret used for local signed attachment URLs.
+- `PLANGLADE_AUTH_MODE`: use `dev` locally. Valid modes are `dev`, `firebase`, and `nextauth`.
+- `NEXT_PUBLIC_PLANGLADE_AUTH_MODE`: browser-visible auth mode. Match `PLANGLADE_AUTH_MODE`.
+- `PLANGLADE_STORAGE_PROVIDER`: use `local` locally. Valid providers are `local` and `firebase`.
+- `PLANGLADE_LOCAL_STORAGE_DIR`: attachment directory for local storage.
+- `PLANGLADE_STORAGE_SIGNING_SECRET`: random secret used for local signed attachment URLs.
 
 Optional local seed labels:
 
-- `FLOWBOARD_WORKSPACE_SLUG`
-- `FLOWBOARD_WORKSPACE_NAME`
+- `PLANGLADE_WORKSPACE_SLUG`
+- `PLANGLADE_WORKSPACE_NAME`
 
 Firebase auth/storage variables:
 
@@ -136,12 +136,12 @@ NextAuth variables:
 
 Invite email variables:
 
-- `FLOWBOARD_EMAIL_PROVIDER`
-- `FLOWBOARD_EMAIL_FROM`
+- `PLANGLADE_EMAIL_PROVIDER`
+- `PLANGLADE_EMAIL_FROM`
 - `RESEND_API_KEY`
-- `FLOWBOARD_MAINTENANCE_TOKEN`
+- `PLANGLADE_MAINTENANCE_TOKEN`
 
-Some names still use the legacy `FLOWBOARD_` prefix. They are current config names and should not be renamed casually.
+Migration note: older local `.env` files that still use the previous `FLOWBOARD_` prefix continue to work as a temporary compatibility fallback. Prefer `PLANGLADE_` names for new setup.
 
 ## Database Setup
 
@@ -176,9 +176,9 @@ Local development can use local signed attachment routes:
 Set:
 
 ```env
-FLOWBOARD_STORAGE_PROVIDER="local"
-FLOWBOARD_LOCAL_STORAGE_DIR="storage/local-attachments"
-FLOWBOARD_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
+PLANGLADE_STORAGE_PROVIDER="local"
+PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
+PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
 
 Firebase Storage support exists in the app, but production setup still needs public-safe deployment documentation.
@@ -188,7 +188,7 @@ Firebase Storage support exists in the app, but production setup still needs pub
 With the documented local settings:
 
 - SQLite data is stored at the path in `DATABASE_URL`. With `file:../db/custom.db`, the database file is under `db/custom.db` relative to Prisma's schema location.
-- Local attachments are stored under `FLOWBOARD_LOCAL_STORAGE_DIR`.
+- Local attachments are stored under `PLANGLADE_LOCAL_STORAGE_DIR`.
 - Real secrets live only in your local `.env` or deployment secret store.
 
 Do not delete the database file or attachment directory unless you intend to delete local app data.
@@ -200,7 +200,7 @@ See `docs/BACKUP_RESTORE.md` for the current backup and restore notes.
 Current honest status:
 
 - SQLite file copy backups are the only documented database-level backup path.
-- Local attachment backups require copying `FLOWBOARD_LOCAL_STORAGE_DIR`.
+- Local attachment backups require copying `PLANGLADE_LOCAL_STORAGE_DIR`.
 - Workspace JSON export/import is useful for portability, but it is not a complete production backup system.
 - Automated backups are not included.
 
@@ -249,9 +249,9 @@ What remains before public self-hosting can be called ready:
 
 ## Security Notes
 
-- Do not run `FLOWBOARD_AUTH_MODE=dev` in production. The build validation blocks this in production-like environments.
+- Do not run `PLANGLADE_AUTH_MODE=dev` in production. The build validation blocks this in production-like environments.
 - Do not expose a local SQLite file or local attachment directory to untrusted users or shared disks.
-- Use strong random values for `NEXTAUTH_SECRET`, `FLOWBOARD_STORAGE_SIGNING_SECRET`, and maintenance tokens.
+- Use strong random values for `NEXTAUTH_SECRET`, `PLANGLADE_STORAGE_SIGNING_SECRET`, and maintenance tokens.
 - Review auth provider callback URLs before exposing the app publicly.
 - Put TLS, proxy headers, logs, and rate limits in front of the app before public internet use.
 - Keep real `.env` files out of git.
@@ -262,5 +262,5 @@ What remains before public self-hosting can be called ready:
 - No Docker setup.
 - No final generic deployment guide.
 - PlanGlade is licensed under AGPL-3.0; see the root `LICENSE` file.
-- Some environment variable names still carry legacy naming.
+- Older `FLOWBOARD_` environment names are compatibility-only; use `PLANGLADE_` names for new installs.
 - The current Firebase deployment notes are not suitable as the primary public self-host guide.

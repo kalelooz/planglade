@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 
 import { LoginPage } from "@/components/lovable/login-page"
+import { readPlanGladeEnv, readPublicPlanGladeEnv } from "@/lib/env-config"
 
 function LoginPageFallback() {
   return <div className="p-6 text-sm text-muted-foreground">Loading sign-in...</div>
@@ -21,8 +22,8 @@ function hasNextAuthGoogleConfig() {
 
 export default function PlanGladeLoginRoute() {
   const authMode = (
-    process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE ??
-    process.env.FLOWBOARD_AUTH_MODE ??
+    readPublicPlanGladeEnv("AUTH_MODE") ??
+    readPlanGladeEnv("AUTH_MODE") ??
     "dev"
   ).toLowerCase()
   const googleSignInAvailable =

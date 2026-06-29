@@ -156,14 +156,13 @@ Copy-Item .env.example .env
 
 ```env
 DATABASE_URL="file:../db/custom.db"
-FLOWBOARD_AUTH_MODE="dev"
-NEXT_PUBLIC_FLOWBOARD_AUTH_MODE="dev"
-FLOWBOARD_STORAGE_PROVIDER="local"
-FLOWBOARD_LOCAL_STORAGE_DIR="storage/local-attachments"
-FLOWBOARD_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
+PLANGLADE_AUTH_MODE="dev"
+NEXT_PUBLIC_PLANGLADE_AUTH_MODE="dev"
+PLANGLADE_STORAGE_PROVIDER="local"
+PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
+PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
 
-Some environment variable names still use the legacy `FLOWBOARD_` prefix. They are current config names and should not be renamed casually.
 
 4. Generate Prisma client and create/update the local database.
 
@@ -187,18 +186,18 @@ Start from `.env.example`.
 Important local/dev variables:
 
 - `DATABASE_URL`: SQLite database path for the current tracked schema.
-- `FLOWBOARD_AUTH_MODE`: use `dev` for local development.
-- `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE`: match the server auth mode.
-- `FLOWBOARD_STORAGE_PROVIDER`: use `local` for local file storage.
-- `FLOWBOARD_LOCAL_STORAGE_DIR`: local attachment folder.
-- `FLOWBOARD_STORAGE_SIGNING_SECRET`: signing secret for local attachment URLs.
+- `PLANGLADE_AUTH_MODE`: use `dev` for local development.
+- `NEXT_PUBLIC_PLANGLADE_AUTH_MODE`: match the server auth mode.
+- `PLANGLADE_STORAGE_PROVIDER`: use `local` for local file storage.
+- `PLANGLADE_LOCAL_STORAGE_DIR`: local attachment folder.
+- `PLANGLADE_STORAGE_SIGNING_SECRET`: signing secret for local attachment URLs.
 
 Production-style variables depend on the auth/storage path:
 
 - Firebase auth/storage: `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, and Firebase Admin credentials when not using platform-provided credentials.
 - NextAuth provider mode: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and provider credentials such as Google or GitHub.
-- Email invites: `FLOWBOARD_EMAIL_PROVIDER`, `FLOWBOARD_EMAIL_FROM`, and `RESEND_API_KEY` if Resend delivery is enabled.
-- Invite expiry job: `FLOWBOARD_MAINTENANCE_TOKEN`.
+- Email invites: `PLANGLADE_EMAIL_PROVIDER`, `PLANGLADE_EMAIL_FROM`, and `RESEND_API_KEY` if Resend delivery is enabled.
+- Invite expiry job: `PLANGLADE_MAINTENANCE_TOKEN`.
 
 Do not commit real `.env` files or secrets.
 
