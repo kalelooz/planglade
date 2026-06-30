@@ -1,5 +1,6 @@
 * text=auto eol=lf
 *.md text eol=lf
+README.md text eol=lf
 
 *.png binary
 *.jpg binary
