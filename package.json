@@ -56,7 +56,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@reactuses/core": "^6.0.5",
     "@tailwindcss/typography": "^0.5.19",
-    "@tanstack/react-query": "^5.82.0",
+    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-table": "^8.21.3",
     "boring-avatars": "^2.0.4",
     "class-variance-authority": "^0.7.1",
