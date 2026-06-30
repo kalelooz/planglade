@@ -1,6 +1,6 @@
 # PlanGlade
 
-[![CI][badge-ci]][ci] [![License: AGPL-3.0][badge-license]][license] ![Next.js][badge-next] ![TypeScript][badge-typescript] ![Prisma][badge-prisma] ![Self-hosting: early][badge-self-hosting]
+[![CI][b-ci]][ci] [![AGPL-3.0][b-license]][license] ![Next.js][b-next] ![TypeScript][b-ts] ![Prisma][b-prisma] ![Self-hosting: early][b-self-hosting]
 
 A calm, open-source workspace for capturing, organizing, and finishing project work.
 
@@ -303,9 +303,9 @@ contributions small, scoped, and honest about current product limits.
 
 [ci]: https://github.com/kalelooz/planglade/actions/workflows/ci.yml
 [license]: ./LICENSE
-[badge-ci]: https://github.com/kalelooz/planglade/actions/workflows/ci.yml/badge.svg
-[badge-license]: https://img.shields.io/badge/license-AGPL--3.0-blue.svg
-[badge-next]: https://img.shields.io/badge/Next.js-16-black
-[badge-typescript]: https://img.shields.io/badge/TypeScript-5-blue
-[badge-prisma]: https://img.shields.io/badge/Prisma-6-2D3748
-[badge-self-hosting]: https://img.shields.io/badge/self--hosting-early-yellow
+[b-ci]: https://github.com/kalelooz/planglade/actions/workflows/ci.yml/badge.svg
+[b-license]: https://img.shields.io/badge/license-AGPL--3.0-blue.svg
+[b-next]: https://img.shields.io/badge/Next.js-16-black
+[b-ts]: https://img.shields.io/badge/TypeScript-5-blue
+[b-prisma]: https://img.shields.io/badge/Prisma-6-2D3748
+[b-self-hosting]: https://img.shields.io/badge/self--hosting-early-yellow
