@@ -98,15 +98,29 @@ Routes for deferred surfaces (Timeline, Team, Activity, Connections) may exist i
 
 ## Screenshots
 
-Current PlanGlade screenshots captured from a clean local demo workspace. PlanGlade is still alpha software and not production-ready.
+### Home
 
 ![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png)
 
+Today, inbox, next work, and notes in one calm starting point.
+
+### Tasks
+
 ![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png)
+
+A compact list and planning surface for workspace tasks.
+
+### Project detail
 
 ![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png)
 
+Project work, tasks, and notes in one place.
+
+### Calendar
+
 ![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png)
+
+Due dates shown from the same task source.
 
 ## Tech Stack
 
