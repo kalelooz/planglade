@@ -42,15 +42,17 @@ test("PUBLIC-UI-AND-EXPORT-READINESS-002: bundled demo data mixes normal project
 test("PUBLIC-UI-AND-EXPORT-READINESS-002: README screenshot references resolve to tracked image files", async () => {
   const readme = await readProjectFile("README.md")
   const refs = [...readme.matchAll(/!\[[^\]]+\]\(\.\/(public\/screenshots\/[^)]+)\)/g)].map((match) => match[1])
+  const uniqueRefs = [...new Set(refs)]
 
-  assert.deepEqual(refs, [
+  assert.deepEqual(uniqueRefs, [
     "public/screenshots/planglade-home-desktop.png",
     "public/screenshots/planglade-tasks-desktop.png",
     "public/screenshots/planglade-project-detail-desktop.png",
     "public/screenshots/planglade-calendar-desktop.png",
   ])
+  assert.equal(refs[0], "public/screenshots/planglade-home-desktop.png")
 
-  for (const ref of refs) {
+  for (const ref of uniqueRefs) {
     await access(path.join(root, ref))
     const file = await stat(path.join(root, ref))
     assert.ok(file.size > 0, `${ref} should not be empty`)

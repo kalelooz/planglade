@@ -1,30 +1,60 @@
 # PlanGlade
 
-A calm, open-source workspace for your projects.
+[![CI](https://github.com/kalelooz/planglade/actions/workflows/ci.yml/badge.svg)](https://github.com/kalelooz/planglade/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748)
+![Self-hosting: early](https://img.shields.io/badge/self--hosting-early-yellow)
 
-PlanGlade is a light-first project management app for solo users and small teams. It helps you capture work quickly, triage an inbox, organize projects, keep notes nearby, and plan around task due dates without turning the app into an enterprise suite.
+A calm, open-source workspace for capturing, organizing, and finishing project work.
 
-PlanGlade is not production-ready yet. The current repo is suitable for local development, maintainer review, and early self-hosting work.
+PlanGlade is early software. It is useful for local development, maintainer review, and early self-hosting work, but it is not production-ready yet.
 
 Maintained by kalelooz.
 
-## What Is PlanGlade?
+![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png)
 
-PlanGlade is focused on:
+Home - today, inbox, next work, and notes in one calm starting point.
 
-- Home: a daily command center for current work.
-- Inbox: quick capture and triage.
-- Tasks: list and board views over the same task data.
-- Projects: project planning, task progress, notes, and calendar context.
-- Notes: Markdown notes with project links and task extraction.
-- Calendar: a view over real task due dates.
-- Settings: workspace preferences, JSON export, and guarded import.
+## What You Can Do Today
 
-The product direction is intentionally narrow. No current pricing, hosted cloud promise, AI-first positioning, or enterprise reporting surface is part of the current public claim.
+- Capture work quickly into Inbox.
+- Turn inbox items into real tasks.
+- Plan in Tasks with list and board views.
+- Keep project work, notes, and due dates together.
+- Review task due dates in Calendar.
+- Export workspace data and use the guarded import flow.
+- Run locally with the documented development setup.
+
+No pricing, hosted cloud, AI, enterprise reporting, or production SLA claims are part of the current public promise.
+
+## Screenshot Gallery
+
+Current screenshots are from a clean local demo workspace.
+
+| Home | Tasks |
+|---|---|
+| ![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png) | ![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png) |
+| Home - today, inbox, next work, notes | Tasks - list and planning surface |
+
+| Project detail | Calendar |
+|---|---|
+| ![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png) | ![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png) |
+| Project detail - project work and notes | Calendar - due dates from tasks |
+
+## Product Flow
+
+```mermaid
+flowchart LR
+  Capture["Capture"] --> Inbox["Inbox"]
+  Inbox --> Task["Task"]
+  Task --> Project["Project"]
+  Project --> Calendar["Calendar"]
+  Project --> Notes["Notes"]
+```
 
 ## Current Status
-
-PlanGlade is under active development.
 
 Working today:
 
@@ -32,30 +62,29 @@ Working today:
 - Server-backed reads and writes for the core task/project/note loop.
 - Home command center with today, overdue, inbox, project focus, and next-up.
 - Inbox capture and triage into real tasks.
-- Tasks with list and board views (board is a toggle inside Tasks, not a separate route).
+- Tasks with list and board views.
 - Project list and Project Home with real context, task progress, and linked notes.
 - Notes with Markdown editing, project linking, and task extraction.
 - Calendar as a view over task due dates.
-- Settings with workspace preferences, JSON export, and a guarded import flow.
+- Settings with workspace preferences, JSON export, and guarded import.
 - Public landing and getting-started pages for explaining the MVP before sign-in.
-- Local development auth mode for running the app without a production identity provider.
-- Production-oriented auth paths exist for Firebase and NextAuth, but public self-host guidance is not finalized.
+- Local development auth mode.
 
 Not ready yet:
 
 - A production-hardened generic self-host guide.
 - Docker/container deployment.
-- A public hosted cloud offering (not currently planned for release).
+- A public hosted cloud offering.
 - A dedicated public security contact.
 - Billing, pricing, admin/team management, or production SLA promises.
 
 ## Features Available Today
 
-- Home command center (today's focus, attention required, captured inbox items, project focus, next up, recent notes).
+- Home command center.
 - Quick capture to Inbox.
 - Inbox triage into tasks.
 - Tasks with list and board views.
-- Projects and Project Home (overview, tasks, notes, calendar).
+- Projects and Project Home.
 - Project notes and context.
 - Notes with Markdown editing and task extraction.
 - Calendar over task due dates.
@@ -67,48 +96,45 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 
 **Available Today**
 
-- Home
-- Inbox
-- Tasks (list and board)
-- Projects and Project Home
-- Notes and project context
-- Calendar over due dates
-- Settings
-- JSON export and guarded import
-- Early self-host docs
+- Home, Inbox, Tasks, Projects, Notes, Calendar, and Settings.
+- Notes and project context.
+- JSON export and guarded import.
+- Early self-host docs.
 
 **Next**
 
-- Timeline planning view
-- Task dependencies
-- Recurring tasks
-- Stronger self-host path
-- Docker support after it is implemented and tested
-- Security hardening
+- Timeline planning view.
+- Task dependencies.
+- Recurring tasks.
+- Stronger self-host path.
+- Docker support after it is implemented and tested.
+- Security hardening.
 
 **Later**
 
-- Sharing and collaboration surfaces
-- Hosted cloud option
-- Billing
-- Admin/team features
-- AI assistance only after the core app is trustworthy
+- Sharing and collaboration surfaces.
+- Hosted cloud option.
+- Billing.
+- Admin/team features.
+- AI assistance only after the core app is trustworthy.
 
-Routes for deferred surfaces (Timeline, Team, Activity, Connections) may exist in the codebase but are gated and redirect to the app home. They are not part of the public MVP product face.
+```mermaid
+flowchart LR
+  Now["Now: core single-user loop"] --> Next["Next: planning and self-host hardening"]
+  Next --> Later["Later: collaboration and optional hosted surfaces"]
+```
 
-## Screenshots
+Routes for deferred surfaces may exist in the codebase, but they are gated and redirect to the app home. They are not part of the public MVP product face.
 
-Current PlanGlade screenshots captured from a clean local demo workspace. PlanGlade is still alpha software and not production-ready.
+## Architecture
 
-![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png)
-
-![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png)
-
-![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png)
-
-![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png)
-
-## Tech Stack
+```mermaid
+flowchart LR
+  Browser["Browser"] --> App["Next.js App Router"]
+  App --> Auth["Auth/session"]
+  Auth --> Prisma["Prisma"]
+  Prisma --> Database["Database"]
+```
 
 | Area | Technology |
 |---|---|
@@ -120,19 +146,15 @@ Current PlanGlade screenshots captured from a clean local demo workspace. PlanGl
 | Auth | Local dev session, Firebase mode, NextAuth mode |
 | Icons | Lucide React |
 | Tables | TanStack Table |
-| Drag and drop | dnd-kit |
-| Markdown | MDXEditor and react-markdown |
 | Package manager | npm |
 
-## Requirements
+## Local Development Setup
+
+Requirements:
 
 - Node.js 20.9 or newer.
 - npm 10 or newer.
 - A local `.env` file based on `.env.example`.
-
-Why Node 20.9+: the repo uses Next.js 16, and current Next.js 16 requires Node.js 20.9+.
-
-## Local Development Setup
 
 1. Install dependencies.
 
@@ -162,7 +184,6 @@ PLANGLADE_STORAGE_PROVIDER="local"
 PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
 PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
-
 
 4. Generate Prisma client and create/update the local database.
 
@@ -247,7 +268,7 @@ Notes:
 
 - `npm run build` validates auth config before building.
 - `npm run start` expects the standalone build output from `npm run build`.
-- Full lint/typecheck/build can take longer. For small docs changes, they are not required.
+- Full lint/typecheck/build can take longer for non-doc changes.
 
 ## Contributing, Security, And License
 

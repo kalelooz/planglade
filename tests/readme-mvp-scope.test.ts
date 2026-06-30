@@ -19,6 +19,8 @@ test("README-TRIM-1: keeps honest maturity language", async () => {
 
   assert.match(readme, /not production-ready yet/i)
   assert.match(readme, /AGPL-3\.0/)
+  assert.doesNotMatch(readme, /FlowBoard/i)
+  assert.doesNotMatch(readme, /Docker is production-ready|production-ready Docker/i)
 })
 
 test("README-TRIM-1: includes the MVP feature set and roadmap separation", async () => {
@@ -107,4 +109,18 @@ test("README-TRIM-1: no fake AI claims", async () => {
 
   assert.doesNotMatch(readme, /AI-powered|AI assistant|artificial intelligence/i)
   assert.doesNotMatch(readme, /AI assistance (is )?(available|included|ready)/i)
+})
+
+test("README-TRIM-1: includes visual learner sections", async () => {
+  const readme = await readProjectFile("README.md")
+
+  assert.match(readme, /## Screenshot Gallery/)
+  assert.match(readme, /Home - today, inbox, next work, notes/)
+  assert.match(readme, /Tasks - list and planning surface/)
+  assert.match(readme, /Project detail - project work and notes/)
+  assert.match(readme, /Calendar - due dates from tasks/)
+  assert.match(readme, /## Product Flow/)
+  assert.match(readme, /Capture\["Capture"\] --> Inbox\["Inbox"\]/)
+  assert.match(readme, /## Architecture/)
+  assert.match(readme, /Browser\["Browser"\] --> App\["Next\.js App Router"\]/)
 })
