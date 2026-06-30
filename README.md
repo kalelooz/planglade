@@ -1,15 +1,12 @@
 # PlanGlade
 
-[![CI](https://github.com/kalelooz/planglade/actions/workflows/ci.yml/badge.svg)](https://github.com/kalelooz/planglade/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
-![Next.js](https://img.shields.io/badge/Next.js-16-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
-![Prisma](https://img.shields.io/badge/Prisma-6-2D3748)
-![Self-hosting: early](https://img.shields.io/badge/self--hosting-early-yellow)
+[![CI][badge-ci]][ci] [![License: AGPL-3.0][badge-license]][license] ![Next.js][badge-next] ![TypeScript][badge-typescript] ![Prisma][badge-prisma] ![Self-hosting: early][badge-self-hosting]
 
 A calm, open-source workspace for capturing, organizing, and finishing project work.
 
-PlanGlade is early software. It is useful for local development, maintainer review, and early self-hosting work, but it is not production-ready yet.
+PlanGlade is early software. It is useful for local development,
+maintainer review, and early self-hosting work, but it is not
+production-ready yet.
 
 Maintained by kalelooz.
 
@@ -124,7 +121,9 @@ flowchart LR
   Next --> Later["Later: collaboration and optional hosted surfaces"]
 ```
 
-Routes for deferred surfaces may exist in the codebase, but they are gated and redirect to the app home. They are not part of the public MVP product face.
+Routes for deferred surfaces may exist in the codebase, but they are gated
+and redirect to the app home. They are not part of the public MVP product
+face.
 
 ## Architecture
 
@@ -284,3 +283,12 @@ The repo is still pre-public-launch and not production-hardened. Keep contributi
 - `docs/BACKUP_RESTORE.md`: basic manual backup/restore notes for the current local SQLite path.
 - `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.
+
+[ci]: https://github.com/kalelooz/planglade/actions/workflows/ci.yml
+[license]: ./LICENSE
+[badge-ci]: https://github.com/kalelooz/planglade/actions/workflows/ci.yml/badge.svg
+[badge-license]: https://img.shields.io/badge/license-AGPL--3.0-blue.svg
+[badge-next]: https://img.shields.io/badge/Next.js-16-black
+[badge-typescript]: https://img.shields.io/badge/TypeScript-5-blue
+[badge-prisma]: https://img.shields.io/badge/Prisma-6-2D3748
+[badge-self-hosting]: https://img.shields.io/badge/self--hosting-early-yellow
