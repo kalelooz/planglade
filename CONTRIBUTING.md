@@ -34,7 +34,7 @@ The short version is:
 - Generate Prisma client and prepare the local SQLite database.
 - Start the Next.js dev server.
 
-Some environment variable names still use the legacy `FLOWBOARD_` prefix. They are current config names and should not be renamed casually.
+Use the environment variables documented in `.env.example` and README.
 
 ## Validation
 

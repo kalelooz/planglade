@@ -28,7 +28,7 @@ export async function GET() {
           authConfig.mode === "nextauth" && !authProvidersConfigured
             ? [
                 ...authConfig.errors,
-                "FLOWBOARD_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
+                "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
               ]
             : authConfig.errors,
       },

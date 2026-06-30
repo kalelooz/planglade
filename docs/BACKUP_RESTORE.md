@@ -11,14 +11,14 @@ These notes cover the current local/developer self-host path: SQLite plus local 
 Back up these together:
 
 - The SQLite database file from `DATABASE_URL`.
-- The local attachment directory from `FLOWBOARD_LOCAL_STORAGE_DIR`.
+- The local attachment directory from `PLANGLADE_LOCAL_STORAGE_DIR`.
 - Your `.env` values, stored securely outside git.
 
 With the example local config:
 
 ```env
 DATABASE_URL="file:../db/custom.db"
-FLOWBOARD_LOCAL_STORAGE_DIR="storage/local-attachments"
+PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
 ```
 
 the database is the `db/custom.db` file relative to Prisma's schema location, and attachments live in `storage/local-attachments`.

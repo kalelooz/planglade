@@ -1,3 +1,5 @@
+import { readPlanGladeEnv } from "@/lib/env-config"
+
 type EmailProvider = "resend" | "console" | "disabled"
 
 export type SendEmailInput = {
@@ -23,7 +25,7 @@ export type SendEmailResult =
     }
 
 function resolveEmailProvider(): EmailProvider {
-  const configured = (process.env.FLOWBOARD_EMAIL_PROVIDER ?? "").trim().toLowerCase()
+  const configured = (readPlanGladeEnv("EMAIL_PROVIDER") ?? "").trim().toLowerCase()
   if (configured === "resend") return "resend"
   if (configured === "console") return "console"
   if (configured === "disabled") return "disabled"
@@ -45,7 +47,7 @@ function textToHtml(text: string) {
 }
 
 function resolveFromAddress() {
-  const from = process.env.FLOWBOARD_EMAIL_FROM?.trim()
+  const from = readPlanGladeEnv("EMAIL_FROM")?.trim()
   return from && from.length > 0 ? from : ""
 }
 
@@ -63,7 +65,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       ok: false,
       provider,
       error:
-        "Email delivery is disabled. Configure FLOWBOARD_EMAIL_PROVIDER and provider credentials.",
+        "Email delivery is disabled. Configure PLANGLADE_EMAIL_PROVIDER and provider credentials.",
     }
   }
 
@@ -91,7 +93,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       ok: false,
       provider,
       error:
-        "FLOWBOARD_EMAIL_FROM is missing. Configure a verified sender address for invite emails.",
+        "PLANGLADE_EMAIL_FROM is missing. Configure a verified sender address for invite emails.",
     }
   }
 
@@ -100,7 +102,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     return {
       ok: false,
       provider,
-      error: "RESEND_API_KEY is missing for FLOWBOARD_EMAIL_PROVIDER=resend.",
+      error: "RESEND_API_KEY is missing for PLANGLADE_EMAIL_PROVIDER=resend.",
     }
   }
 

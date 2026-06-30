@@ -2,10 +2,11 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
+import { readPlanGladeEnv } from "@/lib/env-config"
 import { getFirebaseStorageBucket } from "@/lib/firebase-admin"
 
 export const VALID_STORAGE_PROVIDERS = ["firebase", "local"] as const
-export type FlowboardStorageProvider = (typeof VALID_STORAGE_PROVIDERS)[number]
+export type PlanGladeStorageProvider = (typeof VALID_STORAGE_PROVIDERS)[number]
 
 export type StoredObjectMetadata = {
   mimeType: string | null
@@ -25,10 +26,10 @@ function getDefaultStorageProvider() {
   return process.env.NODE_ENV === "production" ? "firebase" : "local"
 }
 
-export function getConfiguredStorageProvider(): FlowboardStorageProvider | "invalid" {
-  const provider = lower(process.env.FLOWBOARD_STORAGE_PROVIDER, getDefaultStorageProvider())
+export function getConfiguredStorageProvider(): PlanGladeStorageProvider | "invalid" {
+  const provider = lower(readPlanGladeEnv("STORAGE_PROVIDER"), getDefaultStorageProvider())
   if ((VALID_STORAGE_PROVIDERS as readonly string[]).includes(provider)) {
-    return provider as FlowboardStorageProvider
+    return provider as PlanGladeStorageProvider
   }
   return "invalid"
 }
@@ -38,7 +39,7 @@ export function getStorageConfigErrors() {
   const errors: string[] = []
 
   if (provider === "invalid") {
-    errors.push("Invalid FLOWBOARD_STORAGE_PROVIDER. Use one of: firebase, local.")
+    errors.push("Invalid PLANGLADE_STORAGE_PROVIDER. Use one of: firebase, local.")
     return { provider, errors }
   }
 
@@ -52,22 +53,22 @@ export function getStorageConfigErrors() {
   }
 
   if (provider === "local" && process.env.NODE_ENV === "production") {
-    errors.push("FLOWBOARD_STORAGE_PROVIDER=local is not allowed in production.")
+    errors.push("PLANGLADE_STORAGE_PROVIDER=local is not allowed in production.")
   }
 
   return { provider, errors }
 }
 
-function getStorageProviderOrThrow(): FlowboardStorageProvider {
+function getStorageProviderOrThrow(): PlanGladeStorageProvider {
   const provider = getConfiguredStorageProvider()
   if (provider === "invalid") {
-    throw new Error("Invalid FLOWBOARD_STORAGE_PROVIDER")
+    throw new Error("Invalid PLANGLADE_STORAGE_PROVIDER")
   }
   return provider
 }
 
 function getLocalStorageRootDir() {
-  const configuredDir = process.env.FLOWBOARD_LOCAL_STORAGE_DIR ?? DEFAULT_LOCAL_STORAGE_DIR
+  const configuredDir = readPlanGladeEnv("LOCAL_STORAGE_DIR") ?? DEFAULT_LOCAL_STORAGE_DIR
   if (path.isAbsolute(configuredDir)) {
     return path.resolve(/* turbopackIgnore: true */ configuredDir)
   }
@@ -94,14 +95,15 @@ function getLocalMetaPath(filePath: string) {
 }
 
 function getStorageSigningSecret() {
-  if (process.env.FLOWBOARD_STORAGE_SIGNING_SECRET) {
-    return process.env.FLOWBOARD_STORAGE_SIGNING_SECRET
+  const configuredSecret = readPlanGladeEnv("STORAGE_SIGNING_SECRET")
+  if (configuredSecret) {
+    return configuredSecret
   }
   if (process.env.NEXTAUTH_SECRET) {
     return process.env.NEXTAUTH_SECRET
   }
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Missing FLOWBOARD_STORAGE_SIGNING_SECRET for secure storage URL signing in production.")
+    throw new Error("Missing PLANGLADE_STORAGE_SIGNING_SECRET for secure storage URL signing in production.")
   }
   return RUNTIME_LOCAL_SIGNING_SECRET
 }
@@ -333,7 +335,7 @@ export async function writeLocalStorageObject(input: {
 }) {
   const provider = getStorageProviderOrThrow()
   if (provider !== "local") {
-    throw new Error("Local object writes require FLOWBOARD_STORAGE_PROVIDER=local")
+    throw new Error("Local object writes require PLANGLADE_STORAGE_PROVIDER=local")
   }
 
   const filePath = resolveLocalStoragePath(input.storageKey)
@@ -360,7 +362,7 @@ export async function writeLocalStorageObject(input: {
 export async function readLocalStorageObject(input: { storageKey: string }) {
   const provider = getStorageProviderOrThrow()
   if (provider !== "local") {
-    throw new Error("Local object reads require FLOWBOARD_STORAGE_PROVIDER=local")
+    throw new Error("Local object reads require PLANGLADE_STORAGE_PROVIDER=local")
   }
 
   const filePath = resolveLocalStoragePath(input.storageKey)

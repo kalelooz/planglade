@@ -61,7 +61,7 @@ test("GET /auth/session rejects invalid auth mode", async () => {
     const payload = (await response.json()) as { error?: string }
 
     assert.equal(response.status, 500)
-    assert.equal(payload.error, "Invalid FLOWBOARD_AUTH_MODE. Use one of: dev, firebase, nextauth.")
+    assert.equal(payload.error, "Invalid PLANGLADE_AUTH_MODE. Use one of: dev, firebase, nextauth.")
   })
 })
 
@@ -75,7 +75,7 @@ test("GET /auth/session blocks dev auth mode in production", async () => {
     const payload = (await response.json()) as { error?: string }
 
     assert.equal(response.status, 500)
-    assert.equal(payload.error, "FLOWBOARD_AUTH_MODE=dev is disabled in production.")
+    assert.equal(payload.error, "PLANGLADE_AUTH_MODE=dev is disabled in production.")
   })
 })
 
@@ -92,7 +92,7 @@ test("GET /auth/session reports nextauth provider misconfiguration", async () =>
     assert.equal(response.status, 500)
     assert.equal(
       payload.error,
-      "FLOWBOARD_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub)."
+      "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub)."
     )
   })
 })
