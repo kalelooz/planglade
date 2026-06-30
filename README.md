@@ -1,26 +1,68 @@
 # PlanGlade
 
-A calm, open-source workspace for your projects.
+[![CI](https://github.com/kalelooz/planglade/actions/workflows/ci.yml/badge.svg)](https://github.com/kalelooz/planglade/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE) ![Next.js](https://img.shields.io/badge/Next.js-16-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Prisma](https://img.shields.io/badge/Prisma-6-2D3748)
 
-PlanGlade is a light-first project management app for solo users and small teams. It helps you capture work quickly, triage an inbox, organize projects, keep notes nearby, and plan around task due dates without turning the app into an enterprise suite.
+PlanGlade is a calm, open-source workspace for capturing, organizing, and
+finishing project work.
 
-PlanGlade is not production-ready yet. The current repo is suitable for local development, maintainer review, and early self-hosting work.
+It is early software for local development, maintainer review, and early
+self-hosting work. It is not production-ready yet.
 
 Maintained by kalelooz.
 
-## What Is PlanGlade?
+![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png)
 
-PlanGlade is focused on:
+Home - today, inbox, next work, and notes in one calm starting point.
 
-- Home: a daily command center for current work.
-- Inbox: quick capture and triage.
-- Tasks: list and board views over the same task data.
-- Projects: project planning, task progress, notes, and calendar context.
-- Notes: Markdown notes with project links and task extraction.
-- Calendar: a view over real task due dates.
-- Settings: workspace preferences, JSON export, and guarded import.
+## What It Does
 
-The product direction is intentionally narrow. No current pricing, hosted cloud promise, AI-first positioning, or enterprise reporting surface is part of the current public claim.
+PlanGlade is focused on a small project management loop:
+
+- Capture work quickly.
+- Triage Inbox items.
+- Turn captured items into Tasks.
+- Organize Tasks inside Projects.
+- Keep Notes and project context nearby.
+- Review due work in Calendar.
+- Adjust workspace preferences in Settings.
+- Export workspace data.
+- Use a guarded import flow.
+
+PlanGlade does not currently promise pricing, hosted cloud, enterprise
+reporting, production support, or production uptime.
+
+## Screenshot Gallery
+
+Current screenshots are from a clean local demo workspace.
+
+### Tasks
+
+![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png)
+
+Tasks - list and planning surface.
+
+### Project Detail
+
+![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png)
+
+Project detail - project work and notes.
+
+### Calendar
+
+![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png)
+
+Calendar - due dates from tasks.
+
+## Product Flow
+
+```mermaid
+flowchart LR
+  Capture["Capture"] --> Inbox["Inbox"]
+  Inbox --> Tasks["Tasks"]
+  Tasks --> Projects["Projects"]
+  Projects --> Notes["Notes"]
+  Projects --> Calendar["Calendar"]
+```
 
 ## Current Status
 
@@ -28,38 +70,53 @@ PlanGlade is under active development.
 
 Working today:
 
-- Main app navigation: Home, Inbox, Tasks, Projects, Notes, Calendar, and Settings.
-- Server-backed reads and writes for the core task/project/note loop.
-- Home command center with today, overdue, inbox, project focus, and next-up.
-- Inbox capture and triage into real tasks.
-- Tasks with list and board views (board is a toggle inside Tasks, not a separate route).
-- Project list and Project Home with real context, task progress, and linked notes.
-- Notes with Markdown editing, project linking, and task extraction.
-- Calendar as a view over task due dates.
-- Settings with workspace preferences, JSON export, and a guarded import flow.
-- Public landing and getting-started pages for explaining the MVP before sign-in.
-- Local development auth mode for running the app without a production identity provider.
-- Production-oriented auth paths exist for Firebase and NextAuth, but public self-host guidance is not finalized.
+- Main app navigation.
+- Home command center.
+- Inbox capture.
+- Inbox triage.
+- Tasks list view.
+- Tasks board view.
+- Project list.
+- Project Home.
+- Project notes and context.
+- Notes editing.
+- Markdown notes.
+- Task extraction from notes.
+- Calendar over task due dates.
+- Workspace settings.
+- JSON export.
+- Guarded JSON import.
+- Local development auth mode.
+- Server-backed reads and writes.
+- Workspace-scoped data foundations.
+- Public landing page.
+- Getting-started page.
 
 Not ready yet:
 
-- A production-hardened generic self-host guide.
-- Docker/container deployment.
-- A public hosted cloud offering (not currently planned for release).
-- A dedicated public security contact.
-- Billing, pricing, admin/team management, or production SLA promises.
+- Production-hardening.
+- Docker support.
+- Generic production deployment docs.
+- Public hosted cloud.
+- Billing.
+- Pricing.
+- Admin or team management.
+- Production SLA promises.
+- Dedicated public security contact.
 
 ## Features Available Today
 
-- Home command center (today's focus, attention required, captured inbox items, project focus, next up, recent notes).
+- Home command center.
 - Quick capture to Inbox.
 - Inbox triage into tasks.
 - Tasks with list and board views.
-- Projects and Project Home (overview, tasks, notes, calendar).
+- Projects and Project Home.
 - Project notes and context.
-- Notes with Markdown editing and task extraction.
-- Calendar over task due dates.
-- Settings for workspace preferences, JSON export, and guarded import.
+- Notes and project context.
+- Notes with Markdown editing.
+- Calendar over due dates.
+- Settings for workspace preferences.
+- JSON export and guarded import.
 
 ## Roadmap
 
@@ -67,80 +124,51 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 
 **Available Today**
 
-- Home
-- Inbox
-- Tasks (list and board)
-- Projects and Project Home
-- Notes and project context
-- Calendar over due dates
-- Settings
-- JSON export and guarded import
-- Early self-host docs
+- Home.
+- Inbox.
+- Tasks.
+- Projects.
+- Notes and project context.
+- Calendar.
+- Settings.
+- JSON export.
+- Guarded import.
+- Early self-host docs.
 
 **Next**
 
-- Timeline planning view
-- Task dependencies
-- Recurring tasks
-- Stronger self-host path
-- Docker support after it is implemented and tested
-- Security hardening
+- Timeline planning view.
+- Task dependencies.
+- Recurring tasks.
+- Stronger self-host path.
+- Production documentation cleanup.
+- Security hardening.
+- Backup and restore polish.
 
 **Later**
 
-- Sharing and collaboration surfaces
-- Hosted cloud option
-- Billing
-- Admin/team features
-- AI assistance only after the core app is trustworthy
+- Collaboration surfaces.
+- Hosted cloud option.
+- Billing.
+- Admin/team features.
 
-Routes for deferred surfaces (Timeline, Team, Activity, Connections) may exist in the codebase but are gated and redirect to the app home. They are not part of the public MVP product face.
+## Setup
 
-## Screenshots
-
-Current PlanGlade screenshots captured from a clean local demo workspace. PlanGlade is still alpha software and not production-ready.
-
-![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png)
-
-![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png)
-
-![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png)
-
-![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png)
-
-## Tech Stack
-
-| Area | Technology |
-|---|---|
-| Framework | Next.js 16 App Router |
-| Language | TypeScript |
-| UI | React 19, shadcn/ui, Radix primitives |
-| Styling | Tailwind CSS v4, CSS custom properties |
-| Database | Prisma with SQLite in the current tracked schema |
-| Auth | Local dev session, Firebase mode, NextAuth mode |
-| Icons | Lucide React |
-| Tables | TanStack Table |
-| Drag and drop | dnd-kit |
-| Markdown | MDXEditor and react-markdown |
-| Package manager | npm |
-
-## Requirements
+Requirements:
 
 - Node.js 20.9 or newer.
 - npm 10 or newer.
-- A local `.env` file based on `.env.example`.
+- A local `.env` file.
+- A local SQLite database path.
+- Local attachment storage.
 
-Why Node 20.9+: the repo uses Next.js 16, and current Next.js 16 requires Node.js 20.9+.
-
-## Local Development Setup
-
-1. Install dependencies.
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Copy the environment example.
+Copy the environment example:
 
 ```bash
 cp .env.example .env
@@ -152,7 +180,7 @@ On Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-3. For local development without production auth, set these values in `.env`:
+For local development, use these values in `.env`:
 
 ```env
 DATABASE_URL="file:../db/custom.db"
@@ -163,15 +191,14 @@ PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
 PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
 
-
-4. Generate Prisma client and create/update the local database.
+Generate Prisma client and prepare the local database:
 
 ```bash
 npm run db:generate
 npm run db:push
 ```
 
-5. Start the dev server.
+Start the dev server:
 
 ```bash
 npm run dev
@@ -179,87 +206,60 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Environment Variables
-
-Start from `.env.example`.
-
-Important local/dev variables:
-
-- `DATABASE_URL`: SQLite database path for the current tracked schema.
-- `PLANGLADE_AUTH_MODE`: use `dev` for local development.
-- `NEXT_PUBLIC_PLANGLADE_AUTH_MODE`: match the server auth mode.
-- `PLANGLADE_STORAGE_PROVIDER`: use `local` for local file storage.
-- `PLANGLADE_LOCAL_STORAGE_DIR`: local attachment folder.
-- `PLANGLADE_STORAGE_SIGNING_SECRET`: signing secret for local attachment URLs.
-
-Production-style variables depend on the auth/storage path:
-
-- Firebase auth/storage: `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, and Firebase Admin credentials when not using platform-provided credentials.
-- NextAuth provider mode: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and provider credentials such as Google or GitHub.
-- Email invites: `PLANGLADE_EMAIL_PROVIDER`, `PLANGLADE_EMAIL_FROM`, and `RESEND_API_KEY` if Resend delivery is enabled.
-- Invite expiry job: `PLANGLADE_MAINTENANCE_TOKEN`.
-
-Do not commit real `.env` files or secrets.
-
-## Database And Setup Notes
-
-The tracked Prisma schema currently uses SQLite:
-
-```env
-DATABASE_URL="file:../db/custom.db"
-```
-
-Use `npm run db:push` for local development setup.
-
-`npm run db:reset` exists, but it is destructive. Use it only on an isolated local database when you intentionally want to reset data.
-
-## Self-Hosting Status
-
-PlanGlade has an early local/developer self-host path. It is not production-ready yet.
-
-Current honest status:
-
-- Local development with SQLite and local file storage is documented above.
-- `/api/health` reports basic auth/storage readiness.
-- Basic manual backup/restore notes exist in `docs/BACKUP_RESTORE.md`.
-- Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`, but that file is deployment notes, not a final public production guide.
-- Docker is not supported by this repo today.
-- A production database/storage/auth guide still needs a follow-up ticket.
-
-See `docs/SELF_HOSTING.md` for the current self-hosting notes and limitations.
-
-Backup and restore notes are in `docs/BACKUP_RESTORE.md`.
-
-## Useful Commands
+Useful validation commands:
 
 ```bash
-npm run dev
-npm run db:generate
-npm run db:push
-npx prisma validate
 npm test
 npm run lint
 npm run typecheck
 npm run build
 ```
 
-Notes:
+## Environment Notes
 
-- `npm run build` validates auth config before building.
-- `npm run start` expects the standalone build output from `npm run build`.
-- Full lint/typecheck/build can take longer. For small docs changes, they are not required.
+Start from `.env.example`.
 
-## Contributing, Security, And License
+Important local variables:
 
-PlanGlade is licensed under AGPL-3.0. See [LICENSE](./LICENSE).
+- `DATABASE_URL`
+- `PLANGLADE_AUTH_MODE`
+- `NEXT_PUBLIC_PLANGLADE_AUTH_MODE`
+- `PLANGLADE_STORAGE_PROVIDER`
+- `PLANGLADE_LOCAL_STORAGE_DIR`
+- `PLANGLADE_STORAGE_SIGNING_SECRET`
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md), [SECURITY.md](./SECURITY.md), and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
+Optional setup areas:
 
-The repo is still pre-public-launch and not production-hardened. Keep contributions small, scoped, and honest about current product limits.
+- Firebase auth and storage variables.
+- NextAuth provider variables.
+- Email invite variables.
+- Invite expiry maintenance token.
 
-## Documentation Map
+Do not commit real `.env` files or secrets.
 
-- `docs/SELF_HOSTING.md`: current self-hosting status and setup notes.
-- `docs/BACKUP_RESTORE.md`: basic manual backup/restore notes for the current local SQLite path.
-- `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
-- `docs/QUALITY-GATES.md`: validation expectations for repo work.
+## Docs
+
+- [ROADMAP.md](./ROADMAP.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [SECURITY.md](./SECURITY.md)
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- [docs/SELF_HOSTING.md](./docs/SELF_HOSTING.md)
+- [docs/BACKUP_RESTORE.md](./docs/BACKUP_RESTORE.md)
+
+## Community
+
+Contributions should stay small, scoped, and honest about current product
+limits.
+
+Avoid adding fake product actions, fake metrics, unsupported surfaces, or
+claims that make early software look production-ready.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidance.
+
+See [SECURITY.md](./SECURITY.md) for security policy details.
+
+## License
+
+PlanGlade is licensed under AGPL-3.0.
+
+See [LICENSE](./LICENSE).
