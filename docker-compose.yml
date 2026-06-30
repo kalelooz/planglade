@@ -1,0 +1,53 @@
+name: planglade
+
+services:
+  migrate:
+    build:
+      context: .
+      target: migrator
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/db/planglade.db
+    volumes:
+      - planglade_data:/app/db
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY:-replace-with-public-firebase-api-key}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-your-project.firebaseapp.com}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-your-project-id}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-your-project.firebasestorage.app}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-replace-with-sender-id}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID:-replace-with-firebase-app-id}
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/db/planglade.db
+      PLANGLADE_AUTH_MODE: nextauth
+      NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
+      PLANGLADE_STORAGE_PROVIDER: firebase
+      PLANGLADE_EMAIL_PROVIDER: ${PLANGLADE_EMAIL_PROVIDER:-disabled}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${PLANGLADE_PORT:-3000}:3000"
+    volumes:
+      - planglade_data:/app/db
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(async response => { const body = await response.json(); process.exit(response.ok && body.status === 'ok' ? 0 : 1) }).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  planglade_data:

@@ -62,6 +62,57 @@ test("SELFHOST-DOCS-001: Docker status matches committed files", async () => {
   }
 })
 
+test("SELFHOST-001: Docker baseline files are committed", async () => {
+  assert.equal(await exists("Dockerfile"), true)
+  assert.equal(await exists("docker-compose.yml"), true)
+})
+
+test("SELFHOST-001: Docker uses a minimal non-root standalone runtime", async () => {
+  const dockerfile = await readProjectFile("Dockerfile")
+
+  assert.match(dockerfile, /FROM base AS builder/)
+  assert.match(dockerfile, /npm ci/)
+  assert.match(dockerfile, /npm run build/)
+  assert.match(dockerfile, /\.next\/standalone/)
+  assert.match(dockerfile, /USER nextjs/)
+  assert.match(dockerfile, /CMD \["node",\s*"server\.js"\]/)
+})
+
+test("SELFHOST-001: Compose persists SQLite and waits for migrations", async () => {
+  const compose = await readProjectFile("docker-compose.yml")
+
+  assert.match(compose, /migrate:/)
+  assert.match(compose, /app:/)
+  assert.match(compose, /service_completed_successfully/)
+  assert.match(compose, /file:\/app\/db\/planglade\.db/)
+  assert.match(compose, /planglade_data:\/app\/db/)
+  assert.match(compose, /api\/health/)
+  assert.doesNotMatch(compose, /postgres:/i)
+})
+
+test("SELFHOST-001: Docker docs cover safe setup and honest limits", async () => {
+  const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
+  const readme = await readProjectFile("README.md")
+  const combined = `${selfHosting}\n${backup}\n${readme}`
+
+  for (const required of [
+    /early Docker self-host baseline/i,
+    /docker compose build/i,
+    /docker compose up -d/i,
+    /prisma migrate deploy/i,
+    /NEXTAUTH_SECRET/,
+    /HTTPS/i,
+    /backup/i,
+    /test.*restore/i,
+  ]) {
+    assert.match(combined, required)
+  }
+
+  assert.doesNotMatch(readme, /Docker is not supported by this repo today/i)
+  assert.doesNotMatch(combined, /\b(is|are|fully|now|already)\s+production-ready\b/i)
+})
+
 test("SELFHOST-DOCS-001: backup docs exist and are linked honestly", async () => {
   const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
   const readme = await readProjectFile("README.md")

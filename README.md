@@ -40,11 +40,11 @@ Working today:
 - Public landing and getting-started pages for explaining the MVP before sign-in.
 - Local development auth mode for running the app without a production identity provider.
 - Production-oriented auth paths exist for Firebase and NextAuth, but public self-host guidance is not finalized.
+- An early Docker self-host baseline with a standalone app image, SQLite persistence, migrations, and a health check.
 
 Not ready yet:
 
 - A production-hardened generic self-host guide.
-- Docker/container deployment.
 - A public hosted cloud offering (not currently planned for release).
 - A dedicated public security contact.
 - Billing, pricing, admin/team management, or production SLA promises.
@@ -76,6 +76,7 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 - Settings
 - JSON export and guarded import
 - Early self-host docs
+- Early Docker self-host baseline
 
 **Next**
 
@@ -83,7 +84,6 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 - Task dependencies
 - Recurring tasks
 - Stronger self-host path
-- Docker support after it is implemented and tested
 - Security hardening
 
 **Later**
@@ -229,16 +229,29 @@ Use `npm run db:push` for local development setup.
 
 ## Self-Hosting Status
 
-PlanGlade has an early local/developer self-host path. It is not production-ready yet.
+PlanGlade has an early local/developer path and an early Docker self-host baseline. It is not production-ready or production-hardened.
 
 Current honest status:
 
 - Local development with SQLite and local file storage is documented above.
+- Docker Compose builds the standalone app, persists SQLite in a named volume, and applies checked-in Prisma migrations before startup.
+- Docker uses NextAuth for sign-in and Firebase Storage for attachments; both require real external configuration.
 - `/api/health` reports basic auth/storage readiness.
 - Basic manual backup/restore notes exist in `docs/BACKUP_RESTORE.md`.
 - Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`, but that file is deployment notes, not a final public production guide.
-- Docker is not supported by this repo today.
-- A production database/storage/auth guide still needs a follow-up ticket.
+- PostgreSQL, bundled HTTPS/reverse proxy, automated backups, monitoring, and public-internet hardening are not included.
+
+Quick Docker start after replacing every placeholder in `.env`:
+
+```bash
+cp .env.example .env
+docker compose config
+docker compose build
+docker compose up -d
+curl http://localhost:3000/api/health
+```
+
+Do not expose the placeholder configuration publicly. See the full guide for required secrets, auth/storage setup, migrations, updates, HTTPS, backups, and restore testing.
 
 See `docs/SELF_HOSTING.md` for the current self-hosting notes and limitations.
 
@@ -273,7 +286,7 @@ The repo is still pre-public-launch and not production-hardened. Keep contributi
 
 ## Documentation Map
 
-- `docs/SELF_HOSTING.md`: current self-hosting status and setup notes.
-- `docs/BACKUP_RESTORE.md`: basic manual backup/restore notes for the current local SQLite path.
+- `docs/SELF_HOSTING.md`: local and early Docker self-host setup, limitations, and safety notes.
+- `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and Firebase backup/restore notes.
 - `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.
