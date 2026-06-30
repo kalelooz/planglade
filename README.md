@@ -24,21 +24,36 @@ Home - today, inbox, next work, and notes in one calm starting point.
 - Export workspace data and use the guarded import flow.
 - Run locally with the documented development setup.
 
-No pricing, hosted cloud, AI, enterprise reporting, or production SLA claims are part of the current public promise.
+No pricing, hosted cloud, AI, enterprise reporting, or production SLA claims
+are part of the current public promise.
 
 ## Screenshot Gallery
 
 Current screenshots are from a clean local demo workspace.
 
-| Home | Tasks |
-|---|---|
-| ![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png) | ![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png) |
-| Home - today, inbox, next work, notes | Tasks - list and planning surface |
+### Home
 
-| Project detail | Calendar |
-|---|---|
-| ![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png) | ![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png) |
-| Project detail - project work and notes | Calendar - due dates from tasks |
+![PlanGlade home dashboard](./public/screenshots/planglade-home-desktop.png)
+
+Home - today, inbox, next work, notes.
+
+### Tasks
+
+![PlanGlade tasks list](./public/screenshots/planglade-tasks-desktop.png)
+
+Tasks - list and planning surface.
+
+### Project Detail
+
+![PlanGlade project detail](./public/screenshots/planglade-project-detail-desktop.png)
+
+Project detail - project work and notes.
+
+### Calendar
+
+![PlanGlade calendar](./public/screenshots/planglade-calendar-desktop.png)
+
+Calendar - due dates from tasks.
 
 ## Product Flow
 
@@ -214,9 +229,9 @@ Important local/dev variables:
 
 Production-style variables depend on the auth/storage path:
 
-- Firebase auth/storage: `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, and Firebase Admin credentials when not using platform-provided credentials.
+- Firebase auth/storage: `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_PROJECT_ID`, and Firebase Admin credentials.
 - NextAuth provider mode: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and provider credentials such as Google or GitHub.
-- Email invites: `PLANGLADE_EMAIL_PROVIDER`, `PLANGLADE_EMAIL_FROM`, and `RESEND_API_KEY` if Resend delivery is enabled.
+- Email invites: `PLANGLADE_EMAIL_PROVIDER`, `PLANGLADE_EMAIL_FROM`, and `RESEND_API_KEY`.
 - Invite expiry job: `PLANGLADE_MAINTENANCE_TOKEN`.
 
 Do not commit real `.env` files or secrets.
@@ -231,7 +246,8 @@ DATABASE_URL="file:../db/custom.db"
 
 Use `npm run db:push` for local development setup.
 
-`npm run db:reset` exists, but it is destructive. Use it only on an isolated local database when you intentionally want to reset data.
+`npm run db:reset` exists, but it is destructive. Use it only on an
+isolated local database when you intentionally want to reset data.
 
 ## Self-Hosting Status
 
@@ -242,7 +258,7 @@ Current honest status:
 - Local development with SQLite and local file storage is documented above.
 - `/api/health` reports basic auth/storage readiness.
 - Basic manual backup/restore notes exist in `docs/BACKUP_RESTORE.md`.
-- Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`, but that file is deployment notes, not a final public production guide.
+- Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`; they are not a final production guide.
 - Docker is not supported by this repo today.
 - A production database/storage/auth guide still needs a follow-up ticket.
 
@@ -275,7 +291,8 @@ PlanGlade is licensed under AGPL-3.0. See [LICENSE](./LICENSE).
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md), [SECURITY.md](./SECURITY.md), and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-The repo is still pre-public-launch and not production-hardened. Keep contributions small, scoped, and honest about current product limits.
+The repo is still pre-public-launch and not production-hardened. Keep
+contributions small, scoped, and honest about current product limits.
 
 ## Documentation Map
 
