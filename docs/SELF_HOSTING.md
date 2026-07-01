@@ -1,63 +1,215 @@
 # PlanGlade Self-Hosting
 
-Last updated: 2026-06-28
+Last updated: 2026-07-01
 
-PlanGlade is in early self-hosting status.
+PlanGlade has an early Docker self-host baseline and remains in early self-hosting status. It is not production-ready or production-hardened. The Docker setup gives maintainers a repeatable build, migration, and startup path; it does not provide HTTPS, a reverse proxy, monitoring, automated backups, or security operations.
 
-This guide is accurate for a local/developer self-host path. It does not make a production readiness claim, and you should review hardening needs before exposing PlanGlade to the public internet.
+The existing local/developer self-host path remains documented below.
 
-## Current Maturity Status
+## What The Docker Baseline Uses
 
-Supported today:
+- One standalone Next.js app container.
+- One short-lived migration container that runs `prisma migrate deploy` before the app starts.
+- SQLite in a persistent Docker volume.
+- NextAuth with a configured GitHub or Google OAuth provider.
+- Local file attachment storage in a persistent Docker volume.
+- `/api/health` as the container health check.
 
-- Local development with Node.js, npm, Prisma, and SQLite.
-- Local file attachment storage.
-- Health check diagnostics at `/api/health`.
-- Workspace JSON export/import from Settings for data portability.
+Firebase Storage is **optional** and not required for the default Docker quick start. See [Optional Firebase Storage](#optional-firebase-storage) below.
 
-Present but not a final generic self-host path:
+PostgreSQL is not included. The tracked Prisma schema uses SQLite, so changing database providers would be a separate migration project, not a Docker configuration change.
 
-- Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`.
-- `apphosting.yaml` still contains project-specific values and should be cleaned before public release.
-- Firebase and NextAuth auth modes exist, but production deployment guidance needs review for your environment.
+## Before You Start
 
-Not currently supported:
+You need:
 
-- Docker image or Docker Compose setup.
-- Generic VPS guide.
-- PostgreSQL or managed database runbook. The tracked Prisma datasource is SQLite.
-- Automated backups, monitoring, TLS, reverse proxy, or public internet hardening.
+- Docker Engine or Docker Desktop with Docker Compose.
+- A GitHub or Google OAuth application for sign-in.
+- A terminal and a text editor.
 
-## Requirements
+You do **not** need a Firebase project. The Docker default stores attachments on a local Docker volume and uses NextAuth for sign-in.
 
-- Node.js 20.9 or newer.
-- npm 10 or newer.
-- A local `.env` file copied from `.env.example`.
-- Enough comfort with a terminal to run npm and Prisma commands.
+Do not expose PlanGlade publicly during initial setup. First configure real secrets, verify sign-in and storage, add HTTPS through a reverse proxy, and establish tested backups.
 
-The Node requirement comes from the current Next.js 16 app.
+## First Run With Docker Compose
 
-## Local / Developer Self-Host Path
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Copy the environment file:
+1. Copy the environment example.
 
 ```bash
 cp .env.example .env
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-For local development, use dev auth and local storage:
+2. Open `.env` and replace every Docker placeholder. The Docker default quick start needs only:
+
+- `NEXTAUTH_URL`: `http://localhost:3000` for a local check, or your final HTTPS URL.
+- `NEXTAUTH_SECRET`: a long random value. Generate one with `openssl rand -base64 32`.
+- Either `GITHUB_ID` and `GITHUB_SECRET`, or `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+No Firebase values are required. The Docker Compose file sets `PLANGLADE_STORAGE_PROVIDER=local`, stores attachments in the `planglade_attachments` volume at `/app/storage/local-attachments`, and signs attachment URLs with `NEXTAUTH_SECRET` (or `PLANGLADE_STORAGE_SIGNING_SECRET` if you set it).
+
+Never commit `.env`. Values beginning with `NEXT_PUBLIC_` are visible in the browser; do not put secrets in them.
+
+For GitHub OAuth, use this callback URL for a local check:
+
+```text
+http://localhost:3000/api/auth/callback/github
+```
+
+3. Validate and build the configuration.
+
+```bash
+docker compose config
+docker compose build
+```
+
+4. Start PlanGlade.
+
+```bash
+docker compose up -d
+```
+
+Compose first runs the `migrate` service with `prisma migrate deploy`. The app starts only after migrations succeed.
+
+5. Check the containers and health endpoint.
+
+```bash
+docker compose ps -a
+curl http://localhost:3000/api/health
+```
+
+The `migrate` container should show `Exited (0)`, the `app` container should become healthy, and the health response should report `"status":"ok"`.
+
+6. Open `http://localhost:3000` and test sign-in, creating a task, and uploading/downloading an attachment before wider use.
+
+## Database And Migrations
+
+Docker stores SQLite at `/app/db/planglade.db` in the `planglade_data` named volume. `docker compose down` keeps that volume. `docker compose down -v` deletes it and is destructive.
+
+Docker uses the checked-in Prisma migration history:
+
+```bash
+docker compose run --rm migrate
+```
+
+Normal `docker compose up -d` already runs this step. Run it directly only for troubleshooting. Do not use `prisma migrate dev`, `prisma db push`, or `prisma migrate reset` against Docker self-host data.
+
+The existing local development path remains SQLite with `npm run db:push`; it is separate from the Docker migration path.
+
+## Local Attachment Storage (Docker Default)
+
+The Docker default stores attachments as files inside the `planglade_attachments` Docker volume, mounted at `/app/storage/local-attachments`. Attachment upload and download are workspace-scoped and served through short-lived HMAC-signed URLs. The storage layer rejects path traversal (`..`, absolute paths) and confines all reads and writes to the configured volume path.
+
+Back up this volume alongside the SQLite volume. See `docs/BACKUP_RESTORE.md`.
+
+## Stop, Restart, And Update
+
+Stop while keeping data:
+
+```bash
+docker compose down
+```
+
+Restart:
+
+```bash
+docker compose up -d
+```
+
+Update safely:
+
+1. Back up the SQLite volume and the local attachment volume.
+2. Pull the new code.
+3. Review release notes and environment changes.
+4. Rebuild and start:
+
+```bash
+docker compose build
+docker compose up -d
+docker compose ps -a
+curl http://localhost:3000/api/health
+```
+
+To roll back, stop the new containers, check out the previous known-good commit, restore a compatible backup if migrations changed the database, rebuild, and start again.
+
+## Backup And Restore
+
+Back up before every upgrade. Docker persists both the SQLite database volume and the local attachment volume by default.
+
+Follow `docs/BACKUP_RESTORE.md`. Test restores on a disposable copy before relying on a backup procedure.
+
+## Troubleshooting
+
+### Docker is unavailable
+
+If Docker reports that it cannot connect to the daemon, start Docker Desktop or the Docker service, then run `docker version` again.
+
+### Port 3000 is already used
+
+Set another host port in `.env`, for example `PLANGLADE_PORT="3001"`, then open `http://localhost:3001`. Keep `NEXTAUTH_URL` and the OAuth callback URL aligned with that port.
+
+### Migration failed
+
+Run:
+
+```bash
+docker compose logs migrate
+```
+
+Do not reset the volume to hide a migration error. Back up the data and investigate the failed migration.
+
+### App is unhealthy
+
+Run:
+
+```bash
+docker compose logs --tail=100 app
+curl http://localhost:3000/api/health
+```
+
+A `degraded` health response lists configuration errors without returning secret values. Check auth/provider variables and storage settings.
+
+### Sign-in fails
+
+Confirm `NEXTAUTH_URL`, the OAuth callback URL, provider ID/secret, and HTTPS scheme all match. Docker defaults to NextAuth; dev auth is intentionally disabled in production mode.
+
+### Attachment actions fail
+
+With the default local storage provider, confirm the `planglade_attachments` volume is healthy and writable, and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is set and stable across restarts. Changing the signing secret invalidates any in-flight signed URLs but does not delete files.
+
+If you switched to Firebase Storage, confirm the Firebase project, bucket, client settings, service-account email, and private key instead.
+
+## Optional Firebase Storage
+
+Firebase Storage is an optional hosted/external attachment provider. It is **not** required for Docker.
+
+Use it only if you want attachments stored in Firebase instead of the local Docker volume. To switch:
+
+1. Set `PLANGLADE_STORAGE_PROVIDER="firebase"` in `.env`.
+2. Provide `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY_BASE64` for Firebase Admin access.
+3. To bake Firebase browser config into the image, pass the `NEXT_PUBLIC_FIREBASE_*` values as Docker build args and rebuild. This is optional and only needed if you also use Firebase client auth.
+4. Restart the app and check `/api/health` reports storage `ready` with provider `firebase`.
+
+When Firebase Storage is enabled, back up the Firebase bucket separately. See the optional Firebase notes in `docs/BACKUP_RESTORE.md`.
+
+## Local Development Without Docker
+
+The existing developer path remains supported:
+
+```bash
+npm install
+cp .env.example .env
+npm run db:generate
+npm run db:push
+npm run dev
+```
+
+Use these local-only values:
 
 ```env
 DATABASE_URL="file:../db/custom.db"
@@ -68,199 +220,26 @@ PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
 PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
 
-Generate Prisma client and create/update the local SQLite database:
-
-```bash
-npm run db:generate
-npm run db:push
-```
-
-Start the app:
-
-```bash
-npm run dev
-```
-
 Open `http://localhost:3000`.
 
-Verify the API health endpoint:
+## Public Exposure Checklist
 
-```bash
-curl http://localhost:3000/api/health
-```
+Before public exposure:
 
-Expected status is `ok` when auth and storage config are valid. A `degraded` response means the endpoint is reachable but one or more config checks failed.
-
-## Docker Compose
-
-Docker is not finalized in this repo.
-
-There is currently no committed `Dockerfile` or `docker-compose.yml`, so do not follow any Docker instructions from older planning notes. Add Docker support through a separate ticket that includes a persistent database volume, attachment storage decision, environment mapping, and a tested startup path.
-
-## Environment Variables
-
-Start from `.env.example`.
-
-Required for the local/developer path:
-
-- `DATABASE_URL`: SQLite database URL. Example: `file:../db/custom.db`.
-- `PLANGLADE_AUTH_MODE`: use `dev` locally. Valid modes are `dev`, `firebase`, and `nextauth`.
-- `NEXT_PUBLIC_PLANGLADE_AUTH_MODE`: browser-visible auth mode. Match `PLANGLADE_AUTH_MODE`.
-- `PLANGLADE_STORAGE_PROVIDER`: use `local` locally. Valid providers are `local` and `firebase`.
-- `PLANGLADE_LOCAL_STORAGE_DIR`: attachment directory for local storage.
-- `PLANGLADE_STORAGE_SIGNING_SECRET`: random secret used for local signed attachment URLs.
-
-Optional local seed labels:
-
-- `PLANGLADE_WORKSPACE_SLUG`
-- `PLANGLADE_WORKSPACE_NAME`
-
-Firebase auth/storage variables:
-
-- `NEXT_PUBLIC_FIREBASE_API_KEY`
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-- `NEXT_PUBLIC_FIREBASE_APP_ID`
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_STORAGE_BUCKET`
-- `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY` or `FIREBASE_PRIVATE_KEY_BASE64`
-
-NextAuth variables:
-
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`, such as `http://localhost:3000` locally or the public app URL for a real deployment.
-- Provider credentials such as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` or `GITHUB_ID` / `GITHUB_SECRET`.
-
-Invite email variables:
-
-- `PLANGLADE_EMAIL_PROVIDER`
-- `PLANGLADE_EMAIL_FROM`
-- `RESEND_API_KEY`
-- `PLANGLADE_MAINTENANCE_TOKEN`
-
-Migration note: older local `.env` files that still use the previous `FLOWBOARD_` prefix continue to work as a temporary compatibility fallback. Prefer `PLANGLADE_` names for new setup.
-
-## Database Setup
-
-The tracked Prisma datasource is SQLite.
-
-For local development:
-
-```env
-DATABASE_URL="file:../db/custom.db"
-```
-
-Use:
-
-```bash
-npm run db:generate
-npm run db:push
-```
-
-For a migration-style local workflow, `npm run db:migrate` is also available. For the current self-host guide, `db:push` is the documented setup path.
-
-`npm run db:reset` is destructive. Use it only with an isolated local database.
-
-Production database guidance is not finalized in this repo. Do not assume PostgreSQL, Neon, or another managed database is ready just because older planning docs mention production options.
-
-## Storage Notes
-
-Local development can use local signed attachment routes:
-
-- `PUT /api/attachments/upload-binary`
-- `GET /api/attachments/download-binary`
-
-Set:
-
-```env
-PLANGLADE_STORAGE_PROVIDER="local"
-PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
-PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
-```
-
-Firebase Storage support exists in the app, but production setup still needs public-safe deployment documentation.
-
-## Where Data Is Stored
-
-With the documented local settings:
-
-- SQLite data is stored at the path in `DATABASE_URL`. With `file:../db/custom.db`, the database file is under `db/custom.db` relative to Prisma's schema location.
-- Local attachments are stored under `PLANGLADE_LOCAL_STORAGE_DIR`.
-- Real secrets live only in your local `.env` or deployment secret store.
-
-Do not delete the database file or attachment directory unless you intend to delete local app data.
-
-## Backup Basics
-
-See `docs/BACKUP_RESTORE.md` for the current backup and restore notes.
-
-Current honest status:
-
-- SQLite file copy backups are the only documented database-level backup path.
-- Local attachment backups require copying `PLANGLADE_LOCAL_STORAGE_DIR`.
-- Workspace JSON export/import is useful for portability, but it is not a complete production backup system.
-- Automated backups are not included.
-
-## Restore Basics
-
-Stop the app before replacing a SQLite database file or attachment directory. Restore both the database and attachment directory from the same backup window when possible.
-
-Workspace JSON import can restore exported workspace data through the app, but it is not equivalent to a full database restore.
-
-## Upgrade Basics
-
-Before upgrading:
-
-1. Stop the app.
-2. Back up the SQLite database file.
-3. Back up the local attachment directory.
-4. Pull or apply the new code.
-5. Run `npm install`.
-6. Run `npm run db:generate`.
-7. Run `npm run db:push`.
-8. Start the app and check `/api/health`.
-
-Review release notes or git diffs before upgrading. The project is still moving quickly.
-
-## Production Deployment Status
-
-Production deployment is not finalized as a generic self-host guide.
-
-What exists:
-
-- `next.config.ts` uses standalone output.
-- `npm run build` runs auth config validation and creates the Next.js build.
-- `npm run start` starts the standalone server after a successful build.
-- Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`.
-- `/api/health` reports auth and storage readiness.
-
-What remains before public self-hosting can be called ready:
-
-- Replace project-specific Firebase config with public-safe placeholders.
-- Decide and document the production database path.
-- Document production auth setup clearly.
-- Document storage setup clearly.
-- Harden and test backup/restore procedures.
-- Add Docker/container support only if implemented and tested.
-- Add reverse proxy, TLS, logging, monitoring, and incident guidance.
-
-## Security Notes
-
-- Do not run `PLANGLADE_AUTH_MODE=dev` in production. The build validation blocks this in production-like environments.
-- Do not expose a local SQLite file or local attachment directory to untrusted users or shared disks.
-- Use strong random values for `NEXTAUTH_SECRET`, `PLANGLADE_STORAGE_SIGNING_SECRET`, and maintenance tokens.
-- Review auth provider callback URLs before exposing the app publicly.
-- Put TLS, proxy headers, logs, and rate limits in front of the app before public internet use.
-- Keep real `.env` files out of git.
+- Replace every placeholder and use strong unique secrets.
+- Use a real NextAuth OAuth provider; never use dev auth.
+- Put an HTTPS reverse proxy in front of the app.
+- Restrict firewall access and keep Docker/SQLite volumes off shared or untrusted storage.
+- Back up SQLite and local attachment volumes off-machine.
+- Test a full restore.
+- Add logging, monitoring, rate limiting, update procedures, and an incident plan.
+- If you use Firebase Storage, configure Firebase security rules and least-privilege service credentials.
 
 ## Known Limitations
 
-- Not production-ready.
-- No Docker setup.
-- No final generic deployment guide.
-- PlanGlade is licensed under AGPL-3.0; see the root `LICENSE` file.
-- Older `FLOWBOARD_` environment names are compatibility-only; use `PLANGLADE_` names for new installs.
-- The current Firebase deployment notes are not suitable as the primary public self-host guide.
+- Not production-ready or production-hardened.
+- SQLite is suitable for this early baseline, not a substitute for a reviewed multi-user database architecture.
+- No PostgreSQL support or migration runbook.
+- No bundled HTTPS, reverse proxy, automated backup, restore drill, monitoring, or alerting.
+- Docker uses NextAuth plus local file storage by default; Firebase Storage is optional.
+- The Firebase App Hosting notes remain separate and are not the generic Docker guide.

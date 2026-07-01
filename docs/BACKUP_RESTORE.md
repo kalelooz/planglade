@@ -1,105 +1,177 @@
 # PlanGlade Backup And Restore
 
-Last updated: 2026-06-28
+Last updated: 2026-07-01
 
-PlanGlade backup and restore is early and manual. There are no automated backups, hosted snapshots, or monitored restore drills in this repo.
+PlanGlade backup and restore is early and manual. There are no automated backups, hosted snapshots, retention policies, or monitored restore drills in this repo.
 
-These notes cover the current local/developer self-host path: SQLite plus local attachment storage.
+## Docker Data To Back Up
 
-## What To Back Up
+The Docker default keeps all data in two Docker volumes:
 
-Back up these together:
+- SQLite database: `/app/db/planglade.db` in the `planglade_planglade_data` Docker volume.
+- Local attachments: `/app/storage/local-attachments` in the `planglade_planglade_attachments` Docker volume.
 
-- The SQLite database file from `DATABASE_URL`.
-- The local attachment directory from `PLANGLADE_LOCAL_STORAGE_DIR`.
-- Your `.env` values, stored securely outside git.
+Keep both backups from the same time window so attachments stay aligned with their database records. Store `.env` securely outside git, but do not place it in an ordinary unencrypted backup.
 
-With the example local config:
+If you switched to optional Firebase Storage, attachments live in Firebase instead of the local volume. See [Optional Firebase Attachment Backup](#optional-firebase-attachment-backup) below.
 
-```env
-DATABASE_URL="file:../db/custom.db"
-PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
-```
+## Docker SQLite Backup
 
-the database is the `db/custom.db` file relative to Prisma's schema location, and attachments live in `storage/local-attachments`.
-
-## Manual SQLite Backup
-
-Stop the app first when possible.
-
-Then copy the database file to a dated backup location:
+Create a local `backups` folder, then stop the app so the SQLite copy is consistent:
 
 ```bash
-cp db/custom.db backups/custom-2026-06-28.db
+mkdir -p backups
+docker compose stop app
 ```
 
-On Windows PowerShell:
+Copy the database from the named volume on Linux or macOS:
+
+```bash
+docker run --rm -v planglade_planglade_data:/data:ro -v "$(pwd)/backups:/backup" alpine cp /data/planglade.db /backup/planglade-2026-07-01.db
+```
+
+Windows PowerShell:
 
 ```powershell
-Copy-Item db\custom.db backups\custom-2026-06-28.db
+New-Item -ItemType Directory -Force backups
+docker run --rm -v planglade_planglade_data:/data:ro -v "${PWD}\backups:/backup" alpine cp /data/planglade.db /backup/planglade-2026-07-01.db
 ```
 
-Also copy the local attachment directory:
+Start the app again:
 
 ```bash
-cp -R storage/local-attachments backups/local-attachments-2026-06-28
+docker compose up -d
 ```
 
-On Windows PowerShell:
+Confirm the backup file exists and has a non-zero size. Copy it to encrypted off-machine storage.
+
+If the volume name differs, find it with `docker volume ls` rather than guessing.
+
+## Docker Local Attachment Backup
+
+With the default local storage provider, attachments live in the `planglade_planglade_attachments` volume. Back it up alongside the SQLite backup, while the app is stopped:
+
+```bash
+docker compose stop app
+```
+
+Linux or macOS:
+
+```bash
+docker run --rm -v planglade_planglade_attachments:/data:ro -v "$(pwd)/backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
+```
+
+Windows PowerShell:
 
 ```powershell
-Copy-Item storage\local-attachments backups\local-attachments-2026-06-28 -Recurse
+docker run --rm -v planglade_planglade_attachments:/data:ro -v "${PWD}\backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
 ```
 
-## Manual Restore
-
-Stop the app before restore.
-
-Replace the current database file with the backup:
+Start the app again:
 
 ```bash
-cp backups/custom-2026-06-28.db db/custom.db
+docker compose up -d
 ```
 
-On Windows PowerShell:
+Confirm the tar archive exists and has a non-zero size. Copy it to encrypted off-machine storage.
+
+## Docker SQLite Restore
+
+Restoring replaces current data. Back up the current volume first.
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+Linux or macOS:
+
+```bash
+docker run --rm -v planglade_planglade_data:/data -v "$(pwd)/backups:/backup:ro" alpine cp /backup/planglade-2026-07-01.db /data/planglade.db
+```
+
+Windows PowerShell:
 
 ```powershell
-Copy-Item backups\custom-2026-06-28.db db\custom.db
+docker run --rm -v planglade_planglade_data:/data -v "${PWD}\backups:/backup:ro" alpine cp /backup/planglade-2026-07-01.db /data/planglade.db
 ```
 
-Restore the matching attachment directory from the same backup window:
+## Docker Local Attachment Restore
+
+Restore the attachment volume from the same backup window as the SQLite restore, while the stack is stopped:
+
+Linux or macOS:
 
 ```bash
-rm -rf storage/local-attachments
-cp -R backups/local-attachments-2026-06-28 storage/local-attachments
+docker run --rm -v planglade_planglade_attachments:/data -v "$(pwd)/backups:/backup:ro" alpine sh -c "rm -rf /data/* /data/.* 2>/dev/null; tar -C /data -xf /backup/local-attachments-2026-07-01.tar"
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
-Remove-Item storage\local-attachments -Recurse
-Copy-Item backups\local-attachments-2026-06-28 storage\local-attachments -Recurse
+docker run --rm -v planglade_planglade_attachments:/data -v "${PWD}\backups:/backup:ro" alpine sh -c "rm -rf /data/* /data/.* 2>/dev/null; tar -C /data -xf /backup/local-attachments-2026-07-01.tar"
 ```
 
-Start the app and check:
+Start and verify:
 
 ```bash
+docker compose up -d
+docker compose ps -a
 curl http://localhost:3000/api/health
 ```
 
+Check sign-in and several known projects, tasks, notes, attachments, and settings. A healthy endpoint alone does not prove the data restored correctly.
+
+## Optional Firebase Attachment Backup
+
+This section applies **only** if you explicitly set `PLANGLADE_STORAGE_PROVIDER=firebase`. With the Docker default (local storage), ignore this section.
+
+When Firebase Storage is enabled, attachments are stored in Firebase and must be backed up separately using Firebase/Google Cloud tools or console exports appropriate to your bucket, access model, and retention needs. Record the exact bucket and backup time alongside the SQLite backup.
+
+Restoring SQLite without its matching Firebase objects can leave attachment records pointing to missing files.
+
+## Test Restores
+
+Test restores regularly on a disposable Docker volume or separate machine:
+
+1. Restore copies of the SQLite database and the local attachment volume (or Firebase objects, if used).
+2. Start the same PlanGlade version that created the backup.
+3. Check `/api/health`.
+4. Sign in and inspect known projects, tasks, notes, settings, and attachments.
+5. Record the result and time required.
+
+A backup that has never been restored is unverified.
+
+## Local Development Backup
+
+The non-Docker local path still uses SQLite plus local attachments. Stop the app, then copy both:
+
+```bash
+cp db/custom.db backups/custom-2026-07-01.db
+cp -R storage/local-attachments backups/local-attachments-2026-07-01
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item db\custom.db backups\custom-2026-07-01.db
+Copy-Item storage\local-attachments backups\local-attachments-2026-07-01 -Recurse
+```
+
+Restore both from the same backup window while the app is stopped.
+
 ## Workspace Export / Import
 
-Settings includes workspace JSON export/import.
-
-Use it for portability or a small manual safety copy. Do not treat it as a complete production backup because it does not replace a full database and attachment backup.
+Settings includes workspace JSON export/import. It is useful for portability, but it is not a complete production backup because it does not replace database and attachment backups.
 
 ## Not Production-Ready Yet
 
 Still needed before calling backups production-ready:
 
 - Automated scheduled backups.
-- Off-machine storage.
-- Restore tests.
-- Backup retention policy.
-- Monitoring and alerting.
-- Clear production database guidance beyond SQLite.
+- Encrypted off-machine storage.
+- Retention and deletion policies.
+- Automated restore tests.
+- Monitoring and alerts for failed backups.
+- A reviewed disaster-recovery target and runbook.

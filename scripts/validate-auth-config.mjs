@@ -81,7 +81,16 @@ if (mode === "nextauth") {
 }
 
 if (storageProvider === "local") {
-  fail("PLANGLADE_STORAGE_PROVIDER=local is not allowed in production-like environments.")
+  // Local file storage is a supported self-host opt-in (including Docker). It
+  // is confined to PLANGLADE_LOCAL_STORAGE_DIR, rejects path traversal, and
+  // serves objects only via short-lived HMAC-signed URLs. Require a signing
+  // secret (or NEXTAUTH_SECRET fallback) so signed URLs cannot be forged.
+  const signingSecret = readPlanGladeEnv("STORAGE_SIGNING_SECRET") ?? process.env.NEXTAUTH_SECRET
+  if (!signingSecret) {
+    fail(
+      "PLANGLADE_STORAGE_PROVIDER=local requires PLANGLADE_STORAGE_SIGNING_SECRET (or NEXTAUTH_SECRET) for signed attachment URLs in production-like environments."
+    )
+  }
 }
 
 if (storageProvider === "firebase") {
