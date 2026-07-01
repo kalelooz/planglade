@@ -17,27 +17,17 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ARG NEXT_PUBLIC_FIREBASE_API_KEY=replace-with-public-firebase-api-key
-ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-ARG NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
-ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=replace-with-sender-id
-ARG NEXT_PUBLIC_FIREBASE_APP_ID=replace-with-firebase-app-id
-
+# Firebase is optional. The build does not require NEXT_PUBLIC_FIREBASE_* values;
+# the client SDK initializes only when those values are present at runtime.
+# To build an image with Firebase client config baked in, pass the values as
+# build args here and rebuild. The Docker default uses local file storage.
 ENV NODE_ENV=production \
   PLANGLADE_AUTH_MODE=nextauth \
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE=nextauth \
-  PLANGLADE_STORAGE_PROVIDER=firebase \
+  PLANGLADE_STORAGE_PROVIDER=local \
   NEXTAUTH_URL=http://localhost:3000 \
   NEXTAUTH_SECRET=docker-build-placeholder \
-  FIREBASE_PROJECT_ID=docker-build-placeholder \
-  FIREBASE_STORAGE_BUCKET=docker-build-placeholder \
-  NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY \
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID \
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET \
-  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
-  NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
+  PLANGLADE_STORAGE_SIGNING_SECRET=docker-build-placeholder
 
 RUN npm run db:generate && npm run build
 
@@ -60,7 +50,8 @@ ENV NODE_ENV=production \
   PORT=3000
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-RUN mkdir -p /app/db && chown nextjs:nodejs /app/db
+RUN mkdir -p /app/db /app/storage/local-attachments \
+  && chown -R nextjs:nodejs /app/db /app/storage
 
 USER nextjs
 EXPOSE 3000

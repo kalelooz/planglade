@@ -235,7 +235,7 @@ Current honest status:
 
 - Local development with SQLite and local file storage is documented above.
 - Docker Compose builds the standalone app, persists SQLite in a named volume, and applies checked-in Prisma migrations before startup.
-- Docker uses NextAuth for sign-in and Firebase Storage for attachments; both require real external configuration.
+- Docker uses NextAuth for sign-in and stores attachments in a local Docker volume by default. Firebase is not required for Docker; Firebase Storage is an optional external attachment provider documented in `docs/SELF_HOSTING.md`.
 - `/api/health` reports basic auth/storage readiness.
 - Basic manual backup/restore notes exist in `docs/BACKUP_RESTORE.md`.
 - Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`, but that file is deployment notes, not a final public production guide.
@@ -287,6 +287,6 @@ The repo is still pre-public-launch and not production-hardened. Keep contributi
 ## Documentation Map
 
 - `docs/SELF_HOSTING.md`: local and early Docker self-host setup, limitations, and safety notes.
-- `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and Firebase backup/restore notes.
+- `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and attachment backup/restore notes.
 - `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.

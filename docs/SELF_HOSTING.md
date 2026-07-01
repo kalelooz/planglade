@@ -12,8 +12,10 @@ The existing local/developer self-host path remains documented below.
 - One short-lived migration container that runs `prisma migrate deploy` before the app starts.
 - SQLite in a persistent Docker volume.
 - NextAuth with a configured GitHub or Google OAuth provider.
-- Firebase Storage for attachments.
+- Local file attachment storage in a persistent Docker volume.
 - `/api/health` as the container health check.
+
+Firebase Storage is **optional** and not required for the default Docker quick start. See [Optional Firebase Storage](#optional-firebase-storage) below.
 
 PostgreSQL is not included. The tracked Prisma schema uses SQLite, so changing database providers would be a separate migration project, not a Docker configuration change.
 
@@ -23,8 +25,9 @@ You need:
 
 - Docker Engine or Docker Desktop with Docker Compose.
 - A GitHub or Google OAuth application for sign-in.
-- A Firebase project and Storage bucket for attachments.
 - A terminal and a text editor.
+
+You do **not** need a Firebase project. The Docker default stores attachments on a local Docker volume and uses NextAuth for sign-in.
 
 Do not expose PlanGlade publicly during initial setup. First configure real secrets, verify sign-in and storage, add HTTPS through a reverse proxy, and establish tested backups.
 
@@ -42,13 +45,13 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-2. Open `.env` and replace every Docker placeholder. At minimum, configure:
+2. Open `.env` and replace every Docker placeholder. The Docker default quick start needs only:
 
 - `NEXTAUTH_URL`: `http://localhost:3000` for a local check, or your final HTTPS URL.
 - `NEXTAUTH_SECRET`: a long random value. Generate one with `openssl rand -base64 32`.
 - Either `GITHUB_ID` and `GITHUB_SECRET`, or `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-- All `NEXT_PUBLIC_FIREBASE_*` values from your Firebase web app.
-- `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY_BASE64` for Firebase Admin access.
+
+No Firebase values are required. The Docker Compose file sets `PLANGLADE_STORAGE_PROVIDER=local`, stores attachments in the `planglade_attachments` volume at `/app/storage/local-attachments`, and signs attachment URLs with `NEXTAUTH_SECRET` (or `PLANGLADE_STORAGE_SIGNING_SECRET` if you set it).
 
 Never commit `.env`. Values beginning with `NEXT_PUBLIC_` are visible in the browser; do not put secrets in them.
 
@@ -64,8 +67,6 @@ http://localhost:3000/api/auth/callback/github
 docker compose config
 docker compose build
 ```
-
-Firebase browser settings are built into the image. Rebuild after changing any `NEXT_PUBLIC_FIREBASE_*` value.
 
 4. Start PlanGlade.
 
@@ -100,6 +101,12 @@ Normal `docker compose up -d` already runs this step. Run it directly only for t
 
 The existing local development path remains SQLite with `npm run db:push`; it is separate from the Docker migration path.
 
+## Local Attachment Storage (Docker Default)
+
+The Docker default stores attachments as files inside the `planglade_attachments` Docker volume, mounted at `/app/storage/local-attachments`. Attachment upload and download are workspace-scoped and served through short-lived HMAC-signed URLs. The storage layer rejects path traversal (`..`, absolute paths) and confines all reads and writes to the configured volume path.
+
+Back up this volume alongside the SQLite volume. See `docs/BACKUP_RESTORE.md`.
+
 ## Stop, Restart, And Update
 
 Stop while keeping data:
@@ -116,7 +123,7 @@ docker compose up -d
 
 Update safely:
 
-1. Back up the SQLite volume and Firebase attachments.
+1. Back up the SQLite volume and the local attachment volume.
 2. Pull the new code.
 3. Review release notes and environment changes.
 4. Rebuild and start:
@@ -132,7 +139,7 @@ To roll back, stop the new containers, check out the previous known-good commit,
 
 ## Backup And Restore
 
-Back up before every upgrade. Docker only persists the SQLite database; attachments are stored in Firebase and need a separate Firebase backup/export process.
+Back up before every upgrade. Docker persists both the SQLite database volume and the local attachment volume by default.
 
 Follow `docs/BACKUP_RESTORE.md`. Test restores on a disposable copy before relying on a backup procedure.
 
@@ -165,7 +172,7 @@ docker compose logs --tail=100 app
 curl http://localhost:3000/api/health
 ```
 
-A `degraded` health response lists configuration errors without returning secret values. Check auth/provider and Firebase variables.
+A `degraded` health response lists configuration errors without returning secret values. Check auth/provider variables and storage settings.
 
 ### Sign-in fails
 
@@ -173,7 +180,22 @@ Confirm `NEXTAUTH_URL`, the OAuth callback URL, provider ID/secret, and HTTPS sc
 
 ### Attachment actions fail
 
-Confirm the Firebase project, bucket, client settings, service-account email, and private key. Docker does not use local attachment storage because local storage is intentionally blocked in production mode.
+With the default local storage provider, confirm the `planglade_attachments` volume is healthy and writable, and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is set and stable across restarts. Changing the signing secret invalidates any in-flight signed URLs but does not delete files.
+
+If you switched to Firebase Storage, confirm the Firebase project, bucket, client settings, service-account email, and private key instead.
+
+## Optional Firebase Storage
+
+Firebase Storage is an optional hosted/external attachment provider. It is **not** required for Docker.
+
+Use it only if you want attachments stored in Firebase instead of the local Docker volume. To switch:
+
+1. Set `PLANGLADE_STORAGE_PROVIDER="firebase"` in `.env`.
+2. Provide `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY_BASE64` for Firebase Admin access.
+3. To bake Firebase browser config into the image, pass the `NEXT_PUBLIC_FIREBASE_*` values as Docker build args and rebuild. This is optional and only needed if you also use Firebase client auth.
+4. Restart the app and check `/api/health` reports storage `ready` with provider `firebase`.
+
+When Firebase Storage is enabled, back up the Firebase bucket separately. See the optional Firebase notes in `docs/BACKUP_RESTORE.md`.
 
 ## Local Development Without Docker
 
@@ -208,10 +230,10 @@ Before public exposure:
 - Use a real NextAuth OAuth provider; never use dev auth.
 - Put an HTTPS reverse proxy in front of the app.
 - Restrict firewall access and keep Docker/SQLite volumes off shared or untrusted storage.
-- Configure Firebase security rules and least-privilege service credentials.
-- Back up SQLite and Firebase data off-machine.
+- Back up SQLite and local attachment volumes off-machine.
 - Test a full restore.
 - Add logging, monitoring, rate limiting, update procedures, and an incident plan.
+- If you use Firebase Storage, configure Firebase security rules and least-privilege service credentials.
 
 ## Known Limitations
 
@@ -219,5 +241,5 @@ Before public exposure:
 - SQLite is suitable for this early baseline, not a substitute for a reviewed multi-user database architecture.
 - No PostgreSQL support or migration runbook.
 - No bundled HTTPS, reverse proxy, automated backup, restore drill, monitoring, or alerting.
-- Docker uses NextAuth plus Firebase Storage; those external services must be configured separately.
+- Docker uses NextAuth plus local file storage by default; Firebase Storage is optional.
 - The Firebase App Hosting notes remain separate and are not the generic Docker guide.

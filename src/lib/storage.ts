@@ -52,8 +52,20 @@ export function getStorageConfigErrors() {
     }
   }
 
+  // Local file storage is supported as an explicit self-host opt-in, including
+  // in production. It is confined to PLANGLADE_LOCAL_STORAGE_DIR, rejects path
+  // traversal, and serves objects only through short-lived HMAC-signed URLs.
+  // A dedicated PLANGLADE_STORAGE_SIGNING_SECRET (or NEXTAUTH_SECRET) is
+  // required so signed URLs cannot be forged.
   if (provider === "local" && process.env.NODE_ENV === "production") {
-    errors.push("PLANGLADE_STORAGE_PROVIDER=local is not allowed in production.")
+    const hasSigningSecret = Boolean(
+      readPlanGladeEnv("STORAGE_SIGNING_SECRET") ?? process.env.NEXTAUTH_SECRET
+    )
+    if (!hasSigningSecret) {
+      errors.push(
+        "Missing PLANGLADE_STORAGE_SIGNING_SECRET (or NEXTAUTH_SECRET) for local storage URL signing."
+      )
+    }
   }
 
   return { provider, errors }

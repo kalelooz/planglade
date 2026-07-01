@@ -6,12 +6,14 @@ PlanGlade backup and restore is early and manual. There are no automated backups
 
 ## Docker Data To Back Up
 
-The Docker baseline has two data locations:
+The Docker default keeps all data in two Docker volumes:
 
 - SQLite database: `/app/db/planglade.db` in the `planglade_planglade_data` Docker volume.
-- Attachments: Firebase Storage, outside Docker.
+- Local attachments: `/app/storage/local-attachments` in the `planglade_planglade_attachments` Docker volume.
 
-Keep the SQLite and Firebase backups from the same time window. Store `.env` securely outside git, but do not place it in an ordinary unencrypted backup.
+Keep both backups from the same time window so attachments stay aligned with their database records. Store `.env` securely outside git, but do not place it in an ordinary unencrypted backup.
+
+If you switched to optional Firebase Storage, attachments live in Firebase instead of the local volume. See [Optional Firebase Attachment Backup](#optional-firebase-attachment-backup) below.
 
 ## Docker SQLite Backup
 
@@ -45,6 +47,34 @@ Confirm the backup file exists and has a non-zero size. Copy it to encrypted off
 
 If the volume name differs, find it with `docker volume ls` rather than guessing.
 
+## Docker Local Attachment Backup
+
+With the default local storage provider, attachments live in the `planglade_planglade_attachments` volume. Back it up alongside the SQLite backup, while the app is stopped:
+
+```bash
+docker compose stop app
+```
+
+Linux or macOS:
+
+```bash
+docker run --rm -v planglade_planglade_attachments:/data:ro -v "$(pwd)/backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
+```
+
+Windows PowerShell:
+
+```powershell
+docker run --rm -v planglade_planglade_attachments:/data:ro -v "${PWD}\backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
+```
+
+Start the app again:
+
+```bash
+docker compose up -d
+```
+
+Confirm the tar archive exists and has a non-zero size. Copy it to encrypted off-machine storage.
+
 ## Docker SQLite Restore
 
 Restoring replaces current data. Back up the current volume first.
@@ -67,6 +97,22 @@ Windows PowerShell:
 docker run --rm -v planglade_planglade_data:/data -v "${PWD}\backups:/backup:ro" alpine cp /backup/planglade-2026-07-01.db /data/planglade.db
 ```
 
+## Docker Local Attachment Restore
+
+Restore the attachment volume from the same backup window as the SQLite restore, while the stack is stopped:
+
+Linux or macOS:
+
+```bash
+docker run --rm -v planglade_planglade_attachments:/data -v "$(pwd)/backups:/backup:ro" alpine sh -c "rm -rf /data/* /data/.* 2>/dev/null; tar -C /data -xf /backup/local-attachments-2026-07-01.tar"
+```
+
+Windows PowerShell:
+
+```powershell
+docker run --rm -v planglade_planglade_attachments:/data -v "${PWD}\backups:/backup:ro" alpine sh -c "rm -rf /data/* /data/.* 2>/dev/null; tar -C /data -xf /backup/local-attachments-2026-07-01.tar"
+```
+
 Start and verify:
 
 ```bash
@@ -75,11 +121,13 @@ docker compose ps -a
 curl http://localhost:3000/api/health
 ```
 
-Check sign-in and several known projects, tasks, notes, and settings. A healthy endpoint alone does not prove the data restored correctly.
+Check sign-in and several known projects, tasks, notes, attachments, and settings. A healthy endpoint alone does not prove the data restored correctly.
 
-## Firebase Attachment Backup
+## Optional Firebase Attachment Backup
 
-Docker does not store attachments locally. Use Firebase/Google Cloud tools or console exports appropriate to your bucket, access model, and retention needs. Record the exact bucket and backup time alongside the SQLite backup.
+This section applies **only** if you explicitly set `PLANGLADE_STORAGE_PROVIDER=firebase`. With the Docker default (local storage), ignore this section.
+
+When Firebase Storage is enabled, attachments are stored in Firebase and must be backed up separately using Firebase/Google Cloud tools or console exports appropriate to your bucket, access model, and retention needs. Record the exact bucket and backup time alongside the SQLite backup.
 
 Restoring SQLite without its matching Firebase objects can leave attachment records pointing to missing files.
 
@@ -87,7 +135,7 @@ Restoring SQLite without its matching Firebase objects can leave attachment reco
 
 Test restores regularly on a disposable Docker volume or separate machine:
 
-1. Restore copies of the SQLite database and Firebase objects.
+1. Restore copies of the SQLite database and the local attachment volume (or Firebase objects, if used).
 2. Start the same PlanGlade version that created the backup.
 3. Check `/api/health`.
 4. Sign in and inspect known projects, tasks, notes, settings, and attachments.
