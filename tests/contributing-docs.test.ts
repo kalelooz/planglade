@@ -79,14 +79,45 @@ test("CONTRIB-001: CONTRIBUTING.md covers code quality and docs standards", asyn
   assert.match(contributing, /No new dependencies|No new dependency/i)
 })
 
-test("CONTRIB-001: CONTRIBUTING.md uses plain ASCII with no hidden Unicode", async () => {
-  const contributing = await readProjectFile("CONTRIBUTING.md")
+test("CONTRIB-001: changed files are plain ASCII with no hidden Unicode", async () => {
+  // Use numeric codepoint checks (not regex with Unicode escape ranges) so the
+  // guard itself does not trip GitHub's hidden/bidirectional Unicode warning.
+  const ASCII_MAX = 0x7f
+  const ZERO_WIDTH_SPACE = 0x200b
+  const ZERO_WIDTH_NON_JOINER = 0x200c
+  const ZERO_WIDTH_JOINER = 0x200d
+  const LEFT_TO_RIGHT_MARK = 0x200e
+  const RIGHT_TO_LEFT_MARK = 0x200f
+  const BYTE_ORDER_MARK = 0xfeff
+  const BIDI_OVERRIDE_RANGE = [0x202a, 0x202e] as const
+  const INVISIBLE_RANGE = [0x2060, 0x206f] as const
 
-  // Reject bidi controls, zero-width characters, and any non-ASCII bytes that
-  // can trigger GitHub hidden-Unicode warnings.
-  assert.doesNotMatch(contributing, /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/)
-  // Every character must be ASCII.
-  assert.doesNotMatch(contributing, /[^\x00-\x7F]/)
+  function findHiddenUnicode(text: string): string | null {
+    for (let i = 0; i < text.length; i += 1) {
+      const code = text.charCodeAt(i)
+      if (code <= ASCII_MAX) continue
+      if (code === ZERO_WIDTH_SPACE) return `U+200B at index ${i}`
+      if (code === ZERO_WIDTH_NON_JOINER) return `U+200C at index ${i}`
+      if (code === ZERO_WIDTH_JOINER) return `U+200D at index ${i}`
+      if (code === LEFT_TO_RIGHT_MARK) return `U+200E at index ${i}`
+      if (code === RIGHT_TO_LEFT_MARK) return `U+200F at index ${i}`
+      if (code === BYTE_ORDER_MARK) return `U+FEFF at index ${i}`
+      if (code >= BIDI_OVERRIDE_RANGE[0] && code <= BIDI_OVERRIDE_RANGE[1]) {
+        return `U+${code.toString(16).toUpperCase()} at index ${i}`
+      }
+      if (code >= INVISIBLE_RANGE[0] && code <= INVISIBLE_RANGE[1]) {
+        return `U+${code.toString(16).toUpperCase()} at index ${i}`
+      }
+      return `non-ASCII U+${code.toString(16).toUpperCase()} at index ${i}`
+    }
+    return null
+  }
+
+  for (const target of ["CONTRIBUTING.md", "tests/contributing-docs.test.ts"]) {
+    const content = await readProjectFile(target)
+    const hit = findHiddenUnicode(content)
+    assert.equal(hit, null, `${target} must be ASCII-only with no hidden Unicode`)
+  }
 })
 
 test("CONTRIB-001: CONTRIBUTING.md does not read like an internal AI prompt", async () => {
