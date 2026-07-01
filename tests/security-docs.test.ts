@@ -10,10 +10,13 @@ async function readProjectFile(filePath: string) {
   return readFile(path.join(root, filePath), "utf8")
 }
 
-test("SECURITY-002: SECURITY.md documents the dedicated security contact", async () => {
+test("SECURITY-002: SECURITY.md does not publish an unmanaged security email", async () => {
   const security = await readProjectFile("SECURITY.md")
 
-  assert.match(security, /security@planglade\.com/)
+  // No dedicated email address is published until the maintainer actually
+  // controls the mailbox. The policy should rely on GitHub reporting only.
+  assert.doesNotMatch(security, /security@planglade\.com/)
+  assert.doesNotMatch(security, /[a-z]+@planglade\.com/i)
 })
 
 test("SECURITY-002: SECURITY.md keeps private vulnerability reporting as primary path", async () => {
@@ -25,12 +28,15 @@ test("SECURITY-002: SECURITY.md keeps private vulnerability reporting as primary
 test("SECURITY-002: SECURITY.md warns against public exploit details", async () => {
   const security = await readProjectFile("SECURITY.md")
 
-  // Must tell reporters not to put exploit details / secrets in public issues.
   assert.match(security, /Do not open a public issue with/i)
   assert.match(security, /exploit details/i)
-  // Public-issue last-resort wording must be present and minimal.
   assert.match(security, /I need a private channel to report a security issue/i)
-  assert.match(security, /last resort/i)
+  assert.match(security, /last resort|not visible/i)
+  // Must list the sensitive data types that must not appear in a public issue.
+  assert.match(security, /credentials/i)
+  assert.match(security, /tokens/i)
+  assert.match(security, /private keys/i)
+  assert.match(security, /database URLs/i)
 })
 
 test("SECURITY-002: SECURITY.md documents supported versions and scope", async () => {
@@ -61,7 +67,6 @@ test("SECURITY-002: SECURITY.md keeps maintainer response honest (best-effort, n
 
   assert.match(security, /best-effort/i)
   assert.match(security, /no guaranteed response time or SLA/i)
-  // Must prioritize the high-impact areas listed in the ticket.
   assert.match(security, /authentication/i)
   assert.match(security, /workspace isolation/i)
   assert.match(security, /import\/export/i)
@@ -74,33 +79,48 @@ test("SECURITY-002: SECURITY.md includes coordinated disclosure wording", async 
   assert.match(security, /GitHub Security Advisories/i)
 })
 
+test("SECURITY-002: SECURITY.md notes a dedicated email may come later", async () => {
+  const security = await readProjectFile("SECURITY.md")
+
+  assert.match(security, /dedicated security email may be added later/i)
+})
+
 test("SECURITY-002: SECURITY.md makes no false security maturity claims", async () => {
   const security = await readProjectFile("SECURITY.md")
 
   // Maturity terms may only appear inside an honest negation. Check the whole
-  // sentence (line) containing each mention for a negation word.
-  const maturityTerms = [
-    /bug bounty/gi,
-    /\bSLA\b/gi,
-    /SOC ?2/gi,
-    /\bformal audit(ed|s)?\b/gi,
-    /24\/7/gi,
+  // line containing each mention for a negation word.
+  const maturityPatterns = [
+    { name: "bug bounty", pattern: /bug bounty/i },
+    { name: "SLA", pattern: /\bSLA\b/i },
+    { name: "SOC 2", pattern: /SOC ?2/i },
+    { name: "formal audit", pattern: /formal audit/i },
+    { name: "round-the-clock", pattern: /round-the-clock/i },
   ]
   const lines = security.split(/\n/)
-  for (const term of maturityTerms) {
+  for (const { name, pattern } of maturityPatterns) {
     for (const line of lines) {
-      if (term.test(line)) {
+      if (pattern.test(line)) {
         assert.match(
           line.toLowerCase(),
           /\bno\b|\bnot\b|\bwithout\b|\bnone\b/,
-          `maturity term "${term.source}" must appear only in a negation line`
+          `maturity term "${name}" must appear only in a negation line`
         )
       }
     }
   }
 
-  // No active claim of being production-ready/hardened.
-  assert.doesNotMatch(security, /\b(is|are|now|already)\s+production[- ]?(ready|hardened)\b/i)
+  // "production-ready"/"production-hardened" may only appear in an honest
+  // negation. Check the whole line for a negation word.
+  for (const line of lines) {
+    if (/production[- ]?(ready|hardened)/i.test(line)) {
+      assert.match(
+        line.toLowerCase(),
+        /\bno\b|\bnot\b|\bwithout\b|\bnone\b/,
+        "production-ready/hardened must appear only in a negation line"
+      )
+    }
+  }
 })
 
 test("SECURITY-002: public issue templates do not request vulnerability reproduction details", async () => {
@@ -111,7 +131,6 @@ test("SECURITY-002: public issue templates do not request vulnerability reproduc
 
   for (const file of templateFiles) {
     const content = await readProjectFile(file)
-    // No public template should explicitly solicit exploit/POC details.
     assert.doesNotMatch(
       content,
       /proof.of.concept|exploit (steps|details)|reproduce (the |this )?vulnerability/i,

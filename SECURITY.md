@@ -4,21 +4,23 @@ PlanGlade is under active development and is not production-hardened yet. Please
 
 ## Reporting a Vulnerability
 
-Do not open a public issue with secrets, tokens, database URLs, private keys, exploit details, or private user data. Security issues must be reported privately, not through normal GitHub Issues.
+Security issues must be reported privately, not through normal GitHub Issues. Do not open a public issue with exploit details, reproduction steps, credentials, tokens, private keys, database URLs, URLs containing secrets, private user data, or screenshots with sensitive data.
 
-**Primary path:** use GitHub Private Vulnerability Reporting on this repository if it is visible. This is preferred because it keeps the report private and supports coordinated fixes.
+**Primary path:** use GitHub Private Vulnerability Reporting on this repository if it is visible to you. This is the preferred path because it keeps the report private and supports coordinated fixes.
 
-**Fallback path:** if private vulnerability reporting is not available or visible to you, email **security@planglade.com** with the details below.
-
-**Public issue (last resort only):** if every private path fails, you may open a minimal public issue that says only:
+**If private vulnerability reporting is not visible:** open a minimal public GitHub issue that says only:
 
 > I need a private channel to report a security issue.
 
-That public issue must not include exploit details, proof-of-concept code, URLs containing tokens or credentials, database URLs, private keys, or any private user data. A maintainer will follow up privately.
+That public issue must not include exploit details, reproduction steps, credentials, tokens, private keys, database URLs, URLs containing secrets, private user data, or screenshots with sensitive data. A maintainer will follow up privately.
+
+A dedicated security email may be added later. Until then, the paths above are the supported reporting channels.
 
 Normal bugs and feature requests belong in GitHub Issues. Suspected security vulnerabilities do not.
 
 ### What to include in a private report
+
+Once you are in a private channel, include:
 
 - A short summary of the issue.
 - Affected feature, route, or package.
@@ -60,4 +62,4 @@ Please avoid public disclosure of vulnerability details until a fix or mitigatio
 - PlanGlade is early self-host software.
 - It is not production-ready yet.
 - Review authentication, storage, backups, TLS, reverse proxy, monitoring, and rate limiting before exposing it to the public internet.
-- There is no bug bounty program, formal audit, SOC 2, or 24/7 security support.
+- There is no bug bounty program, formal audit, SOC 2, or round-the-clock security support.
