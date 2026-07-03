@@ -139,12 +139,14 @@ test("LANDING-FREE-CARD-001: no fake paid or cloud plans are available", async (
   assert.match(source, /Cloud soon/)
 })
 
-test("WEBSITE-LIVE-001: public CTAs do not expose the app as a demo", async () => {
+test("WEBSITE-LIVE-001: public CTAs point demo interest to honest status", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
 
   assert.match(source, /View on GitHub/)
   assert.match(source, /Self-host PlanGlade/)
-  assert.match(source, /Join the waitlist/)
+  assert.match(source, /Try demo/)
+  assert.match(source, /const demoStatusUrl = "#status"/)
+  assert.doesNotMatch(source, /Join the waitlist|mailto:hello@planglade\.com/)
   assert.doesNotMatch(source, /href="\/login"[\s\S]*?Open PlanGlade/)
   assert.doesNotMatch(source, /public demo|get started/i)
 })
@@ -328,12 +330,13 @@ test("LANDING-SHOWCASE-REPLICA-5: geometric backdrop is neutral and lower sectio
 // LANDING-GET-STARTED-6 guards: the accepted Home replica stays, distracting
 // square ornaments are removed, and the public Get Started page explains the
 // first-run path before sign-in.
-test("WEBSITE-LIVE-001: landing CTAs target GitHub, self-host, and waitlist", async () => {
+test("WEBSITE-LIVE-001: landing CTAs target GitHub, self-host, and demo status", async () => {
   const { page } = await readLandingSources()
 
   assert.match(page, /const githubUrl = "https:\/\/github\.com\/kalelooz\/planglade"/)
   assert.match(page, /const selfHostUrl = `\$\{githubUrl\}#self-hosting-status`/)
-  assert.match(page, /const waitlistUrl =/)
+  assert.match(page, /const demoStatusUrl = "#status"/)
+  assert.doesNotMatch(page, /const waitlistUrl =|mailto:hello@planglade\.com/)
   assert.doesNotMatch(page, /<PrimaryButton href="#start"[\s\S]*?Get started/)
   assert.doesNotMatch(page, /href="\/getting-started"/)
   assert.match(page, /<LandingProductShowcase/)

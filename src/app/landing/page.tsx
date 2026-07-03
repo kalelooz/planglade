@@ -34,8 +34,7 @@ export const metadata: Metadata = {
 
 const githubUrl = "https://github.com/kalelooz/planglade";
 const selfHostUrl = `${githubUrl}#self-hosting-status`;
-const waitlistUrl =
-  "mailto:hello@planglade.com?subject=PlanGlade%20Cloud%20waitlist";
+const demoStatusUrl = "#status";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -334,8 +333,8 @@ export default function LandingPage() {
               ))}
             </nav>
             <div className="flex items-center justify-end gap-2">
-              <PrimaryButton href={waitlistUrl} className="hidden sm:inline-flex">
-                Join the waitlist
+              <PrimaryButton href={demoStatusUrl} className="hidden sm:inline-flex">
+                Try demo
               </PrimaryButton>
               <details className="group relative md:hidden" aria-label="Navigation menu">
                 <summary
@@ -357,8 +356,8 @@ export default function LandingPage() {
                       {link.label}
                     </Link>
                   ))}
-                  <PrimaryButton href={waitlistUrl} className="mt-1">
-                    Join the waitlist
+                  <PrimaryButton href={demoStatusUrl} className="mt-1">
+                    Try demo
                   </PrimaryButton>
                 </nav>
               </details>
@@ -398,7 +397,7 @@ export default function LandingPage() {
                   Self-host PlanGlade
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
                 </PrimaryButton>
-                <SecondaryButton href={waitlistUrl}>Join the waitlist</SecondaryButton>
+                <SecondaryButton href={demoStatusUrl}>Try demo</SecondaryButton>
               </div>
               <p className="mt-5 text-[12px] text-zinc-400">
                 Demo soon.
@@ -465,7 +464,7 @@ export default function LandingPage() {
                 Self-host now. Cloud soon. Demo soon.
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-pretty text-[15px] leading-7 text-zinc-600 sm:text-[16px]">
-                Run PlanGlade yourself today. Join the waitlist for Cloud.
+                Run PlanGlade yourself today. Cloud and demo are coming soon.
               </p>
             </div>
 
@@ -549,15 +548,15 @@ $ cd planglade
                     Public repo
                   </p>
                   <p className="mt-2 text-[13px] leading-5 text-zinc-600">
-                    View the source, self-host PlanGlade, or follow the Cloud
-                    waitlist.
+                    View the source, self-host PlanGlade, or check demo and
+                    cloud status.
                   </p>
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                     <SecondaryButton href={githubUrl} target="_blank">
                       <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                       View on GitHub
                     </SecondaryButton>
-                    <PrimaryButton href={waitlistUrl}>Join the waitlist</PrimaryButton>
+                    <PrimaryButton href={demoStatusUrl}>Try demo</PrimaryButton>
                   </div>
                 </div>
               </div>
@@ -603,7 +602,7 @@ $ cd planglade
                 <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                 View on GitHub
               </SecondaryButton>
-              <PrimaryButton href={waitlistUrl}>Join the waitlist</PrimaryButton>
+              <PrimaryButton href={demoStatusUrl}>Try demo</PrimaryButton>
             </div>
           </div>
         </section>
