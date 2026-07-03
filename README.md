@@ -1,8 +1,10 @@
 # PlanGlade
 
-A calm, open-source workspace for your projects.
+A calm clearing for your projects.
 
 PlanGlade is a light-first project management app for solo users and small teams. It helps you capture work quickly, triage an inbox, organize projects, keep notes nearby, and plan around task due dates without turning the app into an enterprise suite.
+
+Self-host now. Cloud soon. Demo soon.
 
 PlanGlade is not production-ready yet. The current repo is suitable for local development, maintainer review, and early self-hosting work.
 
@@ -20,11 +22,11 @@ PlanGlade is focused on:
 - Calendar: a view over real task due dates.
 - Settings: workspace preferences, JSON export, and guarded import.
 
-The product direction is intentionally narrow. No current pricing, hosted cloud promise, AI-first positioning, or enterprise reporting surface is part of the current public claim.
+The product direction is intentionally narrow. Self-host is available now. Cloud and demo are coming soon. AI-first positioning and enterprise reporting are not part of the current public claim.
 
 ## Current Status
 
-PlanGlade is under active development.
+Current honest status:
 
 Working today:
 
@@ -45,7 +47,7 @@ Working today:
 Not ready yet:
 
 - A production-hardened generic self-host guide.
-- A public hosted cloud offering (not currently planned for release).
+- Public hosted cloud. Cloud is coming soon, but it is not live yet.
 - A dedicated public security contact.
 - Billing, pricing, admin/team management, or production SLA promises.
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/lovable/theme-provider";
@@ -7,6 +8,8 @@ import { AuthProvider } from "@/components/lovable/auth-context";
 import { AppSettingsBridge } from "@/components/lovable/app-settings-bridge";
 
 const metadataBase = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
+const umamiSrc = process.env.NEXT_PUBLIC_UMAMI_SRC;
+const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -50,6 +53,20 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+function UmamiAnalytics() {
+  if (!umamiSrc || !umamiWebsiteId) {
+    return null;
+  }
+
+  return (
+    <Script
+      src={umamiSrc}
+      data-website-id={umamiWebsiteId}
+      strategy="afterInteractive"
+    />
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -67,6 +84,7 @@ export default function RootLayout({
           >
             <AppSettingsBridge />
             {children}
+            <UmamiAnalytics />
             <Toaster />
           </ThemeProvider>
         </AuthProvider>

@@ -43,9 +43,9 @@ test("landing does not link to hidden project Docs UI", async () => {
 test("landing keeps project notes and context clear", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
 
-  assert.match(source, /Project notes and context live alongside your work/)
-  assert.match(source, /project notes/)
-  assert.match(source, /notes, and context stay portable/)
+  assert.match(source, /title: "Notes"/)
+  assert.match(source, /project context/)
+  assert.match(source, /Open-source workspace for tasks, projects, notes, calendar/)
 })
 
 // LANDING-REWRITE-1 regression guards: the landing must match the app's
@@ -70,7 +70,6 @@ test("LANDING-REWRITE-1: no forest/camping brand or green palette", async () => 
 
   // Forbidden nature / camping / explorer copy (word-boundary scoped so common
   // substrings like "con-tent" or "ex-port" do not trigger false positives).
-  assert.doesNotMatch(source, /calm clearing/i)
   assert.doesNotMatch(source, /clear the path/i)
   assert.doesNotMatch(source, /\bcampfire\b/i)
   assert.doesNotMatch(source, /\bcamping\b/i)
@@ -95,33 +94,27 @@ test("LANDING-REWRITE-1: no Pricing nav and no fake AI / metrics", async () => {
   assert.doesNotMatch(source, /trusted by \d|active users|stars on github|join \d+ teams/i)
 })
 
-test("LANDING-MERGE-START-001: landing owns one honest free start card", async () => {
+test("WEBSITE-LIVE-001: landing owns honest status and pricing copy", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
-  const cardMatches = source.match(/Free\. Enjoy\./g) ?? []
-  const startSection = source.match(/<section[\s\S]*?id="start"[\s\S]*?<\/section>/)?.[0] ?? ""
+  const statusSection = source.match(/<section[\s\S]*?id="status"[\s\S]*?<\/section>/)?.[0] ?? ""
 
-  assert.equal(cardMatches.length, 1)
-  assert.match(startSection, /Choose how to start\./)
-  assert.match(startSection, /PlanGlade is free and open source today\./)
-  assert.match(startSection, /Free\. Enjoy\./)
-  assert.match(startSection, /\$0/)
-  assert.match(startSection, /href="\/login"[\s\S]*?Open PlanGlade/)
-  assert.match(startSection, /href="#self-host"[\s\S]*?Learn about self-hosting/)
+  assert.match(statusSection, /Self-host now\. Cloud soon\. Demo soon\./)
   for (const text of [
-    "Inbox capture and triage",
-    "Tasks list and board toggle",
-    "Projects and Project Home",
-    "Notes and project context",
-    "Calendar over task due dates",
-    "Export your workspace data",
-    "No billing",
-    "No upgrade wall",
-    "No fake limits",
+    "Available now",
+    "Self-host",
+    "Coming soon",
+    "Cloud",
+    "Demo",
+    "Self-hosted",
+    "Free",
+    "Paid plan coming soon",
+    "No checkout",
+    "No paid signup",
+    "No cloud account today",
   ]) {
     assert.match(source, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
   }
-  assert.match(startSection, /motion-reduce:animate-none/)
-  assert.match(startSection, /motion-reduce:transform-none/)
+  assert.match(statusSection, /motion-reduce:animate-none/)
 })
 
 test("LANDING-FREE-CARD-001: no pricing page, nav, links, tiers, or badges", async () => {
@@ -140,29 +133,27 @@ test("LANDING-FREE-CARD-001: no fake paid or cloud plans are available", async (
   const source = await readProjectFile("src/app/landing/page.tsx")
 
   assert.doesNotMatch(source, /Pro plan|Team plan|Cloud plan|Starter plan|Enterprise plan/i)
-  assert.doesNotMatch(source, /upgrade CTA|upgrade now|start trial|buy now|checkout/i)
-  assert.doesNotMatch(source, /Hosted cloud[\s\S]{0,100}(available today|available now|get started|start trial|buy now)/i)
-  assert.match(source, /hosted option is a possible later step/)
+  assert.doesNotMatch(source, /upgrade CTA|upgrade now|start trial|buy now/i)
+  assert.doesNotMatch(source, /href=["'][^"']*checkout|checkout[\s\S]{0,80}(now|button|link)/i)
+  assert.doesNotMatch(source, /Cloud[\s\S]{0,100}(available today|available now|get started|start trial|buy now)/i)
+  assert.match(source, /Cloud soon/)
 })
 
-test("LOGIN-POLISH-001: Free card actions are centered and equal width", async () => {
+test("WEBSITE-LIVE-001: public CTAs do not expose the app as a demo", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
-  const startSection = source.match(/<section[\s\S]*?id="start"[\s\S]*?<\/section>/)?.[0] ?? ""
 
-  assert.match(startSection, /mx-auto grid max-w-md gap-3 sm:grid-cols-2/)
-  assert.match(startSection, /<PrimaryButton href="\/login" className="w-full sm:h-11">/)
-  assert.match(startSection, /<SecondaryButton href="#self-host" className="w-full sm:h-11">/)
-  assert.doesNotMatch(startSection, /sm:grid-cols-\[minmax\(0,1fr\)_auto\]/)
+  assert.match(source, /View on GitHub/)
+  assert.match(source, /Self-host PlanGlade/)
+  assert.match(source, /Join the waitlist/)
+  assert.doesNotMatch(source, /href="\/login"[\s\S]*?Open PlanGlade/)
+  assert.doesNotMatch(source, /public demo|get started/i)
 })
 
 test("LANDING-REWRITE-1: does not market deferred features as available today", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
 
-  // No claim that Timeline is available today. Scope the check to the
-  // roadmapAvailable array so that Timeline legitimately appearing under the
-  // "Next" roadmap column does not trigger a false positive.
-  const availableSection = source.match(/const roadmapAvailable = \[[\s\S]*?\]/)?.[0] ?? ""
-  assert.doesNotMatch(availableSection, /Timeline/i)
+  const statusItems = source.match(/const statusItems = \[[\s\S]*?\]/)?.[0] ?? ""
+  assert.doesNotMatch(statusItems, /Timeline/i)
   assert.doesNotMatch(source, /Calendar and Timeline/i)
   assert.doesNotMatch(source, /Timeline.*backed by durable server-side storage/i)
 
@@ -171,25 +162,18 @@ test("LANDING-REWRITE-1: does not market deferred features as available today", 
   assert.doesNotMatch(source, /Reports dashboard/i)
 })
 
-test("LANDING-REWRITE-1: keeps trust badges and honest roadmap separation", async () => {
+test("WEBSITE-LIVE-001: keeps launch badges and honest status separation", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
 
   // Trust badges present
-  assert.match(source, /Open source/)
-  assert.match(source, /Self-hostable/)
-  assert.match(source, /Solo-first/)
+  assert.match(source, /Self-host now/)
+  assert.match(source, /Cloud soon/)
+  assert.match(source, /Demo soon/)
 
-  // Roadmap honesty: Timeline appears only under Next, not Available today.
-  assert.match(source, /Available today/)
-  assert.match(source, /roadmapNext/)
-  const nextSection = source.match(/const roadmapNext = \[[\s\S]*?\]/)?.[0] ?? ""
-  assert.match(nextSection, /Timeline planning view/)
-  const availableSection = source.match(/const roadmapAvailable = \[[\s\S]*?\]/)?.[0] ?? ""
-  assert.doesNotMatch(availableSection, /Timeline/i)
-
-  // Hosted cloud is Later, not current
-  const laterSection = source.match(/const roadmapLater = \[[\s\S]*?\]/)?.[0] ?? ""
-  assert.match(laterSection, /Hosted cloud option/)
+  const statusItems = source.match(/const statusItems = \[[\s\S]*?\]/)?.[0] ?? ""
+  assert.match(statusItems, /Available now[\s\S]*Self-host/)
+  assert.match(statusItems, /Coming soon[\s\S]*Cloud/)
+  assert.match(statusItems, /Coming soon[\s\S]*Demo/)
 })
 
 test("LANDING-REWRITE-1: header nav anchors match the honest MVP set", async () => {
@@ -197,12 +181,11 @@ test("LANDING-REWRITE-1: header nav anchors match the honest MVP set", async () 
 
   const navMatch = source.match(/const navLinks = \[[\s\S]*?\]/)?.[0] ?? ""
   assert.match(navMatch, /Features/)
-  assert.match(navMatch, /Open source/)
+  assert.match(navMatch, /Status/)
   assert.match(navMatch, /Self-host/)
-  assert.match(navMatch, /Roadmap/)
   assert.match(navMatch, /FAQ/)
   // Pricing / Cost / Team / Activity must not be nav anchors
-  assert.doesNotMatch(navMatch, /Pricing|Cost|Team|Activity|Connections|Reports/)
+  assert.doesNotMatch(navMatch, /Pricing|Cost|Roadmap|Team|Activity|Connections|Reports/)
 })
 
 // LANDING-SHOWCASE-REPLICA-5 guards: the product preview is one static Home
@@ -318,7 +301,7 @@ test("LANDING-SHOWCASE-REPLICA-5: geometric backdrop is neutral and lower sectio
   assert.match(backdropSlice, /mesh-a/)
   assert.doesNotMatch(combined, /#17613f|#fbfaf6|0\.120 155|moss|sage/i)
   assert.doesNotMatch(combined, /TopographicBackdrop|topographic|camping|forest/i)
-  for (const anchor of ["#features", "#open-source", "#self-host", "#roadmap", "#faq"]) {
+  for (const anchor of ["#features", "#status", "#open-source", "#self-host", "#faq"]) {
     assert.match(page, new RegExp(`href="${anchor}"|id="${anchor.slice(1)}"`))
   }
 })
@@ -326,12 +309,13 @@ test("LANDING-SHOWCASE-REPLICA-5: geometric backdrop is neutral and lower sectio
 // LANDING-GET-STARTED-6 guards: the accepted Home replica stays, distracting
 // square ornaments are removed, and the public Get Started page explains the
 // first-run path before sign-in.
-test("LANDING-MERGE-START-001: landing Get started CTAs target the start section", async () => {
+test("WEBSITE-LIVE-001: landing CTAs target GitHub, self-host, and waitlist", async () => {
   const { page } = await readLandingSources()
 
-  const getStartedLinks = page.match(/<PrimaryButton href="#start"[\s\S]*?Get started/g) ?? []
-
-  assert.equal(getStartedLinks.length, 4)
+  assert.match(page, /const githubUrl = "https:\/\/github\.com\/kalelooz\/planglade"/)
+  assert.match(page, /const selfHostUrl = `\$\{githubUrl\}#self-hosting-status`/)
+  assert.match(page, /const waitlistUrl =/)
+  assert.doesNotMatch(page, /<PrimaryButton href="#start"[\s\S]*?Get started/)
   assert.doesNotMatch(page, /href="\/getting-started"/)
   assert.match(page, /<LandingProductShowcase/)
 })
@@ -350,9 +334,9 @@ test("LANDING-GET-STARTED-6: hero and showcase backgrounds have no floating squa
   assert.doesNotMatch(combined, /TreePine|Sprout|Fraunces|#17613f|#fbfaf6/)
 })
 
-test("LANDING-MERGE-START-001: getting-started redirects to the landing start section", async () => {
+test("WEBSITE-LIVE-001: getting-started redirects to the landing status section", async () => {
   const source = await readGettingStartedSource()
 
-  assert.match(source, /redirect\("\/#start"\)/)
+  assert.match(source, /redirect\("\/#status"\)/)
   assert.doesNotMatch(source, /Free\. Enjoy\.|Choose how to start\.|Open PlanGlade/)
 })
