@@ -1,6 +1,6 @@
 # PlanGlade — Technical Reference
 
-**Status:** v6.1 — consolidated, audited, and corrected after external audit + Architect/Codex exports + public `main` web validation on 2026-07-01
+**Status:** v6.2 — consolidated, audited, corrected after resource mismatch audit, and updated for SaaS launch planning
 **Supersedes:** Technical Reference v2
 **Companion documents:** `PRODUCT.md` (product/design truth), `EXECUTION.md` (roadmap/tickets/current state), `AGENT-BOOTSTRAP.md` (session-start prompt)
 
@@ -10,22 +10,20 @@ This document is the architecture, security, and deployment **target**, per the 
 
 ---
 
-## 0. Read this first — repo state as of 2026-07-01
+## 0. Read this first — repo state as of 2026-07-03
 
-Two branches, materially different:
+Current checked-out branch: `codex/ci-actions-node24`.
 
-| | `main` | `frontend-redesign-exploration` |
-|---|---|---|
-| Role | Public export / curated snapshot | Actual active development |
-| Commits | 14 visible public commits as of this validation (`9681a60` latest) | ~235 ahead of main's divergence point |
-| Docker | **Present** (Dockerfile, docker-compose.yml, merged via PR #15) | Absent |
-| Test suite | Not independently verified in this audit | **282/283 passing** — 1 known failure, see below |
-| Upstream | N/A (canonical) | **Deleted** — orphaned branch |
-| Known issues | Public Docker docs are now updated on `main`; public issue/PR UI may disagree about #9 even though the security-contact commit is on `main` | `docs/ACTIVE_PLAN.md` uncommitted with contradictory Docker status entries |
+Current validation:
 
-**Before anything else in this document matters:** reconcile these two histories. An orphaned upstream plus a red, unmerged, heavily-diverged branch is an operational risk independent of any doc/code drift below. This isn't a "someday" item — see `EXECUTION.md §7`.
+| Area | Confirmed state |
+|---|---|
+| Tests | `npm test` passes: **327/327** |
+| Docker | `Dockerfile` and `docker-compose.yml` are present |
+| Prisma | SQLite datasource only; `npx prisma validate` passes |
+| Resource pack | v6.2 files are committed; prompt files are tracked alongside them |
 
-**Known failing test on `frontend-redesign-exploration`:** Codex reported `tests/readme-mvp-scope.test.ts`, assertion `README-TRIM-1`, expecting the literal string `**Available / MVP**` in `README.md`. Do **not** assume that branch-local contract applies to public `main`: public `main` currently checks the newer `**Available Today**` / `**Next**` / `**Later**` roadmap wording. Any README change must be made against the branch actually being tested, with the test updated deliberately if the wording standard changes.
+Do not carry forward older branch-reconciliation notes as current truth. They are historical context only. Current work should target the checked-out branch unless the maintainer explicitly says otherwise.
 
 ---
 
@@ -49,7 +47,7 @@ Browser
 
 ## 2. Stack — Target vs. Confirmed Reality
 
-| Layer | Target (spec) | Confirmed installed (frontend-redesign-exploration, 2026-07-01) |
+| Layer | Target (spec) | Confirmed installed (`codex/ci-actions-node24`, 2026-07-03) |
 |---|---|---|
 | Framework | Next.js 14+ App Router | `next@16.2.6` |
 | Language | TypeScript strict | `typescript@5.9.3` |
@@ -62,7 +60,7 @@ Browser
 | Validation | Zod | `zod@4.3.5` |
 | Forms | React Hook Form | `react-hook-form@7.71.1` |
 | Testing | Vitest + Playwright | **Node's built-in test runner** via `tsx` — no Vitest, no Playwright in CI |
-| Deployment | Docker + docker-compose | Present on `main` only (see §0) |
+| Deployment | Docker + docker-compose | Present in the checked-out branch |
 
 **Confirmed but never specified anywhere in `PRODUCT.md` or this document:**
 
@@ -87,8 +85,8 @@ Reconciled against direct evidence from both the Architect's decision-history re
 |---|---|---|---|
 | Auth library | NextAuth v5 | v4.24.14 confirmed installed | Debt — see `EXECUTION.md` backlog. Note: v5 has breaking API changes from v4; this is a real migration, not a version bump |
 | Production database | PostgreSQL | SQLite only, no Postgres path exists | Debt |
-| Test runner | Vitest + Playwright | Node's built-in runner confirmed as the actual CI runner; Playwright exists only as a transitive lockfile reference, not in use | Debt, **or** formally adopt Node's runner as the new target — 283 tests already exist against it, so migration has real cost. This is worth an explicit maintainer call rather than defaulting to "migrate" |
-| Docker self-host | Docker + compose | **Shipped on `main`** (PR #15/#6). Absent on the active dev branch | Not debt — this is a branch-reconciliation problem, not a missing-feature problem. See `EXECUTION.md §7` |
+| Test runner | Vitest + Playwright | Node's built-in runner confirmed as the actual runner | Debt, **or** formally adopt Node's runner as the new target — 327 tests already exist against it, so migration has real cost. This is worth an explicit maintainer call rather than defaulting to "migrate" |
+| Docker self-host | Docker + compose | Present in the checked-out branch | No current implementation gap for the early Docker baseline |
 
 ### 3.2 Firebase — ratified, not drift
 
@@ -96,7 +94,7 @@ Confirmed as a deliberate three-way auth mode switch (`dev` / `firebase` / `next
 
 - Firebase and NextAuth are **mode-selected, not simultaneous** for authentication.
 - Storage provider (local vs. Firebase) is selected independently of auth mode.
-- On the checked-out branch, local storage is rejected in production; on `main`, production local storage is now allowed given a signing secret.
+- Local storage is supported for self-host/Docker when a signing secret is configured.
 - **Open question the maintainer should still answer:** does permanent dual-mode auth serve the AGPL/self-host positioning, or does leaning on Firebase (a proprietary Google service) as a first-class path undercut it? This is a positioning call, not a technical one — see `EXECUTION.md`'s Open Decisions Log.
 
 ### 3.3 Backend-complete, UI-dormant — lower urgency than previously flagged
@@ -389,21 +387,19 @@ Calendar and timeline must never duplicate task data.
 
 Notes and docs are separate by product meaning. Notes are freeform, global or project-linked. Docs are structured, always project-linked.
 
-**Update:** the Project Detail UI no longer surfaces a Docs tab — Notes now carries project context in the primary UI, and Docs is an advanced, default-off project feature flag rather than a core MVP tab. The backend/data model for Docs is unchanged; only its default visibility changed. Reflect this in `PRODUCT.md §10`.
+**Update:** the Project Detail UI no longer surfaces a Docs tab — Notes now carries project context in the primary UI, and Docs is an advanced, default-off project feature flag rather than a core MVP tab. The backend/data model for Docs is unchanged; only its default visibility changed.
 
 ---
 
 ## 9. Self-Hosting Baseline
 
-**Status as of 2026-07-01: present on public `main`, absent on active `frontend-redesign-exploration`; partial and branch-inconsistent, not "missing."**
+**Status as of 2026-07-03: present in the checked-out branch.**
 
-Docker packaging exists and is merged on `main` (PR #15, closing issue #6): multi-stage Node 22 Alpine `Dockerfile`, `docker-compose.yml`, non-root user, standalone Next.js runner, persistent SQLite and local-attachment volumes, health check, NextAuth as default with Firebase optional, and production local storage now permitted given a signing secret.
+Docker packaging exists: multi-stage Node 22 Alpine `Dockerfile`, `docker-compose.yml`, non-root user, standalone Next.js runner, persistent SQLite and local-attachment volumes, health check, NextAuth as default with Firebase optional, and production local storage permitted given a signing secret.
 
-**What's not solved even on `main`:** PostgreSQL remains a separate, unimplemented provider migration — the shipped baseline still tracks SQLite. HTTPS/reverse proxy, monitoring, and automated backups are explicitly not bundled.
+**What's not solved:** PostgreSQL remains a separate, unimplemented provider migration — the shipped baseline still tracks SQLite. HTTPS/reverse proxy, monitoring, and automated backups are explicitly not bundled.
 
-**Current public-`main` doc status:** `README.md` and `docs/SELF_HOSTING.md` now acknowledge the early Docker baseline. Treat older claims that these docs still say Docker is unsupported as stale audit residue.
-
-**Still broken right now:** none of the Docker baseline exists on the active `frontend-redesign-exploration` branch. See `EXECUTION.md §7` for reconciliation.
+`README.md` and `docs/SELF_HOSTING.md` acknowledge the early Docker baseline. Treat older claims that Docker is unsupported or missing as stale audit residue.
 
 ```yaml
 services:
@@ -430,7 +426,7 @@ services:
 volumes:
   postgres_data:
 ```
-*(Reference baseline. The actually-shipped `main` compose file uses SQLite + volume-mounted storage rather than the Postgres service shown here — reconcile this block against the real file once branches are merged, rather than treating this as current truth.)*
+*(Reference future Postgres baseline. The current compose file uses SQLite + volume-mounted storage. Treat Postgres as a later migration ticket, not current truth.)*
 
 ---
 
@@ -443,7 +439,7 @@ tests/
   e2e/
 ```
 
-**Confirmed current reality:** 49 test files, 283 tests, 282 passing, one failing (`readme-mvp-scope.test.ts`, see §0). Runner is Node's built-in test runner via `tsx`, not Vitest/Playwright. No Jest/Vitest config exists; Playwright is present only as a transitive lockfile entry, not wired into CI. No line/branch coverage instrumentation exists.
+**Confirmed current reality:** `npm test` passes **327/327**. Runner is Node's built-in test runner via `tsx`, not Vitest/Playwright. No Jest/Vitest config exists; Playwright is present only as a transitive lockfile reference, not wired into CI. No line/branch coverage instrumentation exists.
 
 **Honest coverage read (from direct repo audit):** strongest around workspace authorization denial paths, invite/member guards, import/export, and task relations/hierarchy. Weakest around real Firebase/OAuth callbacks, Firebase Storage operations, Resend network delivery, and actual browser upload/download flows — none of which are integration-tested against real services. Of the 49 files, 22 are primarily source-text assertions rather than rendered component or interaction tests; treat "UI test" coverage claims accordingly.
 

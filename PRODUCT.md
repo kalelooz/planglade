@@ -222,7 +222,7 @@ MVP: workspace name, appearance (including priority display style — Text, Dots
 ## 11. MVP Scope
 
 ### Build in MVP
-Auth and onboarding · workspace model · app shell · Home · Inbox · Tasks (list + board) · Projects + project detail · Notes · Project docs · Calendar month view · Settings data export · landing page · self-host basics.
+Auth and onboarding · workspace model · app shell · Home · Inbox · Tasks (list + board) · Projects + project detail · Notes/project context · Calendar month view · Settings data export · landing page · self-host basics.
 
 ### Phase 2, after MVP
 Timeline v1 · dependencies · recurring tasks · week calendar · task templates · guided import · mobile/PWA polish.
@@ -240,7 +240,7 @@ Native mobile apps · AI · time tracking · resource inventory · team capacity
 | Board view | Medium | Medium | View toggle |
 | Project overview | High | Medium | Core |
 | Notes | High | Medium | Core |
-| Project docs | Med/High | Medium | Core differentiator |
+| Project docs | Med/High | Medium | Advanced/default-off; backend exists, not a core MVP tab |
 | Calendar month | High | Medium | Task view |
 | Timeline/Gantt | High | High | Phase 2 |
 | Dependencies | High | Med/High | Phase 2, model early |

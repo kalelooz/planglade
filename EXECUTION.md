@@ -1,6 +1,6 @@
 # PlanGlade — Execution Roadmap & Agent Workflow
 
-**Status:** v6.1 — consolidated, audited, and corrected after external audit + public `main` validation
+**Status:** v6.2 — consolidated, audited, corrected after resource mismatch audit, and updated for SaaS launch planning
 **Supersedes:** Build Roadmap and Codex Tickets v1, the evergreen portions of Codex Greenfield Start Prompt v1
 **Companion documents:** `PRODUCT.md` (product/design truth), `TECHNICAL.md` (architecture/security/drift), `AGENT-BOOTSTRAP.md` (session-start prompt)
 
@@ -135,14 +135,9 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 | `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Sync Architect/Codex/library sources before further implementation | **Highest — do first** |
 | `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Create factual mismatch report before broad fixes | **Highest — do after resource replacement** |
 | `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Self-host now, Cloud soon, Demo soon; no billing/demo/cloud implementation | High — first product/code task |
-| `BRANCH-001` | Reconcile `frontend-redesign-exploration` and `main` | Orphaned upstream, 235-commit divergence, red test suite, contradictory uncommitted status file | **Highest — blocks branch trust** |
-| `DEBT-001` | Fix `readme-mvp-scope.test.ts` failure | Currently red on the active branch, independent of any other change | High |
-| `DEBT-002` | Reconcile README with the no-Mermaid/no-badges decision and the branch-specific README test contract | An external draft produced without live-repo access risks reintroducing Mermaid/badges or breaking the branch-local README assertions. Public `main` uses `Available Today / Next / Later`; the active branch reportedly still expects `Available / MVP`. Fix only against the branch being tested. | High |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
-| `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 283 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
-| `DEBT-006` | Port Docker baseline from `main` onto the active development branch | Docker already shipped once — this is porting/rebasing, not building from scratch | High, once `BRANCH-001` is underway |
-| `DEBT-007` | Port/verify Docker docs during branch reconciliation | Public `main` README/self-host docs now acknowledge Docker. The remaining risk is that `frontend-redesign-exploration` lacks the Docker files/docs or carries contradictory `ACTIVE_PLAN` status. | Medium |
+| `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 327 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
 | `DEBT-008` | GitHub OAuth: wire up UI or remove server-side config | Currently half-configured, unreachable dead path | Low |
 | `DEBT-009` | Resolve `@mdxeditor/editor` vs. "no complex rich-text blocks" non-goal | Direct contradiction between installed dependency and documented non-goal | Low |
 | `DEBT-010` | Verify necessity/legitimacy of `z-ai-web-dev-sdk` and `next-intl` | Unexplained dependencies with no corresponding product decision | Low |
@@ -161,7 +156,7 @@ Unlike the debt backlog above, these aren't implementation tasks — they're cal
 4. **Attachments:** build UI to activate the existing backend, or leave it dormant until a later phase?
 5. **Collaboration/invites:** same question — activate now, or hold for Phase 4 as originally planned?
 6. **Test runner:** Node's built-in runner as the new standard, or migrate to Vitest/Playwright?
-7. **Docs vs. Notes:** confirm in `PRODUCT.md` that Docs is now an advanced/default-off feature rather than a core MVP tab (this one has a clear answer already — just needs to be written down, done in this revision).
+7. **Docs vs. Notes:** confirmed in `PRODUCT.md`: Docs is now an advanced/default-off feature rather than a core MVP tab.
 8. **Public history transparency:** should the README state plainly that public commit history starts from a curated export?
 9. **i18n scope:** is `next-intl` a real planned feature, or premature scaffolding to strip out?
 10. **Reporting scope:** is `recharts` tied to a real near-term feature, or the same situation?
@@ -169,16 +164,16 @@ Unlike the debt backlog above, these aren't implementation tasks — they're cal
 
 ---
 
-## 7. Self-Hosting / Docker Reconciliation
+## 7. Self-Hosting / Docker Status
 
-This gets its own section because it's the clearest example of "the target was already met, just not everywhere yet":
+The early Docker baseline exists in the checked-out branch:
 
-1. Docker baseline shipped on `main` via PR #15, closing issue #6. Confirmed: multi-stage Dockerfile, docker-compose.yml, non-root user, persistent volumes, health check.
-2. It does not exist on `frontend-redesign-exploration`, the branch where actual feature work happens.
-3. `README.md` and `docs/SELF_HOSTING.md` on public `main` now describe the early Docker baseline; older audit notes saying they still describe Docker as unsupported are stale.
-4. Postgres remains unimplemented even where Docker exists — the shipped baseline still runs SQLite.
+1. `Dockerfile` and `docker-compose.yml` are present.
+2. The baseline uses a standalone app image, a migration step, persistent SQLite, persistent local attachments, a health check, NextAuth by default, and Firebase Storage as optional.
+3. `README.md` and `docs/SELF_HOSTING.md` describe the early Docker baseline.
+4. Postgres remains unimplemented — the shipped baseline still runs SQLite.
 
-**Sequence:** resolve `BRANCH-001` first (decide whether `main` merges into the dev branch, the dev branch merges into `main`, or both reconcile into a new baseline) → port/verify Docker files and Docker docs on whichever branch is canonical (`DEBT-006` / `DEBT-007`) → only then take on Postgres (`DEBT-004`) as a separate, later ticket.
+**Sequence:** keep the current Docker baseline intact → launch the public website honestly → only then take on Postgres (`DEBT-004`) as a separate, later ticket.
 
 ---
 
@@ -186,10 +181,11 @@ This gets its own section because it's the clearest example of "the target was a
 
 *(Milestone-level only — see §0 for how this relates to `docs/ACTIVE_PLAN.md`. Update this section in place; do not copy it into other documents.)*
 
-**As of 2026-07-01:**
+**As of 2026-07-03:**
 
-- Public export (`main`) has 14 visible commits as of this validation, with `9681a60` latest, includes a merged Docker self-host baseline, and is the branch GitHub visitors see.
-- Active development (`frontend-redesign-exploration`) is ~235 commits past the divergence point, orphaned from its deleted upstream, and currently has one failing test.
+- Current checked-out branch is `codex/ci-actions-node24`.
+- Current validation: `npm test` passes **327/327**.
+- Docker baseline files are present in this branch.
 - Recent work on the active branch has focused on: public-facing UI polish (Home, Tasks, Inbox), Project Detail redesign (Concept 2, removing the Docs tab), Calendar visual acceptance, Settings appearance/priority display, and environment-variable naming cleanup.
 - Public issue #8 (contributor guide) remains open. Security contact work is implemented on `main` via `9681a60`; if #9 still appears open in GitHub UI, verify/close it from the owner account rather than treating the code/doc work as missing.
 - No planning document had been updated to reflect Firebase, attachments, invites, or Docker until this revision.
@@ -204,7 +200,7 @@ This gets its own section because it's the clearest example of "the target was a
 
 Ready for honest public alpha when: user can sign in · create workspace · capture an inbox item · convert it to a task · create a project · attach a task to a project · create a note/doc for a project · calendar shows task due dates · Settings can export data · landing page does not overclaim · self-host docs are accurate · CI passes · basic security audit passes · no fake features are visible.
 
-**Current blockers against this list:** CI does not currently pass on the active branch (§0), and self-host/Docker work must be reconciled from public `main` into whichever branch becomes canonical (§7).
+**Current blockers against this list:** public website copy still conflicts with the SaaS launch direction, and production-facing hardening remains intentionally limited for the early self-host baseline.
 
 ---
 
