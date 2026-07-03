@@ -167,7 +167,7 @@ function SecondaryButton({
 function Logo() {
   return (
     <Link
-      href="/landing"
+      href="/"
       className="inline-flex items-center gap-2 text-zinc-900"
       aria-label="PlanGlade home"
     >
@@ -518,8 +518,9 @@ export default function LandingPage() {
                   yourself with the public repo and self-host notes.
                 </p>
                 <pre className="mt-5 overflow-x-auto rounded-md border border-zinc-200 bg-zinc-900 p-4 text-[12px] leading-6 text-zinc-100">
-{`$ npm install
-$ npm run dev`}
+{`$ git clone https://github.com/kalelooz/planglade
+$ cd planglade
+# See README for Docker and local setup`}
                 </pre>
                 <p className="mt-3 text-[12px] leading-5 text-zinc-500">
                   Free to self-host. The in-app Settings export gives you a

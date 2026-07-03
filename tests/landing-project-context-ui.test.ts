@@ -149,6 +149,25 @@ test("WEBSITE-LIVE-001: public CTAs do not expose the app as a demo", async () =
   assert.doesNotMatch(source, /public demo|get started/i)
 })
 
+test("WEBSITE-LIVE-002: canonical home link and self-host copy stay launch-ready", async () => {
+  const source = await readProjectFile("src/app/landing/page.tsx")
+
+  const logo = source.match(/function Logo\(\)[\s\S]*?\n}\n/)?.[0] ?? ""
+  const selfHostSection = source.match(/<div id="self-host"[\s\S]*?<\/div>\n\s*<\/div>/)?.[0] ?? ""
+
+  assert.match(logo, /href="\/"/)
+  assert.doesNotMatch(logo, /href="\/landing"/)
+  assert.match(selfHostSection, /git clone https:\/\/github\.com\/kalelooz\/planglade/)
+  assert.match(selfHostSection, /See README for Docker and local setup/)
+  assert.doesNotMatch(selfHostSection, /npm run dev/)
+})
+
+test("WEBSITE-LIVE-002: sitemap uses the canonical public home URL", async () => {
+  const source = await readProjectFile("src/app/sitemap.ts")
+
+  assert.match(source, /new URL\("\/", process\.env\.NEXT_PUBLIC_APP_URL \?\? "https:\/\/planglade\.com"\)/)
+})
+
 test("LANDING-REWRITE-1: does not market deferred features as available today", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
 
