@@ -33,11 +33,26 @@ type PaletteCommand = {
   value: string;
 };
 
+const APP_COMMAND_ROUTES = {
+  home: "/app",
+  inbox: "/app/inbox",
+  tasks: "/app/tasks",
+  projects: "/app/projects",
+  notes: "/app/notes",
+  calendar: "/app/calendar",
+  settings: "/app/settings",
+  tasksBoard: "/app/tasks?view=board",
+} as const;
+
 function commandValue(group: string, to: string, label: string, search: string) {
   return `${group} ${to} ${label} ${search}`;
 }
 
-export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+function scopedRoute(path: string, basePath: "/app" | "/demo") {
+  return path === "/app" ? basePath : path.replace(/^\/app(?=\/|\?|#|$)/, basePath);
+}
+
+export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boolean; onClose: () => void; basePath?: "/app" | "/demo" }) {
   const router = useRouter();
   const projects = useStore((s) => s.projects);
   const workItems = useStore((s) => s.workItems);
@@ -45,35 +60,35 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   const commands = useMemo<PaletteCommand[]>(() => {
     const staticCommands = [
-      { label: "Go to Home", to: "/app", icon: Home, group: "Navigate", search: "home" },
-      { label: "Go to Inbox", to: "/app/inbox", icon: Inbox, group: "Navigate", search: "inbox" },
-      { label: "Go to Tasks", to: "/app/tasks", icon: ListTodo, group: "Navigate", search: "tasks" },
-      { label: "Go to Projects", to: "/app/projects", icon: FolderKanban, group: "Navigate", search: "projects" },
-      { label: "Go to Notes", to: "/app/notes", icon: FileText, group: "Navigate", search: "notes" },
-      { label: "Go to Calendar", to: "/app/calendar", icon: Calendar, group: "Navigate", search: "calendar" },
-      { label: "Go to Settings", to: "/app/settings", icon: Settings, group: "Navigate", search: "settings" },
-      { label: "Open Tasks board", to: "/app/tasks?view=board", icon: LayoutGrid, group: "Tasks", search: "board kanban tasks" },
+      { label: "Go to Home", to: scopedRoute(APP_COMMAND_ROUTES.home, basePath), icon: Home, group: "Navigate", search: "home" },
+      { label: "Go to Inbox", to: scopedRoute(APP_COMMAND_ROUTES.inbox, basePath), icon: Inbox, group: "Navigate", search: "inbox" },
+      { label: "Go to Tasks", to: scopedRoute(APP_COMMAND_ROUTES.tasks, basePath), icon: ListTodo, group: "Navigate", search: "tasks" },
+      { label: "Go to Projects", to: scopedRoute(APP_COMMAND_ROUTES.projects, basePath), icon: FolderKanban, group: "Navigate", search: "projects" },
+      { label: "Go to Notes", to: scopedRoute(APP_COMMAND_ROUTES.notes, basePath), icon: FileText, group: "Navigate", search: "notes" },
+      { label: "Go to Calendar", to: scopedRoute(APP_COMMAND_ROUTES.calendar, basePath), icon: Calendar, group: "Navigate", search: "calendar" },
+      ...(basePath === "/app" ? [{ label: "Go to Settings", to: APP_COMMAND_ROUTES.settings, icon: Settings, group: "Navigate", search: "settings" }] : []),
+      { label: "Open Tasks board", to: scopedRoute(APP_COMMAND_ROUTES.tasksBoard, basePath), icon: LayoutGrid, group: "Tasks", search: "board kanban tasks" },
     ];
 
     return [
       ...staticCommands,
       ...projects.map((project) => ({
         label: project.name,
-        to: `/app/projects/${encodeURIComponent(project.id)}`,
+        to: `${basePath}/projects/${encodeURIComponent(project.id)}`,
         icon: FolderKanban,
         group: "Projects",
         search: `${project.name} ${project.id}`,
       })),
       ...workItems.map((item) => ({
         label: item.title.trim() || "No title",
-        to: `/app/tasks?task=${encodeURIComponent(item.id)}`,
+        to: `${basePath}/tasks?task=${encodeURIComponent(item.id)}`,
         icon: ListTodo,
         group: "Tasks",
         search: `${item.id} ${item.title} ${item.label} ${item.status}`,
       })),
       ...notes.map((note) => ({
         label: note.title.trim() || "No title",
-        to: `/app/notes?id=${encodeURIComponent(note.id)}`,
+        to: `${basePath}/notes?id=${encodeURIComponent(note.id)}`,
         icon: FileText,
         group: "Notes",
         search: `${note.title} ${note.tag} ${note.excerpt}`,
@@ -82,7 +97,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       ...command,
       value: commandValue(command.group, command.to, command.label, command.search),
     }));
-  }, [notes, projects, workItems]);
+  }, [basePath, notes, projects, workItems]);
 
   const groups = useMemo(() => {
     return commands.reduce<Record<string, PaletteCommand[]>>((acc, command) => {

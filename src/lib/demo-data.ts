@@ -247,3 +247,78 @@ export const demoNotes: DemoNote[] = [
     body: "Confirm install docs, changelog, screenshots, migration note, and tagged build before announcing.",
   },
 ]
+
+const demoUser = {
+  id: "demo-user",
+  email: "demo@local.invalid",
+  name: "Demo User",
+}
+
+export const demoSession = {
+  user: demoUser,
+  workspace: { id: "demo-workspace", slug: "demo", name: "PlanGlade Demo" },
+  members: [{ ...demoUser, role: "OWNER" }],
+  authMode: "dev-session-scaffold",
+}
+
+const apiProjects = demoProjects.map((project) => ({
+  id: project.id,
+  name: project.name,
+  status: project.status === "Review" ? "IN_REVIEW" : "ACTIVE",
+  mode: "STANDARD",
+  description: project.summary,
+  featureFlags: null,
+  dueDate: `${project.due}T00:00:00.000Z`,
+  color: project.accent,
+  createdById: demoUser.id,
+}))
+
+const apiTasks = demoTasks.map((task) => ({
+  id: task.id,
+  title: task.title,
+  status: task.status === "To Do" ? "TODO" : task.status.toUpperCase().replaceAll(" ", "_"),
+  priority: task.priority.toUpperCase(),
+  assigneeId: demoUser.id,
+  projectId: task.projectId,
+  parentId: null,
+  startDate: null,
+  dueDate: `${task.due}T00:00:00.000Z`,
+  description: task.details,
+  labels: [],
+  noteIds: task.noteId ? [task.noteId] : [],
+  checklist: [],
+  createdAt: "2026-07-01T00:00:00.000Z",
+  updatedAt: "2026-07-04T00:00:00.000Z",
+}))
+
+const apiNotes = demoNotes.map((note) => ({
+  ...note,
+  tags: [],
+  createdAt: "2026-07-01T00:00:00.000Z",
+  updatedAt: "2026-07-04T00:00:00.000Z",
+}))
+
+export function getDemoApiResponse(input: RequestInfo | URL): Response | null {
+  const value = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+  const url = new URL(value, "http://demo.local")
+  const path = url.pathname
+
+  if (path === "/api/projects") return Response.json({ projects: apiProjects })
+  if (path === "/api/work-items/counts") {
+    return Response.json({
+      inboxCount: apiTasks.filter((task) => task.status === "BACKLOG").length,
+      todayCount: apiTasks.filter((task) => task.dueDate.startsWith("2026-07-04") && task.status !== "DONE").length,
+      myTasksCount: apiTasks.filter((task) => task.status !== "DONE").length,
+    })
+  }
+  if (/^\/api\/work-items\/[^/]+\/comments$/.test(path)) return Response.json({ comments: [] })
+  if (/^\/api\/work-items\/[^/]+\/history$/.test(path)) return Response.json({ events: [] })
+  if (path === "/api/work-items") return Response.json({ workItems: apiTasks })
+  if (path === "/api/work-item-relations") return Response.json({ relations: [] })
+  if (path === "/api/notes") return Response.json({ notes: apiNotes })
+  if (path === "/api/labels") return Response.json({ labels: [] })
+  if (path === "/api/notifications") return Response.json({ notifications: [], unreadCount: 0 })
+  if (path === "/api/attachments") return Response.json({ attachments: [] })
+  if (path === "/api/activity") return Response.json({ events: [] })
+  return null
+}

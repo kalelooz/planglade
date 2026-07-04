@@ -38,7 +38,8 @@ test("project index cards use semantic links for Project Detail navigation", asy
   const gridEnd = source.indexOf("</Link>", gridStart)
   const cardSource = source.slice(gridStart, gridEnd)
 
-  assert.match(cardSource, /const projectHref = `\/app\/projects\/\$\{encodeURIComponent\(p\.id\)\}`/)
+  assert.match(source, /basePath = "\/app"/)
+  assert.match(cardSource, /const projectHref = `\$\{basePath\}\/projects\/\$\{encodeURIComponent\(p\.id\)\}`/)
   assert.match(cardSource, /<Link\s+key=\{p\.id\}\s+href=\{projectHref\}/)
   assert.match(cardSource, /onClick=\{\(\) => updateSettings\(\{ activeProjectId: p\.id \}\)\}/)
   assert.doesNotMatch(cardSource, /<button\s+key=\{p\.id\}/)
