@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 
 const githubUrl = "https://github.com/kalelooz/planglade";
 const selfHostUrl = `${githubUrl}#self-hosting-status`;
-const demoStatusUrl = "#status";
+const demoUrl = "/demo";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -46,7 +46,7 @@ const navLinks = [
 const trustBadges = [
   { label: "Self-host now" },
   { label: "Cloud soon" },
-  { label: "Demo soon" },
+  { label: "Try demo" },
 ];
 
 const features = [
@@ -79,8 +79,8 @@ const features = [
 
 const statusItems = [
   { label: "Available now", value: "Self-host" },
+  { label: "Available now", value: "Demo mode" },
   { label: "Coming soon", value: "Cloud" },
-  { label: "Coming soon", value: "Demo" },
 ];
 
 const pricingItems = [
@@ -333,7 +333,7 @@ export default function LandingPage() {
               ))}
             </nav>
             <div className="flex items-center justify-end gap-2">
-              <PrimaryButton href={demoStatusUrl} className="hidden sm:inline-flex">
+              <PrimaryButton href={demoUrl} className="hidden sm:inline-flex">
                 Try demo
               </PrimaryButton>
               <details className="group relative md:hidden" aria-label="Navigation menu">
@@ -356,7 +356,7 @@ export default function LandingPage() {
                       {link.label}
                     </Link>
                   ))}
-                  <PrimaryButton href={demoStatusUrl} className="mt-1">
+                  <PrimaryButton href={demoUrl} className="mt-1">
                     Try demo
                   </PrimaryButton>
                 </nav>
@@ -397,10 +397,10 @@ export default function LandingPage() {
                   Self-host PlanGlade
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
                 </PrimaryButton>
-                <SecondaryButton href={demoStatusUrl}>Try demo</SecondaryButton>
+                <SecondaryButton href={demoUrl}>Try demo</SecondaryButton>
               </div>
               <p className="mt-5 text-[12px] text-zinc-400">
-                Demo soon.
+                Demo mode. Changes are disabled.
               </p>
             </div>
           </div>
@@ -461,10 +461,10 @@ export default function LandingPage() {
                 Status
               </p>
               <h2 className="mt-2 text-[30px] font-semibold tracking-tight text-zinc-950 sm:text-[38px]">
-                Self-host now. Cloud soon. Demo soon.
+                Self-host now. Cloud soon. Try demo.
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-pretty text-[15px] leading-7 text-zinc-600 sm:text-[16px]">
-                Run PlanGlade yourself today. Cloud and demo are coming soon.
+                Run PlanGlade yourself today. Demo mode is read-only.
               </p>
             </div>
 
@@ -556,7 +556,7 @@ $ cd planglade
                       <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                       View on GitHub
                     </SecondaryButton>
-                    <PrimaryButton href={demoStatusUrl}>Try demo</PrimaryButton>
+                    <PrimaryButton href={demoUrl}>Try demo</PrimaryButton>
                   </div>
                 </div>
               </div>
@@ -595,14 +595,14 @@ $ cd planglade
               Start planning with clarity.
             </h2>
             <p className="mt-3 max-w-[520px] text-[15px] leading-7 text-zinc-600">
-              Self-host now. Cloud soon. Demo soon.
+              Self-host now. Cloud soon. Try demo.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <SecondaryButton href={githubUrl} target="_blank">
                 <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                 View on GitHub
               </SecondaryButton>
-              <PrimaryButton href={demoStatusUrl}>Try demo</PrimaryButton>
+              <PrimaryButton href={demoUrl}>Try demo</PrimaryButton>
             </div>
           </div>
         </section>

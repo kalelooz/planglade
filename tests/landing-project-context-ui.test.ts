@@ -98,13 +98,13 @@ test("WEBSITE-LIVE-001: landing owns honest status and pricing copy", async () =
   const source = await readProjectFile("src/app/landing/page.tsx")
   const statusSection = source.match(/<section[\s\S]*?id="status"[\s\S]*?<\/section>/)?.[0] ?? ""
 
-  assert.match(statusSection, /Self-host now\. Cloud soon\. Demo soon\./)
+  assert.match(statusSection, /Self-host now\. Cloud soon\. Try demo\./)
   for (const text of [
     "Available now",
     "Self-host",
     "Coming soon",
     "Cloud",
-    "Demo",
+    "Demo mode",
     "Self-hosted",
     "Free",
     "Paid plan coming soon",
@@ -145,7 +145,7 @@ test("WEBSITE-LIVE-001: public CTAs point demo interest to honest status", async
   assert.match(source, /View on GitHub/)
   assert.match(source, /Self-host PlanGlade/)
   assert.match(source, /Try demo/)
-  assert.match(source, /const demoStatusUrl = "#status"/)
+  assert.match(source, /const demoUrl = "\/demo"/)
   assert.doesNotMatch(source, /Join the waitlist|mailto:hello@planglade\.com/)
   assert.doesNotMatch(source, /href="\/login"[\s\S]*?Open PlanGlade/)
   assert.doesNotMatch(source, /public demo|get started/i)
@@ -189,12 +189,12 @@ test("WEBSITE-LIVE-001: keeps launch badges and honest status separation", async
   // Trust badges present
   assert.match(source, /Self-host now/)
   assert.match(source, /Cloud soon/)
-  assert.match(source, /Demo soon/)
+  assert.match(source, /Try demo/)
 
   const statusItems = source.match(/const statusItems = \[[\s\S]*?\]/)?.[0] ?? ""
   assert.match(statusItems, /Available now[\s\S]*Self-host/)
   assert.match(statusItems, /Coming soon[\s\S]*Cloud/)
-  assert.match(statusItems, /Coming soon[\s\S]*Demo/)
+  assert.match(statusItems, /Available now[\s\S]*Demo mode/)
 })
 
 test("LANDING-REWRITE-1: header nav anchors match the honest MVP set", async () => {
@@ -330,12 +330,12 @@ test("LANDING-SHOWCASE-REPLICA-5: geometric backdrop is neutral and lower sectio
 // LANDING-GET-STARTED-6 guards: the accepted Home replica stays, distracting
 // square ornaments are removed, and the public Get Started page explains the
 // first-run path before sign-in.
-test("WEBSITE-LIVE-001: landing CTAs target GitHub, self-host, and demo status", async () => {
+test("WEBSITE-LIVE-001: landing CTAs target GitHub, self-host, and demo route", async () => {
   const { page } = await readLandingSources()
 
   assert.match(page, /const githubUrl = "https:\/\/github\.com\/kalelooz\/planglade"/)
   assert.match(page, /const selfHostUrl = `\$\{githubUrl\}#self-hosting-status`/)
-  assert.match(page, /const demoStatusUrl = "#status"/)
+  assert.match(page, /const demoUrl = "\/demo"/)
   assert.doesNotMatch(page, /const waitlistUrl =|mailto:hello@planglade\.com/)
   assert.doesNotMatch(page, /<PrimaryButton href="#start"[\s\S]*?Get started/)
   assert.doesNotMatch(page, /href="\/getting-started"/)
