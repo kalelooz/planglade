@@ -31,6 +31,7 @@ Five documents, five jobs. Don't duplicate content across them — cross-referen
 **Tagline:** A calm clearing for your projects.
 **Category:** Open-source, solo-first project workspace.
 **Public launch line:** Self-host now. Cloud soon.
+**Demo line:** Try demo. Demo mode. Changes are disabled.
 
 **One-sentence promise:**
 > PlanGlade gives people one calm place to capture, plan, and finish work.
@@ -261,7 +262,7 @@ Product-first, image-light, aligned with the current app style. No generated lan
 
 **Public copy rule:** talk like a normal product website. Short, human, clear. No scary internal wording.
 
-**Approved phrases:** Self-host now · Cloud soon · Demo soon · Free to self-host · Paid cloud coming · Join the waitlist · Run PlanGlade yourself · A calmer way to manage projects.
+**Approved phrases:** Self-host now · Cloud soon · Try demo · Demo mode · Changes are disabled · Free to self-host · Paid cloud coming · Run PlanGlade yourself · A calmer way to manage projects.
 
 **Avoid on public pages:** technical users · production hardening · currently planned · being prepared · not currently available · active development · future cloud foundation · operational maturity. These may appear in internal planning docs when needed, not in marketing copy.
 
@@ -270,20 +271,24 @@ Product-first, image-light, aligned with the current app style. No generated lan
 **Hero headline:** "A calm clearing for your projects."
 **Supporting copy:** "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head."
 **Status line:** "Self-host now. Cloud soon."
-**CTAs:** View on GitHub · Self-host PlanGlade · Join the waitlist.
+**CTAs:** View on GitHub · Self-host PlanGlade · Try demo.
 
 **Feature labels:** Tasks · Projects · Notes · Inbox · Calendar.
 
 **Status block:**
 - Available now: Self-host.
 - Coming soon: Cloud.
-- Coming soon: Demo.
+- Available now: Demo mode.
+
+**Demo rule:** public demo is read-only. Visitors may browse, open, filter, and navigate. They may not create, edit, delete, upload, invite, export, change settings, trigger emails, or change workspace data. Blocked actions use: "Demo mode — changes are disabled."
+
+**Demo data direction:** use broad sample projects, not PlanGlade's own work: Small bakery launch, Student thesis plan, Home renovation, Freelance client website, Community event, and Open-source release.
 
 **Simple pricing copy for first website:**
 - Self-hosted: Free.
 - Cloud: Paid plan coming soon.
 
-Do not add checkout, fake demo, fake testimonials, fake user counts, fake analytics, or a full SaaS pricing page until `SAAS-LAUNCH.md` exit criteria are met.
+Do not add checkout, fake testimonials, fake user counts, fake analytics, or a full SaaS pricing page until `SAAS-LAUNCH.md` exit criteria are met. Demo must stay read-only.
 
 Full SaaS/website plan lives in `SAAS-LAUNCH.md`.
 

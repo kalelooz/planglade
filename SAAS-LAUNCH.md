@@ -24,11 +24,11 @@ Public line:
 
 Supporting line:
 
-> Demo soon.
+> Try demo.
 
-Do not wait for cloud, billing, Postgres, or demo to publish the first website.
+Do not wait for cloud, billing, or Postgres to publish the first website.
 
-Do not expose `/app` as a public demo.
+Expose demo only through the dedicated read-only demo route. Do not expose normal `/app` as a public demo.
 
 ---
 
@@ -40,10 +40,11 @@ Approved:
 
 - Self-host now.
 - Cloud soon.
-- Demo soon.
+- Try demo.
 - Free to self-host.
 - Paid cloud coming.
-- Join the waitlist.
+- Demo mode.
+- Changes are disabled.
 - Run PlanGlade yourself.
 - A calmer way to manage projects.
 
@@ -80,7 +81,7 @@ CTAs:
 
 - View on GitHub
 - Self-host PlanGlade
-- Join the waitlist
+- Try demo
 
 Feature labels:
 
@@ -105,7 +106,7 @@ FAQ:
 
 - Is PlanGlade free? Yes. You can self-host PlanGlade for free.
 - Is Cloud live? Not yet. Cloud is coming soon.
-- Can I try a demo? Soon.
+- Can I try a demo? Yes. Demo mode is read-only; changes are disabled.
 - Who is it for? Solo builders, freelancers, students, writers, maintainers, small teams, and anyone who wants a calmer project workspace.
 
 ---
@@ -209,47 +210,66 @@ Possible provider paths to research/confirm before implementation:
 - PayPal/manual payment as temporary fallback
 - Paddle/Lemon Squeezy only after seller availability is confirmed
 
-First website should use waitlist/contact, not checkout.
+First website should use demo/GitHub/self-host CTAs, not checkout.
 
 ---
 
 ## 8. Demo Direction
 
-Public demo is wanted, but it is not the first task.
+Public demo is read-only.
 
 Demo copy:
 
-> Demo soon.
+> Try demo.
 
-When implemented, use limited actions:
+Banner/message:
+
+> Demo mode — changes are disabled.
 
 Allowed:
 
-- open sample workspace
-- create/edit sample tasks
-- change status/priority
-- add sample note
+- browse projects
+- open tasks
+- open drawers and modals
 - use filters/views
-- calendar navigation
+- view notes
+- view calendar
+- click around the app
 
 Blocked:
 
+- create
+- edit
+- delete
 - file uploads
 - member invites
 - billing
 - email sending
-- exports of real data
+- exports
 - workspace deletion
-- account/security settings
+- account, email, security, and workspace settings changes
 - API tokens
+
+Demo data should be broad and non-tech-only:
+
+- Small bakery launch
+- Student thesis plan
+- Home renovation
+- Freelance client website
+- Community event
+- Open-source release
 
 Implementation rules:
 
 - demo data must be isolated from real users
-- demo reset must be automatic
-- demo actions must be rate-limited
-- demo must have visible banner: Demo workspace — changes reset
+- demo must require no login or email
+- demo writes must be blocked server-side, not only by disabled UI
+- blocked actions must show: Demo mode — changes are disabled.
+- demo must have visible banner: Demo mode — changes are disabled.
 - no customer data in demo
+- no profanity, edgy content, or private-looking data
+
+Do not use a writable demo plan. Read-only avoids shared-demo vandalism, moderation work, and database abuse.
 
 ---
 
@@ -270,9 +290,9 @@ Implementation rule: no hardcoded analytics URL or website ID. Use env vars such
 
 If env vars are missing, analytics should do nothing.
 
-### Waitlist / feedback
+### Demo / feedback
 
-First day: mailto link or simple external form.
+First day: read-only demo plus GitHub/self-host links.
 
 Later: Formbricks if surveys/feedback/waitlist need to be owned and self-hosted.
 
@@ -338,9 +358,9 @@ Minimum:
 - mobile layout works
 - View on GitHub link works
 - Self-host link works
-- waitlist/contact link works
+- demo link works after `/demo` exists
 - `/app` remains protected
-- no fake demo
+- no fake demo; `/demo` is read-only
 - no checkout
 - no false production-ready claim
 - README and website do not contradict each other
@@ -405,7 +425,9 @@ Make planglade.com ready to go live with clean, short, honest public copy.
 Positioning:
 - Self-host now.
 - Cloud soon.
-- Demo soon.
+- Try demo.
+- Demo mode.
+- Changes are disabled.
 - Free to self-host.
 - Paid cloud coming.
 
@@ -420,7 +442,7 @@ Do-Not-Touch:
 - No billing
 - No checkout
 - No cloud accounts
-- No real public demo
+- No writable public demo
 - No database/auth/app behavior changes
 - No new big dependencies
 - No fake testimonials
@@ -433,8 +455,9 @@ Use short human wording.
 Good:
 - Self-host now. Cloud soon.
 - Run PlanGlade yourself.
-- Join the waitlist.
-- Demo soon.
+- Try demo.
+- Demo mode.
+- Changes are disabled.
 - Free to self-host.
 - Paid cloud coming.
 
@@ -454,7 +477,7 @@ Requirements:
 2. CTAs:
    - View on GitHub
    - Self-host PlanGlade
-   - Join the waitlist
+   - Try demo
 3. Add simple product section:
    - Tasks
    - Projects
@@ -464,7 +487,7 @@ Requirements:
 4. Add simple status section:
    - Available now: Self-host
    - Coming soon: Cloud
-   - Coming soon: Demo
+   - Available now: Demo mode
 5. Add simple pricing copy:
    - Self-hosted: Free
    - Cloud: Paid plan coming soon
@@ -488,9 +511,9 @@ Acceptance:
 - Copy is short and human.
 - No scary legal/dev wording.
 - No fake cloud/demo/billing.
-- GitHub and waitlist links work.
+- GitHub and demo links work.
 - README does not contradict the website.
-- /app is not exposed as a fake demo.
+- /demo is read-only and /app is not exposed as a fake demo.
 
 Validation:
 - npm run lint

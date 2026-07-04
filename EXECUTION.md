@@ -114,7 +114,9 @@ Issue #10 (README gallery for visual learners) — closed. PR #12 "Improve READM
 
 ### 4.7 SaaS/public launch decisions — 2026-07-03
 
-Maintainer decision: first priority is getting the website live fast, not implementing cloud, billing, or demo. Public copy should be short and human: **Self-host now. Cloud soon. Demo soon. Free to self-host. Paid cloud coming.** Avoid long internal-risk wording on public pages.
+Maintainer decision: first priority is getting the website live fast, not implementing cloud or billing. Public copy should be short and human: **Self-host now. Cloud soon. Try demo. Demo mode. Changes are disabled. Free to self-host. Paid cloud coming.** Avoid long internal-risk wording on public pages.
+
+Demo decision: public demo is read-only. Visitors can browse, open, filter, and navigate. They cannot create, edit, delete, upload, invite, export, change settings, trigger emails, or change workspace data. Blocked actions use: **Demo mode — changes are disabled.**
 
 New companion file: `SAAS-LAUNCH.md`. It owns public website launch, cloud sequencing, demo plan, pricing direction, open-source/private SaaS boundary, and external tooling choices.
 
@@ -134,7 +136,8 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 |---|---|---|---|
 | `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Sync Architect/Codex/library sources before further implementation | **Highest — do first** |
 | `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Create factual mismatch report before broad fixes | **Highest — do after resource replacement** |
-| `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Self-host now, Cloud soon, Demo soon; no billing/demo/cloud implementation | High — first product/code task |
+| `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Self-host now, Cloud soon, Try demo; no billing/cloud implementation | High — first product/code task |
+| `DEMO-READONLY-001` | Build read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High — after docs alignment |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
 | `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 327 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
@@ -190,9 +193,9 @@ The early Docker baseline exists in the checked-out branch:
 - Public issue #8 (contributor guide) remains open. Security contact work is implemented on `main` via `9681a60`; if #9 still appears open in GitHub UI, verify/close it from the owner account rather than treating the code/doc work as missing.
 - No planning document had been updated to reflect Firebase, attachments, invites, or Docker until this revision.
 
-- SaaS/public launch direction is now decided: website first, self-host now, cloud soon, demo soon, no checkout until cloud is real.
+- SaaS/public launch direction is now decided: website first, self-host now, cloud soon, read-only demo, no checkout until cloud is real.
 - Public copy must be concise and human; avoid long internal-risk wording on marketing pages.
-- First website publish should not wait for Postgres, billing, public demo, or production cloud.
+- First website publish should not wait for Postgres, billing, or production cloud.
 
 ---
 
@@ -225,9 +228,9 @@ Full prompt file: `CODEX-PROMPT-RESOURCE-MISMATCH-AUDIT-001.md`.
 
 ### WEBSITE-LIVE-001 — Launch PlanGlade Website
 
-Goal: make `planglade.com` ready to go live with short human copy: **Self-host now. Cloud soon. Demo soon.**
+Goal: make `planglade.com` ready to go live with short human copy: **Self-host now. Cloud soon. Try demo.**
 
-Rules: no billing, no checkout, no cloud accounts, no real public demo, no database/auth behavior changes, no fake claims.
+Rules: no billing, no checkout, no cloud accounts, no writable public demo, no fake claims.
 
 Full task details live in `SAAS-LAUNCH.md §14`.
 
