@@ -7,16 +7,35 @@ import { NextRequest } from "next/server"
 import { middleware } from "../middleware"
 
 const root = process.cwd()
-const demoMessage = "Demo mode — changes are disabled."
+const demoMessage = `Demo mode ${String.fromCharCode(0x2014)} changes are disabled.`
+const originalEnv = {
+  NODE_ENV: process.env.NODE_ENV,
+  PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
+  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
+  GITHUB_ID: process.env.GITHUB_ID,
+  GITHUB_SECRET: process.env.GITHUB_SECRET,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+}
 
 async function readProjectFile(filePath: string) {
   return readFile(path.join(root, filePath), "utf8")
 }
 
+function restoreEnv() {
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) {
+      delete process.env[key]
+    } else {
+      process.env[key] = value
+    }
+  }
+}
+
 test("DEMO-READONLY-001: /demo is public, fixture-backed, and read-only", async () => {
   const [page, client, fixtures, sessionClient, shell] = await Promise.all([
-    readProjectFile("src/app/demo/[[...slug]]/page.tsx"),
-    readProjectFile("src/app/demo/[[...slug]]/demo-client.tsx"),
+    readProjectFile("src/app/demo/page.tsx"),
+    readProjectFile("src/app/demo/demo-client.tsx"),
     readProjectFile("src/lib/demo-data.ts"),
     readProjectFile("src/lib/server-session-client.ts"),
     readProjectFile("src/components/lovable/shell.tsx"),
@@ -37,7 +56,7 @@ test("DEMO-READONLY-001: /demo is public, fixture-backed, and read-only", async 
 
 test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {
   const [client, projectsPage, shell, commandPalette] = await Promise.all([
-    readProjectFile("src/app/demo/[[...slug]]/demo-client.tsx"),
+    readProjectFile("src/app/demo/demo-client.tsx"),
     readProjectFile("src/app/app/projects/projects-page-content.tsx"),
     readProjectFile("src/components/lovable/shell.tsx"),
     readProjectFile("src/components/lovable/command-palette.tsx"),
@@ -58,8 +77,8 @@ test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {
 
 test("DEMO-REAL-UI-RESCUE-001: public demo stays light without changing the saved app theme", async () => {
   const [client, css] = await Promise.all([
-    readProjectFile("src/app/demo/[[...slug]]/demo-client.tsx"),
-    readProjectFile("src/app/demo/[[...slug]]/demo.module.css"),
+    readProjectFile("src/app/demo/demo-client.tsx"),
+    readProjectFile("src/app/demo/demo.module.css"),
   ])
 
   assert.match(client, /demo\.module\.css/)
@@ -103,6 +122,45 @@ test("DEMO-READONLY-001: normal API requests are not blocked by the demo guard",
   })
 
   assert.equal(middleware(request), undefined)
+})
+
+test("NETLIFY-LAUNCH-BLOCKERS-001: /demo rewrites to app screens without exposing /app", () => {
+  const response = middleware(new NextRequest("https://planglade.test/demo"))
+
+  assert.equal(response?.status, 200)
+  assert.equal(response?.headers.get("x-middleware-rewrite"), "https://planglade.test/app/projects/bakery-launch")
+})
+
+test("NETLIFY-LAUNCH-BLOCKERS-001: public-only production redirects /app to landing", () => {
+  try {
+    Reflect.set(process.env, "NODE_ENV", "production")
+    process.env.PLANGLADE_AUTH_MODE = "nextauth"
+    delete process.env.FLOWBOARD_AUTH_MODE
+    delete process.env.GITHUB_ID
+    delete process.env.GITHUB_SECRET
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+
+    const response = middleware(new NextRequest("https://planglade.test/app"))
+
+    assert.equal(response?.status, 307)
+    assert.equal(response?.headers.get("location"), "https://planglade.test/")
+  } finally {
+    restoreEnv()
+  }
+})
+
+test("NETLIFY-LAUNCH-BLOCKERS-001: configured production auth can reach /app", () => {
+  try {
+    Reflect.set(process.env, "NODE_ENV", "production")
+    process.env.PLANGLADE_AUTH_MODE = "nextauth"
+    process.env.GITHUB_ID = "github-id"
+    process.env.GITHUB_SECRET = "github-secret"
+
+    assert.equal(middleware(new NextRequest("https://planglade.test/app")), undefined)
+  } finally {
+    restoreEnv()
+  }
 })
 
 test("DEMO-READONLY-001: landing points to the working demo route", async () => {

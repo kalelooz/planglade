@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 
-import { authOptions, hasAuthProviders } from "@/lib/auth-options"
 import { getAuthConfigErrors } from "@/lib/auth-config"
-import { db } from "@/lib/db"
 import { readPlanGladeEnv } from "@/lib/env-config"
-import { verifyFirebaseIdToken } from "@/lib/firebase-admin"
-import { DEFAULT_PRIORITY_DISPLAY_STYLE, resolvePriorityDisplayStyle } from "@/lib/appearance-defaults"
 
 const DEV_USER = {
   email: "alex.morgan@flowboard.dev",
@@ -16,6 +11,13 @@ const DEV_USER = {
 const DEV_WORKSPACE = {
   slug: "planglade",
   name: "PlanGlade Workspace",
+}
+
+function hasAuthProviders() {
+  return Boolean(
+    (process.env.GITHUB_ID && process.env.GITHUB_SECRET) ||
+      (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  )
 }
 
 export async function GET(request: Request) {
@@ -48,6 +50,13 @@ export async function GET(request: Request) {
     const shouldUseNextAuth = requestedMode === "nextauth" && nextAuthEnabled
 
     if (requestedMode === "nextauth" && !nextAuthEnabled) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Cloud login is not available yet." },
+          { status: 401 }
+        )
+      }
+
       return NextResponse.json(
         {
           error:
@@ -56,6 +65,12 @@ export async function GET(request: Request) {
         { status: 500 }
       )
     }
+
+    const { db } = await import("@/lib/db")
+    const {
+      DEFAULT_PRIORITY_DISPLAY_STYLE,
+      resolvePriorityDisplayStyle,
+    } = await import("@/lib/appearance-defaults")
 
     let userIdentity = DEV_USER
     let authMode = "dev-session-scaffold"
@@ -74,6 +89,7 @@ export async function GET(request: Request) {
         )
       }
 
+      const { verifyFirebaseIdToken } = await import("@/lib/firebase-admin")
       const verified = await verifyFirebaseIdToken(authToken)
       userIdentity = {
         email: verified.email,
@@ -81,6 +97,8 @@ export async function GET(request: Request) {
       }
       authMode = "firebase"
     } else if (shouldUseNextAuth) {
+      const { getServerSession } = await import("next-auth")
+      const { authOptions } = await import("@/lib/auth-options")
       const session = await getServerSession(authOptions)
       if (!session?.user?.email) {
         return NextResponse.json(

@@ -2,8 +2,10 @@ import assert from "node:assert/strict"
 import { access, readFile } from "node:fs/promises"
 import path from "node:path"
 import test from "node:test"
+import { NextRequest } from "next/server"
 
 import nextConfig from "../next.config"
+import { middleware } from "../middleware"
 
 const root = process.cwd()
 
@@ -29,14 +31,22 @@ test("public landing owns root and authenticated pages exist under /app", async 
   await Promise.all(canonicalAppPages.map((filePath) => access(path.join(root, filePath))))
 })
 
-test("ROOT-REDIRECT-1: root redirects authenticated sessions to /app", async () => {
+test("NETLIFY-LAUNCH-BLOCKERS-001: root stays public while cloud login is disabled", async () => {
   const rootPage = await readProjectFile("src/app/page.tsx")
 
-  assert.match(rootPage, /getServerSession/)
-  assert.match(rootPage, /authOptions/)
-  assert.match(rootPage, /getConfiguredAuthMode/)
-  assert.match(rootPage, /redirect\("\/app"\)/)
-  assert.match(rootPage, /dynamic = "force-dynamic"/)
+  assert.doesNotMatch(rootPage, /getServerSession/)
+  assert.doesNotMatch(rootPage, /authOptions/)
+  assert.doesNotMatch(rootPage, /getConfiguredAuthMode/)
+  assert.doesNotMatch(rootPage, /redirect\("\/app"\)/)
+  assert.doesNotMatch(rootPage, /dynamic = "force-dynamic"/)
+})
+
+test("NETLIFY-LAUNCH-BLOCKERS-001: root middleware serves public landing without auth", async () => {
+  const response = middleware(new NextRequest("https://planglade.test/"))
+
+  assert.equal(response?.status, 200)
+  assert.equal(response?.headers.get("content-type"), "text/html; charset=utf-8")
+  assert.match(await response?.text(), /PlanGlade/)
 })
 
 test("ROOT-REDIRECT-1: root still renders landing for unauthenticated visitors", async () => {

@@ -7,11 +7,6 @@ export const metadata: Metadata = {
   description: "Try the real PlanGlade interface in read-only demo mode.",
 }
 
-export default async function DemoPage({
-  params,
-}: {
-  params: Promise<{ slug?: string[] }>
-}) {
-  const { slug = [] } = await params
-  return <DemoClient slug={slug} />
+export default function DemoPage() {
+  return <DemoClient slug={[]} />
 }

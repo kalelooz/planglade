@@ -97,6 +97,22 @@ test("GET /auth/session reports nextauth provider misconfiguration", async () =>
   })
 })
 
+test("GET /auth/session hides nextauth provider setup details in production", async () => {
+  await runWithMocks(async () => {
+    setEnv("NODE_ENV", "production")
+    setEnv("FLOWBOARD_AUTH_MODE", "nextauth")
+    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "nextauth")
+    setEnv("NEXTAUTH_SECRET", "test-secret")
+    setEnv("NEXTAUTH_URL", "https://planglade.example")
+
+    const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
+    const payload = (await response.json()) as { error?: string }
+
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Cloud login is not available yet.")
+  })
+})
+
 test("GET /auth/session requires Firebase token in firebase mode", async () => {
   await runWithMocks(async () => {
     setEnv("FLOWBOARD_AUTH_MODE", "firebase")

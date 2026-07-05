@@ -289,6 +289,7 @@ The repo is still pre-public-launch and not production-hardened. Keep contributi
 ## Documentation Map
 
 - `docs/SELF_HOSTING.md`: local and early Docker self-host setup, limitations, and safety notes.
+- `docs/NETLIFY_PREVIEW.md`: repeatable Netlify preview build settings and required dashboard env vars.
 - `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and attachment backup/restore notes.
 - `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.
