@@ -617,6 +617,10 @@ $ cd planglade
               <li><Link href="#status" className="hover:text-zinc-900">Status</Link></li>
               <li><Link href="#self-host" className="hover:text-zinc-900">Self-host</Link></li>
               <li><Link href="#faq" className="hover:text-zinc-900">FAQ</Link></li>
+              <li><Link href="/privacy" className="hover:text-zinc-900">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-zinc-900">Terms</Link></li>
+              <li><Link href="/security" className="hover:text-zinc-900">Security</Link></li>
+              <li><Link href="/contact" className="hover:text-zinc-900">Contact</Link></li>
             </ul>
           </nav>
           <p>&copy; 2026 PlanGlade</p>

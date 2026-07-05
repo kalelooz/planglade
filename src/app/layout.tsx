@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/components/lovable/theme-provider";
 import { AuthProvider } from "@/components/lovable/auth-context";
 import { AppSettingsBridge } from "@/components/lovable/app-settings-bridge";
 
-const metadataBase = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
+const metadataBase = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://planglade.com");
 const umamiSrc = process.env.NEXT_PUBLIC_UMAMI_SRC;
 const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
