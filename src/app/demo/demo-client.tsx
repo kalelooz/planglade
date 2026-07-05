@@ -31,7 +31,7 @@ export function DemoClient({ slug }: { slug: string[] }) {
     router.push(demoHref(`${url.pathname}${url.search}${url.hash}`))
   }
 
-  let page = <HomePage />
+  let page = <HomePage basePath="/demo" />
   if (section === "inbox") page = <InboxPage />
   if (section === "tasks") page = <WorkItemsPage />
   if (section === "projects") page = <ProjectsPageContent projectId={id} basePath="/demo" />

@@ -55,8 +55,9 @@ test("DEMO-READONLY-001: /demo is public, fixture-backed, and read-only", async 
 })
 
 test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {
-  const [client, projectsPage, shell, commandPalette] = await Promise.all([
+  const [client, homePage, projectsPage, shell, commandPalette] = await Promise.all([
     readProjectFile("src/app/demo/demo-client.tsx"),
+    readProjectFile("src/app/app/page.tsx"),
     readProjectFile("src/app/app/projects/projects-page-content.tsx"),
     readProjectFile("src/components/lovable/shell.tsx"),
     readProjectFile("src/components/lovable/command-palette.tsx"),
@@ -66,6 +67,11 @@ test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {
   assert.match(client, /\/demo\/projects/)
   assert.match(client, /\/demo\/notes/)
   assert.match(client, /\/demo\/calendar/)
+  assert.match(client, /<HomePage basePath="\/demo" \/>/)
+  assert.match(homePage, /basePath = "\/app"/)
+  assert.match(homePage, /\$\{basePath\}\/tasks/)
+  assert.match(homePage, /\$\{basePath\}\/inbox/)
+  assert.match(homePage, /\$\{basePath\}\/notes/)
   assert.match(client, /<ProjectsPageContent projectId=\{id\} basePath="\/demo" \/>/)
   assert.match(projectsPage, /basePath = "\/app"/)
   assert.match(projectsPage, /\$\{basePath\}\/projects/)

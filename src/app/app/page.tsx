@@ -26,8 +26,8 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 
-function projectHref(projectId: string, section?: "notes") {
-  const base = `/app/projects/${encodeURIComponent(projectId)}`;
+function projectHref(projectId: string, basePath: "/app" | "/demo", section?: "notes") {
+  const base = `${basePath}/projects/${encodeURIComponent(projectId)}`;
   return section ? `${base}?section=${section}` : base;
 }
 
@@ -224,7 +224,7 @@ function ContextRow({ href, title, kind, meta }: { href: string; title: string; 
   );
 }
 
-export default function HomePage() {
+export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/demo" }) {
   const activeProjectId = useStore((state) => state.settings.activeProjectId);
   const updateSettings = useStore((state) => state.updateSettings);
 
@@ -320,7 +320,7 @@ export default function HomePage() {
     if (filter) params.set("filter", filter);
     if (activeProjectId) params.set("project", activeProjectId);
     const query = params.toString();
-    return query ? `/app/tasks?${query}` : "/app/tasks";
+    return query ? `${basePath}/tasks?${query}` : `${basePath}/tasks`;
   };
 
   const projectMetrics = useMemo(() => {
@@ -352,7 +352,7 @@ export default function HomePage() {
   const recentContext = useMemo(() => {
     const noteRows = recentNotes.map((note) => ({
       id: `note-${note.id}`,
-      href: note.projectId ? projectHref(note.projectId, "notes") : `/app/notes?id=${note.id}`,
+      href: note.projectId ? projectHref(note.projectId, basePath, "notes") : `${basePath}/notes?id=${note.id}`,
       title: note.title,
       kind: note.tag,
       meta: note.updated,
@@ -392,7 +392,7 @@ export default function HomePage() {
                         {buckets.overdue.length} overdue
                       </Link>
                       ,{" "}
-                      <Link href="/app/inbox" className="underline decoration-dotted underline-offset-2 hover:text-zinc-950">
+                      <Link href={`${basePath}/inbox`} className="underline decoration-dotted underline-offset-2 hover:text-zinc-950">
                         {inboxCount} captured
                       </Link>
                       .
@@ -465,7 +465,7 @@ export default function HomePage() {
                       title="Inbox"
                       count={inboxBucket.length}
                       icon={<Inbox className="h-3.5 w-3.5" />}
-                      action={<Link href="/app/inbox" className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Open Inbox</Link>}
+                      action={<Link href={`${basePath}/inbox`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Open Inbox</Link>}
                     />
                     <div>
                       <TaskList
@@ -496,7 +496,7 @@ export default function HomePage() {
                         {projectMetrics.map(({ project, openCount, overdueCount, next, progress }) => (
                           <Link
                             key={project.id}
-                            href={projectHref(project.id)}
+                            href={projectHref(project.id, basePath)}
                             className="block px-3 py-2.5 transition-colors hover:bg-zinc-50"
                           >
                             <div className="flex min-w-0 items-center justify-between gap-3">
@@ -533,7 +533,7 @@ export default function HomePage() {
                       title="Upcoming tasks"
                       count={buckets.upcoming.length}
                       icon={<CalendarDays className="h-3.5 w-3.5" />}
-                      action={<Link href="/app/calendar" className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Calendar</Link>}
+                      action={<Link href={`${basePath}/calendar`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Calendar</Link>}
                     />
                     <div>
                       <TaskList
@@ -557,7 +557,7 @@ export default function HomePage() {
                       title="Recent notes"
                       count={recentContext.length}
                       icon={<FileText className="h-3.5 w-3.5" />}
-                      action={<Link href="/app/notes" className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Notes</Link>}
+                      action={<Link href={`${basePath}/notes`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Notes</Link>}
                     />
                     {recentContext.length === 0 ? (
                       <EmptyRow title="No recent notes.">New notes will appear here.</EmptyRow>
@@ -570,7 +570,7 @@ export default function HomePage() {
                         </div>
                         {hasMoreRecentNotes ? (
                           <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2 font-mono text-[10px] text-zinc-500">
-                            <Link href="/app/notes" className="hover:text-zinc-950">More notes</Link>
+                            <Link href={`${basePath}/notes`} className="hover:text-zinc-950">More notes</Link>
                           </div>
                         ) : null}
                       </div>
