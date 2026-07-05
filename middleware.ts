@@ -63,15 +63,6 @@ export function middleware(request: NextRequest) {
     })
   }
 
-  if (request.nextUrl.pathname === "/demo" || request.nextUrl.pathname.startsWith("/demo/")) {
-    const url = request.nextUrl.clone()
-    url.pathname =
-      request.nextUrl.pathname === "/demo" || request.nextUrl.pathname === "/demo/projects"
-        ? "/app/projects/bakery-launch"
-        : request.nextUrl.pathname.replace(/^\/demo(?=\/)/, "/app")
-    return NextResponse.rewrite(url)
-  }
-
   if (
     request.nextUrl.pathname.startsWith("/app") &&
     isPublicOnlyProductionApp()

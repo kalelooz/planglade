@@ -116,6 +116,20 @@ test("DEMO-READONLY-001: demo-marked API mutations are blocked server-side", asy
   assert.deepEqual(await response?.json(), { error: demoMessage })
 })
 
+test("DEMO-FULL-ROUTE-SMOKE-001: Netlify Prisma client includes the function runtime engine", async () => {
+  const schema = await readProjectFile("prisma/schema.prisma")
+
+  assert.match(schema, /binaryTargets\s*=\s*\[[^\]]*"native"[^\]]*"rhel-openssl-3\.0\.x"/)
+})
+
+test("DEMO-FULL-ROUTE-SMOKE-001: Notes keeps programmatic navigation inside demo mode", async () => {
+  const notesPage = await readProjectFile("src/app/app/notes/page.tsx")
+
+  assert.match(notesPage, /usePathname/)
+  assert.match(notesPage, /pathname\.startsWith\("\/demo"\) \? "\/demo" : "\/app"/)
+  assert.match(notesPage, /router\.replace\(`\$\{routePrefix\}\/notes\?id=\$\{id\}`/)
+})
+
 test("DEMO-READONLY-001: normal API requests are not blocked by the demo guard", () => {
   const request = new NextRequest("http://localhost/api/work-items", {
     method: "POST",
@@ -124,11 +138,22 @@ test("DEMO-READONLY-001: normal API requests are not blocked by the demo guard",
   assert.equal(middleware(request), undefined)
 })
 
-test("NETLIFY-LAUNCH-BLOCKERS-001: /demo rewrites to app screens without exposing /app", () => {
-  const response = middleware(new NextRequest("https://planglade.test/demo"))
+test("NETLIFY-LAUNCH-BLOCKERS-001: public-only production leaves demo routes public", () => {
+  try {
+    Reflect.set(process.env, "NODE_ENV", "production")
+    process.env.PLANGLADE_AUTH_MODE = "nextauth"
+    delete process.env.FLOWBOARD_AUTH_MODE
+    delete process.env.GITHUB_ID
+    delete process.env.GITHUB_SECRET
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
 
-  assert.equal(response?.status, 200)
-  assert.equal(response?.headers.get("x-middleware-rewrite"), "https://planglade.test/app/projects/bakery-launch")
+    for (const route of ["/demo", "/demo/inbox", "/demo/tasks", "/demo/projects", "/demo/projects/bakery-launch", "/demo/notes", "/demo/calendar"]) {
+      assert.equal(middleware(new NextRequest(`https://planglade.test${route}`)), undefined, `${route} must stay public`)
+    }
+  } finally {
+    restoreEnv()
+  }
 })
 
 test("NETLIFY-LAUNCH-BLOCKERS-001: public-only production redirects /app to landing", () => {
