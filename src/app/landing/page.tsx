@@ -100,7 +100,7 @@ const faqs = [
   },
   {
     question: "Can I try a demo?",
-    answer: "Soon.",
+    answer: "Yes. Try demo.",
   },
   {
     question: "Who is it for?",

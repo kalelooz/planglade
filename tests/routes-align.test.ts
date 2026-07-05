@@ -41,12 +41,12 @@ test("NETLIFY-LAUNCH-BLOCKERS-001: root stays public while cloud login is disabl
   assert.doesNotMatch(rootPage, /dynamic = "force-dynamic"/)
 })
 
-test("NETLIFY-LAUNCH-BLOCKERS-001: root middleware serves public landing without auth", async () => {
+test("LANDING-RESTORE-001: root bypasses middleware and renders the full landing route", async () => {
   const response = middleware(new NextRequest("https://planglade.test/"))
+  const middlewareSource = await readProjectFile("middleware.ts")
 
-  assert.equal(response?.status, 200)
-  assert.equal(response?.headers.get("content-type"), "text/html; charset=utf-8")
-  assert.match(await response?.text(), /PlanGlade/)
+  assert.equal(response, undefined)
+  assert.doesNotMatch(middlewareSource, /ROOT_LANDING_HTML|<h1>PlanGlade<\/h1>|Self-host<\/a>/)
 })
 
 test("ROOT-REDIRECT-1: root still renders landing for unauthenticated visitors", async () => {
