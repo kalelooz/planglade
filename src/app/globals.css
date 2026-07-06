@@ -541,13 +541,14 @@ html[data-density="comfortable"] {
     max-width: 100%;
     box-shadow: -1px 0 0 color-mix(in oklch, var(--color-foreground) 5%, transparent);
   }
-  @media (max-width: 640px) {
+  @media (max-width: 767px) {
     .drawer-inline {
       position: fixed;
       inset: 0;
       z-index: 80;
       height: 100dvh;
-      width: 100vw !important;
+      width: 100% !important;
+      max-width: none;
       border-left: 0;
       box-shadow: none;
     }
@@ -561,8 +562,9 @@ html[data-density="comfortable"] {
     .drawer-inline dt {
       padding-top: 0.5rem;
     }
-    .drawer-inline dd select,
-    .drawer-inline dd input {
+    .drawer-inline input,
+    .drawer-inline select,
+    .drawer-inline textarea {
       width: 100%;
       max-width: 100%;
       min-width: 0;
