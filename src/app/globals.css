@@ -541,6 +541,33 @@ html[data-density="comfortable"] {
     max-width: 100%;
     box-shadow: -1px 0 0 color-mix(in oklch, var(--color-foreground) 5%, transparent);
   }
+  @media (max-width: 640px) {
+    .drawer-inline {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      height: 100dvh;
+      width: 100vw !important;
+      border-left: 0;
+      box-shadow: none;
+    }
+    .drawer-inline dl {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap-y: 0.25rem;
+    }
+    .drawer-inline dd {
+      min-width: 0;
+    }
+    .drawer-inline dt {
+      padding-top: 0.5rem;
+    }
+    .drawer-inline dd select,
+    .drawer-inline dd input {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+  }
 }
 
 @keyframes fade-in {
