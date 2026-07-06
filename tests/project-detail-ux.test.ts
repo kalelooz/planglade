@@ -403,6 +403,27 @@ test("project detail redesign avoids mock wording and heavy product clutter", as
   assert.doesNotMatch(source, /calendarEvents|event system|separate events/i)
 })
 
+test("demo project detail uses mobile-safe subtle demo actions", async () => {
+  const source = await readProjectFile("src/app/app/projects/projects-page-content.tsx")
+  const headerStart = source.indexOf("<header className=")
+  const headerEnd = source.indexOf("</header>", headerStart)
+  const headerSource = source.slice(headerStart, headerEnd)
+  const tabsLabelStart = source.indexOf('aria-label="Project sections"')
+  const tabsStart = source.lastIndexOf("<nav", tabsLabelStart)
+  const tabsEnd = source.indexOf("</nav>", tabsStart)
+  const tabsSource = source.slice(tabsStart, tabsEnd)
+
+  assert.match(source, /const isDemoMode = basePath === "\/demo"/)
+  assert.match(source, /const blockDemoAction = \(\) => toast\(DEMO_MODE_MESSAGE\)/)
+  assert.match(source, /const deleteProjectButtonClass = isDemoMode \? "lov-btn lov-btn-ghost justify-center text-muted-foreground" : "lov-btn lov-btn-danger justify-center"/)
+  assert.match(source, /if \(isDemoMode\) \{\s*blockDemoAction\(\);\s*return;/)
+  assert.match(headerSource, /grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto/)
+  assert.match(headerSource, /className=\{deleteProjectButtonClass\}/)
+  assert.doesNotMatch(headerSource, /lov-btn-danger/)
+  assert.match(tabsSource, /overflow-x-auto/)
+  assert.match(tabsSource, /whitespace-nowrap/)
+})
+
 test("local bootstrap includes a stable realistic project detail fixture", () => {
   const smokeProject = projects.find((project) => project.id === "launch-readiness")
   assert.ok(smokeProject, "missing stable launch readiness project")

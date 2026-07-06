@@ -85,3 +85,15 @@ test("mobile task drawer overlays instead of squeezing the page", async () => {
   assert.match(drawerSource, /\.drawer-inline dl \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/)
   assert.match(drawerSource, /\.drawer-inline input,[\s\S]*\.drawer-inline select,[\s\S]*\.drawer-inline textarea \{[\s\S]*max-width: 100%/)
 })
+
+test("demo shell header avoids mobile breadcrumb and badge crowding", async () => {
+  const [shell, page] = await Promise.all([
+    readProjectFile("src/components/lovable/shell.tsx"),
+    readProjectFile("src/components/lovable/page.tsx"),
+  ])
+
+  assert.match(shell, /className="relative z-40 flex h-auto min-h-12/)
+  assert.match(shell, /className="flex min-w-0 flex-1 items-center gap-2/)
+  assert.match(shell, /hidden shrink-0 rounded-full border bg-muted px-2 py-0\.5 text-\[10px\] text-muted-foreground sm:inline-flex/)
+  assert.match(page, /index < items\.length - 2 \? "hidden sm:contents" : "contents"/)
+})

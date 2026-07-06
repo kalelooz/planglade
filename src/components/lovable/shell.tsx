@@ -472,15 +472,15 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative z-40 flex h-12 shrink-0 items-center gap-3 border-b bg-background/95 px-4 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)]">
+        <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
           <button onClick={() => setMobileNavOpen(true)} className="lov-icon-btn md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
-          <div className="flex min-w-0 items-center gap-2 text-[13px]">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px]">
             {title ?? <span className="font-medium">PlanGlade</span>}
-            {isDemoMode && <span className="rounded-full border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{DEMO_MODE_MESSAGE}</span>}
+            {isDemoMode && <span className="hidden shrink-0 rounded-full border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground sm:inline-flex">{DEMO_MODE_MESSAGE}</span>}
           </div>
-          <div className="flex-1" />
+          <div className="hidden flex-1 sm:block" />
           <div ref={projectScopeRef} className="relative hidden min-w-[260px] max-w-[420px] flex-[0_1_28vw] lg:block xl:w-[clamp(260px,28vw,420px)]">
               <button
                 onClick={() => {

@@ -18,6 +18,7 @@ import { ProjectIcon, IconPicker } from "@/components/lovable/project-icon";
 import { FlowMetaPill, FlowRow } from "@/components/lovable/flow-ui";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { ProjectNotesSection, type UiProjectNote } from "@/components/projects/project-notes-section";
+import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
 import {
   type ApiNote,
   type ApiProject,
@@ -130,6 +131,8 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   const [quickTaskTitle, setQuickTaskTitle] = useState("");
   const [now, setNow] = useState(() => new Date());
 
+  const isDemoMode = basePath === "/demo";
+  const blockDemoAction = () => toast(DEMO_MODE_MESSAGE);
   const today = useMemo(() => startOfLocalDay(now), [now]);
   const todayKey = localDateKey(today);
   const selectedProjectId = projectId ?? params.get("project");
@@ -240,6 +243,10 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   };
 
   const patchProject = async (id: string, input: { name: string; description: string; status: ProjectStatus; due: string; icon: string }) => {
+    if (isDemoMode) {
+      blockDemoAction();
+      return;
+    }
     if (!workspaceId) return;
     const status =
       input.status === "Active"
@@ -271,6 +278,10 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   };
 
   const destroyProject = async (id: string) => {
+    if (isDemoMode) {
+      blockDemoAction();
+      return false;
+    }
     if (!workspaceId) return false;
     const response = await apiFetch(`/api/projects/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
       method: "DELETE",
@@ -287,6 +298,10 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   };
 
   const createAndFocusTask = async (projectId: string, status: WorkItem["status"] = "Backlog", title = "New task") => {
+    if (isDemoMode) {
+      blockDemoAction();
+      return;
+    }
     if (!workspaceId) return;
     const trimmedTitle = title.trim();
     const apiStatus = toApiWorkStatus(status);
@@ -475,6 +490,8 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
       detail: group.detail,
       count: group.items.length,
     }));
+    const editProjectButtonClass = isDemoMode ? "lov-btn lov-btn-ghost justify-center text-muted-foreground" : "lov-btn lov-btn-ghost justify-center";
+    const deleteProjectButtonClass = isDemoMode ? "lov-btn lov-btn-ghost justify-center text-muted-foreground" : "lov-btn lov-btn-danger justify-center";
     const submitQuickTask = async () => {
       const title = quickTaskTitle.trim();
       if (!title) return;
@@ -495,32 +512,45 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
                     <ProjectIcon name={selectedProject.icon} accent={selectedProject.accent} size={18} />
                   </span>
                   <div className="min-w-0">
-                    <h1 className="truncate text-[20px] font-semibold tracking-tight text-foreground">{selectedProject.name}</h1>
-                    <p className="mt-1 max-w-3xl text-[13px] leading-5 text-muted-foreground">
+                    <h1 className="break-words text-[18px] font-semibold tracking-tight text-foreground sm:truncate sm:text-[20px]">{selectedProject.name}</h1>
+                    <p className="mt-1 max-w-3xl break-words text-[13px] leading-5 text-muted-foreground">
                       {selectedProject.description?.trim() || "No description yet."}
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <button onClick={() => { void createAndFocusTask(selectedProject.id); }} className="lov-btn lov-btn-primary">
+                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center">
+                  <button onClick={() => { void createAndFocusTask(selectedProject.id); }} className="lov-btn lov-btn-primary justify-center">
                     <Plus className="h-3.5 w-3.5" /> New task
                   </button>
-                  <button onClick={() => setEditingProjectId(selectedProject.id)} className="lov-btn lov-btn-ghost">
+                  <button
+                    onClick={() => {
+                      if (isDemoMode) {
+                        blockDemoAction();
+                        return;
+                      }
+                      setEditingProjectId(selectedProject.id);
+                    }}
+                    className={editProjectButtonClass}
+                  >
                     <Pencil className="h-3.5 w-3.5" /> Edit
                   </button>
                   <button
                     onClick={async () => {
+                      if (isDemoMode) {
+                        blockDemoAction();
+                        return;
+                      }
                       const deleted = await destroyProject(selectedProject.id);
                       if (!deleted) return;
                       updateSettings({ activeProjectId: null });
                       router.push(`${basePath}/projects`);
                       toast.success("Project deleted");
                     }}
-                    className="lov-btn lov-btn-danger"
+                    className={deleteProjectButtonClass}
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
-                  <button onClick={() => router.push(`${basePath}/projects`)} className="lov-btn lov-btn-ghost">All projects</button>
+                  <button onClick={() => router.push(`${basePath}/projects`)} className="lov-btn lov-btn-ghost justify-center">All projects</button>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -537,8 +567,8 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
                   <span className="inline-flex items-center gap-1 text-muted-foreground"><FileText className="h-3 w-3" /> {formatCount(allProjectNotes.length, "note")}</span>
                 </div>
                 {items.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+                  <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:w-32">
                       <span className="block h-full rounded-full bg-foreground transition-all" style={{ width: `${progress}%` }} />
                     </div>
                     <span className="text-[12px] font-medium tabular-nums text-foreground">{progress}%</span>
@@ -547,7 +577,7 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
               </div>
             </header>
 
-            <nav className="mb-5 flex flex-wrap items-center border-b border-border text-[13px]" aria-label="Project sections">
+            <nav className="-mx-4 mb-5 flex flex-nowrap items-center overflow-x-auto whitespace-nowrap border-b border-border px-4 text-[13px] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" aria-label="Project sections">
               {sectionTabs.map((tab) => (
                 tab.section === selectedSection ? (
                   <span key={tab.section} className="-mb-px inline-flex items-center gap-1.5 border-b-2 border-foreground px-3 py-2 font-medium text-foreground">{tab.label}</span>
