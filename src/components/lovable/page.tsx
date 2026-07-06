@@ -4,11 +4,11 @@ import { FlowActionBar, FlowHeader, FlowMetaPill } from "@/components/lovable/fl
 
 export function TitleCrumbs({ items }: { items: string[] }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 text-[13px]">
+    <div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-[13px]">
       {items.map((item, index) => (
-        <span key={`${item}-${index}`} className="contents">
+        <span key={`${item}-${index}`} className={index < items.length - 2 ? "hidden sm:contents" : "contents"}>
           {index > 0 && <span className="text-muted-foreground/50">/</span>}
-          <span className={`${index === 0 ? "font-medium" : "text-muted-foreground"} truncate`}>{item}</span>
+          <span className={`${index === 0 ? "font-medium" : "text-muted-foreground"} min-w-0 truncate`}>{item}</span>
         </span>
       ))}
     </div>
