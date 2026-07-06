@@ -199,6 +199,10 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   }, [setStoreProjects]);
 
   const createProject = async (input: { name: string; description: string; status: ProjectStatus; owner: string; due: string; icon: string }) => {
+    if (isDemoMode) {
+      blockDemoAction();
+      return null;
+    }
     if (!workspaceId) return null;
     const slug = input.name
       .toLowerCase()
@@ -839,8 +843,8 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
         <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-8">
           {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
           {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading projects...</div>}
-          <div className="-mx-6 mb-6 lg:-mx-8">
-            <div className="flow-header flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-6 sm:-mx-6 lg:-mx-8">
+            <div className="flow-header flex-col items-start gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between sm:pb-0">
               <div className="min-w-0">
                 <h1 className="text-[20px] font-semibold tracking-tight">Projects</h1>
                 <p className="mt-0.5 text-[13px] text-muted-foreground">Open a project to see its next task, linked notes, and open work.</p>
@@ -848,7 +852,13 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
               <div className="flex shrink-0 items-center gap-2">
                 <FlowMetaPill>{projects.length} in your workspace</FlowMetaPill>
                 <button
-                  onClick={() => setModalOpen(true)}
+                  onClick={() => {
+                    if (isDemoMode) {
+                      blockDemoAction();
+                      return;
+                    }
+                    setModalOpen(true);
+                  }}
                   className="lov-btn lov-btn-primary"
                 >
                   <Plus className="h-3.5 w-3.5" /> New project
