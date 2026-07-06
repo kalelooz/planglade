@@ -1,8 +1,8 @@
 # PlanGlade — Execution Roadmap & Agent Workflow
 
-**Status:** v6.2 — consolidated, audited, corrected after resource mismatch audit, and updated for SaaS launch planning
+**Status:** v6.3 - consolidated, audited, corrected after resource mismatch audit, updated for SaaS launch planning, and aligned with repo-level `AGENTS.md`
 **Supersedes:** Build Roadmap and Codex Tickets v1, the evergreen portions of Codex Greenfield Start Prompt v1
-**Companion documents:** `PRODUCT.md` (product/design truth), `TECHNICAL.md` (architecture/security/drift), `AGENT-BOOTSTRAP.md` (session-start prompt)
+**Companion documents:** `PRODUCT.md` (product/design truth), `TECHNICAL.md` (architecture/security/drift), `AGENTS.md` (repo-level agent rules), `AGENT-BOOTSTRAP.md` (session-start prompt)
 
 ---
 
@@ -48,9 +48,13 @@ Build in slices that each leave the app better than before.
 
 ## 3. Build Rules (for the Agent)
 
+`AGENTS.md` carries the always-on repo rules and should be loaded automatically by Codex. `AGENT-BOOTSTRAP.md` is only the explicit runtime prompt for sessions or tools that need one.
+
 Before coding: restate the task, identify ambiguity, list exact files expected to change.
 
 During coding: one ticket only. No unrelated cleanup. No broad refactors. No dependency additions unless justified. Do not change product direction.
+
+Skills/plugins: let Codex use relevant installed skills automatically. Ticket prompts may include a `Skills` field with suggested or required skills. If a listed skill is unavailable, continue manually using the same checks and report that the skill was not installed. Do not install third-party skill packs or commit private workflow skills unless the maintainer explicitly asks.
 
 After coding: run relevant validation, report files changed, report what was built, report what was skipped, report risks/follow-ups, report validation commands and results.
 
@@ -112,15 +116,17 @@ Issue #10 (README gallery for visual learners) — closed. PR #12 "Improve READM
 
 5 Dependabot PRs merged 2026-06-30 (react-hook-form, tailwind-merge, react/@types-react, @tanstack/react-query, @radix-ui/react-separator). Issue #6 "Docker self-host setup" → **closed 2026-07-01** via PR #15 (multi-stage image, compose, persistent SQLite, migrations, health check, docs). Issue #7 "Next.js font warning" → closed via PR #11 (merged). Issue #8 "First-time contributor guide" → **still open.** Issue #9 / PR #16 "Dedicated security reporting contact" → implementation commit `9681a60` is on public `main` and `SECURITY.md` now contains private-reporting guidance; the user's API/merge report says #9 is closed and Private Vulnerability Reporting is enabled, while unauthenticated GitHub pages may still display #9/#16 as open. Treat the security-contact implementation as landed; verify the issue UI from the owner account if it still appears open.
 
-### 4.7 SaaS/public launch decisions — 2026-07-03
+### 4.7 SaaS/public launch decisions - updated 2026-07-06
 
-Maintainer decision: first priority is getting the website live fast, not implementing cloud or billing. Public copy should be short and human: **Self-host now. Cloud soon. Try demo. Demo mode. Changes are disabled. Free to self-host. Paid cloud coming.** Avoid long internal-risk wording on public pages.
+Current status: the PlanGlade public website is live on Netlify. `WEBSITE-LIVE-001` is complete and should not be suggested as the next implementation task.
+
+Current priority: post-live verification and demo/read-only audit, not implementing cloud or billing. Public copy should stay short and human: **Self-host now. Cloud soon. Try demo. Demo mode. Changes are disabled. Free to self-host. Paid cloud coming.** Avoid long internal-risk wording on public pages.
 
 Demo decision: public demo is read-only. Visitors can browse, open, filter, and navigate. They cannot create, edit, delete, upload, invite, export, change settings, trigger emails, or change workspace data. Blocked actions use: **Demo mode — changes are disabled.**
 
 New companion file: `SAAS-LAUNCH.md`. It owns public website launch, cloud sequencing, demo plan, pricing direction, open-source/private SaaS boundary, and external tooling choices.
 
-First implementation task after replacing resources: `WEBSITE-LIVE-001`. Next planning task after that: `RESOURCE-MISMATCH-AUDIT-001`.
+Next implementation task after docs/status reconciliation: `WEBSITE-POST-LIVE-AUDIT-001`. If that audit finds demo write-blocking gaps, follow with a scoped `DEMO-READONLY-001` fix ticket.
 
 ### 4.7 Built but no known originating ticket
 
@@ -136,8 +142,9 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 |---|---|---|---|
 | `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Sync Architect/Codex/library sources before further implementation | **Highest — do first** |
 | `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Create factual mismatch report before broad fixes | **Highest — do after resource replacement** |
-| `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Self-host now, Cloud soon, Try demo; no billing/cloud implementation | High — first product/code task |
-| `DEMO-READONLY-001` | Build read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High — after docs alignment |
+| `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Website is live on Netlify | **Done - no longer pending** |
+| `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | Confirm links, metadata, README consistency, `/app` protection, and read-only demo behavior | **High - next implementation task** |
+| `DEMO-READONLY-001` | Build/readiness-check read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High - only if post-live audit finds gaps |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
 | `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 327 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
@@ -193,9 +200,10 @@ The early Docker baseline exists in the checked-out branch:
 - Public issue #8 (contributor guide) remains open. Security contact work is implemented on `main` via `9681a60`; if #9 still appears open in GitHub UI, verify/close it from the owner account rather than treating the code/doc work as missing.
 - No planning document had been updated to reflect Firebase, attachments, invites, or Docker until this revision.
 
-- SaaS/public launch direction is now decided: website first, self-host now, cloud soon, read-only demo, no checkout until cloud is real.
+- SaaS/public launch direction is now decided: website is live on Netlify, self-host now, cloud soon, read-only demo, no checkout until cloud is real.
 - Public copy must be concise and human; avoid long internal-risk wording on marketing pages.
-- First website publish should not wait for Postgres, billing, or production cloud.
+- Post-live verification should not wait for Postgres, billing, or production cloud.
+- `RESOURCE-MISMATCH-AUDIT-001` was run on 2026-07-06. Main result: tracked planning docs were stale about website status; live repo evidence shows the Netlify website/demo path exists, `/demo` is fixture-backed and read-only-guarded, and `WEBSITE-LIVE-001` should stay closed. Remaining follow-up is `WEBSITE-POST-LIVE-AUDIT-001`, including README/roadmap wording checks for stale "demo soon" language.
 
 ---
 
@@ -203,7 +211,7 @@ The early Docker baseline exists in the checked-out branch:
 
 Ready for honest public alpha when: user can sign in · create workspace · capture an inbox item · convert it to a task · create a project · attach a task to a project · create a note/doc for a project · calendar shows task due dates · Settings can export data · landing page does not overclaim · self-host docs are accurate · CI passes · basic security audit passes · no fake features are visible.
 
-**Current blockers against this list:** public website copy still conflicts with the SaaS launch direction, and production-facing hardening remains intentionally limited for the early self-host baseline.
+**Current blockers against this list:** post-live verification is still needed for the Netlify website and public demo, and production-facing hardening remains intentionally limited for the early self-host baseline.
 
 ---
 
@@ -226,7 +234,17 @@ Rules: audit only unless explicitly allowed to make tiny doc fixes; no product c
 
 Full prompt file: `CODEX-PROMPT-RESOURCE-MISMATCH-AUDIT-001.md`.
 
-### WEBSITE-LIVE-001 — Launch PlanGlade Website
+### WEBSITE-POST-LIVE-AUDIT-001 - Post-Live Website Audit
+
+Goal: verify the live Netlify website after launch.
+
+Rules: audit and small docs/copy fixes only; no billing, no checkout, no cloud accounts, no app feature work, no broad README rewrite.
+
+Acceptance: homepage loads, GitHub/self-host/demo links work, `/demo` is read-only, `/app` is not exposed as a fake public demo, public docs do not say the website/demo are still pending, and no fake cloud/billing claims exist.
+
+### WEBSITE-LIVE-001 - Launch PlanGlade Website
+
+Status: **Completed.** The public website is live on Netlify. Do not run this as the next implementation task.
 
 Goal: make `planglade.com` ready to go live with short human copy: **Self-host now. Cloud soon. Try demo.**
 
@@ -240,6 +258,7 @@ Full task details live in `SAAS-LAUNCH.md §14`.
 Task Name:
 Goal:
 Context:
+Skills:
 Allowed Areas:
 Do-Not-Touch:
 Requirements:
@@ -248,5 +267,7 @@ Design Reference:
 Validation Steps:
 Completion Report Required:
 ```
+
+Skills field: optional by default. Use suggested skills for workflow helpers, and reserve required skills for risky work such as auth, workspace data, API routes, storage, public copy, or demo write-blocking.
 
 Rules: one ticket only · exact files/areas · no unrelated cleanup · report skipped items · run validation.
