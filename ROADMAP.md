@@ -15,6 +15,7 @@ This roadmap is directional. It avoids dates on purpose. Items may move as the p
 - Settings.
 - Workspace JSON export and guarded import.
 - Early local/developer self-host docs.
+- Early Docker self-host baseline.
 
 ## Next
 
@@ -22,7 +23,6 @@ This roadmap is directional. It avoids dates on purpose. Items may move as the p
 - Task dependencies.
 - Recurring tasks.
 - Stronger self-host path.
-- Docker support after it is implemented and tested.
 - Security hardening for auth, workspace boundaries, import/export, attachments, and deployment guidance.
 
 ## Later

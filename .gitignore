@@ -113,3 +113,6 @@ prompt
 /.zscripts/
 /Reddit/
 /Introduction to Asana for Absolute Beginners.md
+
+# Local Netlify folder
+.netlify

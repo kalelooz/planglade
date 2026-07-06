@@ -32,7 +32,8 @@ test("Home recent notes remain notes-backed and can link to project Notes", asyn
   const recentContextSource = source.slice(recentContextStart, recentContextEnd)
 
   assert.match(recentContextSource, /recentNotes\.map/)
-  assert.match(recentContextSource, /note\.projectId \? projectHref\(note\.projectId, "notes"\)/)
+  assert.match(recentContextSource, /note\.projectId \? projectHref\(note\.projectId, basePath, "notes"\)/)
+  assert.match(recentContextSource, /\$\{basePath\}\/notes\?id=/)
   assert.match(source, /title="Recent notes"/)
   assert.doesNotMatch(source, /Recent Context/)
   assert.match(source, /No recent notes\./)

@@ -106,7 +106,7 @@ function taskDateKey(item: WorkItem) {
   return getDatePart(item.due || item.start);
 }
 
-function ProjectsInner({ projectId }: { projectId?: string }) {
+function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; basePath?: "/app" | "/demo" }) {
   const params = useSearchParams();
   const storeMembers = useStore((s) => s.members);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -385,7 +385,7 @@ function ProjectsInner({ projectId }: { projectId?: string }) {
       }))
       .slice(0, 6);
     const nextTask = openItems[0] ?? null;
-    const projectHref = `/app/projects/${encodeURIComponent(selectedProject.id)}`;
+    const projectHref = `${basePath}/projects/${encodeURIComponent(selectedProject.id)}`;
     const sectionHref = (section: ProjectSection) => section === "overview" ? projectHref : `${projectHref}?section=${section}`;
     const sectionTabs = (Object.keys(PROJECT_SECTION_LABELS) as ProjectSection[]).map((section) => ({
       section,
@@ -513,14 +513,14 @@ function ProjectsInner({ projectId }: { projectId?: string }) {
                       const deleted = await destroyProject(selectedProject.id);
                       if (!deleted) return;
                       updateSettings({ activeProjectId: null });
-                      router.push("/app/projects");
+                      router.push(`${basePath}/projects`);
                       toast.success("Project deleted");
                     }}
                     className="lov-btn lov-btn-danger"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
-                  <button onClick={() => router.push("/app/projects")} className="lov-btn lov-btn-ghost">All projects</button>
+                  <button onClick={() => router.push(`${basePath}/projects`)} className="lov-btn lov-btn-ghost">All projects</button>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -843,7 +843,7 @@ function ProjectsInner({ projectId }: { projectId?: string }) {
                 const projectOverdue = !!p.due && p.due < todayKey && p.status !== "Archived";
                 const nextTaskOverdue = !!nextTask?.due && compareLocalDateStrings(nextTask.due, todayKey) < 0;
                 const linkedNotes = getLinkedProjectNotes(p.id, projectNotes);
-                const projectHref = `/app/projects/${encodeURIComponent(p.id)}`;
+                const projectHref = `${basePath}/projects/${encodeURIComponent(p.id)}`;
                 return (
                   <Link
                     key={p.id}
@@ -935,7 +935,7 @@ function ProjectsInner({ projectId }: { projectId?: string }) {
             updateSettings({ activeProjectId: id });
             toast.success(`Created project "${input.name}"`);
             setModalOpen(false);
-            router.push(`/app/projects/${encodeURIComponent(id)}`);
+            router.push(`${basePath}/projects/${encodeURIComponent(id)}`);
           }}
         />
       )}
@@ -958,10 +958,10 @@ function ProjectsInner({ projectId }: { projectId?: string }) {
   );
 }
 
-export function ProjectsPageContent({ projectId }: { projectId?: string }) {
+export function ProjectsPageContent({ projectId, basePath = "/app" }: { projectId?: string; basePath?: "/app" | "/demo" }) {
   return (
     <Suspense fallback={null}>
-      <ProjectsInner projectId={projectId} />
+      <ProjectsInner projectId={projectId} basePath={basePath} />
     </Suspense>
   );
 }

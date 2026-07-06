@@ -70,3 +70,18 @@ test("mobile calendar keeps the month grid inside the viewport", async () => {
   assert.match(source, /grid h-full min-w-0 grid-cols-7/)
   assert.doesNotMatch(source, /min-w-\[720px\]/)
 })
+
+test("mobile task drawer overlays instead of squeezing the page", async () => {
+  const source = await readProjectFile("src/app/globals.css")
+  const drawerStart = source.indexOf("@media (max-width: 767px)")
+  const drawerSource = source.slice(drawerStart)
+
+  assert.ok(drawerStart > 0, "mobile drawer media query missing")
+  assert.match(drawerSource, /\.drawer-inline \{[\s\S]*position: fixed/)
+  assert.match(drawerSource, /\.drawer-inline \{[\s\S]*inset: 0/)
+  assert.match(drawerSource, /\.drawer-inline \{[\s\S]*z-index: 80/)
+  assert.match(drawerSource, /\.drawer-inline \{[\s\S]*width: 100% !important/)
+  assert.match(drawerSource, /\.drawer-inline \{[\s\S]*max-width: none/)
+  assert.match(drawerSource, /\.drawer-inline dl \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/)
+  assert.match(drawerSource, /\.drawer-inline input,[\s\S]*\.drawer-inline select,[\s\S]*\.drawer-inline textarea \{[\s\S]*max-width: 100%/)
+})

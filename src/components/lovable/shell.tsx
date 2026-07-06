@@ -17,9 +17,19 @@ import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
 import { useAuth } from "@/components/lovable/auth-context";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
+import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
 
 const STORAGE_KEY = "fb.sidebarOpen";
 const PROJECTS_STORAGE_KEY = "fb.sidebarProjectsOpen";
+const APP_ROUTES = {
+  home: "/app",
+  inbox: "/app/inbox",
+  tasks: "/app/tasks",
+  projects: "/app/projects",
+  notes: "/app/notes",
+  calendar: "/app/calendar",
+  settings: "/app/settings",
+} as const;
 
 type AppShellProps = {
   children: ReactNode;
@@ -62,14 +72,16 @@ function AppShellWithSearchParams(props: AppShellProps) {
 function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppShellProps & { routeProjectId: string | null }) {
   const { user: authUser, signOut, authMode: clientAuthMode } = useAuth();
   const path = usePathname() ?? "/";
+  const isDemoMode = path.startsWith("/demo");
+  const routePrefix = isDemoMode ? "/demo" : "/app";
   const projects = useStore((s) => s.projects);
   const setProjects = useStore((s) => s.setProjects);
   const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
-  const projectPathMatch = path.match(/^\/app\/projects\/([^/]+)$/);
+  const projectPathMatch = path.match(/^\/(?:app|demo)\/projects\/([^/]+)$/);
   const pathProjectId = projectPathMatch ? decodeURIComponent(projectPathMatch[1]) : null;
   const selectedRouteProjectId = routeProjectId ?? pathProjectId;
-  const projectsListRoute = path === "/app/projects" && !selectedRouteProjectId;
+  const projectsListRoute = path === `${routePrefix}/projects` && !selectedRouteProjectId;
   const activeProjectId = selectedRouteProjectId ?? (!projectsListRoute && activeProjectSetting && projects.some((p) => p.id === activeProjectSetting) ? activeProjectSetting : null);
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
 
@@ -90,19 +102,20 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const router = useRouter();
 
   const createProject = () => {
-    router.push("/app/projects?new=1");
+    if (isDemoMode) return toast(DEMO_MODE_MESSAGE);
+    router.push(`${APP_ROUTES.projects}?new=1`);
   };
 
   const applyProjectScope = (id: string | null) => {
     updateSettings({ activeProjectId: id });
     setProjectScopeOpen(false);
 
-    if (path.startsWith("/app/projects")) {
-      router.push(id ? `/app/projects/${encodeURIComponent(id)}` : "/app/projects");
+    if (path.startsWith(`${routePrefix}/projects`)) {
+      router.push(id ? `${routePrefix}/projects/${encodeURIComponent(id)}` : `${routePrefix}/projects`);
       return;
     }
 
-    const scopedRoutes = ["/app/tasks", "/app/calendar"];
+    const scopedRoutes = [`${routePrefix}/tasks`, `${routePrefix}/calendar`];
     if (scopedRoutes.some((route) => path.startsWith(route))) {
       router.push(id ? `${path}?project=${encodeURIComponent(id)}` : path);
     }
@@ -144,24 +157,25 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   }, [notificationScope, activeProjectId]);
 
   const navBeforeProjects: NavItem[] = [
-    { to: "/app", label: "Home", icon: Home, count: todayCount },
-    { to: "/app/inbox", label: "Inbox", icon: Inbox, count: inboxCount },
-    { to: "/app/tasks", label: "Tasks", icon: ListTodo },
+    { to: routePrefix, label: "Home", icon: Home, count: todayCount },
+    { to: `${routePrefix}/inbox`, label: "Inbox", icon: Inbox, count: inboxCount },
+    { to: `${routePrefix}/tasks`, label: "Tasks", icon: ListTodo },
   ];
 
   const navAfterProjects: NavItem[] = [
-    { to: "/app/notes", label: "Notes", icon: FileText },
-    { to: "/app/calendar", label: "Calendar", icon: Calendar },
+    { to: `${routePrefix}/notes`, label: "Notes", icon: FileText },
+    { to: `${routePrefix}/calendar`, label: "Calendar", icon: Calendar },
   ];
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
     ...navBeforeProjects,
-    { to: "/app/projects", label: "Projects", icon: FolderKanban },
+    { to: `${routePrefix}/projects`, label: "Projects", icon: FolderKanban },
     ...navAfterProjects,
   ];
 
   const submitQuick = async () => {
+    if (isDemoMode) return toast(DEMO_MODE_MESSAGE);
     const v = quickValue.trim();
     if (!v || !notificationScope) { setQuickValue(""); setQuickOpen(false); return; }
     setQuickValue("");
@@ -313,7 +327,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [projectScopeOpen, quickOpen, notificationsOpen]);
 
-  const isActive = (to: string) => to === "/app" ? path === "/app" : path.startsWith(to);
+  const isActive = (to: string) => to === routePrefix ? path === routePrefix : path.startsWith(to);
   const markNotificationsRead = async (notificationIds?: string[]) => {
     if (!notificationScope) return;
     await apiFetch("/api/notifications", {
@@ -352,7 +366,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
           {sidebarOpen ? (
             <>
-              <Link href="/app" title="PlanGlade home" className="flex min-w-0 items-center gap-2">
+              <Link href={routePrefix} title="PlanGlade home" className="flex min-w-0 items-center gap-2">
                 <PlanGladeMark />
                 <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
               </Link>
@@ -380,7 +394,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </button>
               ) : (
                 <Link
-                  href="/app"
+                  href={routePrefix}
                   title="PlanGlade home"
                   aria-label="PlanGlade home"
                   className="flex h-7 w-7 items-center justify-center"
@@ -397,8 +411,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <>
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} />
               <ProjectsNavItem
-                href="/app/projects"
-                active={isActive("/app/projects")}
+                href={`${routePrefix}/projects`}
+                active={isActive(`${routePrefix}/projects`)}
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onCreate={createProject}
@@ -408,7 +422,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   {projects.map((p) => {
                     const active = (selectedRouteProjectId ?? activeProjectId) === p.id;
                     return (
-                      <Link key={p.id} href={`/app/projects/${encodeURIComponent(p.id)}`} onClick={() => updateSettings({ activeProjectId: p.id })}
+                      <Link key={p.id} href={`${routePrefix}/projects/${encodeURIComponent(p.id)}`} onClick={() => updateSettings({ activeProjectId: p.id })}
                         className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
                         <ProjectIcon name={p.icon} accent={p.accent} size={13} />
                         <span className="truncate">{p.name}</span>
@@ -429,16 +443,29 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         <div className={`border-t ${sidebarOpen ? "p-3" : "flex flex-col items-center gap-2 py-2"}`}>
           {sidebarOpen ? (
             <div className="flex flex-col gap-1.5 w-full">
-              <Link href="/app/settings" className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive("/app/settings") ? "lov-nav-item-active" : ""}`}>
-                <Settings className="h-3.5 w-3.5" />
-                <span>Settings</span>
-              </Link>
+              {isDemoMode ? (
+                <button type="button" onClick={() => toast(DEMO_MODE_MESSAGE)} className="lov-nav-item gap-2 px-2 py-1 text-[13px]">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Settings</span>
+                </button>
+              ) : (
+                <Link href={APP_ROUTES.settings} className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Settings</span>
+                </Link>
+              )}
             </div>
           ) : (
             <>
-              <Link href="/app/settings" title="Settings" className={`lov-nav-item h-8 w-8 justify-center ${isActive("/app/settings") ? "lov-nav-item-active" : ""}`}>
-                <Settings className="h-4 w-4" />
-              </Link>
+              {isDemoMode ? (
+                <button type="button" onClick={() => toast(DEMO_MODE_MESSAGE)} title="Settings" className="lov-nav-item h-8 w-8 justify-center">
+                  <Settings className="h-4 w-4" />
+                </button>
+              ) : (
+                <Link href={APP_ROUTES.settings} title="Settings" className={`lov-nav-item h-8 w-8 justify-center ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
+                  <Settings className="h-4 w-4" />
+                </Link>
+              )}
             </>
           )}
         </div>
@@ -451,6 +478,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           </button>
           <div className="flex min-w-0 items-center gap-2 text-[13px]">
             {title ?? <span className="font-medium">PlanGlade</span>}
+            {isDemoMode && <span className="rounded-full border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{DEMO_MODE_MESSAGE}</span>}
           </div>
           <div className="flex-1" />
           <div ref={projectScopeRef} className="relative hidden min-w-[260px] max-w-[420px] flex-[0_1_28vw] lg:block xl:w-[clamp(260px,28vw,420px)]">
@@ -511,6 +539,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           <div ref={quickCaptureRef} className="relative hidden sm:block">
               <button
                 onClick={() => {
+                  if (isDemoMode) return toast(DEMO_MODE_MESSAGE);
                   setProjectScopeOpen(false);
                   setQuickOpen((v) => !v);
                 }}
@@ -535,7 +564,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                       className="h-8 w-full rounded border bg-card px-2 text-[13px] outline-none focus:border-ring"
                     />
                     <div className="mt-1.5 flex items-center justify-between px-1 text-[10px] text-muted-foreground">
-                      <span>Saves to <Link href="/app/inbox" className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link></span>
+                      <span>Saves to <Link href={`${routePrefix}/inbox`} className="underline decoration-dotted underline-offset-2 hover:text-foreground" onClick={() => setQuickOpen(false)}>Inbox</Link></span>
                       <kbd className="rounded border bg-muted px-1 font-mono">Enter</kbd>
                     </div>
                 </div>
@@ -673,7 +702,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} />
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl">
             <div className="flex h-12 items-center justify-between border-b px-3">
-              <Link href="/app" onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2">
+              <Link href={routePrefix} onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2">
                 <PlanGladeMark />
                 <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
               </Link>
@@ -684,8 +713,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             <nav className="flex-1 overflow-y-auto px-2 py-3">
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <ProjectsNavItem
-                href="/app/projects"
-                active={isActive("/app/projects")}
+                href={`${routePrefix}/projects`}
+                active={isActive(`${routePrefix}/projects`)}
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onNavigate={() => setMobileNavOpen(false)}
@@ -696,7 +725,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   {projects.map((p) => {
                     const active = (selectedRouteProjectId ?? activeProjectId) === p.id;
                     return (
-                      <Link key={p.id} href={`/app/projects/${encodeURIComponent(p.id)}`} onClick={() => { updateSettings({ activeProjectId: p.id }); setMobileNavOpen(false); }}
+                      <Link key={p.id} href={`${routePrefix}/projects/${encodeURIComponent(p.id)}`} onClick={() => { updateSettings({ activeProjectId: p.id }); setMobileNavOpen(false); }}
                         className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
                         <ProjectIcon name={p.icon} accent={p.accent} size={13} />
                         <span className="truncate">{p.name}</span>
@@ -708,16 +737,16 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
             </nav>
             <div className="border-t p-3">
-              <Link href="/app/settings" onClick={() => setMobileNavOpen(false)} className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive("/app/settings") ? "lov-nav-item-active" : ""}`}>
+              <button type="button" onClick={() => { setMobileNavOpen(false); if (isDemoMode) toast(DEMO_MODE_MESSAGE); else router.push(APP_ROUTES.settings); }} className="lov-nav-item w-full gap-2 px-2 py-1 text-[13px]">
                 <Settings className="h-3.5 w-3.5" />
                 <span>Settings</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} basePath={routePrefix} />
     </div>
   );
 }

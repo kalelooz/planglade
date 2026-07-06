@@ -5,147 +5,107 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
-  Check,
-  Download,
   FolderKanban,
   Github,
   Inbox,
   ListTodo,
   Menu,
-  Minus,
 } from "lucide-react";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
 import { ProductShowcase as LandingProductShowcase } from "./product-showcase";
 
 export const metadata: Metadata = {
-  title: "PlanGlade — A calm workspace for your projects",
+  title: "PlanGlade - A calm clearing for your projects",
   description:
-    "Open-source project workspace for quick capture, inbox triage, tasks, projects, notes, and calendar. Free to self-host under AGPL-3.0.",
+    "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head. Self-host now. Cloud soon.",
   openGraph: {
-    title: "PlanGlade — A calm workspace for your projects",
+    title: "PlanGlade - A calm clearing for your projects",
     description:
-      "Open-source project workspace for quick capture, inbox triage, tasks, projects, notes, and calendar. Free to self-host under AGPL-3.0.",
+      "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head. Self-host now. Cloud soon.",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "PlanGlade — A calm workspace for your projects",
+    title: "PlanGlade - A calm clearing for your projects",
     description:
-      "Open-source project workspace for quick capture, inbox triage, tasks, projects, notes, and calendar. Free to self-host under AGPL-3.0.",
+      "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head. Self-host now. Cloud soon.",
   },
 };
 
+const githubUrl = "https://github.com/kalelooz/planglade";
+const selfHostUrl = `${githubUrl}#self-hosting-status`;
+const demoUrl = "/demo";
+
 const navLinks = [
   { label: "Features", href: "#features" },
-  { label: "Open source", href: "#open-source" },
+  { label: "Status", href: "#status" },
   { label: "Self-host", href: "#self-host" },
-  { label: "Roadmap", href: "#roadmap" },
   { label: "FAQ", href: "#faq" },
 ];
 
 const trustBadges = [
-  { label: "Open source" },
-  { label: "Self-hostable" },
-  { label: "Solo-first" },
+  { label: "Self-host now" },
+  { label: "Cloud soon" },
+  { label: "Try demo" },
 ];
 
 const features = [
   {
-    title: "Capture without friction",
-    body: "Quick capture sends ideas and tasks straight to your Inbox. No project, no fields, no decisions required up front.",
-    icon: Inbox,
-  },
-  {
-    title: "Turn inbox items into tasks",
-    body: "Triage captured items into real tasks with project, due date, and priority in a few compact rows.",
+    title: "Tasks",
+    body: "Capture work, set priority, add dates, and keep one task across every view.",
     icon: ListTodo,
   },
   {
-    title: "Organize projects",
-    body: "Group related tasks into projects with a focused Project Home, open work, and linked notes.",
+    title: "Projects",
+    body: "Group related work with project context, progress, and the next thing to do.",
     icon: FolderKanban,
   },
   {
-    title: "Keep notes and context nearby",
-    body: "Project notes and context live alongside your work - always one click away, never a separate app.",
+    title: "Notes",
+    body: "Keep lightweight notes and project context close to the work they explain.",
     icon: BookOpen,
   },
   {
-    title: "See dated tasks on calendar",
-    body: "Calendar is a view over your tasks, not a duplicate event system. Due dates show up where you expect them.",
-    icon: CalendarDays,
+    title: "Inbox",
+    body: "Drop ideas quickly, then turn them into tasks when you are ready.",
+    icon: Inbox,
   },
   {
-    title: "Export and own your data",
-    body: "Export your full workspace as JSON from Settings. Your projects, notes, and context stay portable.",
-    icon: Download,
+    title: "Calendar",
+    body: "See dated tasks on a calendar without creating a second event system.",
+    icon: CalendarDays,
   },
 ];
 
-const startFeatures = [
-  "Inbox capture and triage",
-  "Tasks list and board toggle",
-  "Projects and Project Home",
-  "Notes and project context",
-  "Calendar over task due dates",
-  "Export your workspace data",
-  "No billing",
-  "No upgrade wall",
-  "No fake limits",
-] as const;
-
-const roadmapAvailable = [
-  "Inbox triage",
-  "Tasks (list and board)",
-  "Projects and Project Home",
-  "Project notes and context",
-  "Calendar over due dates",
-  "Workspace JSON export",
+const statusItems = [
+  { label: "Available now", value: "Self-host" },
+  { label: "Available now", value: "Demo mode" },
+  { label: "Coming soon", value: "Cloud" },
 ];
 
-const roadmapNext = [
-  "Timeline planning view",
-  "Task dependencies",
-  "Recurring tasks",
-  "Mobile polish",
-];
-
-const roadmapLater = [
-  "Sharing and collaboration",
-  "Time tracking",
-  "Hosted cloud option",
+const pricingItems = [
+  { label: "Self-hosted", value: "Free" },
+  { label: "Cloud", value: "Paid plan coming soon" },
 ];
 
 const faqs = [
   {
-    question: "Is PlanGlade really open source?",
-    answer:
-      "Yes. PlanGlade is released under AGPL-3.0. The public repository will be linked from the Open source section when the release is ready.",
-  },
-  {
-    question: "Can I self-host PlanGlade?",
-    answer:
-      "Yes. Self-hosting is part of the product. The current setup runs on Node.js 20+ with SQLite, and the in-app export gives you a portable JSON copy of your workspace. Self-hosting docs are still being finalized before public release.",
-  },
-  {
     question: "Is PlanGlade free?",
     answer:
-      "The open-source app is free to run yourself. There are no paid plans, no seat charges, and no paid features. The whole product today is the self-hosted build.",
+      "Yes. You can self-host PlanGlade for free.",
   },
   {
-    question: "Why AGPL-3.0?",
-    answer:
-      "AGPL-3.0 keeps PlanGlade open even if a hosted service ever appears. Anyone running a modified copy as a service has to publish their changes too.",
+    question: "Is Cloud live?",
+    answer: "Not yet. Cloud is coming soon.",
   },
   {
-    question: "Is hosted cloud available?",
-    answer:
-      "Not today. The only way to use PlanGlade right now is to run it yourself. A hosted option is a possible later step, not a current product.",
+    question: "Can I try a demo?",
+    answer: "Yes. Try demo.",
   },
   {
-    question: "What does PlanGlade include today?",
+    question: "Who is it for?",
     answer:
-      "Quick capture, Inbox triage, Tasks with list and board views, Projects with a focused Project Home, project notes and context, and a Calendar over due dates - all backed by durable server-side storage.",
+      "Solo builders, freelancers, students, writers, maintainers, small teams, and anyone who wants a calmer project workspace.",
   },
 ];
 
@@ -161,14 +121,18 @@ function PrimaryButton({
   href,
   children,
   className = "",
+  target,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  target?: string;
 }) {
   return (
     <Link
       href={href}
+      target={target}
+      rel={target === "_blank" ? "noreferrer" : undefined}
       className={`inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-4 text-[13px] font-semibold text-white transition hover:bg-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${className}`}
     >
       {children}
@@ -180,14 +144,18 @@ function SecondaryButton({
   href,
   children,
   className = "",
+  target,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  target?: string;
 }) {
   return (
     <Link
       href={href}
+      target={target}
+      rel={target === "_blank" ? "noreferrer" : undefined}
       className={`inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-[13px] font-semibold text-zinc-800 transition hover:bg-zinc-50 hover:border-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${className}`}
     >
       {children}
@@ -198,7 +166,7 @@ function SecondaryButton({
 function Logo() {
   return (
     <Link
-      href="/landing"
+      href="/"
       className="inline-flex items-center gap-2 text-zinc-900"
       aria-label="PlanGlade home"
     >
@@ -290,35 +258,21 @@ function GeometricBackdrop() {
   );
 }
 
-function RoadmapColumn({
-  title,
-  items,
-  marker,
+function InfoCard({
+  label,
+  value,
 }: {
-  title: string;
-  items: string[];
-  marker: "check" | "arrow" | "minus";
+  label: string;
+  value: string;
 }) {
-  const Icon = marker === "check" ? Check : marker === "arrow" ? ArrowRight : Minus;
-  const iconClass =
-    marker === "check"
-      ? "text-zinc-900"
-      : marker === "arrow"
-        ? "text-zinc-500"
-        : "text-zinc-400";
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-5">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-        {title}
+        {label}
       </p>
-      <ul className="mt-3 space-y-2">
-        {items.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-[13px] text-zinc-700">
-            <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconClass}`} aria-hidden="true" />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
+      <p className="mt-2 text-[24px] font-semibold tracking-tight text-zinc-950">
+        {value}
+      </p>
     </div>
   );
 }
@@ -379,8 +333,8 @@ export default function LandingPage() {
               ))}
             </nav>
             <div className="flex items-center justify-end gap-2">
-              <PrimaryButton href="#start" className="hidden sm:inline-flex">
-                Get started
+              <PrimaryButton href={demoUrl} className="hidden sm:inline-flex">
+                Try demo
               </PrimaryButton>
               <details className="group relative md:hidden" aria-label="Navigation menu">
                 <summary
@@ -402,8 +356,8 @@ export default function LandingPage() {
                       {link.label}
                     </Link>
                   ))}
-                  <PrimaryButton href="#start" className="mt-1">
-                    Get started
+                  <PrimaryButton href={demoUrl} className="mt-1">
+                    Try demo
                   </PrimaryButton>
                 </nav>
               </details>
@@ -411,7 +365,7 @@ export default function LandingPage() {
           </div>
         </header>
 
-        {/* Hero — copy only; the product demo lives in its own full-width
+        {/* Hero - copy only; the product preview lives in its own full-width
             showcase section directly below. */}
         <section className="relative isolate overflow-hidden border-b border-zinc-200 bg-zinc-50">
           <GeometricBackdrop />
@@ -425,25 +379,28 @@ export default function LandingPage() {
                 ))}
               </ul>
               <h1 className="text-balance text-[42px] font-semibold leading-[1.05] tracking-tight text-zinc-900 sm:text-[56px] lg:text-[64px]">
-                A calm workspace for your projects.
+                A calm clearing for your projects.
               </h1>
               <p className="mx-auto mt-6 max-w-[600px] text-pretty text-[17px] leading-7 text-zinc-600 sm:text-[19px]">
-                PlanGlade brings quick capture, an inbox, tasks, projects, notes,
-                and a calendar into one focused workspace - without the bloat of
-                enterprise PM tools.
+                Open-source workspace for tasks, projects, notes, calendar
+                planning, and getting work out of your head.
+              </p>
+              <p className="mt-4 text-[13px] font-semibold text-zinc-700">
+                Self-host now. Cloud soon.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <PrimaryButton href="#start">
-                  Get started
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                </PrimaryButton>
-                <SecondaryButton href="#open-source">
+                <SecondaryButton href={githubUrl} target="_blank">
                   <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                   View on GitHub
                 </SecondaryButton>
+                <PrimaryButton href={selfHostUrl} target="_blank">
+                  Self-host PlanGlade
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                </PrimaryButton>
+                <SecondaryButton href={demoUrl}>Try demo</SecondaryButton>
               </div>
               <p className="mt-5 text-[12px] text-zinc-400">
-                Free to self-host under AGPL-3.0.
+                Demo mode. Changes are disabled.
               </p>
             </div>
           </div>
@@ -489,9 +446,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Free start */}
+        {/* Status */}
         <section
-          id="start"
+          id="status"
           className="relative isolate scroll-mt-14 overflow-hidden border-b border-zinc-200 bg-zinc-100"
         >
           <div
@@ -501,91 +458,42 @@ export default function LandingPage() {
           <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
             <div className="animate-in fade-in-0 text-center duration-700 motion-reduce:animate-none">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
-                Start here
+                Status
               </p>
               <h2 className="mt-2 text-[30px] font-semibold tracking-tight text-zinc-950 sm:text-[38px]">
-                Choose how to start.
+                Self-host now. Cloud soon. Try demo.
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-pretty text-[15px] leading-7 text-zinc-600 sm:text-[16px]">
-                PlanGlade is free and open source today. Start with the app, then self-host when you are ready.
+                Run PlanGlade yourself today. Demo mode is read-only.
               </p>
             </div>
 
-            <article className="group relative mx-auto mt-9 max-w-2xl overflow-hidden rounded-xl border border-zinc-300 bg-white p-6 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(24,24,27,0.1)] motion-reduce:transform-none motion-reduce:transition-none sm:p-8">
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-zinc-100 opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100 motion-reduce:transition-none"
-              />
-              <div className="relative">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                  One plan. No catch.
-                </p>
-                <h3 className="mt-3 text-[28px] font-semibold tracking-tight text-zinc-950">
-                  Free. Enjoy.
-                </h3>
-
-                <div className="mt-5 flex items-end gap-2 border-b border-zinc-200 pb-6">
-                  <span className="text-[52px] font-semibold leading-none tracking-[-0.055em] text-zinc-950">
-                    $0
-                  </span>
-                  <span className="pb-1 text-[14px] text-zinc-500">/ month</span>
-                </div>
-
-                <p className="mt-6 text-[15px] leading-6 text-zinc-700">
-                  Everything you need to try PlanGlade locally or self-host it.
-                </p>
-                <p className="mt-2 text-[13px] leading-6 text-zinc-500">
-                  Self-hosted and open source under AGPL-3.0.
-                </p>
-
-                <div className="mx-auto grid max-w-md gap-3 sm:grid-cols-2 mt-6">
-                  <PrimaryButton href="/login" className="w-full sm:h-11">
-                    Open PlanGlade
-                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                  </PrimaryButton>
-                  <SecondaryButton href="#self-host" className="w-full sm:h-11">
-                    Learn about self-hosting
-                  </SecondaryButton>
-                </div>
-
-                <ul className="mt-7 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                  {startFeatures.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2.5 text-[13px] leading-5 text-zinc-700"
-                    >
-                      <Check
-                        className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500"
-                        aria-hidden="true"
-                      />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </article>
+            <div className="mt-9 grid gap-4 md:grid-cols-3">
+              {statusItems.map((item) => (
+                <InfoCard key={`${item.label}-${item.value}`} {...item} />
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Roadmap */}
-        <section id="roadmap" className="scroll-mt-16 border-b border-zinc-200 bg-zinc-50">
+        {/* Simple pricing */}
+        <section className="scroll-mt-16 border-b border-zinc-200 bg-zinc-50">
           <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
             <div className="max-w-2xl">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
-                Roadmap
+                Simple start
               </p>
               <h2 className="mt-2 text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]">
-                Honest about what is ready.
+                Free to self-host. Paid cloud coming.
               </h2>
               <p className="mt-3 text-[15px] leading-7 text-zinc-600">
-                PlanGlade ships a focused solo-first MVP first. Planning and
-                collaboration come later, when they are genuinely useful.
+                No checkout. No paid signup. No cloud account today.
               </p>
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
-              <RoadmapColumn title="Available today" items={roadmapAvailable} marker="check" />
-              <RoadmapColumn title="Next" items={roadmapNext} marker="arrow" />
-              <RoadmapColumn title="Later" items={roadmapLater} marker="minus" />
+            <div className="mt-10 grid gap-4 md:grid-cols-2">
+              {pricingItems.map((item) => (
+                <InfoCard key={`${item.label}-${item.value}`} {...item} />
+              ))}
             </div>
           </div>
         </section>
@@ -605,18 +513,23 @@ export default function LandingPage() {
                   Run it on your own machine.
                 </h2>
                 <p className="mt-3 text-[14px] leading-6 text-zinc-600">
-                  Self-hosting uses Node.js 20+ with SQLite. Run the project
-                  locally while the public release is being prepared.
+                  Self-hosting uses Node.js 20+ with SQLite. Run PlanGlade
+                  yourself with the public repo and self-host notes.
                 </p>
                 <pre className="mt-5 overflow-x-auto rounded-md border border-zinc-200 bg-zinc-900 p-4 text-[12px] leading-6 text-zinc-100">
-{`$ npm install
-$ npm run dev`}
+{`$ git clone https://github.com/kalelooz/planglade
+$ cd planglade
+# See README for Docker and local setup`}
                 </pre>
                 <p className="mt-3 text-[12px] leading-5 text-zinc-500">
-                  Self-hosting docs are being finalized before public release.
-                  The in-app Settings export gives you a portable JSON copy of
-                  your workspace today.
+                  Free to self-host. The in-app Settings export gives you a
+                  portable JSON copy of your workspace.
                 </p>
+                <div className="mt-5">
+                  <PrimaryButton href={selfHostUrl} target="_blank">
+                    Self-host PlanGlade
+                  </PrimaryButton>
+                </div>
               </div>
 
               <div>
@@ -627,18 +540,24 @@ $ npm run dev`}
                   Built in the open. Licensed under AGPL-3.0.
                 </h2>
                 <p className="mt-3 text-[14px] leading-6 text-zinc-600">
-                  The full source will be published under AGPL-3.0. No closed
-                  modules, no telemetry, no surprises. Self-hosting the app is
-                  free and always will be.
+                  PlanGlade is open source under AGPL-3.0. No checkout, no
+                  fake demo, no fake stats.
                 </p>
                 <div className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
                   <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Open-source release in preparation
+                    Public repo
                   </p>
                   <p className="mt-2 text-[13px] leading-5 text-zinc-600">
-                    The public repository will be linked here when the
-                    open-source release is ready.
+                    View the source, self-host PlanGlade, or check demo and
+                    cloud status.
                   </p>
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                    <SecondaryButton href={githubUrl} target="_blank">
+                      <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                      View on GitHub
+                    </SecondaryButton>
+                    <PrimaryButton href={demoUrl}>Try demo</PrimaryButton>
+                  </div>
                 </div>
               </div>
             </div>
@@ -676,15 +595,14 @@ $ npm run dev`}
               Start planning with clarity.
             </h2>
             <p className="mt-3 max-w-[520px] text-[15px] leading-7 text-zinc-600">
-              An open-source workspace built for focused solo work. Free to run
-              yourself.
+              Self-host now. Cloud soon. Try demo.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <PrimaryButton href="#start">
-                Get started
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
-              </PrimaryButton>
-              <SecondaryButton href="#self-host">Read the self-host guide</SecondaryButton>
+              <SecondaryButton href={githubUrl} target="_blank">
+                <Github className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                View on GitHub
+              </SecondaryButton>
+              <PrimaryButton href={demoUrl}>Try demo</PrimaryButton>
             </div>
           </div>
         </section>
@@ -696,10 +614,13 @@ $ npm run dev`}
           <nav aria-label="Footer navigation">
             <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
               <li><Link href="#features" className="hover:text-zinc-900">Features</Link></li>
-              <li><Link href="#open-source" className="hover:text-zinc-900">Open source</Link></li>
+              <li><Link href="#status" className="hover:text-zinc-900">Status</Link></li>
               <li><Link href="#self-host" className="hover:text-zinc-900">Self-host</Link></li>
-              <li><Link href="#roadmap" className="hover:text-zinc-900">Roadmap</Link></li>
               <li><Link href="#faq" className="hover:text-zinc-900">FAQ</Link></li>
+              <li><Link href="/privacy" className="hover:text-zinc-900">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-zinc-900">Terms</Link></li>
+              <li><Link href="/security" className="hover:text-zinc-900">Security</Link></li>
+              <li><Link href="/contact" className="hover:text-zinc-900">Contact</Link></li>
             </ul>
           </nav>
           <p>&copy; 2026 PlanGlade</p>

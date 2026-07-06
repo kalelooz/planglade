@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo, Suspense, useEffect, useRef, type ReactNode } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus, Search, Hash, Link2, Trash2, CheckSquare, Pencil, FileText, ChevronRight,
@@ -129,7 +129,9 @@ function mapNote(note: ApiNote): UiNote {
 
 function NotesInner() {
   const params = useSearchParams();
+  const pathname = usePathname() ?? "";
   const router = useRouter();
+  const routePrefix = pathname.startsWith("/demo") ? "/demo" : "/app";
   const idFromUrl = params.get("id");
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({});
 
@@ -226,7 +228,7 @@ function NotesInner() {
 
   const selectNote = (id: string) => {
     setSelId(id);
-    router.replace(`/app/notes?id=${id}`, { scroll: false });
+    router.replace(`${routePrefix}/notes?id=${id}`, { scroll: false });
   };
 
   const patchNoteNow = async (id: string, patch: { title?: string; body?: string; tags?: string[] }) => {
