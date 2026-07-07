@@ -2,7 +2,7 @@
 
 A calm clearing for your projects.
 
-PlanGlade is a light-first project management app for solo users and small teams. It helps you capture work quickly, triage an inbox, organize projects, keep notes nearby, and plan around task due dates without turning the app into an enterprise suite.
+PlanGlade is a light-first project management app for solo users. It helps you capture work quickly, triage an inbox, organize projects, keep notes nearby, and plan around task due dates without turning the app into an enterprise suite.
 
 Self-host now. Cloud soon. Try demo.
 
@@ -41,14 +41,13 @@ Working today:
 - Settings with workspace preferences, JSON export, and a guarded import flow.
 - Public landing and getting-started pages for explaining the MVP before sign-in.
 - Local development auth mode for running the app without a production identity provider.
-- Production-oriented auth paths exist for Firebase and NextAuth, but public self-host guidance is not finalized.
+- Auth paths exist for Firebase and NextAuth; the Docker self-host baseline uses NextAuth by default.
 - An early Docker self-host baseline with a standalone app image, SQLite persistence, migrations, and a health check.
 
 Not ready yet:
 
 - A production-hardened generic self-host guide.
 - Public hosted cloud. Cloud is coming soon, but it is not live yet.
-- A dedicated public security contact.
 - Billing, pricing, admin/team management, or production SLA promises.
 
 ## Features Available Today

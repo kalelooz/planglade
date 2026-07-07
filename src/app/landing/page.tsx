@@ -18,17 +18,30 @@ export const metadata: Metadata = {
   title: "PlanGlade - A calm clearing for your projects",
   description:
     "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head. Self-host now. Cloud soon.",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "PlanGlade - A calm clearing for your projects",
     description:
       "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head. Self-host now. Cloud soon.",
+    url: "/",
     type: "website",
+    images: [
+      {
+        url: "/brand/og-image.png",
+        width: 1280,
+        height: 640,
+        alt: "PlanGlade product preview",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "PlanGlade - A calm clearing for your projects",
     description:
       "Open-source workspace for tasks, projects, notes, calendar planning, and getting work out of your head. Self-host now. Cloud soon.",
+    images: ["/brand/og-image.png"],
   },
 };
 
@@ -105,7 +118,7 @@ const faqs = [
   {
     question: "Who is it for?",
     answer:
-      "Solo builders, freelancers, students, writers, maintainers, small teams, and anyone who wants a calmer project workspace.",
+      "Solo builders, freelancers, students, writers, maintainers, and anyone who wants a calmer project workspace.",
   },
 ];
 
@@ -385,6 +398,9 @@ export default function LandingPage() {
                 Open-source workspace for tasks, projects, notes, calendar
                 planning, and getting work out of your head.
               </p>
+              <p className="mx-auto mt-3 max-w-[540px] text-[13px] leading-6 text-zinc-500">
+                For solo builders, freelancers, students, writers, and maintainers.
+              </p>
               <p className="mt-4 text-[13px] font-semibold text-zinc-700">
                 Self-host now. Cloud soon.
               </p>
@@ -513,8 +529,9 @@ export default function LandingPage() {
                   Run it on your own machine.
                 </h2>
                 <p className="mt-3 text-[14px] leading-6 text-zinc-600">
-                  Self-hosting uses Node.js 20+ with SQLite. Run PlanGlade
-                  yourself with the public repo and self-host notes.
+                  Self-hosting is a technical setup using Node.js 20+ with
+                  SQLite. The current path is an early self-host baseline with
+                  Docker and local setup notes in the public repo.
                 </p>
                 <pre className="mt-5 overflow-x-auto rounded-md border border-zinc-200 bg-zinc-900 p-4 text-[12px] leading-6 text-zinc-100">
 {`$ git clone https://github.com/kalelooz/planglade
@@ -615,10 +632,11 @@ $ cd planglade
             <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
               <li><Link href="#features" className="hover:text-zinc-900">Features</Link></li>
               <li><Link href="#status" className="hover:text-zinc-900">Status</Link></li>
-              <li><Link href="#self-host" className="hover:text-zinc-900">Self-host</Link></li>
+              <li><Link href={githubUrl} target="_blank" rel="noreferrer" className="hover:text-zinc-900">GitHub</Link></li>
+              <li><Link href={selfHostUrl} target="_blank" rel="noreferrer" className="hover:text-zinc-900">Self-host docs</Link></li>
+              <li><Link href="/terms" className="hover:text-zinc-900">License</Link></li>
               <li><Link href="#faq" className="hover:text-zinc-900">FAQ</Link></li>
               <li><Link href="/privacy" className="hover:text-zinc-900">Privacy</Link></li>
-              <li><Link href="/terms" className="hover:text-zinc-900">Terms</Link></li>
               <li><Link href="/security" className="hover:text-zinc-900">Security</Link></li>
               <li><Link href="/contact" className="hover:text-zinc-900">Contact</Link></li>
             </ul>

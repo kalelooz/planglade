@@ -143,7 +143,7 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 | `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Sync Architect/Codex/library sources before further implementation | **Highest — do first** |
 | `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Create factual mismatch report before broad fixes | **Highest — do after resource replacement** |
 | `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Website is live on Netlify | **Done - no longer pending** |
-| `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | Confirm links, metadata, README consistency, `/app` protection, and read-only demo behavior | **High - next implementation task** |
+| `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | Audit fixes completed locally; publication and deployment tracked separately | **Done - pending merge/deploy** |
 | `DEMO-READONLY-001` | Build/readiness-check read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High - only if post-live audit finds gaps |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
@@ -235,6 +235,8 @@ Rules: audit only unless explicitly allowed to make tiny doc fixes; no product c
 Full prompt file: `CODEX-PROMPT-RESOURCE-MISMATCH-AUDIT-001.md`.
 
 ### WEBSITE-POST-LIVE-AUDIT-001 - Post-Live Website Audit
+
+Status: **Completed locally.** Audit fixes are ready for publication; live-site verification must be repeated after merge and Netlify deployment.
 
 Goal: verify the live Netlify website after launch.
 
