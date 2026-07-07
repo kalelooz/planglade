@@ -21,6 +21,14 @@ test("README-TRIM-1: keeps honest maturity language", async () => {
   assert.match(readme, /AGPL-3\.0/)
 })
 
+test("WEBSITE-POST-LIVE-AUDIT-001: README matches public solo-first launch wording", async () => {
+  const readme = await readProjectFile("README.md")
+
+  assert.match(readme, /Self-host now\. Cloud soon\. Try demo\./)
+  assert.match(readme, /early Docker self-host baseline/i)
+  assert.doesNotMatch(readme, /small teams/i)
+})
+
 test("README-TRIM-1: includes the MVP feature set and roadmap separation", async () => {
   const readme = await readProjectFile("README.md")
 

@@ -358,6 +358,12 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+      <a
+        href="#app-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[120] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow"
+      >
+        Skip to main content
+      </a>
       <aside
         suppressHydrationWarning
         data-collapsed={!sidebarOpen}
@@ -416,6 +422,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 open={projectsOpen}
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onCreate={createProject}
+                demoDisabled={isDemoMode}
               />
               {projectsOpen && (
                 <div className="mt-0.5 mb-1 space-y-px pl-5">
@@ -444,7 +451,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           {sidebarOpen ? (
             <div className="flex flex-col gap-1.5 w-full">
               {isDemoMode ? (
-                <button type="button" onClick={() => toast(DEMO_MODE_MESSAGE)} className="lov-nav-item gap-2 px-2 py-1 text-[13px]">
+                <button
+                  type="button"
+                  onClick={() => toast(DEMO_MODE_MESSAGE)}
+                  aria-disabled={isDemoMode}
+                  data-demo-disabled="true"
+                  title={isDemoMode ? DEMO_MODE_MESSAGE : "Settings"}
+                  className="lov-nav-item gap-2 px-2 py-1 text-[13px]"
+                >
                   <Settings className="h-3.5 w-3.5" />
                   <span>Settings</span>
                 </button>
@@ -458,7 +472,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           ) : (
             <>
               {isDemoMode ? (
-                <button type="button" onClick={() => toast(DEMO_MODE_MESSAGE)} title="Settings" className="lov-nav-item h-8 w-8 justify-center">
+                <button
+                  type="button"
+                  onClick={() => toast(DEMO_MODE_MESSAGE)}
+                  aria-disabled={isDemoMode}
+                  data-demo-disabled="true"
+                  title={isDemoMode ? DEMO_MODE_MESSAGE : "Settings"}
+                  className="lov-nav-item h-8 w-8 justify-center"
+                >
                   <Settings className="h-4 w-4" />
                 </button>
               ) : (
@@ -473,7 +494,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
-          <button onClick={() => setMobileNavOpen(true)} className="lov-icon-btn md:hidden" aria-label="Open navigation">
+          <button onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px]">
@@ -543,6 +564,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   setProjectScopeOpen(false);
                   setQuickOpen((v) => !v);
                 }}
+                aria-disabled={isDemoMode}
+                data-demo-disabled={isDemoMode ? "true" : undefined}
+                title={isDemoMode ? DEMO_MODE_MESSAGE : "Quick capture"}
                 className="lov-btn whitespace-nowrap"
               >
                 <Plus className="h-3 w-3" />
@@ -570,7 +594,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </div>
               )}
           </div>
-          <button onClick={() => setCmdOpen(true)} className="lov-icon-btn sm:hidden">
+          <button onClick={() => setCmdOpen(true)} className="lov-icon-btn h-[44px] w-[44px] sm:hidden">
             <Command className="h-4 w-4" />
           </button>
           <div ref={notificationsRef} className="relative">
@@ -580,7 +604,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 setQuickOpen(false);
                 setNotificationsOpen((open) => !open);
               }}
-              className="lov-icon-btn relative"
+              className="lov-icon-btn relative h-[44px] w-[44px] sm:h-7 sm:w-7"
               title="Notifications"
               aria-label="Notifications"
             >
@@ -680,6 +704,15 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           </div>
         </header>
 
+        {isDemoMode && (
+          <div
+            data-demo-banner="mobile"
+            className="shrink-0 border-b bg-muted px-3 py-1 text-center text-[11px] text-muted-foreground sm:hidden"
+          >
+            {DEMO_MODE_MESSAGE}
+          </div>
+        )}
+
         {tabs && (
           <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-background px-4">
             {tabs.map((t) => (
@@ -694,7 +727,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
         {toolbar}
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
+        <main id="app-main" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
 
       {mobileNavOpen && (
@@ -706,11 +739,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 <PlanGladeMark />
                 <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
               </Link>
-              <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn" aria-label="Close navigation">
+              <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn h-[44px] w-[44px]" aria-label="Close navigation">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto px-2 py-3">
+            <nav className="flex-1 overflow-y-auto px-2 py-3 [&_a]:min-h-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <ProjectsNavItem
                 href={`${routePrefix}/projects`}
@@ -719,6 +752,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 onToggle={() => setProjectsOpen((v) => !v)}
                 onNavigate={() => setMobileNavOpen(false)}
                 onCreate={createProject}
+                demoDisabled={isDemoMode}
               />
               {projectsOpen && (
                 <div className="mt-0.5 mb-1 space-y-px pl-5">
@@ -737,7 +771,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
             </nav>
             <div className="border-t p-3">
-              <button type="button" onClick={() => { setMobileNavOpen(false); if (isDemoMode) toast(DEMO_MODE_MESSAGE); else router.push(APP_ROUTES.settings); }} className="lov-nav-item w-full gap-2 px-2 py-1 text-[13px]">
+              <button
+                type="button"
+                onClick={() => { setMobileNavOpen(false); if (isDemoMode) toast(DEMO_MODE_MESSAGE); else router.push(APP_ROUTES.settings); }}
+                aria-disabled={isDemoMode}
+                data-demo-disabled={isDemoMode ? "true" : undefined}
+                title={isDemoMode ? DEMO_MODE_MESSAGE : "Settings"}
+                className="lov-nav-item min-h-[44px] w-full gap-2 px-2 py-1 text-[13px]"
+              >
                 <Settings className="h-3.5 w-3.5" />
                 <span>Settings</span>
               </button>
@@ -751,7 +792,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   );
 }
 
-function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }: { href: string; active: boolean; open: boolean; onToggle: () => void; onNavigate?: () => void; onCreate?: () => void }) {
+function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate, demoDisabled = false }: { href: string; active: boolean; open: boolean; onToggle: () => void; onNavigate?: () => void; onCreate?: () => void; demoDisabled?: boolean }) {
   return (
     <div className={`group flex items-center gap-px rounded ${active ? "lov-nav-item-active" : "hover:bg-[var(--color-hover)]"}`}>
       <Link
@@ -765,8 +806,10 @@ function ProjectsNavItem({ href, active, open, onToggle, onNavigate, onCreate }:
       {onCreate && (
         <button
           onClick={(e) => { e.preventDefault(); onCreate(); }}
-          title="Create new project"
+          title={demoDisabled ? DEMO_MODE_MESSAGE : "Create new project"}
           aria-label="Create new project"
+          aria-disabled={demoDisabled}
+          data-demo-disabled={demoDisabled ? "true" : undefined}
           className="lov-icon-btn h-6 w-6 text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-3 w-3" />

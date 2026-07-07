@@ -1,8 +1,8 @@
 # PlanGlade — Technical Reference
 
-**Status:** v6.2 — consolidated, audited, corrected after resource mismatch audit, and updated for SaaS launch planning
+**Status:** v6.3 - consolidated, audited, corrected after resource mismatch audit, updated for SaaS launch planning, and aligned with repo-level `AGENTS.md`
 **Supersedes:** Technical Reference v2
-**Companion documents:** `PRODUCT.md` (product/design truth), `EXECUTION.md` (roadmap/tickets/current state), `AGENT-BOOTSTRAP.md` (session-start prompt)
+**Companion documents:** `PRODUCT.md` (product/design truth), `EXECUTION.md` (roadmap/tickets/current state), `AGENTS.md` (repo-level agent rules), `AGENT-BOOTSTRAP.md` (session-start prompt)
 
 This document is the architecture, security, and deployment **target**, per the maintainer's explicit direction: when live code disagrees with this document, the document stays as written and the gap is tracked as debt — not silently absorbed by rewriting the spec to match whatever shipped. Exception: where code has already delivered exactly what this document specifies (e.g. Docker), the document's job is just to stop being stale about it.
 

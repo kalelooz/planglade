@@ -117,6 +117,28 @@ test("WEBSITE-LIVE-001: landing owns honest status and pricing copy", async () =
   assert.match(statusSection, /motion-reduce:animate-none/)
 })
 
+test("WEBSITE-POST-LIVE-AUDIT-001: landing metadata has social image and canonical URL", async () => {
+  const source = await readProjectFile("src/app/landing/page.tsx")
+  const metadata = source.match(/export const metadata: Metadata = \{[\s\S]*?\n\};/)?.[0] ?? ""
+
+  assert.match(metadata, /alternates:\s*\{[\s\S]*canonical:\s*"\/"/)
+  assert.match(metadata, /openGraph:\s*\{[\s\S]*url:\s*"\/"/)
+  assert.match(metadata, /images:\s*\[[\s\S]*url:\s*"\/brand\/og-image\.png"/)
+  assert.match(metadata, /width:\s*1280/)
+  assert.match(metadata, /height:\s*640/)
+  assert.match(metadata, /alt:\s*"PlanGlade product preview"/)
+  assert.match(metadata, /twitter:\s*\{[\s\S]*card:\s*"summary_large_image"/)
+  assert.match(metadata, /twitter:\s*\{[\s\S]*images:\s*\["\/brand\/og-image\.png"\]/)
+})
+
+test("WEBSITE-POST-LIVE-AUDIT-001: landing copy stays solo-first and adds early audience context", async () => {
+  const source = await readProjectFile("src/app/landing/page.tsx")
+  const heroSection = source.match(/\{\/\* Hero[^]*?<\/section>/)?.[0] ?? ""
+
+  assert.match(heroSection, /For solo builders, freelancers, students, writers, and maintainers\./)
+  assert.doesNotMatch(source, /small teams/i)
+})
+
 test("LANDING-FREE-CARD-001: no pricing page, nav, links, tiers, or badges", async () => {
   const source = await readProjectFile("src/app/landing/page.tsx")
   const navMatch = source.match(/const navLinks = \[[\s\S]*?\]/)?.[0] ?? ""
@@ -164,6 +186,8 @@ test("WEBSITE-LIVE-002: canonical home link and self-host copy stay launch-ready
   assert.doesNotMatch(logo, /href="\/landing"/)
   assert.match(selfHostSection, /git clone https:\/\/github\.com\/kalelooz\/planglade/)
   assert.match(selfHostSection, /See README for Docker and local setup/)
+  assert.match(selfHostSection, /early self-host baseline/)
+  assert.match(selfHostSection, /technical setup/)
   assert.doesNotMatch(selfHostSection, /npm run dev/)
 })
 
@@ -252,7 +276,7 @@ test("LANDING-SHOWCASE-REPLICA-5: Home replica includes real app shell and Home 
     "Quick capture",
     "Notifications",
     "Overview Dashboard",
-    "Good morning, Alex",
+    "Demo workspace",
     "Today's Focus",
     "Attention Required",
     "Recently Captured",
@@ -275,30 +299,32 @@ test("LANDING-SHOWCASE-REPLICA-5: sidebar shows the real MVP nav items only", as
   assert.doesNotMatch(navSlice, /Team|Activity|Timeline|Connections|Reports|Work Map/)
 })
 
-test("LANDING-SHOWCASE-REPLICA-5: mock launch data fills the Home replica", async () => {
+test("LANDING-SHOWCASE-REPLICA-5: generic mock data fills the Home replica", async () => {
   const { showcase } = await readLandingSources()
 
   for (const text of [
     "Static mock - not real data",
-    "PlanGlade Public Launch",
-    "General",
-    "Self-hosting Docs",
-    "Landing Page Polish",
-    "Capture clean app screenshots",
-    "Review README setup flow",
-    "Confirm no fake hosted-cloud claims",
-    "Validate public repo hygiene files",
-    "Write screenshot review notes",
-    "Review self-host setup",
-    "Draft launch notes",
-    "Triage beta feedback",
-    "Public launch checklist",
-    "Self-hosting gaps",
-    "Screenshot review notes",
-    "Security baseline reminders",
+    "Small bakery launch",
+    "Student thesis plan",
+    "Home renovation",
+    "Freelance client website",
+    "Order packaging samples",
+    "Review thesis outline",
+    "Confirm weekend paint plan",
+    "Book community hall walkthrough",
+    "Send client homepage notes",
+    "Compare cabinet measurements",
+    "Draft event volunteer list",
+    "Update release checklist",
+    "Bakery launch checklist",
+    "Thesis source notes",
+    "Renovation measurements",
+    "Client website feedback",
   ]) {
     assert.match(showcase, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
   }
+
+  assert.doesNotMatch(showcase, /Alex|PlanGlade Public Launch|Self-hosting Docs|Landing Page Polish|Security baseline reminders/)
 })
 
 test("LANDING-SHOWCASE-REPLICA-5: showcase does not surface deferred or forbidden features", async () => {
@@ -343,6 +369,19 @@ test("WEBSITE-LIVE-001: landing CTAs target GitHub, self-host, and demo route", 
   assert.doesNotMatch(page, /<PrimaryButton href="#start"[\s\S]*?Get started/)
   assert.doesNotMatch(page, /href="\/getting-started"/)
   assert.match(page, /<LandingProductShowcase/)
+})
+
+test("WEBSITE-POST-LIVE-AUDIT-001: landing footer exposes trust and self-host links", async () => {
+  const { page } = await readLandingSources()
+  const footer = page.match(/<footer[\s\S]*?<\/footer>/)?.[0] ?? ""
+
+  for (const text of ["GitHub", "License", "Security", "Self-host docs"]) {
+    assert.match(footer, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  }
+  assert.match(footer, /href=\{githubUrl\}/)
+  assert.match(footer, /href="\/terms"/)
+  assert.match(footer, /href="\/security"/)
+  assert.match(footer, /href=\{selfHostUrl\}/)
 })
 
 test("LANDING-GET-STARTED-6: hero and showcase backgrounds have no floating square ornaments", async () => {

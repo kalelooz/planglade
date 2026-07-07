@@ -1,8 +1,8 @@
 # PlanGlade — SaaS Launch Plan
 
-**Status:** v1.0 / resource pack v6.2 — public website + SaaS/cloud plan
+**Status:** v1.1 / resource pack v6.3 - public website + SaaS/cloud plan, aligned with repo-level `AGENTS.md`
 **Date:** 2026-07-03
-**Companion documents:** `PRODUCT.md`, `TECHNICAL.md`, `EXECUTION.md`, `AGENT-BOOTSTRAP.md`
+**Companion documents:** `PRODUCT.md`, `TECHNICAL.md`, `EXECUTION.md`, `AGENTS.md`, `AGENT-BOOTSTRAP.md`
 
 ---
 
@@ -14,9 +14,11 @@ This file does **not** override the technical security rules in `TECHNICAL.md`.
 
 ---
 
-## 1. Current Launch Decision
+## 1. Current Launch Status
 
-First priority: get the website live fast.
+The PlanGlade public website is live on Netlify.
+
+Current priority: post-live verification and demo/read-only audit.
 
 Public line:
 
@@ -95,7 +97,7 @@ Status section:
 
 - Available now: Self-host
 - Coming soon: Cloud
-- Coming soon: Demo
+- Available now: Demo mode
 
 Pricing teaser:
 
@@ -349,7 +351,9 @@ This means managed services first, but keep Docker portability.
 
 ---
 
-## 11. Website Go-Live Checklist
+## 11. Website Post-Live Checklist
+
+Current status: the website is live on Netlify. Use this checklist for post-live verification and follow-up audits.
 
 Minimum:
 
@@ -358,7 +362,7 @@ Minimum:
 - mobile layout works
 - View on GitHub link works
 - Self-host link works
-- demo link works after `/demo` exists
+- demo link works
 - `/app` remains protected
 - no fake demo; `/demo` is read-only
 - no checkout
@@ -414,10 +418,12 @@ These are not strict dependencies. They support decisions and should be rechecke
 
 ---
 
-## 14. Ticket — WEBSITE-LIVE-001
+## 14. Ticket - WEBSITE-LIVE-001
+
+Status: **Completed.** The public website is live on Netlify. Do not run this as the next implementation task.
 
 ```md
-Task Name: WEBSITE-LIVE-001 — Launch PlanGlade Website
+Task Name: WEBSITE-LIVE-001 - Launch PlanGlade Website
 
 Goal:
 Make planglade.com ready to go live with clean, short, honest public copy.
@@ -529,4 +535,39 @@ Report:
 - Links used
 - Analytics added or skipped
 - Validation results
+```
+
+## 15. Ticket - WEBSITE-POST-LIVE-AUDIT-001
+
+```md
+Task Name: WEBSITE-POST-LIVE-AUDIT-001 - Post-Live Website Audit
+
+Goal:
+Verify the live Netlify website after launch and record any small follow-up fixes.
+
+Allowed Areas:
+- Public website copy if it contradicts live status
+- README/roadmap wording only if it directly contradicts live website or demo status
+- Public metadata
+- Demo route/read-only audit report
+
+Do-Not-Touch:
+- No billing
+- No checkout
+- No cloud accounts
+- No app feature work
+- No broad redesign
+- No dependency changes
+
+Acceptance:
+- Homepage loads on the live Netlify site.
+- GitHub, self-host, and demo links work.
+- /demo is read-only.
+- /app is not exposed as a fake public demo.
+- Public docs do not say the website or demo are still pending.
+- No fake cloud, checkout, billing, or production-ready claims exist.
+
+Validation:
+- Browser smoke check of the live site.
+- Smallest relevant repo checks for any docs/copy changes.
 ```

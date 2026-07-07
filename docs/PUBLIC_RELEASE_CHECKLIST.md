@@ -28,6 +28,7 @@ Use this checklist before creating the fresh public PlanGlade repository. Do not
 - `CODE_OF_CONDUCT.md`
 - `ROADMAP.md`
 - `CHANGELOG.md`
+- `AGENTS.md`
 - `docs/SELF_HOSTING.md`
 - `docs/BACKUP_RESTORE.md`
 - `docs/PUBLIC_RELEASE_CHECKLIST.md`
@@ -65,6 +66,7 @@ Use this checklist before creating the fresh public PlanGlade repository. Do not
 - `external/**`
 - old local screenshots that are not needed by README/docs
 - private SaaS notes and private agent workflow notes
+- private skill packs or user-level agent workflow files
 - local machine paths or personal-only notes
 
 ## Pre-Push Checks

@@ -1,14 +1,14 @@
 # PlanGlade — Product Source
 
-**Status:** v6.2 — consolidated, audited, and updated for public website + SaaS launch planning
+**Status:** v6.3 - consolidated, audited, updated for public website + SaaS launch planning, and aligned with repo-level `AGENTS.md`
 **Supersedes:** Master Project Source v5, Research Painpoints and Product Decisions v1
-**Companion documents:** `TECHNICAL.md` (architecture/security/deployment truth), `EXECUTION.md` (roadmap/tickets/agent workflow), `SAAS-LAUNCH.md` (website/cloud/demo/business plan), `AGENT-BOOTSTRAP.md` (session-start prompt)
+**Companion documents:** `TECHNICAL.md` (architecture/security/deployment truth), `EXECUTION.md` (roadmap/tickets/agent workflow), `SAAS-LAUNCH.md` (website/cloud/demo/business plan), `AGENTS.md` (repo-level agent rules), `AGENT-BOOTSTRAP.md` (session-start prompt)
 
 ---
 
 ## 0. How These Documents Work Together
 
-Five documents, five jobs. Don't duplicate content across them — cross-reference instead.
+Six files, six jobs. Don't duplicate content across them - cross-reference instead.
 
 | Document | Owns |
 |---|---|
@@ -16,6 +16,7 @@ Five documents, five jobs. Don't duplicate content across them — cross-referen
 | `TECHNICAL.md` | Architecture, stack, data model, security, deployment, **and current implementation drift** |
 | `EXECUTION.md` | Phases, tickets, build rules, Architect/Agent roles, current project state |
 | `SAAS-LAUNCH.md` | Public website launch, SaaS/cloud direction, demo plan, pricing, tooling, and business boundaries |
+| `AGENTS.md` | Repo-level rules that Codex loads automatically before work |
 | `AGENT-BOOTSTRAP.md` | The literal prompt pasted into a fresh agent session |
 
 **Source hierarchy:** if the live repository conflicts with what's written here, the repository doesn't automatically win — see `TECHNICAL.md §3` for how drift is tracked and resolved. Open a scoped ticket to reconcile it either way.

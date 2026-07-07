@@ -7,7 +7,7 @@ import { NextRequest } from "next/server"
 import { middleware } from "../middleware"
 
 const root = process.cwd()
-const demoMessage = `Demo mode ${String.fromCharCode(0x2014)} changes are disabled.`
+const demoMessage = "Demo mode - changes are disabled."
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
   PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
@@ -52,6 +52,39 @@ test("DEMO-READONLY-001: /demo is public, fixture-backed, and read-only", async 
   assert.match(shell, /DEMO_MODE_MESSAGE/)
   assert.match(fixtures, new RegExp(demoMessage))
   assert.doesNotMatch(fixtures, /PlanGlade Public Launch|planglade\.com|alex\.morgan@flowboard\.dev/i)
+})
+
+test("WEBSITE-POST-LIVE-AUDIT-001: demo metadata is read-only specific and noindexed", async () => {
+  const [page, sitemap] = await Promise.all([
+    readProjectFile("src/app/demo/page.tsx"),
+    readProjectFile("src/app/sitemap.ts"),
+  ])
+
+  assert.match(page, /title:\s*"PlanGlade read-only demo"/)
+  assert.match(page, /description:\s*"Browse PlanGlade with sample projects\. Demo mode - changes are disabled\."/)
+  assert.match(page, /robots:\s*\{[\s\S]*index:\s*false/)
+  assert.match(page, /follow:\s*false/)
+  assert.match(page, /openGraph:\s*\{[\s\S]*title:\s*"PlanGlade read-only demo"/)
+  assert.match(page, /twitter:\s*\{[\s\S]*card:\s*"summary_large_image"/)
+  assert.match(page, /images:\s*\["\/brand\/og-image\.png"\]/)
+  assert.doesNotMatch(sitemap, /"\/demo"/)
+})
+
+test("WEBSITE-POST-LIVE-AUDIT-001: app shell has skip link and demo disabled affordances", async () => {
+  const [shell, css] = await Promise.all([
+    readProjectFile("src/components/lovable/shell.tsx"),
+    readProjectFile("src/app/demo/demo.module.css"),
+  ])
+
+  assert.match(shell, /href="#app-main"/)
+  assert.match(shell, /id="app-main"/)
+  assert.match(shell, /data-demo-banner="mobile"/)
+  assert.match(shell, /data-demo-disabled="true"/)
+  assert.match(shell, /aria-disabled=\{isDemoMode/)
+  assert.match(shell, /title=\{isDemoMode \? DEMO_MODE_MESSAGE/)
+  assert.match(shell, /\[&_a\]:min-h-\[44px\] \[&_button\]:min-h-\[44px\] \[&_button\]:min-w-\[44px\]/)
+  assert.match(css, /data-demo-disabled="true"/)
+  assert.match(css, /cursor: not-allowed/)
 })
 
 test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {

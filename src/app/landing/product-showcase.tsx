@@ -26,28 +26,28 @@ const SHOWCASE_NAV = [
 ] as const;
 
 const sidebarProjects = [
-  "PlanGlade Public Launch",
-  "General",
-  "Self-hosting Docs",
-  "Landing Page Polish",
+  "Small bakery launch",
+  "Student thesis plan",
+  "Home renovation",
+  "Freelance client website",
 ] as const;
 
 const todayTasks = [
   {
-    title: "Capture clean app screenshots",
-    project: "PlanGlade Public Launch",
+    title: "Order packaging samples",
+    project: "Small bakery launch",
     priority: "P1",
     meta: "Today",
   },
   {
-    title: "Review README setup flow",
-    project: "Self-hosting Docs",
+    title: "Review thesis outline",
+    project: "Student thesis plan",
     priority: "P2",
     meta: "Today",
   },
   {
-    title: "Confirm no fake hosted-cloud claims",
-    project: "Landing Page Polish",
+    title: "Confirm weekend paint plan",
+    project: "Home renovation",
     priority: "P2",
     meta: "Today",
   },
@@ -55,14 +55,14 @@ const todayTasks = [
 
 const attentionTasks = [
   {
-    title: "Validate public repo hygiene files",
-    project: "PlanGlade Public Launch",
+    title: "Book community hall walkthrough",
+    project: "Community event",
     priority: "P1",
     meta: "Overdue",
   },
   {
-    title: "Write screenshot review notes",
-    project: "Landing Page Polish",
+    title: "Send client homepage notes",
+    project: "Freelance client website",
     priority: "P2",
     meta: "Yesterday",
   },
@@ -70,19 +70,19 @@ const attentionTasks = [
 
 const capturedTasks = [
   {
-    title: "Review self-host setup",
+    title: "Compare cabinet measurements",
     project: "Inbox",
     priority: "P2",
     meta: "Captured",
   },
   {
-    title: "Draft launch notes",
+    title: "Draft event volunteer list",
     project: "Inbox",
     priority: "P3",
     meta: "Captured",
   },
   {
-    title: "Triage beta feedback",
+    title: "Update release checklist",
     project: "Inbox",
     priority: "P3",
     meta: "Captured",
@@ -91,23 +91,23 @@ const capturedTasks = [
 
 const projectFocus = [
   {
-    name: "PlanGlade Public Launch",
+    name: "Small bakery launch",
     state: "2 overdue",
-    next: "Next / Capture clean app screenshots",
+    next: "Next / Order packaging samples",
     progress: 72,
     danger: true,
   },
   {
-    name: "Self-hosting Docs",
+    name: "Student thesis plan",
     state: "5 open",
-    next: "Next / Review README setup flow",
+    next: "Next / Review thesis outline",
     progress: 54,
     danger: false,
   },
   {
-    name: "Landing Page Polish",
+    name: "Home renovation",
     state: "3 open",
-    next: "Next / Confirm no fake hosted-cloud claims",
+    next: "Next / Confirm weekend paint plan",
     progress: 64,
     danger: false,
   },
@@ -115,14 +115,14 @@ const projectFocus = [
 
 const nextUpTasks = [
   {
-    title: "Review self-host setup",
-    project: "Self-hosting Docs",
+    title: "Compare cabinet measurements",
+    project: "Home renovation",
     priority: "P2",
     meta: "Tomorrow",
   },
   {
-    title: "Draft launch notes",
-    project: "PlanGlade Public Launch",
+    title: "Draft event volunteer list",
+    project: "Community event",
     priority: "P3",
     meta: "Friday",
   },
@@ -130,22 +130,22 @@ const nextUpTasks = [
 
 const recentContext = [
   {
-    title: "Public launch checklist",
+    title: "Bakery launch checklist",
     kind: "Note",
     meta: "Today",
   },
   {
-    title: "Self-hosting gaps",
+    title: "Thesis source notes",
     kind: "Note",
     meta: "Today",
   },
   {
-    title: "Screenshot review notes",
+    title: "Renovation measurements",
     kind: "Note",
     meta: "Yesterday",
   },
   {
-    title: "Security baseline reminders",
+    title: "Client website feedback",
     kind: "Note",
     meta: "Jun 26",
   },
@@ -196,7 +196,7 @@ export function ProductShowcase() {
                       <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div className="min-w-0">
                           <h3 className="text-[22px] font-semibold tracking-tight text-zinc-950">
-                            Good morning, Alex
+                            Demo workspace
                           </h3>
                           <p className="mt-1 text-[11px] text-zinc-500">
                             Saturday, June 27. <span className="underline decoration-dotted underline-offset-2">3 today</span>,{" "}
@@ -205,7 +205,7 @@ export function ProductShowcase() {
                           </p>
                         </div>
                         <span className="font-mono text-[10px] text-zinc-400">
-                          PlanGlade Public Launch
+                          Sample data
                         </span>
                       </div>
                     </div>

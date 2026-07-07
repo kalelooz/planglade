@@ -1,4 +1,4 @@
-export const DEMO_MODE_MESSAGE = "Demo mode — changes are disabled."
+export const DEMO_MODE_MESSAGE = "Demo mode - changes are disabled."
 
 export type DemoProject = {
   id: string
