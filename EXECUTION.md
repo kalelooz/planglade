@@ -120,13 +120,13 @@ Issue #10 (README gallery for visual learners) — closed. PR #12 "Improve READM
 
 Current status: the PlanGlade public website is live on Netlify. `WEBSITE-LIVE-001` is complete and should not be suggested as the next implementation task.
 
-Current priority: post-live verification and demo/read-only audit, not implementing cloud or billing. Public copy should stay short and human: **Self-host now. Cloud soon. Try demo. Demo mode. Changes are disabled. Free to self-host. Paid cloud coming.** Avoid long internal-risk wording on public pages.
+`WEBSITE-POST-LIVE-AUDIT-001` is complete. PR #27 was squash-merged and the production Netlify deployment was verified on 2026-07-07. Public copy should stay short and human: **Self-host now. Cloud soon. Try demo. Demo mode. Changes are disabled. Free to self-host. Paid cloud coming.** Avoid long internal-risk wording on public pages.
 
 Demo decision: public demo is read-only. Visitors can browse, open, filter, and navigate. They cannot create, edit, delete, upload, invite, export, change settings, trigger emails, or change workspace data. Blocked actions use: **Demo mode — changes are disabled.**
 
 New companion file: `SAAS-LAUNCH.md`. It owns public website launch, cloud sequencing, demo plan, pricing direction, open-source/private SaaS boundary, and external tooling choices.
 
-Next implementation task after docs/status reconciliation: `WEBSITE-POST-LIVE-AUDIT-001`. If that audit finds demo write-blocking gaps, follow with a scoped `DEMO-READONLY-001` fix ticket.
+Do not open another website/demo ticket unless production verification finds a real issue.
 
 ### 4.7 Built but no known originating ticket
 
@@ -143,7 +143,7 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 | `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Sync Architect/Codex/library sources before further implementation | **Highest — do first** |
 | `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Create factual mismatch report before broad fixes | **Highest — do after resource replacement** |
 | `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Website is live on Netlify | **Done - no longer pending** |
-| `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | Audit fixes completed locally; publication and deployment tracked separately | **Done - pending merge/deploy** |
+| `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | PR #27 merged; production deployment verified 2026-07-07 | **Done** |
 | `DEMO-READONLY-001` | Build/readiness-check read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High - only if post-live audit finds gaps |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
@@ -203,7 +203,7 @@ The early Docker baseline exists in the checked-out branch:
 - SaaS/public launch direction is now decided: website is live on Netlify, self-host now, cloud soon, read-only demo, no checkout until cloud is real.
 - Public copy must be concise and human; avoid long internal-risk wording on marketing pages.
 - Post-live verification should not wait for Postgres, billing, or production cloud.
-- `RESOURCE-MISMATCH-AUDIT-001` was run on 2026-07-06. Main result: tracked planning docs were stale about website status; live repo evidence shows the Netlify website/demo path exists, `/demo` is fixture-backed and read-only-guarded, and `WEBSITE-LIVE-001` should stay closed. Remaining follow-up is `WEBSITE-POST-LIVE-AUDIT-001`, including README/roadmap wording checks for stale "demo soon" language.
+- `RESOURCE-MISMATCH-AUDIT-001` was run on 2026-07-06. Its website follow-up, `WEBSITE-POST-LIVE-AUDIT-001`, was completed through PR #27 and verified in production on 2026-07-07.
 
 ---
 
@@ -211,7 +211,7 @@ The early Docker baseline exists in the checked-out branch:
 
 Ready for honest public alpha when: user can sign in · create workspace · capture an inbox item · convert it to a task · create a project · attach a task to a project · create a note/doc for a project · calendar shows task due dates · Settings can export data · landing page does not overclaim · self-host docs are accurate · CI passes · basic security audit passes · no fake features are visible.
 
-**Current blockers against this list:** post-live verification is still needed for the Netlify website and public demo, and production-facing hardening remains intentionally limited for the early self-host baseline.
+**Current blockers against this list:** production-facing hardening remains intentionally limited for the early self-host baseline.
 
 ---
 
@@ -236,7 +236,7 @@ Full prompt file: `CODEX-PROMPT-RESOURCE-MISMATCH-AUDIT-001.md`.
 
 ### WEBSITE-POST-LIVE-AUDIT-001 - Post-Live Website Audit
 
-Status: **Completed locally.** Audit fixes are ready for publication; live-site verification must be repeated after merge and Netlify deployment.
+Status: **Completed.** PR #27 was squash-merged and the production Netlify deployment was verified on 2026-07-07.
 
 Goal: verify the live Netlify website after launch.
 
