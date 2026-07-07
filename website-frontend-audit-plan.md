@@ -20,7 +20,7 @@ Turn the useful parts of the four website/frontend audits into one scoped fix pa
 ## Done When
 
 - [x] Every accepted audit note in `docs/audits/website-frontend-2026-07-06/README.md` is fixed, explicitly deferred, or has a short reason recorded.
-- [ ] The live/public site and public GitHub no longer contradict the project docs on demo, cloud, Docker, or audience. Local source is reconciled; deployment/publishing is still required.
+- [x] The live/public site and public GitHub no longer contradict the project docs on demo, cloud, Docker, or audience. PR #27 was merged and production was verified on 2026-07-07.
 - [x] The demo is visibly and server-side read-only locally.
 - [x] The website still follows the product direction: calm, solo-first, capture first, organize second, no fake claims.
 
