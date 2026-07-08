@@ -7,6 +7,7 @@ import {
   workspaceQuerySchema,
 } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { buildNoteAccessWhere } from "@/lib/note-access"
 
 const SUPPORTED_EXPORT_VERSION = 1
 
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
         select: { title: true },
       }),
       db.note.findMany({
-        where: { workspaceId: query.data.workspaceId },
+        where: buildNoteAccessWhere(query.data.workspaceId, access.actor.userId),
         select: { title: true },
       }),
       db.projectDoc.findMany({

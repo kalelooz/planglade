@@ -207,7 +207,13 @@ test("GET /workspace/export is workspace scoped and includes expected safe data"
     }) as unknown) as typeof db.workItem.findMany
 
     ;(db.note as typeof db.note).findMany = ((async (args: unknown) => {
-      assert.deepEqual((args as { where: unknown }).where, { workspaceId: "workspace-1" })
+      assert.deepEqual((args as { where: unknown }).where, {
+        workspaceId: "workspace-1",
+        OR: [
+          { visibility: "WORKSPACE" },
+          { visibility: "PRIVATE", createdById: "actor-1" },
+        ],
+      })
       return [
         {
           id: "note-1",

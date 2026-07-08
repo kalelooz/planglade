@@ -19,6 +19,7 @@ import {
   workspaceQuerySchema,
 } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canAccessNote } from "@/lib/note-access"
 import { deleteStorageObject, readStorageObjectMetadata, storageObjectExists } from "@/lib/storage"
 
 type Params = { params: Promise<{ attachmentId: string }> }
@@ -68,11 +69,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       where: { id: attachmentId },
       include: {
         workItem: { select: { id: true, title: true, projectId: true } },
-        note: { select: { id: true, title: true, projectId: true } },
+        note: {
+          select: {
+            id: true,
+            title: true,
+            projectId: true,
+            workspaceId: true,
+            visibility: true,
+            createdById: true,
+          },
+        },
       },
     })
     if (!existing) return notFound("Attachment not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Attachment not found in workspace")
+    if (existing.note && !canAccessNote(existing.note, query.data.workspaceId, actorUserId)) {
+      return notFound("Attachment not found")
+    }
 
     const projectId = existing.workItem?.projectId ?? existing.note?.projectId ?? null
     const flagError = await ensureProjectAttachmentsEnabled(query.data.workspaceId, projectId)
@@ -173,11 +186,23 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       where: { id: attachmentId },
       include: {
         workItem: { select: { id: true, title: true, projectId: true } },
-        note: { select: { id: true, title: true, projectId: true } },
+        note: {
+          select: {
+            id: true,
+            title: true,
+            projectId: true,
+            workspaceId: true,
+            visibility: true,
+            createdById: true,
+          },
+        },
       },
     })
     if (!existing) return notFound("Attachment not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Attachment not found in workspace")
+    if (existing.note && !canAccessNote(existing.note, query.data.workspaceId, actorUserId)) {
+      return notFound("Attachment not found")
+    }
 
     const projectId = existing.workItem?.projectId ?? existing.note?.projectId ?? null
     const flagError = await ensureProjectAttachmentsEnabled(query.data.workspaceId, projectId)

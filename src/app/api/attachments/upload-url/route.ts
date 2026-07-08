@@ -5,6 +5,7 @@ import { badRequest, forbidden, parseJsonBody, requireWorkspaceRole, resolveRequ
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { createAttachmentUploadUrlSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canAccessNote } from "@/lib/note-access"
 import { createAttachmentUploadTarget } from "@/lib/storage"
 
 function sanitizeFilename(input: string) {
@@ -14,6 +15,7 @@ function sanitizeFilename(input: string) {
 
 async function validateAttachmentTarget(
   workspaceId: string,
+  actorUserId: string,
   input: { workItemId?: string; noteId?: string }
 ) {
   if (input.workItemId && input.noteId) {
@@ -40,10 +42,16 @@ async function validateAttachmentTarget(
 
   const note = await db.note.findUnique({
     where: { id: input.noteId },
-    select: { id: true, workspaceId: true, projectId: true },
+    select: {
+      id: true,
+      workspaceId: true,
+      projectId: true,
+      visibility: true,
+      createdById: true,
+    },
   })
-  if (!note || note.workspaceId !== workspaceId) {
-    return { response: badRequest("Note not found in workspace") }
+  if (!note || !canAccessNote(note, workspaceId, actorUserId)) {
+    return { response: NextResponse.json({ error: "Note not found" }, { status: 404 }) }
   }
   return {
     target: {
@@ -83,10 +91,14 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
 
-    const target = await validateAttachmentTarget(parsed.data.workspaceId, {
-      workItemId: parsed.data.workItemId,
-      noteId: parsed.data.noteId,
-    })
+    const target = await validateAttachmentTarget(
+      parsed.data.workspaceId,
+      access.actor.userId,
+      {
+        workItemId: parsed.data.workItemId,
+        noteId: parsed.data.noteId,
+      }
+    )
     if (target.response) return target.response
     if (!target.target) return badRequest("Attachment target resolution failed")
 

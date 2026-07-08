@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { db } from "@/lib/db"
+import { buildNoteAccessWhere } from "@/lib/note-access"
 
 const activityQuerySchema = z.object({
   workspaceId: z.string().min(1),
@@ -76,7 +77,10 @@ export async function GET(request: NextRequest) {
       : []
     const notes = noteIds.length
       ? await db.note.findMany({
-          where: { id: { in: noteIds } },
+          where: {
+            id: { in: noteIds },
+            ...buildNoteAccessWhere(query.data.workspaceId, access.actor.userId),
+          },
           select: { id: true, title: true, projectId: true },
         })
       : []
@@ -86,6 +90,7 @@ export async function GET(request: NextRequest) {
     const noteById = new Map(notes.map((note) => [note.id, note] as const))
 
     const mapped = events
+      .filter((event) => event.entityType !== "NOTE" || noteById.has(event.entityId))
       .map((event) => {
         const workItem = event.entityType === "WORK_ITEM" ? workItemById.get(event.entityId) ?? null : null
         const project = event.entityType === "PROJECT" ? projectById.get(event.entityId) ?? null : null

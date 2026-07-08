@@ -18,10 +18,12 @@ import {
   isAllowedAttachmentMimeType,
 } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { buildNoteAccessWhere, canAccessNote } from "@/lib/note-access"
 import { readStorageObjectMetadata, storageObjectExists } from "@/lib/storage"
 
 async function validateAttachmentTarget(
   workspaceId: string,
+  actorUserId: string,
   input: { workItemId?: string; noteId?: string }
 ) {
   if (input.workItemId && input.noteId) {
@@ -51,10 +53,17 @@ async function validateAttachmentTarget(
 
   const note = await db.note.findUnique({
     where: { id: input.noteId },
-    select: { id: true, workspaceId: true, projectId: true, title: true },
+    select: {
+      id: true,
+      workspaceId: true,
+      projectId: true,
+      title: true,
+      visibility: true,
+      createdById: true,
+    },
   })
-  if (!note || note.workspaceId !== workspaceId) {
-    return { response: badRequest("Note not found in workspace") }
+  if (!note || !canAccessNote(note, workspaceId, actorUserId)) {
+    return { response: NextResponse.json({ error: "Note not found" }, { status: 404 }) }
   }
   return {
     target: {
@@ -109,10 +118,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (query.data.workItemId || query.data.noteId) {
-      const target = await validateAttachmentTarget(query.data.workspaceId, {
-        workItemId: query.data.workItemId,
-        noteId: query.data.noteId,
-      })
+      const target = await validateAttachmentTarget(
+        query.data.workspaceId,
+        access.actor.userId,
+        {
+          workItemId: query.data.workItemId,
+          noteId: query.data.noteId,
+        }
+      )
       if (target.response) return target.response
       if (target.target) {
         const flagError = await ensureProjectAttachmentsEnabled(query.data.workspaceId, target.target.projectId)
@@ -123,6 +136,14 @@ export async function GET(request: NextRequest) {
     const attachments = await db.attachment.findMany({
       where: {
         workspaceId: query.data.workspaceId,
+        OR: [
+          { noteId: null },
+          {
+            note: {
+              is: buildNoteAccessWhere(query.data.workspaceId, access.actor.userId),
+            },
+          },
+        ],
         ...(query.data.workItemId ? { workItemId: query.data.workItemId } : {}),
         ...(query.data.noteId ? { noteId: query.data.noteId } : {}),
       },
@@ -166,10 +187,14 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 
-    const target = await validateAttachmentTarget(parsed.data.workspaceId, {
-      workItemId: parsed.data.workItemId,
-      noteId: parsed.data.noteId,
-    })
+    const target = await validateAttachmentTarget(
+      parsed.data.workspaceId,
+      actorUserId,
+      {
+        workItemId: parsed.data.workItemId,
+        noteId: parsed.data.noteId,
+      }
+    )
     if (target.response) return target.response
     if (!target.target) return badRequest("Attachment target resolution failed")
 

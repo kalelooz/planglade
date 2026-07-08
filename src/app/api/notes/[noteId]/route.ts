@@ -11,6 +11,7 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canAccessNote } from "@/lib/note-access"
 
 type Params = { params: Promise<{ noteId: string }> }
 
@@ -34,10 +35,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const existing = await db.note.findUnique({
       where: { id: noteId },
-      select: { id: true, workspaceId: true, title: true },
+      select: {
+        id: true,
+        workspaceId: true,
+        title: true,
+        visibility: true,
+        createdById: true,
+      },
     })
     if (!existing) return notFound("Note not found")
-    if (existing.workspaceId !== query.data.workspaceId) return notFound("Note not found in workspace")
+    if (!canAccessNote(existing, query.data.workspaceId, access.actor.userId)) {
+      return notFound("Note not found")
+    }
+
+    if (parsed.data.projectId) {
+      const project = await db.project.findFirst({
+        where: { id: parsed.data.projectId, workspaceId: query.data.workspaceId },
+        select: { id: true },
+      })
+      if (!project) return badRequest("Project not found in workspace")
+    }
 
     const actorUserId = access.actor.userId
     const changedFields = Object.entries(parsed.data)
@@ -95,10 +112,18 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.note.findUnique({
       where: { id: noteId },
-      select: { id: true, workspaceId: true, title: true },
+      select: {
+        id: true,
+        workspaceId: true,
+        title: true,
+        visibility: true,
+        createdById: true,
+      },
     })
     if (!existing) return notFound("Note not found")
-    if (existing.workspaceId !== query.data.workspaceId) return notFound("Note not found in workspace")
+    if (!canAccessNote(existing, query.data.workspaceId, actorUserId)) {
+      return notFound("Note not found")
+    }
 
     await db.$transaction(async (tx) => {
       await tx.note.delete({ where: { id: noteId } })

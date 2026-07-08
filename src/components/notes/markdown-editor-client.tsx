@@ -33,6 +33,7 @@ export default function MarkdownEditorClient({
   return (
     <MDXEditor
       markdown={initialMarkdown}
+      suppressHtmlProcessing
       onChange={onChange}
       placeholder={placeholder ?? "Start writing…"}
       contentEditableClassName="prose prose-sm max-w-none px-0 py-4 outline-none dark:prose-invert min-h-[300px]"

@@ -14,6 +14,7 @@ import { createWorkItemSchema, workItemListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { createNotificationRecord } from "@/lib/notifications"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { validateNoteReferences } from "@/lib/note-access"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -67,6 +68,13 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 
+    const noteReferences = await validateNoteReferences({
+      workspaceId: parsed.data.workspaceId,
+      actorUserId,
+      noteIds: parsed.data.noteIds,
+    })
+    if (!noteReferences.ok) return badRequest("Note not found or not accessible")
+
     if (parsed.data.parentId) {
       const parentWorkItem = await db.workItem.findUnique({
         where: { id: parsed.data.parentId },
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
           title: parsed.data.title,
           description: parsed.data.description,
           checklist: parsed.data.checklist,
-          noteIds: parsed.data.noteIds,
+          noteIds: noteReferences.noteIds,
           status: parsed.data.status,
           priority: parsed.data.priority,
           startDate: parseDateValue(parsed.data.startDate) ?? undefined,
