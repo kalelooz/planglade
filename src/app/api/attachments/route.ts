@@ -215,20 +215,19 @@ export async function POST(request: NextRequest) {
     if (!metadata) {
       return badRequest("Could not load uploaded file metadata from storage")
     }
-    if (metadata.mimeType && !isAllowedAttachmentMimeType(metadata.mimeType)) {
+    if (!metadata.mimeType || !isAllowedAttachmentMimeType(metadata.mimeType)) {
       return badRequest("Uploaded file MIME type is not supported")
     }
-    if (metadata.sizeBytes !== null && metadata.sizeBytes > MAX_ATTACHMENT_BYTES) {
+    if (metadata.sizeBytes === null || metadata.sizeBytes <= 0) {
+      return badRequest("Uploaded file size is unavailable or empty")
+    }
+    if (metadata.sizeBytes > MAX_ATTACHMENT_BYTES) {
       return badRequest("Uploaded file exceeds the 50 MB limit")
     }
-    if (parsed.data.mimeType && metadata.mimeType && metadata.mimeType !== parsed.data.mimeType) {
+    if (metadata.mimeType !== parsed.data.mimeType) {
       return badRequest("Uploaded file MIME type does not match attachment payload")
     }
-    if (
-      parsed.data.sizeBytes !== undefined &&
-      metadata.sizeBytes !== null &&
-      metadata.sizeBytes !== parsed.data.sizeBytes
-    ) {
+    if (metadata.sizeBytes !== parsed.data.sizeBytes) {
       return badRequest("Uploaded file size does not match attachment payload")
     }
 

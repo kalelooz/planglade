@@ -112,8 +112,8 @@ export const createAttachmentSchema = z.object({
   noteId: z.string().min(1).optional(),
   name: z.string().trim().min(1).max(240),
   storageKey: z.string().trim().min(1).max(500),
-  mimeType: attachmentMimeTypeSchema.optional(),
-  sizeBytes: z.number().int().nonnegative().max(MAX_ATTACHMENT_BYTES).optional(),
+  mimeType: attachmentMimeTypeSchema,
+  sizeBytes: z.number().int().positive().max(MAX_ATTACHMENT_BYTES),
 })
 
 export const createAttachmentUploadUrlSchema = z.object({
@@ -125,12 +125,12 @@ export const createAttachmentUploadUrlSchema = z.object({
   sizeBytes: z.number().int().positive().max(MAX_ATTACHMENT_BYTES),
 })
 
-export const updateAttachmentSchema = z.object({
-  name: z.string().trim().min(1).max(240).optional(),
-  storageKey: z.string().trim().min(1).max(500).optional(),
-  mimeType: attachmentMimeTypeSchema.nullable().optional(),
-  sizeBytes: z.number().int().nonnegative().max(MAX_ATTACHMENT_BYTES).nullable().optional(),
-})
+export const updateAttachmentSchema = z
+  .object({
+    name: z.string().trim().min(1).max(240).optional(),
+  })
+  .strict()
+  .refine((value) => value.name !== undefined, "Attachment name is required")
 
 export const searchQuerySchema = workspaceQuerySchema.extend({
   q: z.string().trim().min(1).max(120),

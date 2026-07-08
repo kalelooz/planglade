@@ -5,6 +5,7 @@ import { badRequest, serverError } from "@/lib/api-utils"
 import { MAX_ATTACHMENT_BYTES, isAllowedAttachmentMimeType } from "@/lib/contracts"
 import {
   getConfiguredStorageProvider,
+  StorageObjectAlreadyExistsError,
   verifyLocalSignedStorageUrl,
   writeLocalStorageObject,
 } from "@/lib/storage"
@@ -15,6 +16,52 @@ const uploadBinaryQuerySchema = z.object({
   expires: z.coerce.number().int().positive(),
   signature: z.string().trim().min(32),
 })
+
+async function readBoundedUploadBody(request: Request) {
+  const contentLength = request.headers.get("content-length")
+  if (contentLength !== null) {
+    if (!/^\d+$/.test(contentLength)) {
+      return { ok: false as const, message: "Content-Length header is invalid" }
+    }
+    const declaredBytes = Number(contentLength)
+    if (!Number.isSafeInteger(declaredBytes) || declaredBytes > MAX_ATTACHMENT_BYTES) {
+      return { ok: false as const, message: "Upload exceeds the 50 MB limit" }
+    }
+  }
+
+  if (!request.body) {
+    return { ok: false as const, message: "Upload body is empty" }
+  }
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value || value.byteLength === 0) continue
+
+    totalBytes += value.byteLength
+    if (totalBytes > MAX_ATTACHMENT_BYTES) {
+      await reader.cancel().catch(() => undefined)
+      return { ok: false as const, message: "Upload exceeds the 50 MB limit" }
+    }
+    chunks.push(value)
+  }
+
+  if (totalBytes === 0) {
+    return { ok: false as const, message: "Upload body is empty" }
+  }
+
+  const bytes = new Uint8Array(totalBytes)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return { ok: true as const, bytes }
+}
 
 export async function PUT(request: NextRequest) {
   try {
@@ -51,18 +98,13 @@ export async function PUT(request: NextRequest) {
       return badRequest("Content-Type header must match the signed upload MIME type")
     }
 
-    const payload = new Uint8Array(await request.arrayBuffer())
-    if (payload.byteLength === 0) {
-      return badRequest("Upload body is empty")
-    }
-    if (payload.byteLength > MAX_ATTACHMENT_BYTES) {
-      return badRequest("Upload exceeds the 50 MB limit")
-    }
+    const body = await readBoundedUploadBody(request)
+    if (!body.ok) return badRequest(body.message)
 
     const saved = await writeLocalStorageObject({
       storageKey: parsed.data.storageKey,
       mimeType: parsed.data.mimeType,
-      bytes: payload,
+      bytes: body.bytes,
     })
 
     return NextResponse.json({
@@ -72,6 +114,9 @@ export async function PUT(request: NextRequest) {
       mimeType: parsed.data.mimeType,
     })
   } catch (error) {
+    if (error instanceof StorageObjectAlreadyExistsError) {
+      return NextResponse.json({ error: "Upload target already contains an object" }, { status: 409 })
+    }
     return serverError("Failed to store uploaded attachment", String(error))
   }
 }
