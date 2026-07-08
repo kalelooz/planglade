@@ -201,27 +201,91 @@ test("attachment upload targets reject another author's private note", async () 
   })
 })
 
-test("note editor suppresses raw HTML and executable MDX processing", async () => {
-  const [component, core, lexicalLink] = await Promise.all([
-    readFile("src/components/notes/markdown-editor-client.tsx", "utf8"),
-    readFile("node_modules/@mdxeditor/editor/dist/plugins/core/index.js", "utf8"),
-    readFile("node_modules/@lexical/link/LexicalLink.dev.js", "utf8"),
+test("note editor suppresses raw HTML, unsafe links, and executable content", async () => {
+  const [config, component] = await Promise.all([
+    readFile("src/components/notes/markdown-editor-config.ts", "utf8"),
+    readFile("src/components/notes/markdown-editor.tsx", "utf8"),
   ])
 
-  assert.match(component, /suppressHtmlProcessing/)
-  assert.doesNotMatch(component, /jsxPlugin/)
-  assert.match(core, /if \(!\(params.*suppressHtmlProcessing\)\)/)
-  assert.match(lexicalLink, /about:blank/)
-  assert.match(lexicalLink, /new Set\(\[[\s\S]*http:[\s\S]*https:[\s\S]*mailto:[\s\S]*sms:[\s\S]*tel:/)
+  // Explicit protocol allowlist (not a fragile prefix check): only http, https, mailto.
+  assert.match(config, /SAFE_LINK_PROTOCOLS\s*=\s*new Set\(\[["']http:["'].*["']https:["'].*["']mailto:["']/)
+  assert.match(config, /isSafeNoteLink/)
+  assert.match(config, /isAllowedUri:\s*isSafeNoteLink/)
+  assert.match(config, /sanitizeNoteDocument/)
 
-  const suppressedRepresentations = [
-    "<script>inert marker</script>",
-    '<img src="x" onerror="inert marker">',
+  // No raw-HTML injection path in the editor surface.
+  assert.doesNotMatch(component, /dangerouslySetInnerHTML/)
+  assert.doesNotMatch(component, /MDXEditor/)
+
+  // Runtime verification against a real Tiptap editor instance: hostile Markdown
+  // cannot survive as executable content or an actionable unsafe link.
+  const { Editor } = await import("@tiptap/core")
+  const {
+    createNoteEditorExtensions,
+    prepareNoteMarkdown,
+    sanitizeNoteDocument,
+    serializeNoteMarkdown,
+    isSafeNoteLink,
+  } = await import("../src/components/notes/markdown-editor-config")
+
+  const hostile = [
+    '<script>alert("x")</script>',
+    '<img src=x onerror=alert("x")>',
     '<iframe src="about:blank"></iframe>',
-    "{inertMdxExpression}",
-  ]
-  assert.equal(suppressedRepresentations.every((value) => /[<{]/.test(value)), true)
-  assert.equal("[link](javascript:inert)".includes("javascript:"), true)
+    "[bad](javascript:alert(1))",
+    "[data](data:text/html,<script>)",
+    "[good](https://example.com)",
+    "[mail](mailto:hello@example.com)",
+  ].join("\n\n")
+
+  const editor = new Editor({
+    extensions: createNoteEditorExtensions(),
+    content: prepareNoteMarkdown(hostile),
+    contentType: "markdown",
+  })
+
+  const document = sanitizeNoteDocument(editor.getJSON())
+  const documentJson = JSON.stringify(document)
+  const serialized = serializeNoteMarkdown(editor)
+  editor.destroy()
+
+  // Hostile HTML never becomes an executable node type: scripts, images, and
+  // iframes must appear only as inert text, never as their own element nodes.
+  assert.doesNotMatch(documentJson, /"type":"script"|"type":"image"|"type":"iframe"/i)
+  assert.doesNotMatch(documentJson, /"onerror"|javascript:|vbscript:/i)
+  // No unsafe protocol survives as an active link mark attribute.
+  for (const node of document.content ?? []) {
+    for (const mark of node.marks ?? []) {
+      if (mark.type === "link") {
+        assert.match(String(mark.attrs?.href ?? ""), /^https?:|^mailto:/)
+      }
+    }
+  }
+  // Serialized Markdown escapes raw HTML rather than emitting active elements.
+  assert.doesNotMatch(serialized, /<script|<iframe/i)
+  assert.match(serialized, /&lt;script&gt;/i)
+  // Unsafe protocols are rejected by the allowlist; safe links round-trip.
+  assert.equal(isSafeNoteLink("javascript:alert(1)"), false)
+  assert.equal(isSafeNoteLink("data:text/html,<script>"), false)
+  assert.equal(isSafeNoteLink("vbscript:msgbox"), false)
+  assert.equal(isSafeNoteLink("https://example.com"), true)
+  assert.equal(isSafeNoteLink("mailto:hello@example.com"), true)
+  assert.match(serialized, /\[good\]\(https:\/\/example\.com\)/)
+
+  // MDX expressions never execute: the editor has no MDX/JSX runtime, so an
+  // expression like {whoami()} is stored as inert plain text rather than evaluated.
+  const mdxExpression = "{whoami()}"
+  const expressionEditor = new Editor({
+    extensions: createNoteEditorExtensions(),
+    content: prepareNoteMarkdown(mdxExpression),
+    contentType: "markdown",
+  })
+  const expressionDocument = sanitizeNoteDocument(expressionEditor.getJSON())
+  const expressionSerialized = serializeNoteMarkdown(expressionEditor)
+  expressionEditor.destroy()
+  assert.equal(expressionSerialized.includes("{whoami()}"), true)
+  assert.equal(JSON.stringify(expressionDocument).includes('"type":"mdxExpression"'), false)
+  assert.doesNotMatch(JSON.stringify(expressionDocument), /"type":"mdx[\w]*"/i)
 })
 
 test("secondary note access paths use the shared author-only guard", async () => {
