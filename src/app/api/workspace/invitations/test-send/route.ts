@@ -16,6 +16,7 @@ import {
   renderInviteTemplate,
   resolveInviteTemplateFromPolicy,
 } from "@/lib/workspace-invite-policy"
+import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
 
 function deriveInviteeName(email: string) {
   const localPart = email.trim().split("@")[0] ?? ""
@@ -62,6 +63,9 @@ export async function POST(request: NextRequest) {
 
     const toEmail = parsed.data.toEmail ?? actor.email
     const role = parsed.data.role ?? policy.defaultInviteRole
+    if (!isGenericWorkspaceRole(role)) {
+      return badRequest("Ownership cannot be granted through invitations")
+    }
     const inviteUrl = `${request.nextUrl.origin}/login?invitePreview=1`
     const customMessage =
       parsed.data.customMessage ??

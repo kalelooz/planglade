@@ -22,7 +22,7 @@ function hasAuthProviders() {
 
 export async function GET(request: Request) {
   try {
-    const authConfig = getAuthConfigErrors({ includeProductionDevBlock: true })
+    const authConfig = getAuthConfigErrors()
     if (authConfig.mode === "invalid") {
       return NextResponse.json(
         {

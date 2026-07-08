@@ -118,3 +118,50 @@ test("POST /workspace/invitations/accept returns 410 and expires stale invite", 
     assert.equal(updatedToExpired, true)
   })
 })
+
+test("POST /workspace/invitations/accept rejects a persisted OWNER invite", async () => {
+  await runWithMocks(async () => {
+    ;(db.user as typeof db.user).findUnique = ((async () => ({
+      id: "user-1",
+      email: "user@example.com",
+      name: "User One",
+    })) as unknown) as typeof db.user.findUnique
+
+    ;(db.workspaceInvite as typeof db.workspaceInvite).findUnique = ((async () => ({
+      id: "invite-owner",
+      workspaceId: "ws-1",
+      email: "user@example.com",
+      role: "OWNER",
+      token: "tok-owner-123456789012345",
+      status: "PENDING",
+      expiresAt: new Date("2100-01-01T00:00:00.000Z"),
+      invitedById: "admin-1",
+      acceptedById: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      workspace: { id: "ws-1", slug: "ws", name: "Workspace" },
+    })) as unknown) as typeof db.workspaceInvite.findUnique
+
+    let transactionCalled = false
+    ;(db as typeof db).$transaction = (async () => {
+      transactionCalled = true
+      throw new Error("transaction should not run for OWNER invite")
+    }) as typeof db.$transaction
+
+    const request = new Request("http://localhost/api/workspace/invitations/accept", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": "user-1",
+      },
+      body: JSON.stringify({ token: "tok-owner-123456789012345" }),
+    }) as unknown as NextRequest
+
+    const response = await acceptWorkspaceInvite(request)
+    const payload = (await response.json()) as { error?: string }
+
+    assert.equal(response.status, 403)
+    assert.equal(payload.error, "Ownership cannot be granted through invitations")
+    assert.equal(transactionCalled, false)
+  })
+})

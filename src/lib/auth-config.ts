@@ -23,7 +23,7 @@ export function getPublicConfiguredAuthMode(): PlanGladeAuthMode | "invalid" {
   return "invalid"
 }
 
-export function getAuthConfigErrors(options?: { includeProductionDevBlock?: boolean }) {
+export function getAuthConfigErrors() {
   const mode = getConfiguredAuthMode()
   const publicMode = getPublicConfiguredAuthMode()
   const isProduction = process.env.NODE_ENV === "production"
@@ -42,7 +42,7 @@ export function getAuthConfigErrors(options?: { includeProductionDevBlock?: bool
     errors.push("PLANGLADE_AUTH_MODE and NEXT_PUBLIC_PLANGLADE_AUTH_MODE must match.")
   }
 
-  if (options?.includeProductionDevBlock && isProduction && mode === "dev") {
+  if (isProduction && mode === "dev") {
     errors.push("PLANGLADE_AUTH_MODE=dev is disabled in production.")
   }
 

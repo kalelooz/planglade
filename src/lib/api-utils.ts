@@ -73,6 +73,13 @@ function extractFirebaseToken(request: Request) {
 export async function resolveRequestActorUserId(request: Request): Promise<string | undefined> {
   const authMode = getConfiguredAuthMode()
 
+  if (authMode === "invalid") {
+    throw new Error("Authentication configuration is invalid")
+  }
+  if (process.env.NODE_ENV === "production" && authMode === "dev") {
+    throw new Error("Development authentication is disabled in production")
+  }
+
   if (authMode === "firebase") {
     const token = extractFirebaseToken(request)
     if (!token) return undefined

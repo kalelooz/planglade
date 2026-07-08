@@ -11,6 +11,7 @@ import {
 import { acceptWorkspaceInviteSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { evaluateInviteAcceptance } from "@/lib/workspace-invite-guards"
+import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
 
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, acceptWorkspaceInviteSchema)
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest) {
       },
     })
     if (!invite) return badRequest("Invite token is invalid")
+    if (!isGenericWorkspaceRole(invite.role)) {
+      return forbidden("Ownership cannot be granted through invitations")
+    }
 
     const decision = evaluateInviteAcceptance({
       status: invite.status,

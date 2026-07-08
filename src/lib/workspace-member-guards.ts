@@ -1,11 +1,22 @@
 import type { WorkspaceRole } from "@prisma/client"
 
+export function isGenericWorkspaceRole(role: WorkspaceRole) {
+  return role !== "OWNER"
+}
+
 export function validateWorkspaceMemberRoleChange(input: {
   workspaceOwnerId: string
   targetUserId: string
   nextRole: WorkspaceRole
 }) {
-  if (input.workspaceOwnerId === input.targetUserId && input.nextRole !== "OWNER") {
+  if (!isGenericWorkspaceRole(input.nextRole)) {
+    return {
+      ok: false as const,
+      message: "Ownership cannot be granted through member management",
+    }
+  }
+
+  if (input.workspaceOwnerId === input.targetUserId) {
     return {
       ok: false as const,
       message: "Workspace owner role cannot be downgraded",

@@ -5,6 +5,7 @@ import { PRIORITY_DISPLAY_STYLES } from "./appearance-defaults"
 export { DEFAULT_PRIORITY_DISPLAY_STYLE, normalizeAppearanceSettings, resolvePriorityDisplayStyle, type PriorityDisplayStyle } from "./appearance-defaults"
 
 export const workspaceRoleSchema = z.enum(["OWNER", "ADMIN", "MEMBER", "VIEWER"])
+export const genericWorkspaceRoleSchema = z.enum(["ADMIN", "MEMBER", "VIEWER"])
 export const projectStatusSchema = z.enum(["ACTIVE", "IN_REVIEW", "ON_HOLD", "ARCHIVED"])
 export const projectModeSchema = z.enum(["STANDARD", "SERVICE_DESK"])
 export const workItemStatusSchema = z.enum(["BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"])
@@ -163,14 +164,14 @@ export const createWorkspaceMemberSchema = z.object({
   workspaceId: z.string().min(1),
   email: z.string().trim().email(),
   name: z.string().trim().min(1).max(120).optional(),
-  role: workspaceRoleSchema.default("MEMBER"),
+  role: genericWorkspaceRoleSchema.default("MEMBER"),
 })
 
 export const createWorkspaceInviteSchema = z.object({
   workspaceId: z.string().min(1),
   name: z.string().trim().min(1).max(120).optional(),
   email: z.string().trim().email(),
-  role: workspaceRoleSchema.default("MEMBER"),
+  role: genericWorkspaceRoleSchema.default("MEMBER"),
   expiresInDays: z.number().int().min(1).max(30).default(7),
   customMessage: z.string().trim().min(1).max(1200).optional(),
   templateKey: z.string().trim().min(1).max(64).optional(),
@@ -188,7 +189,7 @@ export const workspaceInviteTemplateSchema = z.object({
 const workspaceInviteEntrySchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   email: z.string().trim().email(),
-  role: workspaceRoleSchema.optional(),
+  role: genericWorkspaceRoleSchema.optional(),
 })
 
 export const createWorkspaceInviteBatchSchema = z.object({
@@ -220,7 +221,7 @@ export const updateWorkspaceInviteSchema = z.object({
   workspaceId: z.string().min(1),
   action: z.enum(["revoke", "resend"]),
   name: z.string().trim().min(1).max(120).optional(),
-  role: workspaceRoleSchema.optional(),
+  role: genericWorkspaceRoleSchema.optional(),
   expiresInDays: z.number().int().min(1).max(30).optional(),
   customMessage: z.string().trim().min(1).max(1200).optional(),
   templateKey: z.string().trim().min(1).max(64).optional(),
@@ -229,7 +230,7 @@ export const updateWorkspaceInviteSchema = z.object({
 export const sendWorkspaceInviteTestEmailSchema = z.object({
   workspaceId: z.string().min(1),
   templateKey: z.string().trim().min(1).max(64).optional(),
-  role: workspaceRoleSchema.optional(),
+  role: genericWorkspaceRoleSchema.optional(),
   toEmail: z.string().trim().email().optional(),
   customMessage: z.string().trim().min(1).max(1200).optional(),
   subjectTemplateOverride: z.string().trim().min(1).max(240).optional(),
@@ -244,7 +245,7 @@ export const updateWorkspaceInvitePolicySchema = z.object({
   allowExternalDomains: z.boolean().optional(),
   allowedDomains: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
   blockedDomains: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
-  defaultInviteRole: workspaceRoleSchema.optional(),
+  defaultInviteRole: genericWorkspaceRoleSchema.optional(),
   inviteExpiryDays: z.number().int().min(1).max(30).optional(),
   emailSubjectTemplate: z.string().trim().min(1).max(240).optional(),
   emailBodyTemplate: z.string().trim().min(1).max(6000).optional(),
@@ -257,7 +258,7 @@ export const acceptWorkspaceInviteSchema = z.object({
 
 export const updateWorkspaceMemberSchema = z.object({
   workspaceId: z.string().min(1),
-  role: workspaceRoleSchema,
+  role: genericWorkspaceRoleSchema,
 })
 
 export const createLabelSchema = z.object({

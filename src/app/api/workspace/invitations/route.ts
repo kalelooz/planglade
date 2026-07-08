@@ -32,6 +32,7 @@ import {
   renderInviteTemplate,
   resolveInviteTemplateFromPolicy,
 } from "@/lib/workspace-invite-policy"
+import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
 
 function deriveInviteeName(inputName: string | undefined, email: string) {
   const trimmedName = inputName?.trim() ?? ""
@@ -243,6 +244,13 @@ export async function POST(request: NextRequest) {
       })
 
       const role = entry.role ?? policy.defaultInviteRole
+      if (!isGenericWorkspaceRole(role)) {
+        failed.push({
+          email: inviteEmail,
+          error: "Ownership cannot be granted through invitations",
+        })
+        continue
+      }
       const expiresAt = buildInviteExpiry(policy.inviteExpiryDays)
       const token = buildInviteToken()
       const inviteUrl = `${request.nextUrl.origin}/login?inviteToken=${token}`
