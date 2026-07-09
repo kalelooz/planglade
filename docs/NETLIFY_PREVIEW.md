@@ -23,3 +23,5 @@ PLANGLADE_STORAGE_SIGNING_SECRET="replace-in-netlify-only"
 ```
 
 For a real hosted app, replace SQLite/local storage before accepting users. This preview is for public landing and read-only demo checks only.
+
+Do not add `prisma migrate deploy` to the Netlify build command while this file uses `file:/tmp/planglade.db`. That database path is ephemeral. Production migration steps live in `docs/PRODUCTION_MIGRATIONS.md`.

@@ -18,6 +18,9 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:check:attachment-storage-keys": "node scripts/check-attachment-storage-key-duplicates.mjs",
     "db:reset": "prisma migrate reset"
   },
   "dependencies": {
