@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { logActivityEvent } from "@/lib/activity"
 import {
+  forbidden,
   parseJsonBody,
   parseQuery,
   requireWorkspaceRole,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/api-utils"
 import { createWorkspaceMemberSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { validateWorkspaceMemberRoleChange } from "@/lib/workspace-member-guards"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -72,6 +74,19 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, email: true, name: true },
     })
+
+    const workspace = await db.workspace.findUnique({
+      where: { id: parsed.data.workspaceId },
+      select: { ownerId: true },
+    })
+    if (!workspace) return serverError("Failed to add workspace member")
+
+    const roleCheck = validateWorkspaceMemberRoleChange({
+      workspaceOwnerId: workspace.ownerId,
+      targetUserId: user.id,
+      nextRole: parsed.data.role,
+    })
+    if (!roleCheck.ok) return forbidden(roleCheck.message)
 
     const membership = await db.$transaction(async (tx) => {
       const createdOrUpdated = await tx.workspaceMember.upsert({

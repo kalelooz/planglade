@@ -5,7 +5,7 @@ import { getAuthConfigErrors } from "@/lib/auth-config"
 import { getStorageConfigErrors } from "@/lib/storage"
 
 export async function GET() {
-  const authConfig = getAuthConfigErrors({ includeProductionDevBlock: true })
+  const authConfig = getAuthConfigErrors()
   const authProvidersConfigured = hasAuthProviders()
   const storageConfig = getStorageConfigErrors()
   const isAuthReady =

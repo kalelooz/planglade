@@ -4,6 +4,7 @@ import { badRequest, forbidden, parseQuery, requireWorkspaceRole, resolveRequest
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canAccessNote } from "@/lib/note-access"
 import { createAttachmentDownloadTarget, storageObjectExists } from "@/lib/storage"
 
 type Params = { params: Promise<{ attachmentId: string }> }
@@ -49,12 +50,26 @@ export async function GET(request: NextRequest, { params }: Params) {
       where: { id: attachmentId },
       include: {
         workItem: { select: { id: true, projectId: true, workspaceId: true } },
-        note: { select: { id: true, projectId: true, workspaceId: true } },
+        note: {
+          select: {
+            id: true,
+            projectId: true,
+            workspaceId: true,
+            visibility: true,
+            createdById: true,
+          },
+        },
       },
     })
 
     if (!attachment || attachment.workspaceId !== query.data.workspaceId) {
       return NextResponse.json({ error: "Attachment not found in workspace" }, { status: 404 })
+    }
+    if (
+      attachment.note &&
+      !canAccessNote(attachment.note, query.data.workspaceId, access.actor.userId)
+    ) {
+      return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
     }
 
     const projectId = attachment.workItem?.projectId ?? attachment.note?.projectId ?? null

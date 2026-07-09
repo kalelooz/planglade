@@ -14,6 +14,12 @@ import { updateWorkItemSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { createNotificationRecord } from "@/lib/notifications"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { validateNoteReferences } from "@/lib/note-access"
+import {
+  validateWorkspaceLabelIds,
+  workspaceMemberExists,
+  workspaceProjectExists,
+} from "@/lib/workspace-reference-guards"
 
 type Params = { params: Promise<{ workItemId: string }> }
 
@@ -35,6 +41,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+
+    const noteReferences = await validateNoteReferences({
+      workspaceId: query.data.workspaceId,
+      actorUserId,
+      noteIds: parsed.data.noteIds,
+    })
+    if (!noteReferences.ok) return badRequest("Note not found or not accessible")
+
+    const labelReferences = await validateWorkspaceLabelIds({
+      workspaceId: query.data.workspaceId,
+      labelIds: parsed.data.labelIds,
+    })
+    if (!labelReferences.ok) return badRequest("Label not found in workspace")
+
+    if (!(await workspaceProjectExists(query.data.workspaceId, parsed.data.projectId))) {
+      return badRequest("Project not found in workspace")
+    }
+    if (!(await workspaceMemberExists(query.data.workspaceId, parsed.data.assigneeId))) {
+      return badRequest("Assignee not found in workspace")
+    }
 
     const existing = await db.workItem.findUnique({
       where: { id: workItemId },
@@ -101,7 +127,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
           ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
           ...(parsed.data.checklist !== undefined ? { checklist: parsed.data.checklist } : {}),
-          ...(parsed.data.noteIds !== undefined ? { noteIds: parsed.data.noteIds } : {}),
+          ...(noteReferences.noteIds !== undefined ? { noteIds: noteReferences.noteIds } : {}),
           ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
           ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
           ...(parsed.data.startDate !== undefined
@@ -132,11 +158,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         : null
       const featureFlags = normalizeProjectFeatureFlags(projectForFlags?.featureFlags)
 
-      if (parsed.data.labelIds) {
+      if (labelReferences.labelIds) {
         await tx.workItemLabel.deleteMany({ where: { workItemId } })
-        if (parsed.data.labelIds.length > 0) {
+        if (labelReferences.labelIds.length > 0) {
           await tx.workItemLabel.createMany({
-            data: parsed.data.labelIds.map((labelId) => ({ workItemId, labelId })),
+            data: labelReferences.labelIds.map((labelId) => ({ workItemId, labelId })),
           })
         }
       }

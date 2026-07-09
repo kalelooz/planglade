@@ -19,14 +19,30 @@ test("blocks owner role downgrade", () => {
   })
 })
 
-test("allows owner role unchanged", () => {
+test("blocks OWNER even when the target is the current owner", () => {
   const result = validateWorkspaceMemberRoleChange({
     workspaceOwnerId: "owner-1",
     targetUserId: "owner-1",
     nextRole: "OWNER",
   })
 
-  assert.deepEqual(result, { ok: true })
+  assert.deepEqual(result, {
+    ok: false,
+    message: "Ownership cannot be granted through member management",
+  })
+})
+
+test("blocks OWNER grants through generic member management", () => {
+  const result = validateWorkspaceMemberRoleChange({
+    workspaceOwnerId: "owner-1",
+    targetUserId: "member-1",
+    nextRole: "OWNER",
+  })
+
+  assert.deepEqual(result, {
+    ok: false,
+    message: "Ownership cannot be granted through member management",
+  })
 })
 
 test("blocks removing workspace owner", () => {

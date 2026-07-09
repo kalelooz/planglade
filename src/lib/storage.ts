@@ -13,6 +13,13 @@ export type StoredObjectMetadata = {
   sizeBytes: number | null
 }
 
+export class StorageObjectAlreadyExistsError extends Error {
+  constructor() {
+    super("Storage object already exists")
+    this.name = "StorageObjectAlreadyExistsError"
+  }
+}
+
 type SignedStorageMethod = "upload" | "download"
 
 const DEFAULT_LOCAL_STORAGE_DIR = "storage/local-attachments"
@@ -197,6 +204,19 @@ export function verifyLocalSignedStorageUrl(input: {
   return timingSafeStringEqual(expectedSignature, input.signature)
 }
 
+export function buildFirebaseUploadSignedUrlConfig(input: {
+  mimeType: string
+  expiresAtMs: number
+}) {
+  return {
+    version: "v4" as const,
+    action: "write" as const,
+    expires: input.expiresAtMs,
+    contentType: input.mimeType,
+    queryParams: { ifGenerationMatch: "0" },
+  }
+}
+
 export async function createAttachmentUploadTarget(input: {
   storageKey: string
   mimeType: string
@@ -207,12 +227,12 @@ export async function createAttachmentUploadTarget(input: {
 
   if (provider === "firebase") {
     const file = getFirebaseStorageBucket().file(input.storageKey)
-    const [uploadUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "write",
-      expires: Date.now() + expiresInSeconds * 1000,
-      contentType: input.mimeType,
-    })
+    const [uploadUrl] = await file.getSignedUrl(
+      buildFirebaseUploadSignedUrlConfig({
+        mimeType: input.mimeType,
+        expiresAtMs: Date.now() + expiresInSeconds * 1000,
+      })
+    )
 
     return {
       uploadUrl,
@@ -353,17 +373,34 @@ export async function writeLocalStorageObject(input: {
   const filePath = resolveLocalStoragePath(input.storageKey)
   await mkdir(path.dirname(filePath), { recursive: true })
   const buffer = Buffer.from(input.bytes)
-  await writeFile(filePath, buffer)
-  await writeFile(
-    getLocalMetaPath(filePath),
-    JSON.stringify(
-      {
-        mimeType: input.mimeType,
-      },
-      null,
-      2
+  try {
+    await writeFile(filePath, buffer, { flag: "wx" })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new StorageObjectAlreadyExistsError()
+    }
+    throw error
+  }
+
+  try {
+    await writeFile(
+      getLocalMetaPath(filePath),
+      JSON.stringify(
+        {
+          mimeType: input.mimeType,
+        },
+        null,
+        2
+      ),
+      { flag: "wx" }
     )
-  )
+  } catch (error) {
+    await rm(filePath, { force: true })
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new StorageObjectAlreadyExistsError()
+    }
+    throw error
+  }
 
   return {
     sizeBytes: buffer.byteLength,

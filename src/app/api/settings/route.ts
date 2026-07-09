@@ -81,6 +81,13 @@ export async function PUT(request: NextRequest) {
       return forbidden("You can only update your own settings unless you are admin or owner")
     }
 
+    if (
+      parsed.data.taskPriorityDisplayStyle !== undefined &&
+      !hasMinimumWorkspaceRole(access.actor.role, "ADMIN")
+    ) {
+      return forbidden("Workspace priority display style requires admin or owner role")
+    }
+
     let notificationsPayload: Prisma.InputJsonValue | undefined
     if (parsed.data.notifications !== undefined) {
       const existing = await db.userSettings.findUnique({

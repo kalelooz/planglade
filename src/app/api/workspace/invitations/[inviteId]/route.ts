@@ -29,6 +29,7 @@ import {
   renderInviteTemplate,
   resolveInviteTemplateFromPolicy,
 } from "@/lib/workspace-invite-policy"
+import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
 
 type Params = { params: Promise<{ inviteId: string }> }
 
@@ -135,6 +136,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     })
 
     const role = parsed.data.role ?? invite.role
+    if (!isGenericWorkspaceRole(role)) {
+      return forbidden("Ownership cannot be granted through invitations")
+    }
     const expiresAt = buildInviteExpiry(policy.inviteExpiryDays)
     const token = buildInviteToken()
     const customMessage = parsed.data.customMessage ?? invite.customMessage ?? ""

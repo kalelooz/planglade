@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { badRequest, parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
 import { createNoteSchema, noteListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { buildNoteAccessWhere } from "@/lib/note-access"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const notes = await db.note.findMany({
       where: {
-        workspaceId: query.data.workspaceId,
+        ...buildNoteAccessWhere(query.data.workspaceId, access.actor.userId),
         ...(query.data.projectId ? { projectId: query.data.projectId } : {}),
         ...(query.data.pinned ? { pinned: query.data.pinned === "true" } : {}),
       },
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+
+    if (parsed.data.projectId) {
+      const project = await db.project.findFirst({
+        where: { id: parsed.data.projectId, workspaceId: parsed.data.workspaceId },
+        select: { id: true },
+      })
+      if (!project) return badRequest("Project not found in workspace")
+    }
 
     const note = await db.$transaction(async (tx) => {
       const createdNote = await tx.note.create({

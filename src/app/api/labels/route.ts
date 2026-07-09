@@ -12,6 +12,13 @@ export async function GET(request: NextRequest) {
   if (!query.ok) return query.response
 
   try {
+    const access = await requireWorkspaceRole(
+      query.data.workspaceId,
+      await resolveRequestActorUserId(request),
+      "VIEWER"
+    )
+    if (!access.ok) return access.response
+
     const labels = await db.label.findMany({
       where: { workspaceId: query.data.workspaceId },
       orderBy: { name: "asc" },

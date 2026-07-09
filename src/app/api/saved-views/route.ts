@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 
-import { parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { badRequest, parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { createSavedViewSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { workspaceProjectExists } from "@/lib/workspace-reference-guards"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -13,6 +14,13 @@ export async function GET(request: NextRequest) {
   if (!query.ok) return query.response
 
   try {
+    const access = await requireWorkspaceRole(
+      query.data.workspaceId,
+      await resolveRequestActorUserId(request),
+      "VIEWER"
+    )
+    if (!access.ok) return access.response
+
     const savedViews = await db.savedView.findMany({
       where: { workspaceId: query.data.workspaceId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
@@ -35,6 +43,10 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+
+    if (!(await workspaceProjectExists(parsed.data.workspaceId, parsed.data.projectId))) {
+      return badRequest("Project not found in workspace")
+    }
 
     const data: Prisma.SavedViewUncheckedCreateInput = {
       workspaceId: parsed.data.workspaceId,

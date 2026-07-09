@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 import { searchQuerySchema } from "@/lib/contracts"
+import { buildNoteAccessWhere } from "@/lib/note-access"
 
 function normalizeQuery(value: string) {
   return value.trim()
@@ -69,9 +70,13 @@ export async function GET(request: NextRequest) {
       }),
       db.note.findMany({
         where: {
-          workspaceId: query.data.workspaceId,
-          ...(query.data.projectId ? { projectId: query.data.projectId } : {}),
-          OR: [{ title: { contains: term } }, { body: { contains: term } }],
+          AND: [
+            buildNoteAccessWhere(query.data.workspaceId, access.actor.userId),
+            {
+              ...(query.data.projectId ? { projectId: query.data.projectId } : {}),
+              OR: [{ title: { contains: term } }, { body: { contains: term } }],
+            },
+          ],
         },
         select: {
           id: true,

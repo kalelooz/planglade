@@ -55,5 +55,5 @@ jobs:
       - name: Run unit tests
         run: npm run test
 
-      - name: Security audit (critical)
-        run: npm audit --omit=dev --audit-level=critical
+      - name: Security audit (high)
+        run: npm audit --omit=dev --audit-level=high

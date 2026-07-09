@@ -14,6 +14,12 @@ import { createWorkItemSchema, workItemListQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { createNotificationRecord } from "@/lib/notifications"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
+import { validateNoteReferences } from "@/lib/note-access"
+import {
+  validateWorkspaceLabelIds,
+  workspaceMemberExists,
+  workspaceProjectExists,
+} from "@/lib/workspace-reference-guards"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -67,6 +73,26 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 
+    const noteReferences = await validateNoteReferences({
+      workspaceId: parsed.data.workspaceId,
+      actorUserId,
+      noteIds: parsed.data.noteIds,
+    })
+    if (!noteReferences.ok) return badRequest("Note not found or not accessible")
+
+    const labelReferences = await validateWorkspaceLabelIds({
+      workspaceId: parsed.data.workspaceId,
+      labelIds: parsed.data.labelIds,
+    })
+    if (!labelReferences.ok) return badRequest("Label not found in workspace")
+
+    if (!(await workspaceProjectExists(parsed.data.workspaceId, parsed.data.projectId))) {
+      return badRequest("Project not found in workspace")
+    }
+    if (!(await workspaceMemberExists(parsed.data.workspaceId, parsed.data.assigneeId))) {
+      return badRequest("Assignee not found in workspace")
+    }
+
     if (parsed.data.parentId) {
       const parentWorkItem = await db.workItem.findUnique({
         where: { id: parsed.data.parentId },
@@ -105,7 +131,7 @@ export async function POST(request: NextRequest) {
           title: parsed.data.title,
           description: parsed.data.description,
           checklist: parsed.data.checklist,
-          noteIds: parsed.data.noteIds,
+          noteIds: noteReferences.noteIds,
           status: parsed.data.status,
           priority: parsed.data.priority,
           startDate: parseDateValue(parsed.data.startDate) ?? undefined,
@@ -116,9 +142,9 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (parsed.data.labelIds && parsed.data.labelIds.length > 0) {
+      if (labelReferences.labelIds && labelReferences.labelIds.length > 0) {
         await tx.workItemLabel.createMany({
-          data: parsed.data.labelIds.map((labelId) => ({
+          data: labelReferences.labelIds.map((labelId) => ({
             workItemId: workItem.id,
             labelId,
           })),

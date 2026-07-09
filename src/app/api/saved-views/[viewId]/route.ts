@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 
-import { notFound, parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { badRequest, notFound, parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { updateSavedViewSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { workspaceProjectExists } from "@/lib/workspace-reference-guards"
 
 type Params = { params: Promise<{ viewId: string }> }
 
@@ -25,6 +26,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       "MEMBER"
     )
     if (!access.ok) return access.response
+
+    if (!(await workspaceProjectExists(query.data.workspaceId, parsed.data.projectId))) {
+      return badRequest("Project not found in workspace")
+    }
 
     const existing = await db.savedView.findUnique({
       where: { id: viewId },

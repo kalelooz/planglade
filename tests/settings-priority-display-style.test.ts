@@ -357,3 +357,103 @@ test("Settings route persists workspace priority display style", async () => {
     assert.equal(payload.workspace?.taskPriorityDisplayStyle, "arrow")
   })
 })
+
+async function putPriorityStyleAs(role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER") {
+  let workspaceUpdated = false
+  ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
+    id: "workspace-1",
+    ownerId: "owner-1",
+    taskPriorityDisplayStyle: "badge",
+  })) as unknown) as typeof db.workspace.findUnique
+  ;(db.workspaceMember as typeof db.workspaceMember).findUnique = ((async () => ({
+    userId: "actor-1",
+    role,
+  })) as unknown) as typeof db.workspaceMember.findUnique
+  ;(db.userSettings as typeof db.userSettings).upsert = ((async () => ({
+    workspaceId: "workspace-1",
+    userId: "actor-1",
+  })) as unknown) as typeof db.userSettings.upsert
+  ;(db.workspace as typeof db.workspace).update = ((async () => {
+    workspaceUpdated = true
+    return { taskPriorityDisplayStyle: "arrow" }
+  }) as unknown) as typeof db.workspace.update
+
+  const response = await putSettings(
+    new NextRequest("http://localhost/api/settings", {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-flowboard-user-id": "actor-1",
+      },
+      body: JSON.stringify({
+        workspaceId: "workspace-1",
+        userId: "actor-1",
+        taskPriorityDisplayStyle: "arrow",
+      }),
+    })
+  )
+
+  return { response, workspaceUpdated }
+}
+
+test("workspace priority style requires ADMIN or OWNER", async () => {
+  for (const role of ["MEMBER", "VIEWER"] as const) {
+    await runWithSettingsMocks(async () => {
+      const result = await putPriorityStyleAs(role)
+      assert.equal(result.response.status, 403)
+      assert.equal(result.workspaceUpdated, false)
+    })
+  }
+
+  for (const role of ["ADMIN", "OWNER"] as const) {
+    await runWithSettingsMocks(async () => {
+      const result = await putPriorityStyleAs(role)
+      assert.equal(result.response.status, 200)
+      assert.equal(result.workspaceUpdated, true)
+    })
+  }
+})
+
+test("MEMBER can still update a personal appearance setting", async () => {
+  await runWithSettingsMocks(async () => {
+    ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
+      id: "workspace-1",
+      ownerId: "owner-1",
+      taskPriorityDisplayStyle: "badge",
+    })) as unknown) as typeof db.workspace.findUnique
+    ;(db.workspaceMember as typeof db.workspaceMember).findUnique = ((async () => ({
+      userId: "actor-1",
+      role: "MEMBER",
+    })) as unknown) as typeof db.workspaceMember.findUnique
+
+    let savedTheme: unknown
+    ;(db.userSettings as typeof db.userSettings).upsert = ((async (args: unknown) => {
+      savedTheme = (args as { update: { theme?: unknown } }).update.theme
+      return { workspaceId: "workspace-1", userId: "actor-1", theme: savedTheme }
+    }) as unknown) as typeof db.userSettings.upsert
+
+    const response = await putSettings(
+      new NextRequest("http://localhost/api/settings", {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": "actor-1",
+        },
+        body: JSON.stringify({
+          workspaceId: "workspace-1",
+          userId: "actor-1",
+          theme: "dark",
+        }),
+      })
+    )
+
+    assert.equal(response.status, 200)
+    assert.equal(savedTheme, "dark")
+  })
+})
+
+test("Settings hides the workspace priority control from lower roles", async () => {
+  const settingsPage = await readProjectFile("src/app/app/settings/page.tsx")
+  assert.match(settingsPage, /canManageWorkspaceSettings\s*&&\s*\(/)
+  assert.match(settingsPage, /session\.members\?\.find\(\(member\) => member\.id === session\.user\.id\)/)
+})

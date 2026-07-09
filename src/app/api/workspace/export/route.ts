@@ -8,6 +8,7 @@ import {
 } from "@/lib/api-utils"
 import { resolvePriorityDisplayStyle, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { buildNoteAccessWhere } from "@/lib/note-access"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
         orderBy: [{ createdAt: "asc" }],
       }),
       db.note.findMany({
-        where: { workspaceId: query.data.workspaceId },
+        where: buildNoteAccessWhere(query.data.workspaceId, access.actor.userId),
         select: {
           id: true,
           projectId: true,
@@ -170,6 +171,7 @@ export async function GET(request: NextRequest) {
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     }))
+    const accessibleNoteIds = new Set(notes.map((note) => note.id))
     const serializedWorkItems = workItems.map((item) => ({
       id: item.id,
       title: item.title,
@@ -184,7 +186,11 @@ export async function GET(request: NextRequest) {
       completedAt: item.completedAt?.toISOString(),
       sortOrder: item.sortOrder,
       position: item.position,
-      noteIds: Array.isArray(item.noteIds) ? item.noteIds : undefined,
+      noteIds: Array.isArray(item.noteIds)
+        ? item.noteIds.filter((noteId): noteId is string =>
+            typeof noteId === "string" && accessibleNoteIds.has(noteId)
+          )
+        : undefined,
       checklist: Array.isArray(item.checklist) ? item.checklist : undefined,
       labelIds: item.labels.map((entry) => entry.labelId),
       labels: item.labels.map((entry) => ({

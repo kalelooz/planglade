@@ -410,6 +410,7 @@ model Attachment {
   uploadedBy  User      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt   DateTime  @default(now())
 
+  @@unique([storageKey])
   @@index([workItemId])
   @@index([noteId])
 }

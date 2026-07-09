@@ -60,3 +60,22 @@ test("attachment schemas reject files over the size limit", () => {
   assert.equal(uploadResult.success, false)
   assert.equal(updateResult.success, false)
 })
+
+test("attachment finalization requires expected MIME type and size", () => {
+  const base = {
+    workspaceId: "workspace-1",
+    workItemId: "task-1",
+    name: "brief.pdf",
+    storageKey: "workspace-1/2026/06/brief.pdf",
+  }
+
+  assert.equal(createAttachmentSchema.safeParse(base).success, false)
+  assert.equal(
+    createAttachmentSchema.safeParse({ ...base, mimeType: "application/pdf" }).success,
+    false
+  )
+  assert.equal(
+    createAttachmentSchema.safeParse({ ...base, sizeBytes: 1024 }).success,
+    false
+  )
+})

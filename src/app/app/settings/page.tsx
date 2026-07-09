@@ -251,6 +251,7 @@ export default function SettingsPage() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentWorkspaceRole, setCurrentWorkspaceRole] = useState<string | null>(null);
   const settings = useStore((s) => s.settings);
   const members = useStore((s) => s.members);
   const projects = useStore((s) => s.projects);
@@ -284,6 +285,7 @@ export default function SettingsPage() {
     guidedImportConfirm &&
     !guidedImportBusy &&
     !guidedImportSameFileJustImported;
+  const canManageWorkspaceSettings = currentWorkspaceRole === "ADMIN" || currentWorkspaceRole === "OWNER";
 
   const persistUserSettings = async (patch: Partial<{
     theme: "system" | "light" | "dark";
@@ -314,6 +316,9 @@ export default function SettingsPage() {
         if (!active) return;
         setWorkspaceId(session.workspace.id);
         setCurrentUserId(session.user.id);
+        setCurrentWorkspaceRole(
+          session.members?.find((member) => member.id === session.user.id)?.role ?? null
+        );
 
         const response = await apiFetch(
           `/api/settings?workspaceId=${encodeURIComponent(session.workspace.id)}&userId=${encodeURIComponent(session.user.id)}`,
@@ -767,37 +772,39 @@ export default function SettingsPage() {
                   <option value="comfortable">Comfortable</option>
                 </select>
               </Field>
-              <Field label="Priority display" hint="How priority appears in task rows, board cards, and the task drawer.">
-                <div data-priority-picker-preview="connected" className="space-y-3">
-                  <RadioGroupPrimitive.Root
-                    data-priority-style-control="compact-options"
-                    value={settings.priorityDisplayStyle}
-                    onValueChange={(value) => {
-                      const priorityDisplayStyle = value as PriorityDisplayStyle;
-                      updateSettings({ priorityDisplayStyle });
-                      void persistUserSettings({ taskPriorityDisplayStyle: priorityDisplayStyle });
-                    }}
-                    className="grid w-full max-w-xl grid-cols-2 gap-2"
-                    aria-label="Priority display style"
-                  >
-                    {PRIORITY_DISPLAY_OPTIONS.map((opt) => {
-                      return (
-                        <RadioGroupPrimitive.Item
-                          key={opt.key}
-                          value={opt.key}
-                          data-priority-style-option="true"
-                          className="flex h-14 min-w-0 items-center justify-between gap-2 rounded-md border border-zinc-200/80 bg-white px-3 py-2 text-left text-xs text-zinc-600 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:ring-offset-1 data-[state=checked]:border-zinc-900 data-[state=checked]:bg-zinc-50 data-[state=checked]:text-zinc-950 data-[state=checked]:ring-1 data-[state=checked]:ring-zinc-900/10"
-                          aria-label={`${opt.title} priority display`}
-                        >
-                          <span className="min-w-0 truncate font-medium">{opt.title}</span>
-                          <PriorityStyleOptionExample style={opt.key} />
-                        </RadioGroupPrimitive.Item>
-                      );
-                    })}
-                  </RadioGroupPrimitive.Root>
-                  <AppearancePreview density={settings.density} priorityDisplayStyle={settings.priorityDisplayStyle} />
-                </div>
-              </Field>
+              {canManageWorkspaceSettings && (
+                <Field label="Priority display" hint="How priority appears in task rows, board cards, and the task drawer.">
+                  <div data-priority-picker-preview="connected" className="space-y-3">
+                    <RadioGroupPrimitive.Root
+                      data-priority-style-control="compact-options"
+                      value={settings.priorityDisplayStyle}
+                      onValueChange={(value) => {
+                        const priorityDisplayStyle = value as PriorityDisplayStyle;
+                        updateSettings({ priorityDisplayStyle });
+                        void persistUserSettings({ taskPriorityDisplayStyle: priorityDisplayStyle });
+                      }}
+                      className="grid w-full max-w-xl grid-cols-2 gap-2"
+                      aria-label="Priority display style"
+                    >
+                      {PRIORITY_DISPLAY_OPTIONS.map((opt) => {
+                        return (
+                          <RadioGroupPrimitive.Item
+                            key={opt.key}
+                            value={opt.key}
+                            data-priority-style-option="true"
+                            className="flex h-14 min-w-0 items-center justify-between gap-2 rounded-md border border-zinc-200/80 bg-white px-3 py-2 text-left text-xs text-zinc-600 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:ring-offset-1 data-[state=checked]:border-zinc-900 data-[state=checked]:bg-zinc-50 data-[state=checked]:text-zinc-950 data-[state=checked]:ring-1 data-[state=checked]:ring-zinc-900/10"
+                            aria-label={`${opt.title} priority display`}
+                          >
+                            <span className="min-w-0 truncate font-medium">{opt.title}</span>
+                            <PriorityStyleOptionExample style={opt.key} />
+                          </RadioGroupPrimitive.Item>
+                        );
+                      })}
+                    </RadioGroupPrimitive.Root>
+                    <AppearancePreview density={settings.density} priorityDisplayStyle={settings.priorityDisplayStyle} />
+                  </div>
+                </Field>
+              )}
             </div>
           )}
 

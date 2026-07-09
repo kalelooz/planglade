@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { parseDateValue, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { buildNoteAccessWhere } from "@/lib/note-access"
 
 function toProjectStatus(value: string) {
   const normalized = value.trim().toUpperCase().replace(/\s+/g, "_")
@@ -73,7 +74,9 @@ export async function POST(request: NextRequest) {
     const summary = await db.$transaction(async (tx) => {
       if (mode === "replace") {
         await tx.workItem.deleteMany({ where: { workspaceId } })
-        await tx.note.deleteMany({ where: { workspaceId } })
+        await tx.note.deleteMany({
+          where: buildNoteAccessWhere(workspaceId, actorUserId),
+        })
         await tx.projectDoc.deleteMany({ where: { workspaceId } })
         await tx.project.deleteMany({ where: { workspaceId } })
       }
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest) {
       for (const note of notes) {
         const duplicate = await tx.note.findFirst({
           where: {
-            workspaceId,
+            ...buildNoteAccessWhere(workspaceId, actorUserId),
             title: note.title,
           },
           select: { id: true },
