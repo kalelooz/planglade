@@ -5,8 +5,10 @@ import path from "node:path"
 import test from "node:test"
 import { NextRequest } from "next/server"
 
+import { POST as createAttachment } from "../src/app/api/attachments/route"
 import { PUT as uploadLocalAttachment } from "../src/app/api/attachments/upload-binary/route"
 import { MAX_ATTACHMENT_BYTES, updateAttachmentSchema } from "../src/lib/contracts"
+import { db } from "../src/lib/db"
 import {
   buildFirebaseUploadSignedUrlConfig,
   createAttachmentUploadTarget,
@@ -18,13 +20,26 @@ const originalEnv = {
   PLANGLADE_STORAGE_PROVIDER: process.env.PLANGLADE_STORAGE_PROVIDER,
   PLANGLADE_LOCAL_STORAGE_DIR: process.env.PLANGLADE_LOCAL_STORAGE_DIR,
   PLANGLADE_STORAGE_SIGNING_SECRET: process.env.PLANGLADE_STORAGE_SIGNING_SECRET,
+  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
 }
+const originalWorkspaceFindUnique = db.workspace.findUnique
+const originalMemberFindUnique = db.workspaceMember.findUnique
+const originalWorkItemFindUnique = db.workItem.findUnique
+const originalAttachmentFindFirst = db.attachment.findFirst
+const originalAttachmentCreate = db.attachment.create
+const originalTransaction = db.$transaction
 
 function restoreEnv() {
   for (const [key, value] of Object.entries(originalEnv)) {
     if (value === undefined) delete process.env[key]
     else process.env[key] = value
   }
+  ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
+  ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalMemberFindUnique
+  ;(db.workItem as typeof db.workItem).findUnique = originalWorkItemFindUnique
+  ;(db.attachment as typeof db.attachment).findFirst = originalAttachmentFindFirst
+  ;(db.attachment as typeof db.attachment).create = originalAttachmentCreate
+  ;(db as typeof db).$transaction = originalTransaction
 }
 
 async function withLocalStorage(fn: (root: string) => Promise<void>) {
@@ -202,6 +217,63 @@ test("finalized attachment storage fields are immutable", () => {
   assert.equal(updateAttachmentSchema.safeParse({ storageKey: "ws-1/other" }).success, false)
   assert.equal(updateAttachmentSchema.safeParse({ mimeType: "text/plain" }).success, false)
   assert.equal(updateAttachmentSchema.safeParse({ sizeBytes: 1 }).success, false)
+})
+
+test("attachment storage keys are unique in the data model", async () => {
+  const schema = await readFile("prisma/schema.prisma", "utf8")
+  assert.match(schema, /@@unique\(\[storageKey\]\)/)
+})
+
+test("attachment finalization rejects reuse of an already finalized storage key", async () => {
+  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  try {
+    ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
+      id: "ws-1",
+      ownerId: "owner-1",
+    })) as unknown) as typeof db.workspace.findUnique
+    ;(db.workspaceMember as typeof db.workspaceMember).findUnique = ((async () => ({
+      userId: "member-1",
+      role: "MEMBER",
+    })) as unknown) as typeof db.workspaceMember.findUnique
+    ;(db.workItem as typeof db.workItem).findUnique = ((async () => ({
+      id: "task-1",
+      workspaceId: "ws-1",
+      projectId: null,
+      title: "Task",
+    })) as unknown) as typeof db.workItem.findUnique
+    ;(db.attachment as typeof db.attachment).findFirst = ((async () => ({
+      id: "attachment-1",
+    })) as unknown) as typeof db.attachment.findFirst
+
+    let created = false
+    ;(db as typeof db).$transaction = (async () => {
+      created = true
+      throw new Error("duplicate storage key must not create another attachment")
+    }) as typeof db.$transaction
+
+    const response = await createAttachment(
+      new NextRequest("http://localhost/api/attachments", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-flowboard-user-id": "member-1",
+        },
+        body: JSON.stringify({
+          workspaceId: "ws-1",
+          workItemId: "task-1",
+          name: "notes.txt",
+          storageKey: "ws-1/2026/07/replay.txt",
+          mimeType: "text/plain",
+          sizeBytes: 10,
+        }),
+      })
+    )
+
+    assert.equal(response.status, 400)
+    assert.equal(created, false)
+  } finally {
+    restoreEnv()
+  }
 })
 
 test("Firebase upload target requires create-only object generation", async () => {

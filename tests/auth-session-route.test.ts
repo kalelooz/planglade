@@ -72,10 +72,11 @@ test("GET /auth/session blocks dev auth mode in production", async () => {
     setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "dev")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
-    const payload = (await response.json()) as { error?: string }
+    const payload = (await response.json()) as { error?: string; errors?: string[] }
 
     assert.equal(response.status, 500)
-    assert.equal(payload.error, "PLANGLADE_AUTH_MODE=dev is disabled in production.")
+    assert.equal(payload.error, "Authentication is not available.")
+    assert.equal(payload.errors, undefined)
   })
 })
 

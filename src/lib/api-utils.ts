@@ -23,7 +23,13 @@ export function forbidden(message: string, details?: unknown) {
 }
 
 export function serverError(message: string, details?: unknown) {
-  return NextResponse.json({ error: message, details }, { status: 500 })
+  return NextResponse.json(
+    {
+      error: message,
+      ...(process.env.NODE_ENV === "production" ? {} : { details }),
+    },
+    { status: 500 }
+  )
 }
 
 export async function parseJsonBody<T>(request: Request, schema: ZodSchema<T>) {

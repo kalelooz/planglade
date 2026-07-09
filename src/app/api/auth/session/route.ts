@@ -34,6 +34,13 @@ export async function GET(request: Request) {
 
     const blockingConfigErrors = authConfig.errors
     if (blockingConfigErrors.length > 0) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Authentication is not available." },
+          { status: 500 }
+        )
+      }
+
       return NextResponse.json(
         {
           error: blockingConfigErrors[0],

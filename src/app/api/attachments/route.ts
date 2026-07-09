@@ -206,6 +206,14 @@ export async function POST(request: NextRequest) {
       return badRequest("Invalid storageKey for workspace")
     }
 
+    const existingAttachment = await db.attachment.findFirst({
+      where: { storageKey: parsed.data.storageKey },
+      select: { id: true },
+    })
+    if (existingAttachment) {
+      return badRequest("Attachment storage key has already been finalized")
+    }
+
     const exists = await storageObjectExists(parsed.data.storageKey)
     if (!exists) {
       return badRequest("Uploaded file not found in storage for the provided storageKey")

@@ -127,7 +127,7 @@ test("a protected API rejects a development identity header in production", asyn
 
     assert.equal(response.status, 500)
     assert.equal(payload.error, "Failed to load workspace members")
-    assert.equal(payload.details, "Error: Development authentication is disabled in production")
+    assert.equal(payload.details, undefined)
   } finally {
     restoreEnv()
   }
