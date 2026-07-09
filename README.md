@@ -264,6 +264,9 @@ Backup and restore notes are in `docs/BACKUP_RESTORE.md`.
 npm run dev
 npm run db:generate
 npm run db:push
+npm run db:migrate:status
+npm run db:migrate:deploy
+npm run db:check:attachment-storage-keys
 npx prisma validate
 npm test
 npm run lint
@@ -289,6 +292,7 @@ The repo is early public software and not production-hardened. Keep contribution
 
 - `docs/SELF_HOSTING.md`: local and early Docker self-host setup, limitations, and safety notes.
 - `docs/NETLIFY_PREVIEW.md`: repeatable Netlify preview build settings and required dashboard env vars.
+- `docs/PRODUCTION_MIGRATIONS.md`: safe migration checks, production database evidence, and operator runbook.
 - `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and attachment backup/restore notes.
 - `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.
