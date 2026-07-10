@@ -1,54 +1,29 @@
-# PlanGlade Agent Instructions
+# PlanGlade Contributor Instructions
 
-Codex reads this file automatically before work in this repository. Keep it short and practical.
-
-## Source Of Truth
-
-- Read `PRODUCT.md`, `TECHNICAL.md`, `EXECUTION.md`, and `SAAS-LAUNCH.md` before substantial work.
-- `PRODUCT.md` owns product/design direction.
-- `TECHNICAL.md` owns architecture, security, deployment, and known implementation drift.
-- `EXECUTION.md` owns tickets, workflow, current state, and report format.
-- `SAAS-LAUNCH.md` owns website, cloud, demo, pricing, and launch sequencing.
-- If the live repo disagrees with these docs, do not silently rewrite direction. Flag the drift and keep the fix scoped.
+Keep changes small, safe, and consistent with PlanGlade's calm, solo-first product direction.
 
 ## Working Rules
 
-- One scoped ticket at a time.
-- No unrelated cleanup.
-- No broad refactors.
-- No new dependency unless the ticket needs it and the reason is explicit.
-- Protect existing work. Check the working tree before editing and never revert changes you did not make unless asked.
-- Preserve the product direction: calm, solo-first, capture first, organize second.
-- Do not ship fake features, fake metrics, placeholder claims, or unbuilt feature promises.
+- Inspect the repository state before changing files.
+- Protect pre-existing work and never revert changes you did not make unless asked.
+- Keep each change scoped. Avoid unrelated cleanup, broad refactors, and unrequested abstractions.
+- Reuse existing code and dependencies before adding anything new.
+- Do not ship fake features, metrics, claims, or placeholder behavior.
 
-## Security Rules
+## Security And Data Isolation
 
-- Never commit `.env` or secrets.
-- Never expose secrets client-side.
-- Never trust a client-provided user or workspace ID.
-- Never ship fake auth in production.
-- Never hardcode admin users.
-- Never render unsanitized HTML.
-- Never expose stack traces to users.
-- Every workspace operation verifies, in order: authenticated user, workspace membership, entity belongs to workspace, role permits the operation.
+- Never commit `.env` files, credentials, or secrets, and never expose secrets client-side.
+- Never trust a client-provided user or workspace ID as identity.
+- Never ship fake authentication, hardcode admin users, render unsanitized HTML, or expose stack traces to users.
+- Every workspace operation verifies, in order: authenticated user, workspace membership, entity belongs to workspace, and role permits the operation.
 
-## Public-Core / Private-SaaS Boundary
+## Self-Hosting
 
-- Preserve the public-core/private-SaaS boundary. Firebase is SaaS-only.
-- Do not add Firebase requirements, setup, credentials, defaults, or provider-specific behavior to the public self-host path.
-- Public self-host defaults to NextAuth and local storage. The `firebase` auth/storage modes remain only as temporary extraction debt behind explicit opt-in (`SAAS-FIREBASE-EXTRACT-001`); do not advertise or re-enable them as public self-host features.
+- Preserve the documented public self-host behavior and defaults.
+- Public self-hosting must continue to work with NextAuth and local storage without provider-specific services or credentials.
 
-## Skills And Plugins
+## Validation
 
-- Let Codex use relevant installed skills and plugins automatically.
-- If a ticket lists `Skills`, use required skills when available and suggested skills when they apply.
-- If a listed skill is unavailable, continue manually using the same checks and report that the skill was not installed.
-- Keep skills for repeatable workflows. Keep always-on repo rules in `AGENTS.md`.
-- Do not install third-party skill packs, add repo `.agents/skills`, or commit private workflow skills unless the maintainer explicitly asks.
-
-## Validation And Reporting
-
-- Run the smallest relevant validation for the change.
-- Use existing package scripts where applicable: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, `npx prisma validate`.
-- Report files changed, validation run, what was built, what was skipped, and remaining risks.
-- Use the completion report format in `EXECUTION.md`.
+- Run the smallest relevant checks for the files changed.
+- Use existing scripts where applicable: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, and `npx prisma validate`.
+- Report the files changed, validation run, skipped checks, and remaining risks.

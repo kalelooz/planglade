@@ -68,18 +68,6 @@ test("PUBLIC-EXPORT-CLEANUP-002: dockerignore excludes private and generated fil
   }
 })
 
-test("PUBLIC-EXPORT-CLEANUP-002: public release checklist has include exclude and fresh repo steps", async () => {
-  const checklist = await readProjectFile("docs/PUBLIC_RELEASE_CHECKLIST.md")
-
-  assert.match(checklist, /## Include/)
-  assert.match(checklist, /## Exclude/)
-  assert.match(checklist, /## Fresh Public Repo Steps/)
-  assert.match(checklist, /Do not push from the current private working branch/)
-  assert.match(checklist, /docs\/ACTIVE_PLAN\.md/)
-  assert.match(checklist, /private agent workflow notes/)
-  assert.doesNotMatch(checklist, /sponsorship granted|support granted|pricing page/i)
-})
-
 test("PUBLIC-EXPORT-CLEANUP-002: public docs do not link excluded internal docs", async () => {
   const publicDocs = [
     "README.md",
@@ -89,7 +77,6 @@ test("PUBLIC-EXPORT-CLEANUP-002: public docs do not link excluded internal docs"
     "ROADMAP.md",
     "docs/SELF_HOSTING.md",
     "docs/BACKUP_RESTORE.md",
-    "docs/PUBLIC_RELEASE_CHECKLIST.md",
   ]
   const combined = (await Promise.all(publicDocs.map((file) => readProjectFile(file)))).join("\n")
 
@@ -109,7 +96,6 @@ test("PUBLIC-EXPORT-CLEANUP-002: public docs avoid fake claims and private local
     "ROADMAP.md",
     "docs/SELF_HOSTING.md",
     "docs/BACKUP_RESTORE.md",
-    "docs/PUBLIC_RELEASE_CHECKLIST.md",
   ]
   const combined = (await Promise.all(publicDocs.map((file) => readProjectFile(file)))).join("\n")
 
