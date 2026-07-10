@@ -145,6 +145,7 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 | `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Website is live on Netlify | **Done - no longer pending** |
 | `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | PR #27 merged; production deployment verified 2026-07-07 | **Done** |
 | `DEMO-READONLY-001` | Build/readiness-check read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High - only if post-live audit finds gaps |
+| `SAAS-FIREBASE-EXTRACT-001` | Move Firebase auth/storage adapters into the private hosted SaaS codebase | Firebase is SaaS-only (`FIREBASE-SAAS-BOUNDARY-001`); the in-repo Firebase code is temporary extraction debt. Full manifest in `docs/FIREBASE_EXTRACTION_PLAN.md`. Blocked on a private SaaS destination existing. | Medium |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
 | `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 327 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
@@ -160,9 +161,9 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 
 Unlike the debt backlog above, these aren't implementation tasks — they're calls only the maintainer can make. Each needs one recorded line here the moment it's decided, so this stops happening.
 
-1. **Auth strategy:** permanent dual-mode (NextAuth + Firebase), or converge on one?
+1. **Auth strategy:** **Decided (`FIREBASE-SAAS-BOUNDARY-001`).** Public self-host auth is independent of Firebase — NextAuth (or `dev` for local development) is the public path. Firebase auth is private hosted SaaS infrastructure.
 2. **Database:** **Decision for hosted cloud:** Postgres is required before paid cloud. SQLite may remain local/dev/early self-host until explicitly migrated.
-3. **Firebase positioning:** does a Google-proprietary auth/storage path undercut the AGPL/self-host pitch, or is dual-mode fine as long as self-hosters can run NextAuth-only?
+3. **Firebase positioning:** **Decided (`FIREBASE-SAAS-BOUNDARY-001`, 2026-07-09).** Firebase is SaaS-only. The public self-host product must remain independently usable without any Firebase account, credentials, or setup. The in-repo Firebase adapter code is temporary extraction debt tracked as `SAAS-FIREBASE-EXTRACT-001`.
 4. **Attachments:** build UI to activate the existing backend, or leave it dormant until a later phase?
 5. **Collaboration/invites:** same question — activate now, or hold for Phase 4 as originally planned?
 6. **Test runner:** Node's built-in runner as the new standard, or migrate to Vitest/Playwright?
@@ -179,7 +180,7 @@ Unlike the debt backlog above, these aren't implementation tasks — they're cal
 The early Docker baseline exists in the checked-out branch:
 
 1. `Dockerfile` and `docker-compose.yml` are present.
-2. The baseline uses a standalone app image, a migration step, persistent SQLite, persistent local attachments, a health check, NextAuth by default, and Firebase Storage as optional.
+2. The baseline uses a standalone app image, a migration step, persistent SQLite, persistent local attachments, a health check, and NextAuth as the public self-host default. (A Firebase Storage provider exists in-repo but is SaaS-only — see `TECHNICAL.md §3.2` — and is not part of the Docker self-host path.)
 3. `README.md` and `docs/SELF_HOSTING.md` describe the early Docker baseline.
 4. Postgres remains unimplemented — the shipped baseline still runs SQLite.
 
@@ -204,6 +205,9 @@ The early Docker baseline exists in the checked-out branch:
 - Public copy must be concise and human; avoid long internal-risk wording on marketing pages.
 - Post-live verification should not wait for Postgres, billing, or production cloud.
 - `RESOURCE-MISMATCH-AUDIT-001` was run on 2026-07-06. Its website follow-up, `WEBSITE-POST-LIVE-AUDIT-001`, was completed through PR #27 and verified in production on 2026-07-07.
+
+**Decision log:**
+- 2026-07-09 — `FIREBASE-SAAS-BOUNDARY-001`: Firebase is reserved for the private hosted SaaS/cloud deployment and is not part of the public open-source self-host product. Public self-host defaults changed to `nextauth` + local storage so it requires no Firebase account, variables, credentials, or services. The in-repo Firebase adapter code remains as temporary extraction debt behind an explicit opt-in; physical removal is tracked as `SAAS-FIREBASE-EXTRACT-001` (manifest in `docs/FIREBASE_EXTRACTION_PLAN.md`), blocked on a private SaaS destination existing. Resolves Open Decisions #1 and #3.
 
 ---
 

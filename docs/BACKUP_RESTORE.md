@@ -13,8 +13,6 @@ The Docker default keeps all data in two Docker volumes:
 
 Keep both backups from the same time window so attachments stay aligned with their database records. Store `.env` securely outside git, but do not place it in an ordinary unencrypted backup.
 
-If you switched to optional Firebase Storage, attachments live in Firebase instead of the local volume. See [Optional Firebase Attachment Backup](#optional-firebase-attachment-backup) below.
-
 ## Docker SQLite Backup
 
 Create a local `backups` folder, then stop the app so the SQLite copy is consistent:
@@ -123,19 +121,11 @@ curl http://localhost:3000/api/health
 
 Check sign-in and several known projects, tasks, notes, attachments, and settings. A healthy endpoint alone does not prove the data restored correctly.
 
-## Optional Firebase Attachment Backup
-
-This section applies **only** if you explicitly set `PLANGLADE_STORAGE_PROVIDER=firebase`. With the Docker default (local storage), ignore this section.
-
-When Firebase Storage is enabled, attachments are stored in Firebase and must be backed up separately using Firebase/Google Cloud tools or console exports appropriate to your bucket, access model, and retention needs. Record the exact bucket and backup time alongside the SQLite backup.
-
-Restoring SQLite without its matching Firebase objects can leave attachment records pointing to missing files.
-
 ## Test Restores
 
 Test restores regularly on a disposable Docker volume or separate machine:
 
-1. Restore copies of the SQLite database and the local attachment volume (or Firebase objects, if used).
+1. Restore copies of the SQLite database and the local attachment volume.
 2. Start the same PlanGlade version that created the backup.
 3. Check `/api/health`.
 4. Sign in and inspect known projects, tasks, notes, settings, and attachments.

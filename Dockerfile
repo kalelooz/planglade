@@ -17,10 +17,7 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Firebase is optional. The build does not require NEXT_PUBLIC_FIREBASE_* values;
-# the client SDK initializes only when those values are present at runtime.
-# To build an image with Firebase client config baked in, pass the values as
-# build args here and rebuild. The Docker default uses local file storage.
+# Public self-host builds use NextAuth and local attachment storage.
 ENV NODE_ENV=production \
   PLANGLADE_AUTH_MODE=nextauth \
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE=nextauth \

@@ -6,12 +6,13 @@ function readPublicPlanGladeEnv(name) {
   return process.env[`NEXT_PUBLIC_PLANGLADE_${name}`] ?? process.env[`NEXT_PUBLIC_FLOWBOARD_${name}`]
 }
 
-const mode = (readPlanGladeEnv("AUTH_MODE") ?? "dev").toLowerCase()
 const isProductionLike =
   process.env.NODE_ENV === "production" || process.env.CI === "true"
+const mode = (readPlanGladeEnv("AUTH_MODE") ?? (isProductionLike ? "nextauth" : "dev")).toLowerCase()
 const storageProvider = (
-  readPlanGladeEnv("STORAGE_PROVIDER") ??
-  (isProductionLike ? "firebase" : "local")
+  // Public self-host default is local storage (FIREBASE-SAAS-BOUNDARY-001).
+  // Firebase Storage is SaaS-only and requires an explicit opt-in.
+  readPlanGladeEnv("STORAGE_PROVIDER") ?? "local"
 ).toLowerCase()
 const emailProvider = (
   readPlanGladeEnv("EMAIL_PROVIDER") ??

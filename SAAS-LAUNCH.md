@@ -156,6 +156,8 @@ Private SaaS/business material does not need to be public:
 - internal pricing experiments
 - private infrastructure config
 
+**SaaS infrastructure boundary (`FIREBASE-SAAS-BOUNDARY-001`):** Firebase may be used by the hosted PlanGlade SaaS deployment, but it is not part of the public self-host setup. Public self-host documentation and defaults must not require Firebase. Firebase authentication, Firebase Admin, Firebase Storage, Firebase App Hosting configuration, and Firebase/GCP service-account setup all belong to private SaaS infrastructure. The in-repo Firebase adapter code is temporary extraction debt (`SAAS-FIREBASE-EXTRACT-001`); until it is moved to a private SaaS codebase it stays behind an explicit opt-in and must not be advertised or defaulted to as a public self-host feature. Public core functionality remains fully available without Firebase.
+
 AGPL compliance still matters. Do not hide core app changes that must be released under AGPL.
 
 ---
