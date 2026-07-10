@@ -41,7 +41,7 @@ Working today:
 - Settings with workspace preferences, JSON export, and a guarded import flow.
 - Public landing and getting-started pages for explaining the MVP before sign-in.
 - Local development auth mode for running the app without a production identity provider.
-- Auth paths exist for Firebase and NextAuth; the Docker self-host baseline uses NextAuth by default.
+- The Docker self-host baseline uses NextAuth by default.
 - An early Docker self-host baseline with a standalone app image, SQLite persistence, migrations, and a health check.
 
 Not ready yet:
@@ -132,7 +132,7 @@ Due dates shown from the same task source.
 | UI | React 19, shadcn/ui, Radix primitives |
 | Styling | Tailwind CSS v4, CSS custom properties |
 | Database | Prisma with SQLite in the current tracked schema |
-| Auth | Local dev session, Firebase mode, NextAuth mode |
+| Auth | Local dev session and NextAuth mode |
 | Icons | Lucide React |
 | Tables | TanStack Table |
 | Drag and drop | dnd-kit |
@@ -207,9 +207,8 @@ Important local/dev variables:
 - `PLANGLADE_LOCAL_STORAGE_DIR`: local attachment folder.
 - `PLANGLADE_STORAGE_SIGNING_SECRET`: signing secret for local attachment URLs.
 
-Production-style variables depend on the auth/storage path:
+Production-style variables depend on the auth and storage path:
 
-- Firebase auth/storage: `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, and Firebase Admin credentials when not using platform-provided credentials.
 - NextAuth provider mode: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and provider credentials such as Google or GitHub.
 - Email invites: `PLANGLADE_EMAIL_PROVIDER`, `PLANGLADE_EMAIL_FROM`, and `RESEND_API_KEY` if Resend delivery is enabled.
 - Invite expiry job: `PLANGLADE_MAINTENANCE_TOKEN`.
@@ -236,10 +235,9 @@ Current honest status:
 
 - Local development with SQLite and local file storage is documented above.
 - Docker Compose builds the standalone app, persists SQLite in a named volume, and applies checked-in Prisma migrations before startup.
-- Docker uses NextAuth for sign-in and stores attachments in a local Docker volume by default. Firebase is not required for Docker; Firebase Storage is an optional external attachment provider documented in `docs/SELF_HOSTING.md`.
+- Docker uses NextAuth for sign-in and stores attachments in a local Docker volume by default.
 - `/api/health` reports basic auth/storage readiness.
 - Basic manual backup/restore notes exist in `docs/BACKUP_RESTORE.md`.
-- Firebase App Hosting notes exist in `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`, but that file is deployment notes, not a final public production guide.
 - PostgreSQL, bundled HTTPS/reverse proxy, automated backups, monitoring, and public-internet hardening are not included.
 
 Quick Docker start after replacing every placeholder in `.env`:
@@ -294,5 +292,4 @@ The repo is early public software and not production-hardened. Keep contribution
 - `docs/NETLIFY_PREVIEW.md`: repeatable Netlify preview build settings and required dashboard env vars.
 - `docs/PRODUCTION_MIGRATIONS.md`: safe migration checks, production database evidence, and operator runbook.
 - `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and attachment backup/restore notes.
-- `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`: Firebase App Hosting notes, not a final generic production guide.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.

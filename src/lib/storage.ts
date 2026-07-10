@@ -30,7 +30,10 @@ function lower(value: string | undefined, fallback: string) {
 }
 
 function getDefaultStorageProvider() {
-  return process.env.NODE_ENV === "production" ? "firebase" : "local"
+  // Public self-host default is local storage (FIREBASE-SAAS-BOUNDARY-001).
+  // Firebase Storage is SaaS-only and requires an explicit opt-in via
+  // PLANGLADE_STORAGE_PROVIDER=firebase; it is never the default.
+  return "local"
 }
 
 export function getConfiguredStorageProvider(): PlanGladeStorageProvider | "invalid" {

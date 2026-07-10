@@ -20,6 +20,7 @@ For Codex sessions, confirm `AGENTS.md` is loaded or read it before continuing.
 - Stack target: Next.js App Router, TypeScript strict, Tailwind, shadcn/Radix, Prisma. Where the live repo differs from `TECHNICAL.md`'s target (auth library, database, test runner — see `TECHNICAL.md §3`), do not silently "fix" it as part of an unrelated ticket. Flag it.
 - Never: commit `.env` · expose secrets client-side · trust a client-provided user/workspace ID · ship fake auth in production · hardcode admin users · render unsanitized HTML · expose stack traces · add a dependency without justification.
 - Every workspace operation verifies, in order: authenticated user → workspace membership → entity belongs to workspace → role permits the operation.
+- Preserve the public-core/private-SaaS boundary: Firebase is SaaS-only. Do not add Firebase requirements, setup, credentials, defaults, or provider-specific behavior to the public self-host path. Public self-host defaults to NextAuth and local storage.
 - No fake features, fake metrics, placeholder buttons, or unbuilt feature claims - in the app or in any doc you touch. Public website copy should be short and human: Self-host now. Cloud soon. Try demo.
 
 ## Implementation behavior

@@ -126,39 +126,31 @@ test("SELFHOST-DOCS-001: backup docs exist and are linked honestly", async () =>
 })
 
 // ---------------------------------------------------------------------------
-// FIREBASE-OPTIONAL guards (issue #6 revision).
-// Firebase must not be required for the generic Docker self-host baseline.
+// FIREBASE-SAAS-BOUNDARY-001 guards.
+// Firebase is SaaS-only and must not be documented as a public self-host option.
 // ---------------------------------------------------------------------------
 
-test("SELFHOST-FIREBASE-OPTIONAL-001: docker-compose does not hardcode firebase storage", async () => {
+test("FIREBASE-SAAS-BOUNDARY-001: docker-compose defaults to local storage without Firebase setup", async () => {
   const compose = await readProjectFile("docker-compose.yml")
 
-  // The default provider must not be hardcoded to firebase. It must default to
-  // local storage (possibly via an env override like ${VAR:-local}).
   assert.doesNotMatch(compose, /PLANGLADE_STORAGE_PROVIDER:\s*firebase\b/)
   assert.match(compose, /PLANGLADE_STORAGE_PROVIDER:\s*\$\{PLANGLADE_STORAGE_PROVIDER:-local\}/)
+  assert.doesNotMatch(compose, /FIREBASE_/)
+  assert.doesNotMatch(compose, /NEXT_PUBLIC_FIREBASE_/)
 })
 
-test("SELFHOST-FIREBASE-OPTIONAL-001: docker-compose requires no Firebase build args", async () => {
-  const compose = await readProjectFile("docker-compose.yml")
-
-  // The app build must not pass NEXT_PUBLIC_FIREBASE_* args for the default path.
-  assert.doesNotMatch(compose, /NEXT_PUBLIC_FIREBASE_API_KEY/)
-})
-
-test("SELFHOST-FIREBASE-OPTIONAL-001: Dockerfile default build needs no Firebase values", async () => {
+test("FIREBASE-SAAS-BOUNDARY-001: Dockerfile default build needs no Firebase values", async () => {
   const dockerfile = await readProjectFile("Dockerfile")
 
-  // The default builder stage must not declare required Firebase build args.
-  assert.doesNotMatch(dockerfile, /ARG NEXT_PUBLIC_FIREBASE_API_KEY/)
+  assert.doesNotMatch(dockerfile, /NEXT_PUBLIC_FIREBASE_/)
+  assert.doesNotMatch(dockerfile, /FIREBASE_/)
 })
 
-test("SELFHOST-FIREBASE-OPTIONAL-001: docs do not claim Docker requires Firebase", async () => {
+test("FIREBASE-SAAS-BOUNDARY-001: self-host docs do not include Firebase setup", async () => {
   const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
+  const combined = `${selfHosting}\n${backup}`
 
-  // "Before You Start" must not list Firebase as a required item, and must
-  // explicitly state it is not needed. Every Firebase mention in this section
-  // must be a negation ("not need a Firebase project"), not a requirement.
   const beforeYouStart = selfHosting.slice(
     selfHosting.indexOf("## Before You Start"),
     selfHosting.indexOf("## First Run")
@@ -171,48 +163,44 @@ test("SELFHOST-FIREBASE-OPTIONAL-001: docs do not claim Docker requires Firebase
   }
   assert.match(beforeYouStart, /not[^.\n]*need[^.\n]*Firebase/i)
 
-  // First-run required variables must not include Firebase values.
   const firstRun = selfHosting.slice(
     selfHosting.indexOf("## First Run With Docker Compose"),
     selfHosting.indexOf("## Database And Migrations")
   )
   assert.match(firstRun, /No Firebase values are required/i)
 
-  // Firebase must be present only as an optional section.
-  assert.match(selfHosting, /Optional Firebase Storage/i)
-  assert.match(selfHosting, /not.*required.*Docker|not required for Docker/i)
+  assert.doesNotMatch(combined, /Optional Firebase/i)
+  assert.doesNotMatch(combined, /PLANGLADE_STORAGE_PROVIDER="firebase"/)
+  assert.doesNotMatch(combined, /FIREBASE_[A-Z_]+/)
+  assert.doesNotMatch(combined, /NEXT_PUBLIC_FIREBASE_[A-Z_]+/)
+  assert.doesNotMatch(combined, /Firebase\/Google Cloud tools|Firebase security rules|Firebase bucket/i)
 })
 
-test("SELFHOST-FIREBASE-OPTIONAL-001: README does not say Docker requires Firebase", async () => {
+test("FIREBASE-SAAS-BOUNDARY-001: README does not advertise Firebase as public auth or storage", async () => {
   const readme = await readProjectFile("README.md")
 
-  // The old line claimed Docker "uses NextAuth for sign-in and Firebase Storage
-  // for attachments" as a requirement. Match that full sentence only, not a
-  // greedy .* that could span unrelated lines.
-  assert.doesNotMatch(readme, /Docker uses NextAuth for sign-in and Firebase Storage for attachments/i)
-  assert.doesNotMatch(readme, /Docker[^.\n]*(?:requires|needs)[^.\n]*Firebase Storage/i)
-  assert.match(readme, /Firebase is not required for Docker/i)
+  assert.doesNotMatch(readme, /Firebase mode|Firebase auth|Firebase Storage|Firebase App Hosting/i)
+  assert.doesNotMatch(readme, /FIREBASE_[A-Z_]+/)
+  assert.doesNotMatch(readme, /NEXT_PUBLIC_FIREBASE_[A-Z_]+/)
 })
 
-test("SELFHOST-FIREBASE-OPTIONAL-001: Docker default documents local attachment volume", async () => {
+test("FIREBASE-SAAS-BOUNDARY-001: Docker default documents local attachment volume", async () => {
   const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
   const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
   const compose = await readProjectFile("docker-compose.yml")
 
-  // Compose must mount a persistent local attachment volume.
   assert.match(compose, /planglade_attachments:\/app\/storage\/local-attachments/)
-
-  // Docs must describe the local attachment volume as the default.
   assert.match(selfHosting, /planglade_attachments/i)
   assert.match(backup, /planglade_planglade_attachments/i)
 })
 
-test("SELFHOST-FIREBASE-OPTIONAL-001: env example marks Docker Firebase vars as optional", async () => {
+test("FIREBASE-SAAS-BOUNDARY-001: env example contains no Firebase self-host variables", async () => {
   const envExample = await readProjectFile(".env.example")
 
-  // Docker quick-start Firebase values must be commented out (optional), and
-  // the file must state Firebase is not required for Docker.
   assert.match(envExample, /without Firebase|NOT required for Docker|not.*required.*Docker/i)
-  // Unset optional firebase vars must be commented.
-  assert.match(envExample, /^# PLANGLADE_STORAGE_PROVIDER="firebase"/m)
+  assert.doesNotMatch(envExample, /PLANGLADE_STORAGE_PROVIDER="firebase"/)
+  assert.doesNotMatch(envExample, /PLANGLADE_AUTH_MODE="firebase"/)
+  assert.doesNotMatch(envExample, /NEXT_PUBLIC_PLANGLADE_AUTH_MODE="firebase"/)
+  assert.doesNotMatch(envExample, /FIREBASE_[A-Z_]+/)
+  assert.doesNotMatch(envExample, /NEXT_PUBLIC_FIREBASE_[A-Z_]+/)
 })

@@ -7,8 +7,12 @@ function lower(value: string | undefined, fallback: string) {
   return (value ?? fallback).toLowerCase()
 }
 
+function getDefaultAuthMode() {
+  return process.env.NODE_ENV === "production" ? "nextauth" : "dev"
+}
+
 export function getConfiguredAuthMode(): PlanGladeAuthMode | "invalid" {
-  const mode = lower(readPlanGladeEnv("AUTH_MODE"), "dev")
+  const mode = lower(readPlanGladeEnv("AUTH_MODE"), getDefaultAuthMode())
   if ((VALID_AUTH_MODES as readonly string[]).includes(mode)) {
     return mode as PlanGladeAuthMode
   }
@@ -16,7 +20,7 @@ export function getConfiguredAuthMode(): PlanGladeAuthMode | "invalid" {
 }
 
 export function getPublicConfiguredAuthMode(): PlanGladeAuthMode | "invalid" {
-  const mode = lower(readPublicPlanGladeEnv("AUTH_MODE"), "dev")
+  const mode = lower(readPublicPlanGladeEnv("AUTH_MODE"), getDefaultAuthMode())
   if ((VALID_AUTH_MODES as readonly string[]).includes(mode)) {
     return mode as PlanGladeAuthMode
   }

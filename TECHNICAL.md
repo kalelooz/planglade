@@ -38,7 +38,7 @@ Browser
   → Next.js App Router
       → Server Components
       → Server Actions / Route Handlers
-      → Central AuthN/AuthZ Layer (mode: dev / firebase / nextauth)
+      → Central AuthN/AuthZ Layer (public self-host mode: dev / nextauth; firebase is SaaS-only — see §3.2)
       → Prisma
       → Database
 ```
@@ -66,7 +66,7 @@ Browser
 
 | Package | Apparent purpose | Status |
 |---|---|---|
-| `firebase` / `firebase-admin` | Auth + storage, mode-selectable alongside NextAuth | Deliberate — see §3.2 |
+| `firebase` / `firebase-admin` | Firebase Auth + Storage adapters | **SaaS-only — see §3.2.** Temporary extraction debt pending `SAAS-FIREBASE-EXTRACT-001`; not a public self-host path |
 | `@mdxeditor/editor` | Rich markdown/MDX editor | **Directly contradicts §16 Technical Non-Goals** ("no complex rich-text blocks") — needs a decision: keep and revise the non-goal, or confirm unused and remove |
 | `next-intl` | Internationalization | No product doc mentions multi-language support at all |
 | `recharts` | Charting | Reports/analytics is explicitly "Later" in `PRODUCT.md §11` |
@@ -88,20 +88,23 @@ Reconciled against direct evidence from both the Architect's decision-history re
 | Test runner | Vitest + Playwright | Node's built-in runner confirmed as the actual runner | Debt, **or** formally adopt Node's runner as the new target — 327 tests already exist against it, so migration has real cost. This is worth an explicit maintainer call rather than defaulting to "migrate" |
 | Docker self-host | Docker + compose | Present in the checked-out branch | No current implementation gap for the early Docker baseline |
 
-### 3.2 Firebase — ratified, not drift
+### 3.2 Firebase — SaaS-only, not a public self-host path
 
-Confirmed as a deliberate three-way auth mode switch (`dev` / `firebase` / `nextauth`), selected via `PLANGLADE_AUTH_MODE`, with matching client/server env validation and independent storage-provider selection. This is documented product architecture as of this revision, not an accident:
+**Settled decision (`FIREBASE-SAAS-BOUNDARY-001`, 2026-07-09):** Firebase is reserved for PlanGlade's private hosted SaaS/cloud deployment. It is **not** part of the public open-source self-host product. The public repository and self-host experience must remain independently usable without any Firebase account, credentials, project, or setup.
 
-- Firebase and NextAuth are **mode-selected, not simultaneous** for authentication.
-- Storage provider (local vs. Firebase) is selected independently of auth mode.
-- Local storage is supported for self-host/Docker when a signing secret is configured.
-- **Open question the maintainer should still answer:** does permanent dual-mode auth serve the AGPL/self-host positioning, or does leaning on Firebase (a proprietary Google service) as a first-class path undercut it? This is a positioning call, not a technical one — see `EXECUTION.md`'s Open Decisions Log.
+The live code still contains a three-way auth mode switch (`dev` / `firebase` / `nextauth`) and a `firebase` storage provider, but these are **temporary extraction debt**, not a supported public self-host mode:
+
+- **Public core / self-host boundary:** `nextauth` (or `dev` for local development) for auth, `local` storage for attachments, the documented self-host database, and Docker/public migration tooling. Production defaults resolve to `nextauth` and `local`; no Firebase configuration is required or advertised for self-host.
+- **Private hosted SaaS boundary:** Firebase auth adapter, Firebase Admin, Firebase Storage, hosted-provider configuration, and private deployment/operational details. These belong to private SaaS infrastructure.
+- Firebase and NextAuth remain **mode-selected, not simultaneous** for authentication; storage provider (local vs. Firebase) is selected independently of auth mode.
+
+Physical extraction of the Firebase implementation into a private SaaS codebase is tracked as `SAAS-FIREBASE-EXTRACT-001`. Until that lands, the Firebase code remains in-repo behind an explicit opt-in (`PLANGLADE_AUTH_MODE=firebase` / `PLANGLADE_STORAGE_PROVIDER=firebase`) and must not be re-advertised as a public self-host feature. See `EXECUTION.md` §5/§6 and the extraction manifest in `docs/FIREBASE_EXTRACTION_PLAN.md`.
 
 ### 3.3 Backend-complete, UI-dormant — lower urgency than previously flagged
 
 Two subsystems exist, are well-tested, and are **not reachable through the normal product UI today**:
 
-- **Attachments:** local + Firebase providers fully implemented (signed URLs, HMAC signing, path-traversal protection, MIME/size validation). No frontend component calls the upload/list/download endpoints. Project feature flag defaults to `false`.
+- **Attachments:** local provider fully implemented (signed URLs, HMAC signing, path-traversal protection, MIME/size validation) and is the public self-host default. A Firebase Storage provider also exists but is **SaaS-only** (see §3.2); it remains as temporary extraction debt behind an explicit opt-in. No frontend component calls the upload/list/download endpoints yet. Project feature flag defaults to `false`.
 - **Workspace invites & member management:** creation, resend, revoke, expiry, role/domain policy, email delivery (console/Resend) are all implemented and tested. Only **invite acceptance** is reachable via `/login?inviteToken=...`. No send-invite, policy, or member-admin UI exists. `/team` explicitly redirects to `/app`.
 
 This reads as backend-built-ahead-of-UI, correctly gated from users — reasonable sequencing, not a broken promise. The real decision is whether to build the UI now (pulling Phase 4 collaboration forward) or leave both dormant until their originally planned phase. Either is defensible; it just needs to be a decision, not silence.
@@ -350,10 +353,10 @@ export async function requireWorkspaceMember(workspaceId: string) {
 }
 ```
 
-**Confirmed session resolution (three modes, mode-selected):**
-- `dev`: upserts a fixed development user, creates/updates a configured dev workspace, ensures OWNER membership.
-- `firebase`: requires a Bearer token or equivalent header, verified via Firebase Admin, then resolves DB user/membership.
-- `nextauth`: calls `getServerSession`, requires an email, resolves DB user/membership.
+**Confirmed session resolution (mode-selected):**
+- `dev` (public local development): upserts a fixed development user, creates/updates a configured dev workspace, ensures OWNER membership.
+- `nextauth` (public self-host): calls `getServerSession`, requires an email, resolves DB user/membership.
+- `firebase` (SaaS-only — see §3.2): requires a Bearer token or equivalent header, verified via Firebase Admin, then resolves DB user/membership. Not a public self-host path.
 - Non-dev users without a membership receive `409 ONBOARDING_REQUIRED`.
 
 ---
@@ -395,7 +398,7 @@ Notes and docs are separate by product meaning. Notes are freeform, global or pr
 
 **Status as of 2026-07-03: present in the checked-out branch.**
 
-Docker packaging exists: multi-stage Node 22 Alpine `Dockerfile`, `docker-compose.yml`, non-root user, standalone Next.js runner, persistent SQLite and local-attachment volumes, health check, NextAuth as default with Firebase optional, and production local storage permitted given a signing secret.
+Docker packaging exists: multi-stage Node 22 Alpine `Dockerfile`, `docker-compose.yml`, non-root user, standalone Next.js runner, persistent SQLite and local-attachment volumes, health check, NextAuth as the public self-host default with local attachment storage. (A Firebase Storage provider exists in-repo but is SaaS-only — see §3.2 — and is not part of the Docker self-host path.)
 
 **What's not solved:** PostgreSQL remains a separate, unimplemented provider migration — the shipped baseline still tracks SQLite. HTTPS/reverse proxy, monitoring, and automated backups are explicitly not bundled.
 

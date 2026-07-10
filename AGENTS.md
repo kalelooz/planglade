@@ -32,6 +32,12 @@ Codex reads this file automatically before work in this repository. Keep it shor
 - Never expose stack traces to users.
 - Every workspace operation verifies, in order: authenticated user, workspace membership, entity belongs to workspace, role permits the operation.
 
+## Public-Core / Private-SaaS Boundary
+
+- Preserve the public-core/private-SaaS boundary. Firebase is SaaS-only.
+- Do not add Firebase requirements, setup, credentials, defaults, or provider-specific behavior to the public self-host path.
+- Public self-host defaults to NextAuth and local storage. The `firebase` auth/storage modes remain only as temporary extraction debt behind explicit opt-in (`SAAS-FIREBASE-EXTRACT-001`); do not advertise or re-enable them as public self-host features.
+
 ## Skills And Plugins
 
 - Let Codex use relevant installed skills and plugins automatically.

@@ -22,8 +22,6 @@ services:
       PLANGLADE_AUTH_MODE: nextauth
       NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
       # Docker default stores attachments on a local, persistent Docker volume.
-      # Set PLANGLADE_STORAGE_PROVIDER=firebase in .env (and provide Firebase
-      # credentials) only if you intentionally want hosted Firebase Storage.
       PLANGLADE_STORAGE_PROVIDER: ${PLANGLADE_STORAGE_PROVIDER:-local}
       PLANGLADE_LOCAL_STORAGE_DIR: /app/storage/local-attachments
       PLANGLADE_STORAGE_SIGNING_SECRET: ${PLANGLADE_STORAGE_SIGNING_SECRET:-${NEXTAUTH_SECRET}}

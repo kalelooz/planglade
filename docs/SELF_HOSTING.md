@@ -15,8 +15,6 @@ The existing local/developer self-host path remains documented below.
 - Local file attachment storage in a persistent Docker volume.
 - `/api/health` as the container health check.
 
-Firebase Storage is **optional** and not required for the default Docker quick start. See [Optional Firebase Storage](#optional-firebase-storage) below.
-
 PostgreSQL is not included. The tracked Prisma schema uses SQLite, so changing database providers would be a separate migration project, not a Docker configuration change.
 
 ## Before You Start
@@ -182,21 +180,6 @@ Confirm `NEXTAUTH_URL`, the OAuth callback URL, provider ID/secret, and HTTPS sc
 
 With the default local storage provider, confirm the `planglade_attachments` volume is healthy and writable, and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is set and stable across restarts. Changing the signing secret invalidates any in-flight signed URLs but does not delete files.
 
-If you switched to Firebase Storage, confirm the Firebase project, bucket, client settings, service-account email, and private key instead.
-
-## Optional Firebase Storage
-
-Firebase Storage is an optional hosted/external attachment provider. It is **not** required for Docker.
-
-Use it only if you want attachments stored in Firebase instead of the local Docker volume. To switch:
-
-1. Set `PLANGLADE_STORAGE_PROVIDER="firebase"` in `.env`.
-2. Provide `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY_BASE64` for Firebase Admin access.
-3. To bake Firebase browser config into the image, pass the `NEXT_PUBLIC_FIREBASE_*` values as Docker build args and rebuild. This is optional and only needed if you also use Firebase client auth.
-4. Restart the app and check `/api/health` reports storage `ready` with provider `firebase`.
-
-When Firebase Storage is enabled, back up the Firebase bucket separately. See the optional Firebase notes in `docs/BACKUP_RESTORE.md`.
-
 ## Local Development Without Docker
 
 The existing developer path remains supported:
@@ -233,7 +216,6 @@ Before public exposure:
 - Back up SQLite and local attachment volumes off-machine.
 - Test a full restore.
 - Add logging, monitoring, rate limiting, update procedures, and an incident plan.
-- If you use Firebase Storage, configure Firebase security rules and least-privilege service credentials.
 
 ## Known Limitations
 
@@ -241,5 +223,4 @@ Before public exposure:
 - SQLite is suitable for this early baseline, not a substitute for a reviewed multi-user database architecture.
 - No PostgreSQL support or migration runbook.
 - No bundled HTTPS, reverse proxy, automated backup, restore drill, monitoring, or alerting.
-- Docker uses NextAuth plus local file storage by default; Firebase Storage is optional.
-- The Firebase App Hosting notes remain separate and are not the generic Docker guide.
+- Docker uses NextAuth plus local file storage by default.

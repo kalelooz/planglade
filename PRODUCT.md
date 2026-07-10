@@ -182,7 +182,7 @@ Purpose-level only — field-by-field schema is canonical in `TECHNICAL.md §4`.
 - **Note** — freeform, fast, searchable; optionally linked to a project.
 - **Doc** — structured project documentation; always project-scoped.
 - **Calendar** — not a stored entity. A view over tasks with due dates, later extended to scheduled blocks.
-- **Attachment** — file attached to a task or note, via local or Firebase-backed signed URLs. Backend is fully built and tested but has no UI yet and is feature-flagged off by default — see `TECHNICAL.md §3.3` before assuming this is a live product surface.
+- **Attachment** — file attached to a task or note, via local signed URLs (the public self-host path). Backend is fully built and tested but has no UI yet and is feature-flagged off by default — see `TECHNICAL.md §3.3` before assuming this is a live product surface. A Firebase-backed storage provider exists in the code but is reserved for the private hosted SaaS deployment, not the self-host product (see `TECHNICAL.md §3.2`).
 - **WorkspaceInvite / WorkspaceMember roles** — invite and membership model supporting future collaboration. Only invite *acceptance* is currently reachable through the UI; sending invites and managing members has no UI yet. Same caveat as Attachment: built, tested, dormant.
 
 ---
@@ -305,7 +305,7 @@ PlanGlade is free, self-hosted, and open-source. The first public website should
 
 **Monetization direction:** self-host is free. Hosted cloud will be paid. Internal target for later pricing is **$9/month or $90/year** for the first simple hosted plan, but the first website should only say **Paid cloud coming** until checkout, support, privacy, backup, and billing paths are real.
 
-**Open tension worth tracking:** PlanGlade's auth/storage layer supports Firebase as well as self-hosted NextAuth (see `TECHNICAL.md §3.2`). Whether leaning on a proprietary Google service as one of two first-class paths sits comfortably next to an AGPL, self-host-first pitch is an open positioning question, not yet resolved — logged in `EXECUTION.md §6`.
+**Resolved boundary (`FIREBASE-SAAS-BOUNDARY-001`):** Firebase is **not** part of the open-source self-host product. The public edition must remain independently usable with its supported self-host authentication (NextAuth), database, and local storage paths. Firebase is reserved for the private hosted SaaS deployment. The live repository still contains Firebase adapter code as temporary extraction debt (`SAAS-FIREBASE-EXTRACT-001`); it is not advertised or defaulted to for self-host. See `TECHNICAL.md §3.2`.
 
 Full launch/business detail lives in `SAAS-LAUNCH.md`.
 
