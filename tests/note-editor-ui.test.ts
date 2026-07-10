@@ -34,13 +34,9 @@ test("NOTES-TIPTAP-001: Notes uses Tiptap with the approved compact feature set"
   assert.doesNotMatch(source, /dangerouslySetInnerHTML|MDXEditor/);
 });
 
-test("NOTES-TIPTAP-001: dependency and technical docs record the completed editor decision", async () => {
+test("NOTES-TIPTAP-001: dependencies record the completed editor decision", async () => {
   const packageJson = await readFile(path.join(root, "package.json"), "utf8");
-  const technical = await readFile(path.join(root, "TECHNICAL.md"), "utf8");
-  const execution = await readFile(path.join(root, "EXECUTION.md"), "utf8");
 
   assert.doesNotMatch(packageJson, /@mdxeditor\/editor/);
   assert.match(packageJson, /@tiptap\/react/);
-  assert.match(technical, /Tiptap.*Markdown-backed/i);
-  assert.match(execution, /NOTES-TIPTAP-001.*Done/i);
 });

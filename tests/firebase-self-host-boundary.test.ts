@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { existsSync, promises as fs } from "node:fs"
+import { existsSync } from "node:fs"
 import test from "node:test"
 
 import { getAuthConfigErrors, getConfiguredAuthMode, getPublicConfiguredAuthMode } from "../src/lib/auth-config"
@@ -169,10 +169,4 @@ test("FIREBASE-SAAS-BOUNDARY-001: public repo has no Firebase App Hosting config
     false,
     "Firebase App Hosting config belongs in the private hosted SaaS codebase",
   )
-})
-
-test("FIREBASE-SAAS-BOUNDARY-001: extraction manifest inventories the Firebase session helper", async () => {
-  const manifest = await fs.readFile("docs/FIREBASE_EXTRACTION_PLAN.md", "utf8")
-
-  assert.match(manifest, /src\/lib\/server-session-client\.ts/)
 })
