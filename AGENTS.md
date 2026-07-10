@@ -14,6 +14,7 @@ Keep changes small, safe, and consistent with PlanGlade's calm, solo-first produ
 
 - Never commit `.env` files, credentials, or secrets, and never expose secrets client-side.
 - Never trust a client-provided user or workspace ID as identity.
+- Validate untrusted input at every trust boundary before using it.
 - Never ship fake authentication, hardcode admin users, render unsanitized HTML, or expose stack traces to users.
 - Every workspace operation verifies, in order: authenticated user, workspace membership, entity belongs to workspace, and role permits the operation.
 
@@ -26,4 +27,4 @@ Keep changes small, safe, and consistent with PlanGlade's calm, solo-first produ
 
 - Run the smallest relevant checks for the files changed.
 - Use existing scripts where applicable: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, and `npx prisma validate`.
-- Report the files changed, validation run, skipped checks, and remaining risks.
+- Report completion with evidence: files changed, validation run, skipped checks, and remaining risks.
