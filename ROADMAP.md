@@ -12,6 +12,7 @@ This roadmap is directional. It avoids dates on purpose. Items may move as the p
 - Projects and Project Home.
 - Notes and project context.
 - Calendar over task due dates.
+- Contextual task dependencies in selected task, board, and project interfaces; not a standalone workflow.
 - Settings.
 - Workspace JSON export and guarded import.
 - Early local/developer self-host docs.
@@ -19,8 +20,8 @@ This roadmap is directional. It avoids dates on purpose. Items may move as the p
 
 ## Next
 
-- Timeline polish.
-- Task dependencies.
+- Complete the Timeline workflow beyond its partial project-level rendering.
+- Complete the contextual dependency workflow.
 - Recurring tasks.
 - Stronger self-host path.
 - Security hardening for auth, workspace boundaries, import/export, attachments, and deployment guidance.
@@ -39,5 +40,5 @@ This roadmap is directional. It avoids dates on purpose. Items may move as the p
 
 - Do not market later items as available.
 - Do not claim production-ready self-hosting yet.
-- Do not claim pricing, hosted cloud, AI assistance, Docker, or enterprise/admin features are available today.
+- Do not claim pricing, hosted cloud, AI assistance, or enterprise/admin features are available today. Docker is an early self-host baseline, not a production-ready guarantee.
 - Keep MVP claims tied to real working product surfaces.

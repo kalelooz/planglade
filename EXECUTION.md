@@ -140,15 +140,16 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 
 | ID | Title | Why | Priority |
 |---|---|---|---|
-| `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Sync Architect/Codex/library sources before further implementation | **Highest — do first** |
-| `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Create factual mismatch report before broad fixes | **Highest — do after resource replacement** |
+| `DOCS-TRUTH-RESOURCE-002` | Replace old resource files with v6.2 pack | Superseded by completed reconciliation sequence | **Done** |
+| `RESOURCE-MISMATCH-AUDIT-001` | Audit live repo against v6.2 resources | Factual mismatch report completed before reconciliation | **Done** |
+| `DOCS-TRUTH-RESOURCE-003` | Reconcile canonical documentation with current main | Tiptap, Firebase boundary, dependency/attachment/Timeline status, and volatile snapshots reconciled | **Done on merge** |
 | `WEBSITE-LIVE-001` | Launch PlanGlade website fast | Website is live on Netlify | **Done - no longer pending** |
 | `WEBSITE-POST-LIVE-AUDIT-001` | Verify live Netlify website after launch | PR #27 merged; production deployment verified 2026-07-07 | **Done** |
 | `DEMO-READONLY-001` | Build/readiness-check read-only public demo | No login, no writes, broad sample data, server-side mutation blocking | High - only if post-live audit finds gaps |
 | `SAAS-FIREBASE-EXTRACT-001` | Move Firebase auth/storage adapters into the private hosted SaaS codebase | Firebase is SaaS-only (`FIREBASE-SAAS-BOUNDARY-001`); the in-repo Firebase code is temporary extraction debt. Full manifest in `docs/FIREBASE_EXTRACTION_PLAN.md`. Blocked on a private SaaS destination existing. | Medium |
 | `DEBT-003` | Auth.js/NextAuth v4 → v5 upgrade, or formally accept v4 as target | Real breaking-change migration, not a version bump — needs scoping before it's picked up casually | Medium |
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
-| `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 327 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
+| `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
 | `DEBT-008` | GitHub OAuth: wire up UI or remove server-side config | Currently half-configured, unreachable dead path | Low |
 | `DEBT-009` | Resolve Notes editor vs. "no complex rich-text blocks" non-goal | Resolved by `NOTES-TIPTAP-001`: Markdown-backed Tiptap editor, not a block system | **Done** |
 | `DEBT-010` | Verify necessity/legitimacy of `z-ai-web-dev-sdk` and `next-intl` | Unexplained dependencies with no corresponding product decision | Low |
@@ -177,14 +178,14 @@ Unlike the debt backlog above, these aren't implementation tasks — they're cal
 
 ## 7. Self-Hosting / Docker Status
 
-The early Docker baseline exists in the checked-out branch:
+The early Docker baseline is implemented on current main:
 
 1. `Dockerfile` and `docker-compose.yml` are present.
 2. The baseline uses a standalone app image, a migration step, persistent SQLite, persistent local attachments, a health check, and NextAuth as the public self-host default. (A Firebase Storage provider exists in-repo but is SaaS-only — see `TECHNICAL.md §3.2` — and is not part of the Docker self-host path.)
 3. `README.md` and `docs/SELF_HOSTING.md` describe the early Docker baseline.
 4. Postgres remains unimplemented — the shipped baseline still runs SQLite.
 
-**Sequence:** keep the current Docker baseline intact → launch the public website honestly → only then take on Postgres (`DEBT-004`) as a separate, later ticket.
+**Sequence:** keep the current Docker baseline intact; take on PostgreSQL only as a separate later ticket after hosted-SaaS work is explicitly scoped.
 
 ---
 
@@ -192,22 +193,27 @@ The early Docker baseline exists in the checked-out branch:
 
 *(Milestone-level only — see §0 for how this relates to `docs/ACTIVE_PLAN.md`. Update this section in place; do not copy it into other documents.)*
 
-**As of 2026-07-03:**
+**Current implementation:**
 
-- Current checked-out branch is `codex/ci-actions-node24`.
-- Current validation: `npm test` passes **327/327**.
-- Docker baseline files are present in this branch.
-- Recent work on the active branch has focused on: public-facing UI polish (Home, Tasks, Inbox), Project Detail redesign (Concept 2, removing the Docs tab), Calendar visual acceptance, Settings appearance/priority display, and environment-variable naming cleanup.
-- Public issue #8 (contributor guide) remains open. Security contact work is implemented on `main` via `9681a60`; if #9 still appears open in GitHub UI, verify/close it from the owner account rather than treating the code/doc work as missing.
-- No planning document had been updated to reflect Firebase, attachments, invites, or Docker until this revision.
+- Visible product surfaces are Home, Inbox, Tasks, Projects, Notes, Calendar, and Settings. Docs is advanced/default-off; Team, Activity, Connections, and the standalone Timeline route are not visible MVP surfaces.
+- Notes use the Markdown-backed Tiptap editor. MDXEditor is removed; Markdown remains the persisted format.
+- Public self-host uses NextAuth, SQLite, local attachment storage, Docker migrations, a health check, and a non-root runtime. It requires no Firebase account or credentials.
+- Firebase is private hosted-SaaS infrastructure. The remaining in-repo adapters are explicit opt-in extraction debt tracked by `SAAS-FIREBASE-EXTRACT-001` and `docs/FIREBASE_EXTRACTION_PLAN.md`.
+- Attachment storage and APIs exist, but no supported end-user attachment UI has shipped; the public feature flag defaults off.
+- Dependencies are partially shipped contextual task functionality in selected task, board, and project interfaces, not a complete standalone workflow or primary product surface. Timeline has partial project-level rendering but no navigable standalone MVP surface.
+- PostgreSQL is a future hosted-SaaS direction. The current Prisma datasource and Docker baseline use SQLite.
 
-- SaaS/public launch direction is now decided: website is live on Netlify, self-host now, cloud soon, read-only demo, no checkout until cloud is real.
-- Public copy must be concise and human; avoid long internal-risk wording on marketing pages.
-- Post-live verification should not wait for Postgres, billing, or production cloud.
-- `RESOURCE-MISMATCH-AUDIT-001` was run on 2026-07-06. Its website follow-up, `WEBSITE-POST-LIVE-AUDIT-001`, was completed through PR #27 and verified in production on 2026-07-07.
+**Historical completion evidence:**
 
-**Decision log:**
-- 2026-07-09 — `FIREBASE-SAAS-BOUNDARY-001`: Firebase is reserved for the private hosted SaaS/cloud deployment and is not part of the public open-source self-host product. Public self-host defaults changed to `nextauth` + local storage so it requires no Firebase account, variables, credentials, or services. The in-repo Firebase adapter code remains as temporary extraction debt behind an explicit opt-in; physical removal is tracked as `SAAS-FIREBASE-EXTRACT-001` (manifest in `docs/FIREBASE_EXTRACTION_PLAN.md`), blocked on a private SaaS destination existing. Resolves Open Decisions #1 and #3.
+- PR #29 records remediation of the known 11 application security findings. Issue #30 remains the live Firebase overwrite-precondition verification for the private SaaS path.
+- PR #34, merged 2026-07-10, reports `412/412` passing tests for its Tiptap change. This is dated PR evidence, not a standing test count.
+- `DOCS-TRUTH-RESOURCE-003` reconciles the canonical documentation with current main when this change merges.
+
+**Open work and deferred direction:**
+
+- `SAAS-FIREBASE-EXTRACT-001` is blocked until a private SaaS destination exists.
+- PostgreSQL, a complete dependency workflow, a dedicated Timeline workflow, recurring tasks, and collaboration UI remain separate scoped work.
+- Website and demo work remain complete; do not revive them without a verified production issue.
 
 ---
 

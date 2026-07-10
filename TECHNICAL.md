@@ -10,20 +10,11 @@ This document is the architecture, security, and deployment **target**, per the 
 
 ---
 
-## 0. Read this first — repo state as of 2026-07-03
+## 0. Read this first — how to use this reference
 
-Current checked-out branch: `codex/ci-actions-node24`.
+Use current `main` and the files it contains as the implementation baseline. This document records architecture decisions and durable implementation status; avoid treating branch names, commit SHAs, package versions, or test totals as timeless facts.
 
-Current validation:
-
-| Area | Confirmed state |
-|---|---|
-| Tests | `npm test` passes: **327/327** |
-| Docker | `Dockerfile` and `docker-compose.yml` are present |
-| Prisma | SQLite datasource only; `npx prisma validate` passes |
-| Resource pack | v6.2 files are committed; prompt files are tracked alongside them |
-
-Do not carry forward older branch-reconciliation notes as current truth. They are historical context only. Current work should target the checked-out branch unless the maintainer explicitly says otherwise.
+**Dated evidence:** PR #34, merged 2026-07-10, replaced MDXEditor with the Markdown-backed Tiptap Notes editor and reported `412/412` passing tests for that PR. That total is historical validation evidence, not a standing test-count claim.
 
 ---
 
@@ -47,20 +38,20 @@ Browser
 
 ## 2. Stack — Target vs. Confirmed Reality
 
-| Layer | Target (spec) | Confirmed installed (`codex/ci-actions-node24`, 2026-07-03) |
+| Layer | Target (spec) | Confirmed reality |
 |---|---|---|
-| Framework | Next.js 14+ App Router | `next@16.2.6` |
-| Language | TypeScript strict | `typescript@5.9.3` |
-| Styling | Tailwind CSS | `tailwindcss@4.1.18` (v4, via `@tailwindcss/postcss`) |
-| UI | shadcn/ui + Radix | Full Radix primitive set + `radix-ui@1.4.3` |
-| Icons | Lucide React | `lucide-react@0.525.0` |
-| ORM | Prisma | `prisma@6.19.3` / `@prisma/client@6.19.3` |
+| Framework | Next.js App Router | Next.js App Router; `package.json` is authoritative for versions |
+| Language | TypeScript strict | TypeScript |
+| Styling | Tailwind CSS | Tailwind CSS v4 |
+| UI | shadcn/ui + Radix | Radix primitives and local UI components |
+| Icons | Lucide React | Lucide React |
+| ORM | Prisma | Prisma |
 | Database | PostgreSQL production, SQLite dev | **SQLite only** — no Postgres datasource configured anywhere |
-| Auth | Auth.js / NextAuth **v5** | `next-auth@4.24.14` — **v4** |
-| Validation | Zod | `zod@4.3.5` |
-| Forms | React Hook Form | `react-hook-form@7.71.1` |
+| Auth | Auth.js / NextAuth | NextAuth v4 for public self-host; v5 migration remains tracked debt |
+| Validation | Zod | Zod |
+| Forms | React Hook Form | React Hook Form |
 | Testing | Vitest + Playwright | **Node's built-in test runner** via `tsx` — no Vitest, no Playwright in CI |
-| Deployment | Docker + docker-compose | Present in the checked-out branch |
+| Deployment | Docker + docker-compose | Docker baseline with migrations, health check, non-root runtime, SQLite, and local attachment storage |
 
 **Confirmed but never specified anywhere in `PRODUCT.md` or this document:**
 
@@ -83,10 +74,10 @@ Reconciled against direct evidence from both the Architect's decision-history re
 
 | Area | Spec | Reality | Action |
 |---|---|---|---|
-| Auth library | NextAuth v5 | v4.24.14 confirmed installed | Debt — see `EXECUTION.md` backlog. Note: v5 has breaking API changes from v4; this is a real migration, not a version bump |
+| Auth library | NextAuth v5 | v4 | Debt - see `EXECUTION.md` backlog. Note: v5 has breaking API changes from v4; this is a real migration, not a version bump |
 | Production database | PostgreSQL | SQLite only, no Postgres path exists | Debt |
-| Test runner | Vitest + Playwright | Node's built-in runner confirmed as the actual runner | Debt, **or** formally adopt Node's runner as the new target — 327 tests already exist against it, so migration has real cost. This is worth an explicit maintainer call rather than defaulting to "migrate" |
-| Docker self-host | Docker + compose | Present in the checked-out branch | No current implementation gap for the early Docker baseline |
+| Test runner | Vitest + Playwright | Node's built-in runner is the actual runner | Debt, **or** formally adopt Node's runner as the target. This needs an explicit maintainer call rather than a default migration. |
+| Docker self-host | Docker + compose | Present | No current implementation gap for the early Docker baseline |
 
 ### 3.2 Firebase — SaaS-only, not a public self-host path
 
@@ -122,193 +113,11 @@ This reads as backend-built-ahead-of-UI, correctly gated from users — reasonab
 
 ## 4. Core Data Model
 
-The schema below is the model set this document can currently confirm field-level detail for. It is **known to be incomplete**: Codex's audit surfaced Prisma model names — `Attachment`, `WorkspaceInvite`, `WorkspaceInvitePolicy`, `Activity`, `Comment`, `Notification`, `SavedView`, and work-item relation models — that exist in the live schema but were not dumped in full. Do not treat the block below as a complete picture of the database until someone pulls the actual current `prisma/schema.prisma` and reconciles it here. That's a concrete, scoped follow-up, not a rhetorical caveat.
+`prisma/schema.prisma` is authoritative for model fields, relations, constraints, and the datasource. The current datasource is SQLite; PostgreSQL is a future private hosted-SaaS direction, not a current runtime option.
 
-```prisma
-model User {
-  id          String   @id @default(cuid())
-  name        String?
-  email       String   @unique
-  image       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+The model groups are identity and tenancy (`User`, `Workspace`, memberships and invites); core work (`Project`, `WorkItem`, labels, inbox items, and work-item relations); and product context (`Note`, `ProjectDoc`, `Attachment`, saved views, comments, activity, notifications, and user settings).
 
-  memberships WorkspaceMember[]
-  tasks        Task[]  @relation("TaskAssignee")
-  notes        Note[]
-}
-
-model Workspace {
-  id         String   @id @default(cuid())
-  name       String
-  slug       String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  members    WorkspaceMember[]
-  projects   Project[]
-  tasks      Task[]
-  notes      Note[]
-  docs       Doc[]
-  inboxItems InboxItem[]
-  labels     Label[]
-}
-
-model WorkspaceMember {
-  id          String   @id @default(cuid())
-  role        String   @default("owner") // owner, admin, member
-  userId      String
-  workspaceId String
-  joinedAt    DateTime @default(now())
-
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, workspaceId])
-  @@index([workspaceId])
-}
-
-model Project {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  status      String   @default("active") // active, paused, done, archived
-  color       String?
-  startDate   DateTime?
-  dueDate     DateTime?
-  workspaceId String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks       Task[]
-  notes       Note[]
-  docs        Doc[]
-
-  @@index([workspaceId])
-  @@index([workspaceId, status])
-}
-
-model Task {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  status      String   @default("todo") // backlog, todo, in_progress, blocked, done, cancelled
-  priority    String   @default("medium") // low, medium, high, urgent
-  type        String   @default("task") // task, subtask, milestone
-  startDate   DateTime?
-  dueDate     DateTime?
-  completedAt DateTime?
-  workspaceId String
-  projectId   String?
-  parentId    String?
-  assigneeId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  parent      Task?     @relation("Subtasks", fields: [parentId], references: [id], onDelete: SetNull)
-  subtasks    Task[]    @relation("Subtasks")
-  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  labels      TaskLabel[]
-  blocks      TaskDependency[] @relation("TaskBlocks")
-  blockedBy   TaskDependency[] @relation("TaskBlockedBy")
-
-  @@index([workspaceId])
-  @@index([workspaceId, status])
-  @@index([workspaceId, dueDate])
-  @@index([workspaceId, projectId])
-}
-
-model TaskDependency {
-  id            String   @id @default(cuid())
-  blockerTaskId String
-  blockedTaskId String
-  type          String   @default("finish_to_start")
-  createdAt     DateTime @default(now())
-
-  blockerTask   Task     @relation("TaskBlocks", fields: [blockerTaskId], references: [id], onDelete: Cascade)
-  blockedTask   Task     @relation("TaskBlockedBy", fields: [blockedTaskId], references: [id], onDelete: Cascade)
-
-  @@unique([blockerTaskId, blockedTaskId])
-}
-
-model InboxItem {
-  id              String   @id @default(cuid())
-  content         String
-  status          String   @default("pending") // pending, converted, dismissed
-  source          String   @default("manual") // manual, note, calendar, import
-  workspaceId     String
-  convertedTaskId String?
-  convertedNoteId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@index([workspaceId, status])
-}
-
-model Note {
-  id          String   @id @default(cuid())
-  title       String
-  content     String?
-  workspaceId String
-  projectId   String?
-  authorId    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
-
-  @@index([workspaceId])
-  @@index([workspaceId, projectId])
-}
-
-model Doc {
-  id          String   @id @default(cuid())
-  title       String
-  content     String?
-  status      String   @default("active") // active, archived
-  workspaceId String
-  projectId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([workspaceId])
-  @@index([projectId, status])
-}
-
-model Label {
-  id          String   @id @default(cuid())
-  name        String
-  color       String
-  workspaceId String
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks       TaskLabel[]
-
-  @@unique([workspaceId, name])
-}
-
-model TaskLabel {
-  taskId  String
-  labelId String
-
-  task    Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-  @@id([taskId, labelId])
-}
-```
-
-**Confirmed to exist, not yet documented above (pull full definitions before treating this section as complete):** `Attachment`, `WorkspaceInvite`, `WorkspaceInvitePolicy`, `Activity`, `Comment`, `Notification`, `SavedView`, work-item relation/hierarchy models. `PRODUCT.md §9` should gain purpose-level entries for each once fields are confirmed.
+`PRODUCT.md` owns purpose-level descriptions; this document does not duplicate a partial schema snapshot.
 
 ---
 
@@ -384,6 +193,8 @@ Calendar and timeline must never duplicate task data.
 - **Calendar MVP:** query tasks where `dueDate` is not null.
 - **Timeline v1:** query tasks where `startDate` or `dueDate` is not null. If `startDate` is null, render as a milestone/due marker.
 
+**Current surface status:** dependency handling is partially shipped contextual task functionality in selected task, board, and project interfaces, but it is not a complete standalone workflow or primary product surface. Timeline has partial project-level rendering; its standalone route redirects and Timeline is not an MVP navigation surface.
+
 ---
 
 ## 8. Notes and Docs Rule
@@ -396,11 +207,11 @@ Notes and docs are separate by product meaning. Notes are freeform, global or pr
 
 PlanGlade Markdown uses `++underlined text++` as its underline extension because standard Markdown has no underline syntax. The editor also accepts legacy `<u>text</u>` input and normalizes it to `++text++` when saved. Renderers must preserve this extension rather than silently dropping underline formatting.
 
+Markdown is rendered through the existing safe-rendering boundary: raw active HTML and unsafe link protocols are not executed or rendered as trusted content.
+
 ---
 
 ## 9. Self-Hosting Baseline
-
-**Status as of 2026-07-03: present in the checked-out branch.**
 
 Docker packaging exists: multi-stage Node 22 Alpine `Dockerfile`, `docker-compose.yml`, non-root user, standalone Next.js runner, persistent SQLite and local-attachment volumes, health check, NextAuth as the public self-host default with local attachment storage. (A Firebase Storage provider exists in-repo but is SaaS-only — see §3.2 — and is not part of the Docker self-host path.)
 
@@ -446,7 +257,7 @@ tests/
   e2e/
 ```
 
-**Confirmed current reality:** `npm test` passes **327/327**. Runner is Node's built-in test runner via `tsx`, not Vitest/Playwright. No Jest/Vitest config exists; Playwright is present only as a transitive lockfile reference, not wired into CI. No line/branch coverage instrumentation exists.
+**Confirmed current reality:** the runner is Node's built-in test runner via `tsx`, not Vitest/Playwright. No Jest/Vitest config exists; Playwright is not wired into CI. No line/branch coverage instrumentation exists. PR #34, merged 2026-07-10, reported `412/412` passing tests for that change; do not treat it as a timeless count.
 
 **Honest coverage read (from direct repo audit):** strongest around workspace authorization denial paths, invite/member guards, import/export, and task relations/hierarchy. Weakest around real Firebase/OAuth callbacks, Firebase Storage operations, Resend network delivery, and actual browser upload/download flows — none of which are integration-tested against real services. Of the 49 files, 22 are primarily source-text assertions rather than rendered component or interaction tests; treat "UI test" coverage claims accordingly.
 
@@ -459,7 +270,7 @@ tests/
 
 ## 11. CI/CD
 
-**Confirmed current pipeline:** `npm ci` → `npm run check:readme-sync` → `npm run db:generate` → `npm run ci:check` → `npm run test` → `npm audit --omit=dev --audit-level=critical`.
+**Confirmed current pipeline:** `npm ci` → `npm run check:readme-sync` → `npm run db:generate` → `npx prisma validate` → `npm run ci:check` → `npm run test` → `npm audit --omit=dev --audit-level=high`.
 
 **Target, not yet true:** pin third-party GitHub Actions to SHA, minimal permissions, Dependabot weekly (Dependabot itself is confirmed active — 5 merged PRs), secret scanning, push protection, protected main branch.
 
@@ -532,6 +343,8 @@ Never: commit `.env` · expose secrets in browser code · hardcode admin credent
 Always: rate-limit auth and import endpoints before public launch · sanitize imported content.
 
 Every workspace route must verify, in order: authenticated user → workspace membership → entity belongs to workspace → role permits the operation.
+
+**Security reconciliation:** PR #29 records remediation of the known 11 application findings. Issue #30 remains open only for live Firebase overwrite-precondition verification in the private SaaS path. No new security audit is claimed here; real-service Firebase, OAuth, Resend, and browser attachment integration coverage remains limited.
 
 **Add to this list given confirmed findings:** review `z-ai-web-dev-sdk` for legitimacy and necessity before the next dependency audit — it's unexplained in any planning doc or ticket history found so far.
 

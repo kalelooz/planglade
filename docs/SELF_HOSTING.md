@@ -83,7 +83,7 @@ curl http://localhost:3000/api/health
 
 The `migrate` container should show `Exited (0)`, the `app` container should become healthy, and the health response should report `"status":"ok"`.
 
-6. Open `http://localhost:3000` and test sign-in, creating a task, and uploading/downloading an attachment before wider use.
+6. Open `http://localhost:3000` and test sign-in and creating a task before wider use. Attachment storage and APIs are backend-only and feature-gated until a supported end-user attachment UI ships.
 
 ## Database And Migrations
 
@@ -101,7 +101,7 @@ The existing local development path remains SQLite with `npm run db:push`; it is
 
 ## Local Attachment Storage (Docker Default)
 
-The Docker default stores attachments as files inside the `planglade_attachments` Docker volume, mounted at `/app/storage/local-attachments`. Attachment upload and download are workspace-scoped and served through short-lived HMAC-signed URLs. The storage layer rejects path traversal (`..`, absolute paths) and confines all reads and writes to the configured volume path.
+The Docker default provisions local attachment storage inside the `planglade_attachments` Docker volume, mounted at `/app/storage/local-attachments`. The attachment API enforces workspace scope, short-lived HMAC-signed URLs, and path-traversal protection. This is backend/API-only and feature-gated; no supported end-user attachment UI ships yet.
 
 Back up this volume alongside the SQLite volume. See `docs/BACKUP_RESTORE.md`.
 
@@ -176,9 +176,9 @@ A `degraded` health response lists configuration errors without returning secret
 
 Confirm `NEXTAUTH_URL`, the OAuth callback URL, provider ID/secret, and HTTPS scheme all match. Docker defaults to NextAuth; dev auth is intentionally disabled in production mode.
 
-### Attachment actions fail
+### Attachment API maintenance
 
-With the default local storage provider, confirm the `planglade_attachments` volume is healthy and writable, and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is set and stable across restarts. Changing the signing secret invalidates any in-flight signed URLs but does not delete files.
+Attachment actions are not part of the supported end-user self-host workflow yet. If maintaining the feature-gated API, confirm the `planglade_attachments` volume is healthy and writable and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is stable across restarts. Changing the signing secret invalidates in-flight signed URLs but does not delete files.
 
 ## Local Development Without Docker
 

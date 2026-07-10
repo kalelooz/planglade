@@ -177,7 +177,7 @@ Purpose-level only — field-by-field schema is canonical in `TECHNICAL.md §4`.
 - **Workspace** — container for all user data. One default workspace per user in MVP; the model supports future sharing.
 - **Project** — groups tasks, notes, docs, and planning for a body of work.
 - **Task** — the primary work object and the single source for list, board, calendar, and timeline views.
-- **Dependency** — a "blocker → blocked" relationship between tasks. Phase 2 UI, but the model should exist early.
+- **Dependency** — a "blocker → blocked" relationship between tasks. Partially shipped contextual task functionality is available in selected task, board, and project interfaces, but it is not yet a complete standalone workflow or primary product surface.
 - **InboxItem** — a captured raw idea/task/note that hasn't been triaged yet.
 - **Note** — freeform, fast, searchable; optionally linked to a project.
 - **Doc** — structured project documentation; always project-scoped.
@@ -196,13 +196,13 @@ The solo command center. Answers: what needs attention today, what's overdue, wh
 Low-friction capture and triage. Create an item with text only; project/due date/priority are optional. Convert to task, convert to note (later), dismiss, batch actions (later). Capture should feel faster than opening a form.
 
 ### Tasks
-The main work hub. List view by default, board view as a toggle (not a separate nav item). Filters: all, mine, today, upcoming, overdue, no date, blocked, completed, by project, by priority. Task drawer covers title, description, status, priority, project, dates, subtasks, and later dependencies/linked notes. "My Tasks" is a filter, not a route. No fake automation buttons.
+The main work hub. List view by default, board view as a toggle (not a separate nav item). Filters: all, mine, today, upcoming, overdue, no date, blocked, completed, by project, by priority. Task drawer covers title, description, status, priority, project, dates, subtasks, linked notes, and contextual dependency handling. "My Tasks" is a filter, not a route. No fake automation buttons.
 
 ### Projects
 Clean and information-dense without becoming a dashboard. Each project shows name, status, progress, next task, open count, blocked/overdue signal, linked notes/docs count, last active date.
 
 ### Project Detail
-The project's "home." Tabs: Overview, Tasks, Notes, Calendar, Timeline (later) — **no Docs tab and no board toggle**. Notes now carries project context directly; an earlier version of this page had a separate Docs tab, but it looked indistinguishable from Notes in practice, so Docs was demoted to an advanced, default-off project feature rather than a primary surface (backend/data model unchanged — see `TECHNICAL.md §8`). Overview shows description/context, next task, overdue/blocked signal, progress, linked notes, and quick-add for tasks. No empty activity feeds or team-heavy fields in solo mode.
+The project's "home." Tabs: Overview, Tasks, Notes, Calendar, and partial Timeline context — **no Docs tab and no board toggle**. Notes now carries project context directly; an earlier version of this page had a separate Docs tab, but it looked indistinguishable from Notes in practice, so Docs was demoted to an advanced, default-off project feature rather than a primary surface (backend/data model unchanged — see `TECHNICAL.md §8`). Overview shows description/context, next task, overdue/blocked signal, progress, linked notes, and quick-add for tasks. No empty activity feeds or team-heavy fields in solo mode.
 
 ### Notes
 Quick and useful, not a Notion clone. Create, edit, search, project association, basic editor, note-to-task extraction from checklist lines or selected text.
@@ -214,7 +214,7 @@ Structured project documents. List, create/edit/archive/delete, basic editor, pr
 A view over tasks. MVP: month view, tasks appear on due date, click opens drawer, create task from a date cell, side list for tasks without a date. Phase 2: week view, time blocks, recurring tasks; external sync stays deferred.
 
 ### Timeline
-The first major post-MVP differentiator. Phase 2: task bars from start to due date, project grouping, today line, dependency indicators, week/month zoom, click opens drawer. No critical-path calculations in v1.
+Partial project-level rendering exists, but the standalone Timeline route redirects and Timeline is not an MVP navigation surface or marketing claim. Completing the dedicated planning workflow remains Phase 2; no critical-path calculations in v1.
 
 ### Settings
 MVP: workspace name, appearance (including priority display style — Text, Dots, Badge, or Arrows, applied consistently across Home, Tasks, Board, drawer, and Project Detail), data export, guided import (later), account/logout. No dangerous reset visible to normal users; destructive actions require confirmation; no dev tools in production.
@@ -227,7 +227,7 @@ MVP: workspace name, appearance (including priority display style — Text, Dots
 Auth and onboarding · workspace model · app shell · Home · Inbox · Tasks (list + board) · Projects + project detail · Notes/project context · Calendar month view · Settings data export · landing page · self-host basics.
 
 ### Phase 2, after MVP
-Timeline v1 · dependencies · recurring tasks · week calendar · task templates · guided import · mobile/PWA polish.
+Complete Timeline workflow · complete dependency workflow · recurring tasks · week calendar · task templates · guided import · mobile/PWA polish.
 
 ### Deferred
 Native mobile apps · AI · time tracking · resource inventory · team capacity/workload · billing/pricing · real-time collaboration · full external calendar sync · heavy automations.
@@ -245,7 +245,7 @@ Native mobile apps · AI · time tracking · resource inventory · team capacity
 | Project docs | Med/High | Medium | Advanced/default-off; backend exists, not a core MVP tab |
 | Calendar month | High | Medium | Task view |
 | Timeline/Gantt | High | High | Phase 2 |
-| Dependencies | High | Med/High | Phase 2, model early |
+| Dependencies | High | Med/High | Partially shipped context; complete standalone workflow remains Phase 2 |
 | Recurring tasks | Med/High | Medium | Phase 2 |
 | Mobile PWA polish | Med/High | Medium | Phase 2/3 |
 | Family sharing | Medium | High | Later |
