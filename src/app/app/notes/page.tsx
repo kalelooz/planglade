@@ -10,6 +10,7 @@ import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { Chip } from "@/components/lovable/page";
 import { MarkdownEditor } from "@/components/notes/markdown-editor";
 import type { WorkItem } from "@/lib/mock-data";
+import { findUncheckedNoteTasks, splitNoteMarkdown } from "@/lib/note-markdown";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
@@ -38,21 +39,6 @@ type UiProject = {
   id: string;
   name: string;
 };
-
-function parseTitleAndBody(md: string): { title: string; body: string } {
-  const lines = md.split("\n");
-  let titleIndex = lines.findIndex((line) => /^#\s+/.test(line));
-  if (titleIndex === -1) {
-    titleIndex = lines.findIndex((line) => line.trim().length > 0);
-    if (titleIndex === -1) return { title: "Untitled", body: "" };
-    const title = lines[titleIndex].trim() || "Untitled";
-    const body = lines.slice(titleIndex + 1).join("\n").replace(/^\n+/, "");
-    return { title, body };
-  }
-  const title = lines[titleIndex].replace(/^#\s+/, "").trim() || "Untitled";
-  const body = lines.slice(titleIndex + 1).join("\n").replace(/^\n+/, "");
-  return { title, body };
-}
 
 function highlightText(text: string, query: string): ReactNode {
   const trimmed = query.trim().toLowerCase();
@@ -365,16 +351,12 @@ function NotesInner() {
     const lines = sel.excerpt.split("\n");
     let createdCount = 0;
     const next = [...lines];
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i];
-      const match = line.match(/^(\s*)[-*] \[ \] (?!.*\bFB-\d+\b)(.+)$/);
-      if (!match) continue;
-      const title = match[2].trim();
-      if (!title) continue;
+    for (const task of findUncheckedNoteTasks(sel.excerpt)) {
+      const { lineIndex, indent, title } = task;
       const id = await createTaskFromNote(title, sel.id, sel.projectId);
       if (!id) continue;
       createdCount += 1;
-      next[i] = `${match[1]}- [x] ${title} (${id})`;
+      next[lineIndex] = `${indent}- [x] ${title} (${id})`;
     }
 
     if (createdCount === 0) {
@@ -576,7 +558,7 @@ function NotesInner() {
                   key={sel.id}
                   markdown={`# ${sel.title}\n\n${sel.excerpt}`}
                   onChange={(md) => {
-                    const { title, body } = parseTitleAndBody(md);
+                    const { title, body } = splitNoteMarkdown(md);
                     setNotes((current) => current.map((note) => (
                       note.id === sel.id
                         ? { ...note, title, excerpt: body, updated: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }) }

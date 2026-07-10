@@ -136,7 +136,7 @@ Due dates shown from the same task source.
 | Icons | Lucide React |
 | Tables | TanStack Table |
 | Drag and drop | dnd-kit |
-| Markdown | MDXEditor and react-markdown |
+| Markdown | Tiptap and react-markdown |
 | Package manager | npm |
 
 ## Requirements

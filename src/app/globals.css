@@ -621,45 +621,62 @@ html[data-density="comfortable"] {
   th, td { border: 1px solid #e5e7eb !important; padding: 0.5rem !important; }
 }
 
-/* ── MDXEditor (Notes) — match app aesthetics ─────────────────────── */
-.mdx-flowboard {
-  background: transparent;
-  border: 1px solid color-mix(in oklch, var(--color-primary) 12%, var(--color-border));
-  border-radius: 0.5rem;
-  background-color: var(--color-card);
-  box-shadow: 0 1px 2px color-mix(in oklch, var(--color-foreground) 4%, transparent);
-  overflow: hidden;
+/* Tiptap Notes editor */
+.note-tiptap .note-editor-content {
+  min-width: 0;
+  overflow-x: auto;
+  color: var(--color-foreground);
 }
-.mdx-flowboard ._toolbarRoot_uazmk_938 {
-  border: 0;
-  border-bottom: 1px solid color-mix(in oklch, var(--color-primary) 12%, var(--color-border));
-  background: color-mix(in oklch, var(--color-card) 92%, var(--color-background));
-  border-radius: 0;
-  padding: 4px 6px;
-  flex-wrap: wrap;
-  gap: 2px;
-}
-.mdx-flowboard ._toolbarRoot_uazmk_938 button {
+.note-tiptap .tiptap:focus-visible { outline: none; }
+.note-tiptap .tiptap p.is-editor-empty:first-child::before {
+  float: left;
+  height: 0;
   color: var(--color-muted-foreground);
-  border-radius: 0.3125rem;
-  transition: background-color 120ms ease, color 120ms ease;
+  content: attr(data-placeholder);
+  pointer-events: none;
 }
-.mdx-flowboard ._toolbarRoot_uazmk_938 button:hover {
-  background: color-mix(in oklch, var(--color-primary) 8%, var(--color-card));
-  color: var(--color-foreground);
+.note-tiptap .tiptap a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.mdx-flowboard ._toolbarRoot_uazmk_938 button[data-state="on"],
-.mdx-flowboard ._toolbarRoot_uazmk_938 button[aria-pressed="true"] {
-  background: color-mix(in oklch, var(--color-primary) 12%, var(--color-card));
-  color: var(--color-foreground);
+.note-tiptap .tiptap blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 1rem;
+  color: var(--color-muted-foreground);
 }
-.mdx-flowboard ._contentEditable_uazmk_379 {
-  font-size: 14px;
-  background: var(--color-card);
-  min-height: 18rem;
-  padding: 1rem 1.25rem;
-  color: var(--color-foreground);
+.note-tiptap .tiptap hr { border-color: var(--color-border); }
+.note-tiptap .tiptap pre {
+  overflow-x: auto;
+  border-radius: 0.375rem;
+  background: var(--color-muted);
+  padding: 0.75rem;
 }
-.mdx-flowboard ._contentEditable_uazmk_379:focus-visible {
-  outline: none;
+.note-tiptap .tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
 }
+.note-tiptap .tiptap li[data-type="taskItem"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.note-tiptap .tiptap li[data-type="taskItem"] > label {
+  margin-top: 0.2rem;
+  user-select: none;
+}
+.note-tiptap .tiptap li[data-type="taskItem"] > div { min-width: 0; flex: 1; }
+.note-tiptap .tiptap table {
+  width: 100%;
+  min-width: 28rem;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.note-tiptap .tiptap th,
+.note-tiptap .tiptap td {
+  border: 1px solid var(--color-border);
+  padding: 0.4rem 0.5rem;
+  vertical-align: top;
+}
+.note-tiptap .tiptap th { background: var(--color-muted); font-weight: 600; }
+.note-tiptap .tiptap .selectedCell { background: color-mix(in oklch, var(--color-primary) 8%, transparent); }

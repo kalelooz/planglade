@@ -67,7 +67,7 @@ Browser
 | Package | Apparent purpose | Status |
 |---|---|---|
 | `firebase` / `firebase-admin` | Firebase Auth + Storage adapters | **SaaS-only — see §3.2.** Temporary extraction debt pending `SAAS-FIREBASE-EXTRACT-001`; not a public self-host path |
-| `@mdxeditor/editor` | Rich markdown/MDX editor | **Directly contradicts §16 Technical Non-Goals** ("no complex rich-text blocks") — needs a decision: keep and revise the non-goal, or confirm unused and remove |
+| Tiptap packages | Markdown-backed Notes editor | Deliberate — selected by `NOTES-TIPTAP-001`; Notes still store Markdown and remain a lightweight editor rather than a block system |
 | `next-intl` | Internationalization | No product doc mentions multi-language support at all |
 | `recharts` | Charting | Reports/analytics is explicitly "Later" in `PRODUCT.md §11` |
 | `z-ai-web-dev-sdk` | Unknown | Unexplained; verify it's needed before treating it as trusted |
@@ -392,6 +392,10 @@ Notes and docs are separate by product meaning. Notes are freeform, global or pr
 
 **Update:** the Project Detail UI no longer surfaces a Docs tab — Notes now carries project context in the primary UI, and Docs is an advanced, default-off project feature flag rather than a core MVP tab. The backend/data model for Docs is unchanged; only its default visibility changed.
 
+**Notes editor decision:** Tiptap is the selected Notes editor. The database remains Markdown-backed; Tiptap parses Markdown for editing and serializes back to Markdown on save. This is basic rich-text editing for lightweight Notes, not a Notion-style block system.
+
+PlanGlade Markdown uses `++underlined text++` as its underline extension because standard Markdown has no underline syntax. The editor also accepts legacy `<u>text</u>` input and normalizes it to `++text++` when saved. Renderers must preserve this extension rather than silently dropping underline formatting.
+
 ---
 
 ## 9. Self-Hosting Baseline
@@ -551,4 +555,4 @@ npm run build
 
 Do not build in MVP: microservices, a background worker, real-time collaboration, native mobile, external calendar sync, AI classification, time-tracking reports, resource/inventory management, billing, team workload dashboards.
 
-~~complex rich-text blocks~~ — **contradicted by `@mdxeditor/editor` being installed.** Either this non-goal needs revising because a rich editor was deliberately adopted, or the dependency is unused and should be removed. Resolve before restating this list as accurate.
+Complex block systems remain out of scope. The Tiptap Notes editor provides basic Markdown-backed formatting only; slash commands, drag handles, collaboration, AI controls, and Notion-style blocks are non-goals.

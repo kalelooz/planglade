@@ -150,7 +150,7 @@ Generated from `TECHNICAL.md §3`. Ticket IDs continue the project's existing co
 | `DEBT-004` | Postgres production datasource + migration path | Spec says production Postgres; only SQLite exists | Medium |
 | `DEBT-005` | Test runner decision: adopt Node's built-in runner as target, or migrate 327 tests to Vitest/Playwright | Real migration cost either way; needs an explicit call, not a default | Medium |
 | `DEBT-008` | GitHub OAuth: wire up UI or remove server-side config | Currently half-configured, unreachable dead path | Low |
-| `DEBT-009` | Resolve `@mdxeditor/editor` vs. "no complex rich-text blocks" non-goal | Direct contradiction between installed dependency and documented non-goal | Low |
+| `DEBT-009` | Resolve Notes editor vs. "no complex rich-text blocks" non-goal | Resolved by `NOTES-TIPTAP-001`: Markdown-backed Tiptap editor, not a block system | **Done** |
 | `DEBT-010` | Verify necessity/legitimacy of `z-ai-web-dev-sdk` and `next-intl` | Unexplained dependencies with no corresponding product decision | Low |
 | `DEBT-011` | Clean up extraneous `@emnapi/runtime` npm entry | Minor hygiene | Low |
 | `DEBT-012` | Complete legacy `FLOWBOARD_*` → `PLANGLADE_*` env var cleanup | Already in progress; finish it | Low |
@@ -171,7 +171,7 @@ Unlike the debt backlog above, these aren't implementation tasks — they're cal
 8. **Public history transparency:** should the README state plainly that public commit history starts from a curated export?
 9. **i18n scope:** is `next-intl` a real planned feature, or premature scaffolding to strip out?
 10. **Reporting scope:** is `recharts` tied to a real near-term feature, or the same situation?
-11. **Rich text:** keep `@mdxeditor/editor` and revise the non-goal, or confirm it's unused and remove it?
+11. **Rich text:** decided by `NOTES-TIPTAP-001` — Tiptap is the Markdown-backed Notes editor; MDXEditor is removed and complex block-system features remain out of scope.
 
 ---
 
