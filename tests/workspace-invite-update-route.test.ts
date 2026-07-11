@@ -223,8 +223,8 @@ test("PATCH /workspace/invitations/:inviteId denies request without actor", asyn
     })
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
     assert.equal(inviteLookupCalled, false)
   })
 })

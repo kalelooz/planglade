@@ -106,7 +106,7 @@ test("POST /workspace/invitations/test-send denies request without actor", async
     const response = await sendTestInviteEmail(request)
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
   })
 })

@@ -84,8 +84,8 @@ test("POST /workspace/import-preview rejects unauthenticated preview", async () 
     const response = await previewWorkspaceImport(request)
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
     assert.equal(duplicateLookupCalled, false)
   })
 })

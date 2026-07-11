@@ -79,8 +79,8 @@ test("GET /workspace/export denies unauthenticated requests", async () => {
     const response = await exportWorkspace(request)
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
   })
 })
 

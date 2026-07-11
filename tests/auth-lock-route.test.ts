@@ -82,8 +82,8 @@ test("AUTH-LOCK-1: unauthenticated work-item reads are denied before loading dat
     const response = await listWorkItems(request)
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
     assert.equal(findManyCalled, false)
   })
 })
@@ -105,8 +105,8 @@ test("AUTH-LOCK-1: unauthenticated project mutations are denied before writing",
     const response = await createProject(request)
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
   })
 })
 
