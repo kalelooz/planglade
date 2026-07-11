@@ -10,6 +10,8 @@
     "build": "npm run validate:auth-config && next build && node scripts/postbuild-copy.js",
     "start": "npm run validate:auth-config && node .next/standalone/server.js",
     "test": "node --import tsx --test tests/**/*.test.ts",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --headed",
     "check:readme-sync": "node scripts/check-readme-sync.mjs",
     "jobs:expire-invites": "node scripts/expire-workspace-invites.mjs",
     "lint": "eslint .",
@@ -102,6 +104,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
