@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import type { WorkspaceRole } from "@prisma/client"
 import { ZodSchema } from "zod"
 
-import { authOptions } from "@/lib/auth-options"
 import { getConfiguredAuthMode } from "@/lib/auth-config"
 import { db } from "@/lib/db"
 
@@ -96,9 +94,10 @@ export async function resolveRequestActorUserId(request: Request): Promise<strin
     const { verifyFirebaseIdToken } = await import("@/lib/firebase-admin")
     try {
       const verified = await verifyFirebaseIdToken(token)
-      const user = await db.user.findUnique({
-        where: { email: verified.email },
-        select: { id: true },
+      const { resolveVerifiedApplicationUser } = await import("@/lib/local-auth-identity")
+      const user = await resolveVerifiedApplicationUser({
+        email: verified.email,
+        name: verified.name,
       })
       return user?.id
     } catch {
@@ -107,13 +106,8 @@ export async function resolveRequestActorUserId(request: Request): Promise<strin
   }
 
   if (authMode === "nextauth") {
-    const session = await getServerSession(authOptions)
-    const email = session?.user?.email
-    if (!email) return undefined
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
-    })
+    const { getVerifiedNextAuthUser } = await import("@/lib/local-auth-session")
+    const user = await getVerifiedNextAuthUser()
     return user?.id
   }
 

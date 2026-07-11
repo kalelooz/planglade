@@ -16,6 +16,7 @@ const originalEnv = {
   GITHUB_SECRET: process.env.GITHUB_SECRET,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  PLANGLADE_LOCAL_AUTH_ENABLED: process.env.PLANGLADE_LOCAL_AUTH_ENABLED,
 }
 
 async function readProjectFile(filePath: string) {
@@ -231,6 +232,7 @@ test("NETLIFY-LAUNCH-BLOCKERS-001: public-only production leaves demo routes pub
     delete process.env.GITHUB_SECRET
     delete process.env.GOOGLE_CLIENT_ID
     delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.PLANGLADE_LOCAL_AUTH_ENABLED
 
     for (const route of ["/demo", "/demo/inbox", "/demo/tasks", "/demo/projects", "/demo/projects/bakery-launch", "/demo/notes", "/demo/calendar", "/demo/settings"]) {
       assert.equal(middleware(new NextRequest(`https://planglade.test${route}`)), undefined, `${route} must stay public`)
@@ -249,6 +251,7 @@ test("NETLIFY-LAUNCH-BLOCKERS-001: public-only production redirects /app to land
     delete process.env.GITHUB_SECRET
     delete process.env.GOOGLE_CLIENT_ID
     delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.PLANGLADE_LOCAL_AUTH_ENABLED
 
     const response = middleware(new NextRequest("https://planglade.test/app"))
 
@@ -265,6 +268,23 @@ test("NETLIFY-LAUNCH-BLOCKERS-001: configured production auth can reach /app", (
     process.env.PLANGLADE_AUTH_MODE = "nextauth"
     process.env.GITHUB_ID = "github-id"
     process.env.GITHUB_SECRET = "github-secret"
+
+    assert.equal(middleware(new NextRequest("https://planglade.test/app")), undefined)
+  } finally {
+    restoreEnv()
+  }
+})
+
+test("NETLIFY-LAUNCH-BLOCKERS-001: explicit local credentials can reach /app", () => {
+  try {
+    Reflect.set(process.env, "NODE_ENV", "production")
+    process.env.PLANGLADE_AUTH_MODE = "nextauth"
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "true"
+    delete process.env.FLOWBOARD_AUTH_MODE
+    delete process.env.GITHUB_ID
+    delete process.env.GITHUB_SECRET
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
 
     assert.equal(middleware(new NextRequest("https://planglade.test/app")), undefined)
   } finally {

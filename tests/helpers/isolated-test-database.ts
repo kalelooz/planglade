@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, readdirSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
+import { DatabaseSync } from "node:sqlite"
 import path from "node:path"
 
 function isInside(child: string, parent: string) {
@@ -28,7 +29,6 @@ export function assertIsolatedDatabaseUrl(databaseUrl: string | undefined, tempo
 }
 
 export function createIsolatedTestDatabase() {
-  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite")
   const directory = mkdtempSync(path.join(tmpdir(), "planglade-auth-test-"))
   const databaseUrl = `file:${path.join(directory, "test.db").replaceAll("\\", "/")}`
   process.env.DATABASE_URL = databaseUrl

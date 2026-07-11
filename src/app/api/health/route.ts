@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server"
 
-import { hasAuthProviders } from "@/lib/auth-options"
 import { getAuthConfigErrors } from "@/lib/auth-config"
+import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
 import { getStorageConfigErrors } from "@/lib/storage"
 
 export async function GET() {
   try {
     const authConfig = getAuthConfigErrors()
-    const authProvidersConfigured = hasAuthProviders()
+    const providerCapabilities = getProviderCapabilities()
+    const authProvidersConfigured = providerCapabilities.anyConfigured
     const storageConfig = getStorageConfigErrors()
     const isAuthReady =
       authConfig.mode !== "invalid" &&
@@ -35,11 +36,12 @@ export async function GET() {
             mode: authConfig.mode,
             publicMode: authConfig.publicMode,
             providersConfigured: authProvidersConfigured,
+            providers: providerCapabilities,
             errors:
               authConfig.mode === "nextauth" && !authProvidersConfigured
                 ? [
                     ...authConfig.errors,
-                    "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
+                    "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider.",
                   ]
                 : authConfig.errors,
           },

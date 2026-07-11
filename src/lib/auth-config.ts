@@ -1,4 +1,5 @@
 import { readPlanGladeEnv, readPublicPlanGladeEnv } from "@/lib/env-config"
+import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
 
 export const VALID_AUTH_MODES = ["dev", "firebase", "nextauth"] as const
 export type PlanGladeAuthMode = (typeof VALID_AUTH_MODES)[number]
@@ -72,6 +73,11 @@ export function getAuthConfigErrors() {
     }
     if (!process.env.NEXTAUTH_URL) {
       errors.push("Missing NEXTAUTH_URL for nextauth mode.")
+    }
+    try {
+      getProviderCapabilities()
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "Invalid local authentication configuration.")
     }
   }
 

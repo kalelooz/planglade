@@ -1,14 +1,38 @@
 import assert from "node:assert/strict"
-import test from "node:test"
+import test, { after, before } from "node:test"
 import { NextRequest } from "next/server"
 
-import { GET as getHealth } from "../src/app/api/health/route"
-import { GET as getNotes } from "../src/app/api/notes/route"
-import { GET as getProjects } from "../src/app/api/projects/route"
-import { GET as getSearch } from "../src/app/api/search/route"
-import { GET as getWorkItems } from "../src/app/api/work-items/route"
-import { requireWorkspaceRole } from "../src/lib/api-utils"
-import { db } from "../src/lib/db"
+import { createIsolatedTestDatabase } from "./helpers/isolated-test-database"
+
+const isolatedDatabase = createIsolatedTestDatabase()
+let getHealth: typeof import("../src/app/api/health/route").GET
+let getNotes: typeof import("../src/app/api/notes/route").GET
+let getProjects: typeof import("../src/app/api/projects/route").GET
+let getSearch: typeof import("../src/app/api/search/route").GET
+let getWorkItems: typeof import("../src/app/api/work-items/route").GET
+let requireWorkspaceRole: typeof import("../src/lib/api-utils").requireWorkspaceRole
+let db: typeof import("../src/lib/db").db
+let originalWorkspaceFindUnique: typeof db.workspace.findUnique
+let originalWorkspaceMemberFindUnique: typeof db.workspaceMember.findUnique
+let originalQueryRawUnsafe: typeof db.$queryRawUnsafe
+
+before(async () => {
+  ;({ GET: getHealth } = await import("../src/app/api/health/route"))
+  ;({ GET: getNotes } = await import("../src/app/api/notes/route"))
+  ;({ GET: getProjects } = await import("../src/app/api/projects/route"))
+  ;({ GET: getSearch } = await import("../src/app/api/search/route"))
+  ;({ GET: getWorkItems } = await import("../src/app/api/work-items/route"))
+  ;({ requireWorkspaceRole } = await import("../src/lib/api-utils"))
+  ;({ db } = await import("../src/lib/db"))
+  originalWorkspaceFindUnique = db.workspace.findUnique
+  originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
+  originalQueryRawUnsafe = db.$queryRawUnsafe
+})
+
+after(async () => {
+  await db.$disconnect()
+  await isolatedDatabase.cleanup()
+})
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
@@ -18,11 +42,14 @@ const originalEnv = {
   NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
   PLANGLADE_STORAGE_PROVIDER: process.env.PLANGLADE_STORAGE_PROVIDER,
   FLOWBOARD_STORAGE_PROVIDER: process.env.FLOWBOARD_STORAGE_PROVIDER,
+  PLANGLADE_LOCAL_AUTH_ENABLED: process.env.PLANGLADE_LOCAL_AUTH_ENABLED,
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  GITHUB_ID: process.env.GITHUB_ID,
+  GITHUB_SECRET: process.env.GITHUB_SECRET,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
 }
-
-const originalWorkspaceFindUnique = db.workspace.findUnique
-const originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
-const originalQueryRawUnsafe = db.$queryRawUnsafe
 
 function restoreEnv() {
   for (const [key, value] of Object.entries(originalEnv)) {
@@ -39,6 +66,13 @@ function setContractEnv(nodeEnv: "development" | "production", authMode = "dev")
   delete process.env.FLOWBOARD_AUTH_MODE
   delete process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE
   delete process.env.FLOWBOARD_STORAGE_PROVIDER
+  delete process.env.PLANGLADE_LOCAL_AUTH_ENABLED
+  delete process.env.NEXTAUTH_SECRET
+  delete process.env.NEXTAUTH_URL
+  delete process.env.GITHUB_ID
+  delete process.env.GITHUB_SECRET
+  delete process.env.GOOGLE_CLIENT_ID
+  delete process.env.GOOGLE_CLIENT_SECRET
 }
 
 async function withRestoredState(fn: () => Promise<void>) {
@@ -79,6 +113,31 @@ test("health returns JSON 503 when required configuration is unavailable", async
     assert.equal(response.status, 503)
     assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
     assert.equal(payload.status, "degraded")
+  })
+})
+
+test("health treats explicit local credentials as an available NextAuth provider", async () => {
+  await withRestoredState(async () => {
+    setContractEnv("production", "nextauth")
+    process.env.NEXTAUTH_SECRET = "test-secret"
+    process.env.NEXTAUTH_URL = "https://planglade.test"
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "true"
+    db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
+
+    const response = await getHealth()
+    const payload = (await response.json()) as {
+      status?: string
+      checks?: { auth?: { ready?: boolean; providers?: Record<string, boolean> } }
+    }
+
+    assert.equal(response.status, 200)
+    assert.equal(payload.status, "ok")
+    assert.deepEqual(payload.checks?.auth?.providers, {
+      localCredentials: true,
+      google: false,
+      github: false,
+      anyConfigured: true,
+    })
   })
 })
 
