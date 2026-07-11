@@ -1,8 +1,18 @@
 import assert from "node:assert/strict"
-import test from "node:test"
+import test, { after } from "node:test"
 
-import { db } from "../src/lib/db"
-import { GET as getAuthSession } from "../src/app/api/auth/session/route"
+import { createIsolatedTestDatabase } from "./helpers/isolated-test-database"
+
+const isolatedDatabase = createIsolatedTestDatabase()
+const { db } = require("../src/lib/db") as typeof import("../src/lib/db")
+const { GET: getAuthSession } = require("../src/app/api/auth/session/route") as typeof import(
+  "../src/app/api/auth/session/route"
+)
+
+after(async () => {
+  await db.$disconnect()
+  await isolatedDatabase.cleanup()
+})
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
