@@ -137,6 +137,32 @@ test("local credentials authenticate only with an eligible credential and valid 
   assert.deepEqual(await authorizeWithCredential(credential, "correct horse battery staple"), user)
 })
 
+test("local credential callback contains database and crypto failures without leaking details", async () => {
+  const leak = "C:\\private\\custom.db token=inert-token person@example.com STACK_MARKER"
+  const logged: unknown[][] = []
+  const originalConsoleError = console.error
+  console.error = (...args: unknown[]) => logged.push(args)
+  try {
+    ;(db.localCredential as typeof db.localCredential).findFirst = ((async () => {
+      throw new Error(leak)
+    }) as unknown) as typeof db.localCredential.findFirst
+    assert.equal(await authorizeLocalCredentials({ email: "person@example.com", password: "password" }), null)
+
+    const user = { id: "user-1", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
+    const credential = { passwordHash: getDummyPasswordHash(), disabledAt: null, user }
+    assert.equal(
+      await authorizeWithCredential(credential, "password", async () => {
+        throw new Error(leak)
+      }),
+      null
+    )
+    assert.equal(JSON.stringify(logged).includes(leak), false)
+  } finally {
+    ;(db.localCredential as typeof db.localCredential).findFirst = originalLocalCredentialFindFirst
+    console.error = originalConsoleError
+  }
+})
+
 test("NextAuth enables local credentials explicitly and derives JWT identity claims server-side", async () => {
   try {
     delete process.env.GITHUB_ID
@@ -234,6 +260,64 @@ test("rejected OAuth identity never reaches application-user resolution", async 
 
     assert.equal(rejected, false)
     assert.equal(userLookups, 0)
+  } finally {
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
+  }
+})
+
+test("OAuth sign-in contains identity and application-user failures before mutating the user", async () => {
+  const leak = "C:\\private\\custom.db token=inert-token person@example.com STACK_MARKER"
+  const signIn = getAuthOptions().callbacks?.signIn
+  assert.ok(signIn)
+
+  const identityFailureUser = {
+    id: "oauth-user",
+    get email(): string {
+      throw new Error(leak)
+    },
+  }
+  assert.equal(
+    await signIn({
+      user: identityFailureUser,
+      account: { provider: "google", type: "oauth", providerAccountId: "google-user" },
+      profile: { email: "person@example.com", email_verified: true } as import("next-auth").Profile,
+    }),
+    false
+  )
+  assert.equal(identityFailureUser.id, "oauth-user")
+  assert.equal("authVersion" in identityFailureUser, false)
+
+  try {
+    ;(db.user as typeof db.user).findUnique = ((async () => {
+      throw new Error(leak)
+    }) as unknown) as typeof db.user.findUnique
+    const applicationFailureUser = { id: "oauth-user", email: "person@example.com" }
+    assert.equal(
+      await signIn({
+        user: applicationFailureUser,
+        account: { provider: "google", type: "oauth", providerAccountId: "google-user" },
+        profile: { email: "person@example.com", email_verified: true } as import("next-auth").Profile,
+      }),
+      false
+    )
+    assert.equal(applicationFailureUser.id, "oauth-user")
+    assert.equal("authVersion" in applicationFailureUser, false)
+  } finally {
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
+  }
+})
+
+test("legacy JWT lookup failures leave trusted claims unset", async () => {
+  const jwt = getAuthOptions().callbacks?.jwt
+  assert.ok(jwt)
+  try {
+    ;(db.user as typeof db.user).findUnique = ((async () => {
+      throw new Error("C:\\private\\custom.db token=inert-token person@example.com STACK_MARKER")
+    }) as unknown) as typeof db.user.findUnique
+    assert.deepEqual(
+      await jwt({ token: { email: "person@example.com" }, user: { id: "legacy-user" }, account: null, trigger: "update" }),
+      { email: "person@example.com" }
+    )
   } finally {
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
   }

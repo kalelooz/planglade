@@ -21,34 +21,38 @@ export async function authorizeLocalCredentials(
   credentials: Record<string, string> | undefined,
   verify = verifyPassword
 ) {
-  const email = credentials?.email
-  const password = credentials?.password
-  const normalizedEmail =
-    typeof email === "string" && email.length <= MAX_EMAIL_LENGTH
-      ? normalizeEmail(email)
+  try {
+    const email = credentials?.email
+    const password = credentials?.password
+    const normalizedEmail =
+      typeof email === "string" && email.length <= MAX_EMAIL_LENGTH
+        ? normalizeEmail(email)
+        : null
+    const usablePassword = typeof password === "string" && password.length <= MAX_PASSWORD_LENGTH
+    const credential = normalizedEmail
+      ? await db.localCredential.findFirst({
+          where: { user: { normalizedEmail } },
+          include: {
+            user: { select: { id: true, email: true, name: true, image: true, authVersion: true } },
+          },
+        })
       : null
-  const usablePassword = typeof password === "string" && password.length <= MAX_PASSWORD_LENGTH
-  const credential = normalizedEmail
-    ? await db.localCredential.findFirst({
-        where: { user: { normalizedEmail } },
-        include: {
-          user: { select: { id: true, email: true, name: true, image: true, authVersion: true } },
-        },
-      })
-    : null
-  const credentialIsUsable = Boolean(
-    credential && !credential.disabledAt && isPasswordHash(credential.passwordHash)
-  )
-  const hashToVerify = credentialIsUsable ? credential!.passwordHash : getDummyPasswordHash()
-  const passwordMatches = await verify(usablePassword ? password : "", hashToVerify)
+    const credentialIsUsable = Boolean(
+      credential && !credential.disabledAt && isPasswordHash(credential.passwordHash)
+    )
+    const hashToVerify = credentialIsUsable ? credential!.passwordHash : getDummyPasswordHash()
+    const passwordMatches = await verify(usablePassword ? password : "", hashToVerify)
 
-  if (!credentialIsUsable || !passwordMatches || !credential) return null
-  return {
-    id: credential.user.id,
-    email: credential.user.email,
-    name: credential.user.name,
-    image: credential.user.image,
-    authVersion: credential.user.authVersion,
+    if (!credentialIsUsable || !passwordMatches || !credential) return null
+    return {
+      id: credential.user.id,
+      email: credential.user.email,
+      name: credential.user.name,
+      image: credential.user.image,
+      authVersion: credential.user.authVersion,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -95,17 +99,21 @@ export function getAuthOptions(): NextAuthOptions {
     callbacks: {
       async signIn({ user, account, profile }) {
         if (account?.provider === "credentials") return Boolean(user.id && isAuthVersion(user.authVersion))
-        const verifiedIdentity = await resolveVerifiedOAuthIdentity({ user, account, profile })
-        if (!verifiedIdentity) return false
-        const applicationUser = await resolveVerifiedApplicationUser({
-          email: verifiedIdentity.email,
-          name: verifiedIdentity.name,
-          image: verifiedIdentity.image,
-        })
-        if (!applicationUser) return false
-        user.id = applicationUser.id
-        user.authVersion = applicationUser.authVersion
-        return true
+        try {
+          const verifiedIdentity = await resolveVerifiedOAuthIdentity({ user, account, profile })
+          if (!verifiedIdentity) return false
+          const applicationUser = await resolveVerifiedApplicationUser({
+            email: verifiedIdentity.email,
+            name: verifiedIdentity.name,
+            image: verifiedIdentity.image,
+          })
+          if (!applicationUser) return false
+          user.id = applicationUser.id
+          user.authVersion = applicationUser.authVersion
+          return true
+        } catch {
+          return false
+        }
       },
       async jwt({ token, user }) {
         if (user?.id && isAuthVersion(user.authVersion)) {
@@ -114,10 +122,14 @@ export function getAuthOptions(): NextAuthOptions {
           return token
         }
         if ((!token.userId || !isAuthVersion(token.authVersion)) && token.email) {
-          const legacyUser = await resolveLegacyNextAuthUser(token.email)
-          if (legacyUser) {
-            token.userId = legacyUser.id
-            token.authVersion = legacyUser.authVersion
+          try {
+            const legacyUser = await resolveLegacyNextAuthUser(token.email)
+            if (legacyUser) {
+              token.userId = legacyUser.id
+              token.authVersion = legacyUser.authVersion
+            }
+          } catch {
+            return token
           }
         }
         return token
