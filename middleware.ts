@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { DEMO_MODE_MESSAGE } from "@/lib/demo-data"
-import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
+import { getProviderCapabilityResult } from "@/lib/auth-provider-capabilities"
 
 const DEMO_HEADER = "x-planglade-demo-mode"
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
@@ -14,7 +14,7 @@ function isPublicOnlyProductionApp() {
   return (
     process.env.NODE_ENV === "production" &&
     readPlanGladeEnv("AUTH_MODE")?.toLowerCase() === "nextauth" &&
-    !getProviderCapabilities().anyConfigured
+    !getProviderCapabilityResult().capabilities.anyConfigured
   )
 }
 

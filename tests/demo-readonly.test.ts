@@ -292,6 +292,26 @@ test("NETLIFY-LAUNCH-BLOCKERS-001: explicit local credentials can reach /app", (
   }
 })
 
+test("NETLIFY-LAUNCH-BLOCKERS-001: invalid local credentials fail closed without throwing", () => {
+  try {
+    Reflect.set(process.env, "NODE_ENV", "production")
+    process.env.PLANGLADE_AUTH_MODE = "nextauth"
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "invalid"
+    delete process.env.FLOWBOARD_AUTH_MODE
+    delete process.env.GITHUB_ID
+    delete process.env.GITHUB_SECRET
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+
+    const response = middleware(new NextRequest("https://planglade.test/app"))
+
+    assert.equal(response?.status, 307)
+    assert.equal(response?.headers.get("location"), "https://planglade.test/")
+  } finally {
+    restoreEnv()
+  }
+})
+
 test("DEMO-READONLY-001: landing points to the working demo route", async () => {
   const landing = await readProjectFile("src/app/landing/page.tsx")
 

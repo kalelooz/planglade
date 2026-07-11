@@ -5,23 +5,34 @@ export type ProviderCapabilities = {
   anyConfigured: boolean
 }
 
-function readLocalCredentialsEnabled() {
-  const value = process.env.PLANGLADE_LOCAL_AUTH_ENABLED
-  if (value === undefined) return false
-  if (value === "true") return true
-  if (value === "false") return false
-  throw new Error("Invalid PLANGLADE_LOCAL_AUTH_ENABLED. Use true or false.")
+export type ProviderCapabilityResult = {
+  capabilities: ProviderCapabilities
+  errors: string[]
 }
 
-export function getProviderCapabilities(): ProviderCapabilities {
+function readLocalCredentialsEnabled() {
+  const value = process.env.PLANGLADE_LOCAL_AUTH_ENABLED
+  if (value === undefined || value === "false") return { enabled: false, error: null }
+  if (value === "true") return { enabled: true, error: null }
+  return { enabled: false, error: "Invalid PLANGLADE_LOCAL_AUTH_ENABLED. Use true or false." }
+}
+
+export function getProviderCapabilityResult(): ProviderCapabilityResult {
   const localCredentials = readLocalCredentialsEnabled()
   const google = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   const github = Boolean(process.env.GITHUB_ID && process.env.GITHUB_SECRET)
 
   return {
-    localCredentials,
-    google,
-    github,
-    anyConfigured: localCredentials || google || github,
+    capabilities: {
+      localCredentials: localCredentials.enabled,
+      google,
+      github,
+      anyConfigured: localCredentials.enabled || google || github,
+    },
+    errors: localCredentials.error ? [localCredentials.error] : [],
   }
+}
+
+export function getProviderCapabilities(): ProviderCapabilities {
+  return getProviderCapabilityResult().capabilities
 }

@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import GitHubProvider from "next-auth/providers/github"
 import GoogleProvider from "next-auth/providers/google"
 
-import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
+import { getProviderCapabilityResult } from "@/lib/auth-provider-capabilities"
 import { db } from "@/lib/db"
 import { normalizeEmail } from "@/lib/local-auth-email"
 import { resolveLegacyNextAuthUser, resolveVerifiedApplicationUser } from "@/lib/local-auth-identity"
@@ -16,8 +16,43 @@ function isAuthVersion(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0
 }
 
+export async function authorizeLocalCredentials(
+  credentials: Record<string, string> | undefined,
+  verify = verifyPassword
+) {
+  const email = credentials?.email
+  const password = credentials?.password
+  const normalizedEmail =
+    typeof email === "string" && email.length <= MAX_EMAIL_LENGTH
+      ? normalizeEmail(email)
+      : null
+  const usablePassword = typeof password === "string" && password.length <= MAX_PASSWORD_LENGTH
+  const credential = normalizedEmail
+    ? await db.localCredential.findFirst({
+        where: { user: { normalizedEmail } },
+        include: {
+          user: { select: { id: true, email: true, name: true, image: true, authVersion: true } },
+        },
+      })
+    : null
+  const credentialIsUsable = Boolean(
+    credential && !credential.disabledAt && isPasswordHash(credential.passwordHash)
+  )
+  const hashToVerify = credentialIsUsable ? credential!.passwordHash : getDummyPasswordHash()
+  const passwordMatches = await verify(usablePassword ? password : "", hashToVerify)
+
+  if (!credentialIsUsable || !passwordMatches || !credential) return null
+  return {
+    id: credential.user.id,
+    email: credential.user.email,
+    name: credential.user.name,
+    image: credential.user.image,
+    authVersion: credential.user.authVersion,
+  }
+}
+
 function configuredProviders(): NonNullable<NextAuthOptions["providers"]> {
-  const capabilities = getProviderCapabilities()
+  const { capabilities } = getProviderCapabilityResult()
   const providers: NonNullable<NextAuthOptions["providers"]> = []
 
   if (capabilities.github) {
@@ -42,35 +77,7 @@ function configuredProviders(): NonNullable<NextAuthOptions["providers"]> {
           password: { label: "Password", type: "password" },
         },
         async authorize(credentials) {
-          const email = credentials?.email
-          const password = credentials?.password
-          const normalizedEmail =
-            typeof email === "string" && email.length <= MAX_EMAIL_LENGTH
-              ? normalizeEmail(email)
-              : null
-          const usablePassword = typeof password === "string" && password.length <= MAX_PASSWORD_LENGTH
-          const credential = normalizedEmail
-            ? await db.localCredential.findFirst({
-                where: { user: { normalizedEmail } },
-                include: {
-                  user: { select: { id: true, email: true, name: true, image: true, authVersion: true } },
-                },
-              })
-            : null
-          const passwordHash =
-            credential && !credential.disabledAt && isPasswordHash(credential.passwordHash)
-              ? credential.passwordHash
-              : getDummyPasswordHash()
-          const passwordMatches = await verifyPassword(usablePassword ? password : "", passwordHash)
-
-          if (!credential || credential.disabledAt || !passwordMatches) return null
-          return {
-            id: credential.user.id,
-            email: credential.user.email,
-            name: credential.user.name,
-            image: credential.user.image,
-            authVersion: credential.user.authVersion,
-          }
+          return authorizeLocalCredentials(credentials)
         },
       })
     )
@@ -126,5 +133,5 @@ export function getAuthOptions(): NextAuthOptions {
 export const authOptions = getAuthOptions()
 
 export function hasAuthProviders() {
-  return getProviderCapabilities().anyConfigured
+  return getProviderCapabilityResult().capabilities.anyConfigured
 }

@@ -141,6 +141,26 @@ test("health treats explicit local credentials as an available NextAuth provider
   })
 })
 
+test("health degrades safely for invalid local authentication configuration", async () => {
+  await withRestoredState(async () => {
+    setContractEnv("production", "nextauth")
+    process.env.NEXTAUTH_SECRET = "test-secret"
+    process.env.NEXTAUTH_URL = "https://planglade.test"
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "invalid"
+    db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
+
+    const response = await getHealth()
+    const body = await response.text()
+    const payload = JSON.parse(body) as { status?: string; checks?: { auth?: { ready?: boolean; errors?: string[] } } }
+
+    assert.equal(response.status, 503)
+    assert.equal(payload.status, "degraded")
+    assert.equal(payload.checks?.auth?.ready, false)
+    assert.match(payload.checks?.auth?.errors?.join(" ") ?? "", /Invalid PLANGLADE_LOCAL_AUTH_ENABLED/)
+    assert.doesNotMatch(body, /PLANGLADE_LOCAL_AUTH_ENABLED=invalid|secret=|stack/i)
+  })
+})
+
 test("health returns safe JSON 503 when the database is unavailable", async () => {
   await withRestoredState(async () => {
     setContractEnv("development")

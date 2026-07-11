@@ -1,29 +1,32 @@
 import assert from "node:assert/strict"
 import test, { after, before } from "node:test"
 
-import { getProviderCapabilities } from "../src/lib/auth-provider-capabilities"
+import { getProviderCapabilities, getProviderCapabilityResult } from "../src/lib/auth-provider-capabilities"
 import { normalizeEmail } from "../src/lib/local-auth-email"
-import { hashPassword, verifyPassword } from "../src/lib/local-auth-password"
+import { getDummyPasswordHash, hashPassword, verifyPassword } from "../src/lib/local-auth-password"
 import { createIsolatedTestDatabase } from "./helpers/isolated-test-database"
 
 const isolatedDatabase = createIsolatedTestDatabase()
 let db: typeof import("../src/lib/db").db
 let getAuthOptions: typeof import("../src/lib/auth-options").getAuthOptions
+let authorizeLocalCredentials: typeof import("../src/lib/auth-options").authorizeLocalCredentials
 let resolveLegacyNextAuthUser: typeof import("../src/lib/local-auth-identity").resolveLegacyNextAuthUser
 let resolveVerifiedApplicationUser: typeof import("../src/lib/local-auth-identity").resolveVerifiedApplicationUser
 let originalUserFindUnique: typeof db.user.findUnique
 let originalUserFindMany: typeof db.user.findMany
 let originalUserUpdate: typeof db.user.update
 let originalUserCreate: typeof db.user.create
+let originalLocalCredentialFindFirst: typeof db.localCredential.findFirst
 
 before(async () => {
   ;({ db } = await import("../src/lib/db"))
-  ;({ getAuthOptions } = await import("../src/lib/auth-options"))
+  ;({ getAuthOptions, authorizeLocalCredentials } = await import("../src/lib/auth-options"))
   ;({ resolveLegacyNextAuthUser, resolveVerifiedApplicationUser } = await import("../src/lib/local-auth-identity"))
   originalUserFindUnique = db.user.findUnique
   originalUserFindMany = db.user.findMany
   originalUserUpdate = db.user.update
   originalUserCreate = db.user.create
+  originalLocalCredentialFindFirst = db.localCredential.findFirst
 })
 
 after(async () => {
@@ -78,10 +81,60 @@ test("provider capabilities include local credentials only when explicitly enabl
     })
 
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "yes"
-    assert.throws(() => getProviderCapabilities(), /PLANGLADE_LOCAL_AUTH_ENABLED/)
+    assert.deepEqual(getProviderCapabilityResult(), {
+      capabilities: {
+        localCredentials: false,
+        google: true,
+        github: false,
+        anyConfigured: true,
+      },
+      errors: ["Invalid PLANGLADE_LOCAL_AUTH_ENABLED. Use true or false."],
+    })
+    assert.equal(getProviderCapabilities().localCredentials, false)
   } finally {
     restoreEnv()
   }
+})
+
+async function authorizeWithCredential(
+  credential: unknown,
+  password: string,
+  verify: (candidate: string, hash: string) => Promise<boolean> = verifyPassword
+) {
+  ;(db.localCredential as typeof db.localCredential).findFirst = ((async () => credential) as unknown) as typeof db.localCredential.findFirst
+  try {
+    return await authorizeLocalCredentials({ email: "person@example.com", password }, verify)
+  } finally {
+    ;(db.localCredential as typeof db.localCredential).findFirst = originalLocalCredentialFindFirst
+  }
+}
+
+test("unusable credentials verify the dummy hash but never authenticate", async () => {
+  const hashes: string[] = []
+  const dummyMatch = async (_password: string, hash: string) => {
+    hashes.push(hash)
+    return true
+  }
+  const user = { id: "user-1", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
+
+  for (const credential of [
+    null,
+    { passwordHash: "not-a-hash", disabledAt: null, user },
+    { passwordHash: "scrypt$v2$32768$8$3$salt$key", disabledAt: null, user },
+    { passwordHash: "not-a-hash", disabledAt: new Date(), user },
+  ]) {
+    assert.equal(await authorizeWithCredential(credential, "submitted-password", dummyMatch), null)
+  }
+  assert.deepEqual(hashes, Array(4).fill(getDummyPasswordHash()))
+})
+
+test("local credentials authenticate only with an eligible credential and valid password", async () => {
+  const passwordHash = await hashPassword("correct horse battery staple")
+  const user = { id: "user-1", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
+  const credential = { passwordHash, disabledAt: null, user }
+
+  assert.equal((await authorizeWithCredential(credential, "wrong password")), null)
+  assert.deepEqual(await authorizeWithCredential(credential, "correct horse battery staple"), user)
 })
 
 test("NextAuth enables local credentials explicitly and derives JWT identity claims server-side", async () => {
@@ -92,6 +145,13 @@ test("NextAuth enables local credentials explicitly and derives JWT identity cla
     delete process.env.GOOGLE_CLIENT_SECRET
     delete process.env.PLANGLADE_LOCAL_AUTH_ENABLED
     assert.equal(getAuthOptions().providers.some((provider) => provider.id === "credentials"), false)
+
+    process.env.GOOGLE_CLIENT_ID = "google-id"
+    process.env.GOOGLE_CLIENT_SECRET = "google-secret"
+    assert.equal(getAuthOptions().providers.some((provider) => provider.id === "google"), true)
+    assert.equal(getAuthOptions().providers.some((provider) => provider.id === "credentials"), false)
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
 
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "true"
     const options = getAuthOptions()
@@ -106,6 +166,9 @@ test("NextAuth enables local credentials explicitly and derives JWT identity cla
       trigger: "signIn",
     })
     assert.deepEqual(token, { userId: "user-1", authVersion: 3 })
+
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "invalid"
+    assert.equal(getAuthOptions().providers.some((provider) => provider.id === "credentials"), false)
   } finally {
     restoreEnv()
   }

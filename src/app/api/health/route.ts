@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
 
 import { getAuthConfigErrors } from "@/lib/auth-config"
-import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
+import { getProviderCapabilityResult } from "@/lib/auth-provider-capabilities"
 import { getStorageConfigErrors } from "@/lib/storage"
 
 export async function GET() {
   try {
     const authConfig = getAuthConfigErrors()
-    const providerCapabilities = getProviderCapabilities()
+    const { capabilities: providerCapabilities } = getProviderCapabilityResult()
     const authProvidersConfigured = providerCapabilities.anyConfigured
     const storageConfig = getStorageConfigErrors()
     const isAuthReady =
