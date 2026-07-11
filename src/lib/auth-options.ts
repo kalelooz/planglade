@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import { normalizeEmail } from "@/lib/local-auth-email"
 import { resolveLegacyNextAuthUser, resolveVerifiedApplicationUser } from "@/lib/local-auth-identity"
 import { getDummyPasswordHash, isPasswordHash, verifyPassword } from "@/lib/local-auth-password"
+import { resolveVerifiedOAuthIdentity } from "@/lib/oauth-verified-identity"
 
 const MAX_EMAIL_LENGTH = 320
 const MAX_PASSWORD_LENGTH = 1024
@@ -92,12 +93,14 @@ export function getAuthOptions(): NextAuthOptions {
     session: { strategy: "jwt" },
     pages: { signIn: "/login" },
     callbacks: {
-      async signIn({ user, account }) {
+      async signIn({ user, account, profile }) {
         if (account?.provider === "credentials") return Boolean(user.id && isAuthVersion(user.authVersion))
+        const verifiedIdentity = await resolveVerifiedOAuthIdentity({ user, account, profile })
+        if (!verifiedIdentity) return false
         const applicationUser = await resolveVerifiedApplicationUser({
-          email: user.email,
-          name: user.name,
-          image: user.image,
+          email: verifiedIdentity.email,
+          name: verifiedIdentity.name,
+          image: verifiedIdentity.image,
         })
         if (!applicationUser) return false
         user.id = applicationUser.id

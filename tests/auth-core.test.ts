@@ -174,6 +174,71 @@ test("NextAuth enables local credentials explicitly and derives JWT identity cla
   }
 })
 
+test("NextAuth resolves application users only from a verified Google profile email", async () => {
+  try {
+    let createData: unknown
+    ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
+    ;(db.user as typeof db.user).findMany = ((async () => []) as unknown) as typeof db.user.findMany
+    ;(db.user as typeof db.user).create = ((async ({ data }) => {
+      createData = data
+      return { id: "user-1", email: data.email, name: data.name, image: data.image, authVersion: 0 }
+    }) as unknown) as typeof db.user.create
+
+    const signIn = getAuthOptions().callbacks?.signIn
+    assert.ok(signIn)
+    const user: import("next-auth").User & { id?: string } = {
+      id: "oauth-user",
+      email: "PERSON@example.com",
+      name: "Person",
+      image: "https://example.com/avatar.png",
+    }
+    const profile = { email: "person@example.com", email_verified: true }
+    const accepted = await signIn({
+      user,
+      account: { provider: "google", type: "oauth", providerAccountId: "google-user" },
+      profile,
+    })
+
+    assert.equal(accepted, true)
+    assert.deepEqual(createData, {
+      email: "person@example.com",
+      normalizedEmail: "person@example.com",
+      name: "Person",
+      image: "https://example.com/avatar.png",
+    })
+    assert.equal(user.id, "user-1")
+    assert.equal(user.authVersion, 0)
+  } finally {
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
+    ;(db.user as typeof db.user).findMany = originalUserFindMany
+    ;(db.user as typeof db.user).create = originalUserCreate
+  }
+})
+
+test("rejected OAuth identity never reaches application-user resolution", async () => {
+  try {
+    let userLookups = 0
+    ;(db.user as typeof db.user).findUnique = ((async () => {
+      userLookups += 1
+      return null
+    }) as unknown) as typeof db.user.findUnique
+
+    const signIn = getAuthOptions().callbacks?.signIn
+    assert.ok(signIn)
+    const profile = { email: "person@example.com", email_verified: false }
+    const rejected = await signIn({
+      user: { id: "oauth-user", email: "person@example.com" },
+      account: { provider: "google", type: "oauth", providerAccountId: "google-user" },
+      profile,
+    })
+
+    assert.equal(rejected, false)
+    assert.equal(userLookups, 0)
+  } finally {
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
+  }
+})
+
 test("email normalization trims and lowercases without provider-specific rewriting", () => {
   assert.equal(normalizeEmail("  Name+tag.Example@Example.COM "), "name+tag.example@example.com")
   assert.equal(normalizeEmail("   "), null)
