@@ -523,39 +523,55 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
                   </div>
                 </div>
                 <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center">
-                  <button onClick={() => { void createAndFocusTask(selectedProject.id); }} className="lov-btn lov-btn-primary justify-center">
+                  <button
+                    type="button"
+                    onClick={isDemoMode ? undefined : () => { void createAndFocusTask(selectedProject.id); }}
+                    disabled={isDemoMode}
+                    aria-disabled={isDemoMode}
+                    aria-describedby={isDemoMode ? "demo-read-only-notice" : undefined}
+                    data-demo-disabled={isDemoMode ? "true" : undefined}
+                    title={isDemoMode ? DEMO_MODE_MESSAGE : "New task"}
+                    className="lov-btn lov-btn-primary justify-center"
+                  >
                     <Plus className="h-3.5 w-3.5" /> New task
                   </button>
                   <button
-                    onClick={() => {
-                      if (isDemoMode) {
-                        blockDemoAction();
-                        return;
-                      }
-                      setEditingProjectId(selectedProject.id);
-                    }}
+                    type="button"
+                    onClick={isDemoMode ? undefined : () => setEditingProjectId(selectedProject.id)}
+                    disabled={isDemoMode}
+                    aria-disabled={isDemoMode}
+                    aria-describedby={isDemoMode ? "demo-read-only-notice" : undefined}
+                    data-demo-disabled={isDemoMode ? "true" : undefined}
+                    title={isDemoMode ? DEMO_MODE_MESSAGE : "Edit project"}
                     className={editProjectButtonClass}
                   >
                     <Pencil className="h-3.5 w-3.5" /> Edit
                   </button>
                   <button
-                    onClick={async () => {
-                      if (isDemoMode) {
-                        blockDemoAction();
-                        return;
-                      }
+                    type="button"
+                    onClick={isDemoMode ? undefined : async () => {
                       const deleted = await destroyProject(selectedProject.id);
                       if (!deleted) return;
                       updateSettings({ activeProjectId: null });
                       router.push(`${basePath}/projects`);
                       toast.success("Project deleted");
                     }}
+                    disabled={isDemoMode}
+                    aria-disabled={isDemoMode}
+                    aria-describedby={isDemoMode ? "demo-read-only-notice" : undefined}
+                    data-demo-disabled={isDemoMode ? "true" : undefined}
+                    title={isDemoMode ? DEMO_MODE_MESSAGE : "Delete project"}
                     className={deleteProjectButtonClass}
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
                   <button onClick={() => router.push(`${basePath}/projects`)} className="lov-btn lov-btn-ghost justify-center">All projects</button>
                 </div>
+                {isDemoMode && (
+                  <p id="demo-read-only-notice" className="mt-2 text-[11px] text-muted-foreground">
+                    {DEMO_MODE_MESSAGE}
+                  </p>
+                )}
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">

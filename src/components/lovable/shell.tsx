@@ -450,19 +450,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
         <div className={`border-t ${sidebarOpen ? "p-3" : "flex flex-col items-center gap-2 py-2"}`}>
           {sidebarOpen ? (
             <div className="flex flex-col gap-1.5 w-full">
-              {isDemoMode ? (
-                <button
-                  type="button"
-                  onClick={() => toast(DEMO_MODE_MESSAGE)}
-                  aria-disabled={isDemoMode}
-                  data-demo-disabled="true"
-                  title={isDemoMode ? DEMO_MODE_MESSAGE : "Settings"}
-                  className="lov-nav-item gap-2 px-2 py-1 text-[13px]"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  <span>Settings</span>
-                </button>
-              ) : (
+              {!isDemoMode && (
                 <Link href={APP_ROUTES.settings} className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
                   <Settings className="h-3.5 w-3.5" />
                   <span>Settings</span>
@@ -471,18 +459,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
             </div>
           ) : (
             <>
-              {isDemoMode ? (
-                <button
-                  type="button"
-                  onClick={() => toast(DEMO_MODE_MESSAGE)}
-                  aria-disabled={isDemoMode}
-                  data-demo-disabled="true"
-                  title={isDemoMode ? DEMO_MODE_MESSAGE : "Settings"}
-                  className="lov-nav-item h-8 w-8 justify-center"
-                >
-                  <Settings className="h-4 w-4" />
-                </button>
-              ) : (
+              {!isDemoMode && (
                 <Link href={APP_ROUTES.settings} title="Settings" className={`lov-nav-item h-8 w-8 justify-center ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
                   <Settings className="h-4 w-4" />
                 </Link>
@@ -770,19 +747,18 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               )}
               <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
             </nav>
-            <div className="border-t p-3">
-              <button
-                type="button"
-                onClick={() => { setMobileNavOpen(false); if (isDemoMode) toast(DEMO_MODE_MESSAGE); else router.push(APP_ROUTES.settings); }}
-                aria-disabled={isDemoMode}
-                data-demo-disabled={isDemoMode ? "true" : undefined}
-                title={isDemoMode ? DEMO_MODE_MESSAGE : "Settings"}
-                className="lov-nav-item min-h-[44px] w-full gap-2 px-2 py-1 text-[13px]"
-              >
-                <Settings className="h-3.5 w-3.5" />
-                <span>Settings</span>
-              </button>
-            </div>
+            {!isDemoMode && (
+              <div className="border-t p-3">
+                <button
+                  type="button"
+                  onClick={() => { setMobileNavOpen(false); router.push(APP_ROUTES.settings); }}
+                  className="lov-nav-item min-h-[44px] w-full gap-2 px-2 py-1 text-[13px]"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
