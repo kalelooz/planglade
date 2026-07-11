@@ -101,9 +101,24 @@ enum WorkItemRelationType {
   CHILD_OF
 }
 
+enum SelfHostSetupStatus {
+  AVAILABLE
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum AuthThrottleScope {
+  LOGIN_ACCOUNT
+  LOGIN_GLOBAL
+  SETUP
+  RECOVERY
+}
+
 model User {
   id                String            @id @default(cuid())
   email             String            @unique
+  normalizedEmail   String?           @unique
+  authVersion       Int               @default(0)
   name              String?
   image             String?
   locale            String?
@@ -126,8 +141,63 @@ model User {
   settings          UserSettings[]
   invitesSent       WorkspaceInvite[] @relation("InviteSender")
   updatedInvitePolicies WorkspaceInvitePolicy[] @relation("InvitePolicyUpdater")
+  localCredential   LocalCredential?
+  localRecoveryCodes LocalRecoveryCode[]
+  completedSelfHostSetups SelfHostSetup[] @relation("SelfHostSetupCompleter")
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+}
+
+model LocalCredential {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  passwordHash      String
+  disabledAt        DateTime?
+  passwordCreatedAt DateTime @default(now())
+  passwordChangedAt DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LocalRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
+  @@index([userId, usedAt])
+}
+
+model SelfHostSetup {
+  id             String              @id @default("singleton")
+  status         SelfHostSetupStatus @default(AVAILABLE)
+  claimantHash   String?
+  claimExpiresAt DateTime?
+  completedAt    DateTime?
+  completedById  String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  completedBy    User?               @relation("SelfHostSetupCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@index([completedById])
+}
+
+model AuthThrottle {
+  id              String            @id @default(cuid())
+  scope           AuthThrottleScope
+  subjectKey      String
+  windowStartedAt DateTime
+  attemptCount    Int               @default(0)
+  blockedUntil    DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([scope, subjectKey])
+  @@index([windowStartedAt])
 }
 
 model Workspace {
