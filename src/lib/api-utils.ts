@@ -22,7 +22,12 @@ export function forbidden(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details }, { status: 403 })
 }
 
+export function unauthorized(message: string) {
+  return NextResponse.json({ error: message }, { status: 401 })
+}
+
 export function serverError(message: string, details?: unknown) {
+  console.error(message, details)
   return NextResponse.json(
     {
       error: message,
@@ -162,6 +167,10 @@ export function hasMinimumWorkspaceRole(actual: WorkspaceRole, minimum: Workspac
 }
 
 export async function requireWorkspaceRole(workspaceId: string, requestedUserId: string | undefined, minimumRole: WorkspaceRole) {
+  if (!requestedUserId) {
+    return { ok: false as const, response: unauthorized("Authentication required") }
+  }
+
   const actor = await resolveWorkspaceActor(workspaceId, requestedUserId)
   if (!actor) {
     return { ok: false as const, response: forbidden("You do not have access to this workspace") }

@@ -63,7 +63,7 @@ test("labels GET rejects anonymous callers before loading data", async () => {
       new NextRequest("http://localhost/api/labels?workspaceId=ws-1")
     )
 
-    assert.equal(response.status, 403)
+    assert.equal(response.status, 401)
     assert.equal(loaded, false)
   })
 })
@@ -135,7 +135,7 @@ test("saved views GET rejects anonymous callers", async () => {
     const response = await listSavedViews(
       new NextRequest("http://localhost/api/saved-views?workspaceId=ws-1")
     )
-    assert.equal(response.status, 403)
+    assert.equal(response.status, 401)
   })
 })
 

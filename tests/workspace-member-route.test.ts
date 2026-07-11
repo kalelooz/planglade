@@ -205,8 +205,8 @@ test("DELETE /workspace/members/:memberUserId denies request without actor", asy
     })
     const payload = (await response.json()) as { error?: string }
 
-    assert.equal(response.status, 403)
-    assert.equal(payload.error, "You do not have access to this workspace")
+    assert.equal(response.status, 401)
+    assert.equal(payload.error, "Authentication required")
     assert.equal(membershipLookupCalled, false)
   })
 })
