@@ -79,12 +79,57 @@ test("WEBSITE-POST-LIVE-AUDIT-001: app shell has skip link and demo disabled aff
   assert.match(shell, /href="#app-main"/)
   assert.match(shell, /id="app-main"/)
   assert.match(shell, /data-demo-banner="mobile"/)
-  assert.match(shell, /data-demo-disabled="true"/)
-  assert.match(shell, /aria-disabled=\{isDemoMode/)
-  assert.match(shell, /title=\{isDemoMode \? DEMO_MODE_MESSAGE/)
+  assert.match(shell, /data-demo-disabled=\{demoDisabled \? "true" : undefined\}/)
+  assert.match(shell, /aria-disabled=\{demoDisabled\}/)
+  assert.match(shell, /title=\{demoDisabled \? DEMO_MODE_MESSAGE/)
   assert.match(shell, /\[&_a\]:min-h-\[44px\] \[&_button\]:min-h-\[44px\] \[&_button\]:min-w-\[44px\]/)
   assert.match(css, /data-demo-disabled="true"/)
   assert.match(css, /cursor: not-allowed/)
+})
+
+test("DEMO-NAV-001: demo navigation omits Settings on desktop and mobile", async () => {
+  const shell = await readProjectFile("src/components/lovable/shell.tsx")
+
+  assert.doesNotMatch(
+    shell,
+    /isDemoMode \? \([\s\S]*?<span>Settings<\/span>[\s\S]*?APP_ROUTES\.settings/,
+  )
+  assert.doesNotMatch(
+    shell,
+    /if \(isDemoMode\) toast\(DEMO_MODE_MESSAGE\); else router\.push\(APP_ROUTES\.settings\)/,
+  )
+  assert.match(shell, /href=\{APP_ROUTES\.settings\}/)
+})
+
+test("DEMO-NAV-001: direct demo Settings resolves to the supported demo landing", async () => {
+  const route = await readProjectFile("src/app/demo/settings/page.tsx")
+
+  assert.match(route, /redirect\("\/demo"\)/)
+})
+
+test("DEMO-NAV-001: demo project mutation controls are disabled and cannot reach mutation handlers", async () => {
+  const source = await readProjectFile("src/app/app/projects/projects-page-content.tsx")
+  const controlsStart = source.indexOf('<div className="grid w-full grid-cols-2')
+  const controlsEnd = source.indexOf('id="demo-read-only-notice"', controlsStart)
+  const controls = source.slice(controlsStart, controlsEnd)
+
+  assert.match(controls, /(?<!aria-)disabled=\{isDemoMode\}/g)
+  assert.equal((controls.match(/(?<!aria-)disabled=\{isDemoMode\}/g) ?? []).length, 3)
+  assert.match(controls, /aria-describedby=\{isDemoMode \? "demo-read-only-notice" : undefined\}/g)
+  assert.equal((controls.match(/aria-describedby=\{isDemoMode \? "demo-read-only-notice" : undefined\}/g) ?? []).length, 3)
+  assert.match(source, /id="demo-read-only-notice"[\s\S]*?DEMO_MODE_MESSAGE/)
+  assert.match(source, /const createAndFocusTask[\s\S]*?if \(isDemoMode\) \{[\s\S]*?return;/)
+  assert.match(source, /const patchProject[\s\S]*?if \(isDemoMode\) \{[\s\S]*?return;/)
+  assert.match(source, /const destroyProject[\s\S]*?if \(isDemoMode\) \{[\s\S]*?return false;/)
+})
+
+test("DEMO-NAV-001: normal project mutation controls are not unconditionally disabled", async () => {
+  const source = await readProjectFile("src/app/app/projects/projects-page-content.tsx")
+
+  assert.doesNotMatch(source, /disabled=\{true\}/)
+  assert.match(source, /disabled=\{isDemoMode\}/g)
+  assert.match(source, /onClick=\{isDemoMode \? undefined : \(\) => setEditingProjectId\(selectedProject\.id\)\}/)
+  assert.match(source, /onClick=\{isDemoMode \? undefined : async \(\) => \{/)
 })
 
 test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {
@@ -187,7 +232,7 @@ test("NETLIFY-LAUNCH-BLOCKERS-001: public-only production leaves demo routes pub
     delete process.env.GOOGLE_CLIENT_ID
     delete process.env.GOOGLE_CLIENT_SECRET
 
-    for (const route of ["/demo", "/demo/inbox", "/demo/tasks", "/demo/projects", "/demo/projects/bakery-launch", "/demo/notes", "/demo/calendar"]) {
+    for (const route of ["/demo", "/demo/inbox", "/demo/tasks", "/demo/projects", "/demo/projects/bakery-launch", "/demo/notes", "/demo/calendar", "/demo/settings"]) {
       assert.equal(middleware(new NextRequest(`https://planglade.test${route}`)), undefined, `${route} must stay public`)
     }
   } finally {
