@@ -1,8 +1,33 @@
 import assert from "node:assert/strict"
-import test from "node:test"
+import test, { after, before } from "node:test"
 
-import { db } from "../src/lib/db"
-import { GET as getAuthSession } from "../src/app/api/auth/session/route"
+import { createIsolatedTestDatabase } from "./helpers/isolated-test-database"
+
+const isolatedDatabase = createIsolatedTestDatabase()
+let db: typeof import("../src/lib/db").db
+let getAuthSession: typeof import("../src/app/api/auth/session/route").GET
+let originalUserFindUnique: typeof db.user.findUnique
+let originalUserFindMany: typeof db.user.findMany
+let originalUserCreate: typeof db.user.create
+let originalWorkspaceUpsert: typeof db.workspace.upsert
+let originalWorkspaceMemberUpsert: typeof db.workspaceMember.upsert
+let originalWorkspaceMemberFindMany: typeof db.workspaceMember.findMany
+
+before(async () => {
+  ;({ db } = await import("../src/lib/db"))
+  ;({ GET: getAuthSession } = await import("../src/app/api/auth/session/route"))
+  originalUserFindUnique = db.user.findUnique
+  originalUserFindMany = db.user.findMany
+  originalUserCreate = db.user.create
+  originalWorkspaceUpsert = db.workspace.upsert
+  originalWorkspaceMemberUpsert = db.workspaceMember.upsert
+  originalWorkspaceMemberFindMany = db.workspaceMember.findMany
+})
+
+after(async () => {
+  await db.$disconnect()
+  await isolatedDatabase.cleanup()
+})
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
@@ -19,11 +44,6 @@ const originalEnv = {
   FLOWBOARD_WORKSPACE_SLUG: process.env.FLOWBOARD_WORKSPACE_SLUG,
   FLOWBOARD_WORKSPACE_NAME: process.env.FLOWBOARD_WORKSPACE_NAME,
 }
-
-const originalUserUpsert = db.user.upsert
-const originalWorkspaceUpsert = db.workspace.upsert
-const originalWorkspaceMemberUpsert = db.workspaceMember.upsert
-const originalWorkspaceMemberFindMany = db.workspaceMember.findMany
 
 function restoreEnv() {
   for (const [key, value] of Object.entries(originalEnv)) {
@@ -45,7 +65,9 @@ async function runWithMocks(fn: () => Promise<void>) {
     await fn()
   } finally {
     restoreEnv()
-    ;(db.user as typeof db.user).upsert = originalUserUpsert
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
+    ;(db.user as typeof db.user).findMany = originalUserFindMany
+    ;(db.user as typeof db.user).create = originalUserCreate
     ;(db.workspace as typeof db.workspace).upsert = originalWorkspaceUpsert
     ;(db.workspaceMember as typeof db.workspaceMember).upsert = originalWorkspaceMemberUpsert
     ;(db.workspaceMember as typeof db.workspaceMember).findMany = originalWorkspaceMemberFindMany
@@ -93,7 +115,7 @@ test("GET /auth/session reports nextauth provider misconfiguration", async () =>
     assert.equal(response.status, 500)
     assert.equal(
       payload.error,
-      "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub)."
+      "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider."
     )
   })
 })
@@ -140,11 +162,13 @@ test("GET /auth/session creates dev scaffold session", async () => {
     setEnv("FLOWBOARD_WORKSPACE_SLUG", "test-workspace")
     setEnv("FLOWBOARD_WORKSPACE_NAME", "Test Workspace")
 
-    ;(db.user as typeof db.user).upsert = ((async () => ({
+    ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
+    ;(db.user as typeof db.user).findMany = ((async () => []) as unknown) as typeof db.user.findMany
+    ;(db.user as typeof db.user).create = ((async () => ({
       id: "user-1",
       email: "alex.morgan@flowboard.dev",
       name: "Alex Morgan",
-    })) as unknown) as typeof db.user.upsert
+    })) as unknown) as typeof db.user.create
 
     ;(db.workspace as typeof db.workspace).upsert = ((async () => ({
       id: "ws-1",
