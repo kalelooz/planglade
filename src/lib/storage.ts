@@ -3,7 +3,6 @@ import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 import { readPlanGladeEnv } from "@/lib/env-config"
-import { getFirebaseStorageBucket } from "@/lib/firebase-admin"
 
 export const VALID_STORAGE_PROVIDERS = ["firebase", "local"] as const
 export type PlanGladeStorageProvider = (typeof VALID_STORAGE_PROVIDERS)[number]
@@ -87,6 +86,11 @@ function getStorageProviderOrThrow(): PlanGladeStorageProvider {
     throw new Error("Invalid PLANGLADE_STORAGE_PROVIDER")
   }
   return provider
+}
+
+async function getConfiguredFirebaseStorageBucket() {
+  const { getFirebaseStorageBucket } = await import("@/lib/firebase-admin")
+  return getFirebaseStorageBucket()
 }
 
 function getLocalStorageRootDir() {
@@ -229,7 +233,7 @@ export async function createAttachmentUploadTarget(input: {
   const expiresInSeconds = input.expiresInSeconds ?? 900
 
   if (provider === "firebase") {
-    const file = getFirebaseStorageBucket().file(input.storageKey)
+    const file = (await getConfiguredFirebaseStorageBucket()).file(input.storageKey)
     const [uploadUrl] = await file.getSignedUrl(
       buildFirebaseUploadSignedUrlConfig({
         mimeType: input.mimeType,
@@ -273,7 +277,7 @@ export async function createAttachmentDownloadTarget(input: {
   const effectiveMimeType = input.mimeType ?? "application/octet-stream"
 
   if (provider === "firebase") {
-    const file = getFirebaseStorageBucket().file(input.storageKey)
+    const file = (await getConfiguredFirebaseStorageBucket()).file(input.storageKey)
     const [downloadUrl] = await file.getSignedUrl({
       version: "v4",
       action: "read",
@@ -302,7 +306,8 @@ export async function storageObjectExists(storageKey: string) {
   const provider = getStorageProviderOrThrow()
 
   if (provider === "firebase") {
-    const [exists] = await getFirebaseStorageBucket().file(storageKey).exists()
+    const bucket = await getConfiguredFirebaseStorageBucket()
+    const [exists] = await bucket.file(storageKey).exists()
     return exists
   }
 
@@ -318,7 +323,8 @@ export async function deleteStorageObject(storageKey: string) {
   const provider = getStorageProviderOrThrow()
 
   if (provider === "firebase") {
-    await getFirebaseStorageBucket().file(storageKey).delete({ ignoreNotFound: true })
+    const bucket = await getConfiguredFirebaseStorageBucket()
+    await bucket.file(storageKey).delete({ ignoreNotFound: true })
     return true
   }
 
@@ -335,7 +341,8 @@ export async function readStorageObjectMetadata(storageKey: string): Promise<Sto
   const provider = getStorageProviderOrThrow()
 
   if (provider === "firebase") {
-    const [metadata] = await getFirebaseStorageBucket().file(storageKey).getMetadata()
+    const bucket = await getConfiguredFirebaseStorageBucket()
+    const [metadata] = await bucket.file(storageKey).getMetadata()
     const sizeBytes =
       metadata.size && !Number.isNaN(Number(metadata.size)) ? Number(metadata.size) : null
     return {

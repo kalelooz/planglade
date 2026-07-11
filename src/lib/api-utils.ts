@@ -6,7 +6,6 @@ import { ZodSchema } from "zod"
 import { authOptions } from "@/lib/auth-options"
 import { getConfiguredAuthMode } from "@/lib/auth-config"
 import { db } from "@/lib/db"
-import { verifyFirebaseIdToken } from "@/lib/firebase-admin"
 
 type Dict = Record<string, unknown>
 
@@ -94,6 +93,7 @@ export async function resolveRequestActorUserId(request: Request): Promise<strin
   if (authMode === "firebase") {
     const token = extractFirebaseToken(request)
     if (!token) return undefined
+    const { verifyFirebaseIdToken } = await import("@/lib/firebase-admin")
     try {
       const verified = await verifyFirebaseIdToken(token)
       const user = await db.user.findUnique({
