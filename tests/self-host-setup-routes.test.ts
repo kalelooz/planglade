@@ -113,7 +113,7 @@ test("the three setup routes complete once and never replay recovery codes", asy
       ((input, suppliedClaimant) => setupService.completeSetup(
         input,
         suppliedClaimant,
-        new Date(),
+        { preflightNow: () => new Date(), transactionNow: () => new Date() },
         undefined,
         undefined,
         async (preparedInput) => {
@@ -143,7 +143,7 @@ test("the three setup routes complete once and never replay recovery codes", asy
       ((input, suppliedClaimant) => setupService.completeSetup(
         input,
         suppliedClaimant,
-        new Date(),
+        { preflightNow: () => new Date(), transactionNow: () => new Date() },
         failingClient as never,
         undefined,
         async (preparedInput) => {

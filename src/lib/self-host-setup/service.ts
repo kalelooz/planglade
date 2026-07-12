@@ -21,6 +21,16 @@ export type CompletionPreflight = "authorized" | "invalid" | "expired" | "unavai
 
 type CompletionInput = { email: string; name: string; password: string; workspaceName: string }
 
+export type SetupCompletionClock = {
+  preflightNow: () => Date
+  transactionNow: () => Date
+}
+
+const systemSetupCompletionClock: SetupCompletionClock = {
+  preflightNow: () => new Date(),
+  transactionNow: () => new Date(),
+}
+
 type PreparedCompletion = {
   passwordHash: string
   codes: string[]
@@ -121,27 +131,29 @@ export async function prepareSetupCompletion(input: CompletionInput): Promise<Pr
 export async function completeSetup(
   input: CompletionInput,
   claimant: string,
-  now = new Date(),
+  clock: SetupCompletionClock = systemSetupCompletionClock,
   client: PrismaClient = prisma,
   beforeWrite: (write: CompletionWrite) => void = () => {},
   prepare: (input: CompletionInput) => Promise<PreparedCompletion> = prepareSetupCompletion,
 ) {
   const claimantHash = sha256Hex(claimant)
-  const preflight = await preflightSetupCompletion(claimantHash, now, client)
+  const preflightNow = clock.preflightNow()
+  const preflight = await preflightSetupCompletion(claimantHash, preflightNow, client)
   if (preflight !== "authorized") return { ok: false as const, reason: preflight }
   try {
     const { passwordHash, codes, codeHashes, userId, workspaceId, slug } = await prepare(input)
+    const transactionNow = clock.transactionNow()
     const result = await client.$transaction(async (tx) => {
       const setup = await tx.selfHostSetup.findUnique({ where: { id: "singleton" } })
       if (setup?.status !== "IN_PROGRESS") return "unavailable" as const
       if (!setup.claimantHash || !fixedDigestEqual(setup.claimantHash, claimantHash)) return "invalid" as const
-      if (!setup.claimExpiresAt || setup.claimExpiresAt <= now) {
-        if (await resolveSetupEligibility(tx, now) === "eligible") {
+      if (!setup.claimExpiresAt || setup.claimExpiresAt <= transactionNow) {
+        if (await resolveSetupEligibility(tx, transactionNow) === "eligible") {
           await tx.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "AVAILABLE", claimantHash: null, claimExpiresAt: null } })
         }
         return "expired" as const
       }
-      if (await resolveSetupEligibility(tx, now) !== "actively_claimed") return "conflict" as const
+      if (await resolveSetupEligibility(tx, transactionNow) !== "actively_claimed") return "conflict" as const
       const collision = await Promise.all([
         tx.user.findFirst({ where: { OR: [{ email: input.email }, { normalizedEmail: input.email }] }, select: { id: true } }),
         tx.workspace.findUnique({ where: { slug }, select: { id: true } }),
@@ -158,7 +170,7 @@ export async function completeSetup(
       beforeWrite("membership")
       await tx.workspaceMember.create({ data: { workspaceId, userId, role: "OWNER" } })
       beforeWrite("complete")
-      await tx.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "COMPLETE", completedAt: now, completedById: userId, claimantHash: null, claimExpiresAt: null } })
+      await tx.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "COMPLETE", completedAt: transactionNow, completedById: userId, claimantHash: null, claimExpiresAt: null } })
       return "complete" as const
     }, { isolationLevel: "Serializable" })
     return result === "complete" ? { ok: true as const, recoveryCodes: codes } : { ok: false as const, reason: result }
