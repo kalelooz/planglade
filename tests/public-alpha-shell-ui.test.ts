@@ -21,16 +21,28 @@ test("Connections and Settings are shared primary navigation routes", async () =
   assert.match(palette, /Go to Settings/)
 })
 
-test("workspace popover shows current identity and omits switching", async () => {
+test("workspace menu uses the accessible dropdown primitive and omits switching", async () => {
   const shell = await read("src/components/lovable/shell.tsx")
 
+  // Identity and role are still surfaced from the authenticated session.
   assert.match(shell, /workspaceName/)
   assert.match(shell, /workspaceRole/)
   assert.match(shell, /Current workspace/)
   assert.match(shell, /Workspace settings/)
-  assert.match(shell, /aria-expanded=\{workspaceOpen\}/)
-  assert.match(shell, /event\.key === "Escape"/)
-  assert.match(shell, /workspaceRef/)
+
+  // The menu is the repository's accessible Radix dropdown, not a hand-built element.
+  assert.match(shell, /DropdownMenuTrigger/)
+  assert.match(shell, /DropdownMenuContent/)
+  assert.match(shell, /DropdownMenuItem/)
+  assert.doesNotMatch(shell, /role="menu"/)
+  assert.doesNotMatch(shell, /workspaceOpen|workspaceRef/)
+
+  // Sign out is wired through the dropdown and only shown when the auth mode supports it.
+  assert.match(shell, /shouldShowSignOut/)
+  assert.match(shell, /Sign out/)
+  assert.match(shell, /void signOut\("\/login"\)/)
+
+  // No workspace switching or creation is offered.
   assert.doesNotMatch(shell, /Switch workspace|Create workspace|availableWorkspaces/)
 })
 

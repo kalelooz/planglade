@@ -47,3 +47,39 @@ test("normalizes BLOCKS direction and ignores missing work items", () => {
   assert.equal(model.connections.length, 2)
 })
 
+test("exposes project context for both sides of a cross-project relation", () => {
+  const crossProjects = [
+    { id: "project-1", name: "Launch" },
+    { id: "project-2", name: "Website" },
+  ]
+  const crossItems = [
+    { id: "alpha", title: "Draft release notes", projectId: "project-1", parentId: null, status: "IN_REVIEW" },
+    { id: "beta", title: "Review homepage copy", projectId: "project-2", parentId: null, status: "IN_PROGRESS" },
+  ]
+
+  const model = buildConnectionsModel({
+    projects: crossProjects,
+    workItems: crossItems,
+    relations: [{ id: "rel-cross", sourceId: "alpha", targetId: "beta", relationType: "RELATES_TO" }],
+  })
+
+  const relation = model.connections.find((connection) => connection.id === "rel-cross")
+  assert.equal(relation?.sourceProject?.id, "project-1")
+  assert.equal(relation?.sourceProject?.name, "Launch")
+  assert.equal(relation?.targetProject?.id, "project-2")
+  assert.equal(relation?.targetProject?.name, "Website")
+  assert.equal(model.summary.projects, 2)
+})
+
+test("same-project relations show the same project on both sides", () => {
+  const model = buildConnectionsModel({
+    projects,
+    workItems,
+    relations: [{ id: "same", sourceId: "parent", targetId: "child", relationType: "RELATES_TO" }],
+  })
+
+  const relation = model.connections.find((connection) => connection.id === "same")
+  assert.equal(relation?.sourceProject?.id, "project-1")
+  assert.equal(relation?.targetProject?.id, "project-1")
+})
+

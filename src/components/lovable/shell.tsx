@@ -17,6 +17,14 @@ import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
 import { useAuth } from "@/components/lovable/auth-context";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
 
 const STORAGE_KEY = "fb.sidebarOpen";
@@ -101,7 +109,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(null);
   const [sessionIdentity, setSessionIdentity] = useState<SessionIdentity | null>(null);
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
 
@@ -133,7 +140,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const projectScopeRef = useRef<HTMLDivElement>(null);
   const quickCaptureRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const workspaceRef = useRef<HTMLDivElement>(null);
 
   // Fetch sidebar counts from server on mount + poll every 15 seconds
   useEffect(() => {
@@ -317,7 +323,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   }, []);
 
   useEffect(() => {
-    if (!projectScopeOpen && !quickOpen && !notificationsOpen && !workspaceOpen) return;
+    if (!projectScopeOpen && !quickOpen && !notificationsOpen) return;
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -330,22 +336,13 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       if (notificationsOpen && notificationsRef.current && !notificationsRef.current.contains(target)) {
         setNotificationsOpen(false);
       }
-      if (workspaceOpen && workspaceRef.current && !workspaceRef.current.contains(target)) {
-        setWorkspaceOpen(false);
-      }
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setWorkspaceOpen(false);
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown);
     };
-  }, [projectScopeOpen, quickOpen, notificationsOpen, workspaceOpen]);
+  }, [projectScopeOpen, quickOpen, notificationsOpen]);
 
   const isActive = (to: string) => to === routePrefix ? path === routePrefix : path.startsWith(to);
   const markNotificationsRead = async (notificationIds?: string[]) => {
@@ -662,45 +659,48 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               </div>
             )}
           </div>
-              <div ref={workspaceRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceOpen((open) => !open)}
-                  aria-label="Current workspace"
-                  aria-haspopup="menu"
-                  aria-expanded={workspaceOpen}
-                  className="lov-btn h-9 max-w-48 gap-2 px-2"
-                >
-                  <Avatar id={displayAvatarId} name={displayName} size={24} />
-                  <span className="hidden min-w-0 sm:block"><span className="block truncate text-left text-[12px] font-medium">{sessionIdentity?.workspaceName ?? "Current workspace"}</span><span className="block text-left text-[10px] text-muted-foreground">{sessionIdentity?.workspaceRole ?? "Workspace"}</span></span>
-                  <ChevronDown className="hidden h-3 w-3 text-muted-foreground sm:block" />
-                </button>
-                {workspaceOpen && (
-                  <div role="menu" className="absolute right-0 top-10 z-[90] w-72 rounded-md border bg-popover p-1 shadow-lg">
-                    <div className="px-2 py-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Current workspace"
+                    className="lov-btn h-9 max-w-48 gap-2 px-2"
+                  >
+                    <Avatar id={displayAvatarId} name={displayName} size={24} />
+                    <span className="hidden min-w-0 sm:block"><span className="block truncate text-left text-[12px] font-medium">{sessionIdentity?.workspaceName ?? "Current workspace"}</span><span className="block text-left text-[10px] text-muted-foreground">{sessionIdentity?.workspaceRole ?? "Workspace"}</span></span>
+                    <ChevronDown className="hidden h-3 w-3 text-muted-foreground sm:block" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel asChild>
+                    <div className="py-1">
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Current workspace</div>
                       <div className="mt-1 truncate text-sm font-semibold">{sessionIdentity?.workspaceName ?? "Workspace"}</div>
                       <div className="mt-2 truncate text-xs text-muted-foreground">{displayName}</div>
                       <div className="truncate text-xs text-muted-foreground">{sessionIdentity?.email}</div>
                       <div className="mt-1 text-xs font-medium">Role: {sessionIdentity?.workspaceRole ?? "Member"}</div>
                     </div>
-                    {!isDemoMode && <Link role="menuitem" href={APP_ROUTES.settings} onClick={() => setWorkspaceOpen(false)} className="lov-menu-item"><Building2 className="h-3.5 w-3.5" /><span>Workspace settings</span></Link>}
-                    {shouldShowSignOut && (
-                  <button
-                    role="menuitem"
-                    type="button"
-                onClick={() => {
-                  void signOut("/login");
-                }}
-                    className="lov-menu-item"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    <span>Sign out</span>
-                  </button>
-                )}
-                  </div>
-                )}
-              </div>
+                  </DropdownMenuLabel>
+                  {(!isDemoMode || shouldShowSignOut) && <DropdownMenuSeparator />}
+                  {!isDemoMode && (
+                    <DropdownMenuItem asChild>
+                      <Link href={APP_ROUTES.settings}>
+                        <Building2 className="h-3.5 w-3.5" />
+                        <span>Workspace settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {shouldShowSignOut && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => { void signOut("/login"); }}
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Sign out</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
         </header>
 
         {isDemoMode && (

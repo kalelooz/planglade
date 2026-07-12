@@ -55,8 +55,23 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
   await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
   await expect(page.getByText("is blocked by", { exact: true })).toBeVisible()
   await expect(page.getByText("has child", { exact: true })).toBeVisible()
+
+  // Cross-project context: the cross-project relation row identifies each side's project.
+  const crossProjectRow = page
+    .getByRole("article")
+    .filter({ hasText: "relates to" })
+    .filter({ hasText: "Draft release notes" })
+    .filter({ hasText: "Review homepage copy with client" })
+  await expect(crossProjectRow).toBeVisible()
+  await expect(crossProjectRow.getByText("Open-source release", { exact: true })).toBeVisible()
+  await expect(crossProjectRow.getByText("Freelance client website", { exact: true })).toBeVisible()
+
+  // Workspace control shows the current workspace and role, never switching or creation.
   await page.getByRole("button", { name: "Current workspace" }).click()
-  await expect(page.getByRole("menu").getByText("PlanGlade Demo", { exact: true })).toBeVisible()
+  const workspaceMenu = page.getByRole("menu")
+  await expect(workspaceMenu.getByText("PlanGlade Demo", { exact: true })).toBeVisible()
+  await expect(workspaceMenu.getByText("Role: OWNER", { exact: true })).toBeVisible()
+  await expect(workspaceMenu.getByText(/Switch workspace|Create workspace/)).toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(page.getByText("Role: OWNER", { exact: true })).toBeHidden()
 

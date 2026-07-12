@@ -20,6 +20,17 @@ test("Connections canonical route renders a supported relationship surface", asy
   assert.match(page, /projects\//)
 })
 
+test("Connections list shows project context for both sides without nested anchors", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
+
+  // Each side surfaces its own project context so cross-project relations stay legible.
+  assert.match(page, /connection\.sourceProject/)
+  assert.match(page, /connection\.targetProject/)
+  // Project context renders as a sibling link to the task link, never a nested anchor.
+  assert.match(page, /ConnectionSide/)
+  assert.doesNotMatch(page, /<Link[^>]*>[^<]*<Link/)
+})
+
 test("legacy Connections route redirects once to the canonical route", async () => {
   const legacy = await read("src/app/connections/page.tsx")
   assert.match(legacy, /redirect\("\/app\/connections"\)/)

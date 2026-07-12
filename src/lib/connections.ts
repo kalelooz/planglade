@@ -19,7 +19,8 @@ export type Connection = {
   label: "blocks" | "is blocked by" | "relates to" | "has child"
   source: ConnectionWorkItem
   target: ConnectionWorkItem
-  project: ConnectionProject | null
+  sourceProject: ConnectionProject | null
+  targetProject: ConnectionProject | null
 }
 
 export function buildConnectionsModel({
@@ -47,7 +48,8 @@ export function buildConnectionsModel({
       label: relation.relationType === "BLOCKS" ? "blocks" : relation.relationType === "BLOCKED_BY" ? "is blocked by" : "relates to",
       source,
       target,
-      project: projectsById.get(source.projectId ?? "") ?? null,
+      sourceProject: projectsById.get(source.projectId ?? "") ?? null,
+      targetProject: projectsById.get(target.projectId ?? "") ?? null,
     })
   }
 
@@ -61,7 +63,8 @@ export function buildConnectionsModel({
       label: "has child",
       source: parent,
       target: child,
-      project: projectsById.get(parent.projectId ?? "") ?? null,
+      sourceProject: projectsById.get(parent.projectId ?? "") ?? null,
+      targetProject: projectsById.get(child.projectId ?? "") ?? null,
     })
   }
 
@@ -72,7 +75,11 @@ export function buildConnectionsModel({
       blocking: connections.filter((connection) => connection.kind === "blocking").length,
       related: connections.filter((connection) => connection.kind === "related").length,
       hierarchy: connections.filter((connection) => connection.kind === "hierarchy").length,
-      projects: new Set(connections.flatMap((connection) => [connection.source.projectId, connection.target.projectId]).filter(Boolean)).size,
+      projects: new Set(
+        connections.flatMap((connection) =>
+          [connection.sourceProject?.id, connection.targetProject?.id].filter(Boolean) as string[]
+        )
+      ).size,
     },
   }
 }

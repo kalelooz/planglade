@@ -60,7 +60,7 @@ Not ready yet:
 - Project notes and context.
 - Notes with Markdown editing and task extraction.
 - Calendar over task due dates.
-- Connections for task dependencies and parent/child relationships.
+- Connections (read-only) for task dependencies and parent/child relationships.
 - Settings for workspace preferences, JSON export, and guarded import.
 
 ## Roadmap
@@ -84,6 +84,7 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 **Next**
 
 - Timeline planning view
+- Dependency workflow polish
 - Recurring tasks
 - Stronger self-host path
 - Security hardening

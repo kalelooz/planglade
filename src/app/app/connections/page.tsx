@@ -86,20 +86,14 @@ export function ConnectionsPageContent({ basePath = "/app" }: { basePath?: "/app
               </div>
               <div className="divide-y">
                 {model.connections.map((connection) => (
-                  <article key={connection.id} className="grid min-w-0 gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] md:items-center">
-                    <TaskLink basePath={basePath} item={connection.source} />
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <article key={connection.id} className="grid min-w-0 gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                    <ConnectionSide basePath={basePath} item={connection.source} project={connection.sourceProject} />
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground md:justify-center">
                       {connection.kind === "blocking" ? <AlertTriangle className="h-3.5 w-3.5" /> : connection.kind === "hierarchy" ? <GitBranch className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
                       {connection.label}
                       <ArrowRight className="h-3 w-3" aria-hidden="true" />
                     </span>
-                    <TaskLink basePath={basePath} item={connection.target} />
-                    {connection.project && (
-                      <Link href={`${basePath}/projects/${encodeURIComponent(connection.project.id)}`} className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        <FolderKanban className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{connection.project.name}</span>
-                      </Link>
-                    )}
+                    <ConnectionSide basePath={basePath} item={connection.target} project={connection.targetProject} />
                   </article>
                 ))}
               </div>
@@ -111,8 +105,31 @@ export function ConnectionsPageContent({ basePath = "/app" }: { basePath?: "/app
   )
 }
 
-function TaskLink({ basePath, item }: { basePath: "/app" | "/demo"; item: ConnectionWorkItem }) {
-  return <Link href={`${basePath}/tasks?task=${encodeURIComponent(item.id)}`} className="min-w-0 truncate rounded-sm text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title}</Link>
+function ConnectionSide({ basePath, item, project }: { basePath: "/app" | "/demo"; item: ConnectionWorkItem; project: ConnectionProject | null }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <Link
+        href={`${basePath}/tasks?task=${encodeURIComponent(item.id)}`}
+        className="min-w-0 truncate rounded-sm text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {item.title}
+      </Link>
+      {project ? (
+        <Link
+          href={`${basePath}/projects/${encodeURIComponent(project.id)}`}
+          className="inline-flex min-w-0 items-center gap-1 self-start rounded-sm text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <FolderKanban className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{project.name}</span>
+        </Link>
+      ) : (
+        <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground/70">
+          <FolderKanban className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">No project</span>
+        </span>
+      )}
+    </div>
+  )
 }
 
 function Summary({ label, value }: { label: string; value: number }) {

@@ -307,6 +307,12 @@ const demoRelations = [
     targetId: "release-install-check",
     relationType: "BLOCKED_BY",
   },
+  {
+    id: "demo-relation-cross-project-docs",
+    sourceId: "release-notes",
+    targetId: "site-homepage-copy",
+    relationType: "RELATES_TO",
+  },
 ]
 
 export function getDemoApiResponse(input: RequestInfo | URL): Response | null {
