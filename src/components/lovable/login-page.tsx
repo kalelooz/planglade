@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckSquare, Database, Inbox, ListTodo, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/lovable/auth-context"
 import { buildSessionAuthHeaders } from "@/lib/server-session-client"
 
@@ -39,18 +40,50 @@ function GoogleLogo({ className }: { className?: string }) {
 // Login Page
 // ---------------------------------------------------------------------------
 
-export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: boolean }) {
-  const { user, signInWithGoogle, loading, authMode } = useAuth()
+export function LoginPage({
+  googleSignInAvailable,
+  localCredentialsAvailable,
+}: {
+  googleSignInAvailable: boolean
+  localCredentialsAvailable: boolean
+}) {
+  const { user, signInWithGoogle, signInWithCredentials, loading, authMode } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [signingIn, setSigningIn] = React.useState(false)
   const [signInError, setSignInError] = React.useState<string | null>(null)
   const [inviteNotice, setInviteNotice] = React.useState<string | null>(null)
   const [inviteAccepting, setInviteAccepting] = React.useState(false)
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const [credentialsError, setCredentialsError] = React.useState<string | null>(null)
+  const [credentialsSubmitting, setCredentialsSubmitting] = React.useState(false)
+  const [setupAvailable, setSetupAvailable] = React.useState(false)
   const nextPath = searchParams.get("next") || "/app"
   const inviteToken = searchParams.get("inviteToken")
   const autoAccept = searchParams.get("autoAccept") === "1"
   const usesDevSession = authMode === "dev"
+
+  React.useEffect(() => {
+    if (!localCredentialsAvailable) return
+    let cancelled = false
+
+    void fetch("/api/auth/setup", { cache: "no-store", credentials: "same-origin" })
+      .then(async (response) => {
+        if (!response.ok) return null
+        return (await response.json()) as { status?: unknown }
+      })
+      .then((payload) => {
+        if (!cancelled) setSetupAvailable(payload?.status === "available")
+      })
+      .catch(() => {
+        if (!cancelled) setSetupAvailable(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [localCredentialsAvailable])
 
   const toFriendlySignInError = (error: unknown) => {
     const code =
@@ -106,6 +139,30 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
       setSignInError(toFriendlySignInError(error))
     } finally {
       setSigningIn(false)
+    }
+  }
+
+  const handleCredentialsSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setCredentialsError(null)
+    setCredentialsSubmitting(true)
+    try {
+      const callbackPath =
+        inviteToken
+          ? `/login?inviteToken=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(nextPath)}&autoAccept=1`
+          : nextPath
+      const authenticated = await signInWithCredentials(email, password, callbackPath)
+      setPassword("")
+      if (!authenticated) {
+        setCredentialsError("Unable to sign in with that email and password.")
+        return
+      }
+      router.replace(callbackPath)
+    } catch {
+      setPassword("")
+      setCredentialsError("Unable to sign in with that email and password.")
+    } finally {
+      setCredentialsSubmitting(false)
     }
   }
 
@@ -191,6 +248,55 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
               </div>
 
               <div className="mt-8">
+                {localCredentialsAvailable && (
+                  <form className="grid gap-3" onSubmit={handleCredentialsSignIn}>
+                    <div className="grid gap-1.5">
+                      <label htmlFor="email" className="text-sm font-medium text-zinc-900">Email</label>
+                      <Input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        required
+                        disabled={credentialsSubmitting || loading}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <label htmlFor="password" className="text-sm font-medium text-zinc-900">Password</label>
+                      <Input
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        required
+                        disabled={credentialsSubmitting || loading}
+                      />
+                    </div>
+                    <Button
+                      className="h-11 w-full bg-zinc-950 text-sm font-medium text-white hover:bg-zinc-800"
+                      type="submit"
+                      disabled={credentialsSubmitting || loading}
+                    >
+                      {credentialsSubmitting ? "Signing in..." : "Continue with email"}
+                    </Button>
+                    {credentialsError && (
+                      <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        {credentialsError}
+                      </p>
+                    )}
+                  </form>
+                )}
+
+                {localCredentialsAvailable && googleSignInAvailable && (
+                  <div className="my-5 flex items-center gap-3 text-xs text-zinc-400" aria-hidden="true">
+                    <span className="h-px flex-1 bg-zinc-200" />
+                    or
+                    <span className="h-px flex-1 bg-zinc-200" />
+                  </div>
+                )}
+
                 {googleSignInAvailable ? (
                   <Button
                     variant="outline"
@@ -205,7 +311,7 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                     )}
                     {signingIn ? "Signing in..." : "Continue with Google"}
                   </Button>
-                ) : usesDevSession ? (
+                ) : !localCredentialsAvailable && usesDevSession ? (
                   <Button
                     className="h-11 w-full gap-2 bg-zinc-950 text-sm font-medium text-white hover:bg-zinc-800"
                     onClick={handleGoogleSignIn}
@@ -214,11 +320,11 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                     Continue to workspace
                     <ArrowRight className="size-4" />
                   </Button>
-                ) : (
+                ) : !localCredentialsAvailable ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                     Sign-in is not configured for this environment.
                   </div>
-                )}
+                ) : null}
                 {signInError && (
                   <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                     {signInError}
@@ -236,12 +342,22 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                 )}
 
                 <p className="mt-5 text-xs leading-5 text-zinc-500">
-                  {googleSignInAvailable
+                  {localCredentialsAvailable
+                    ? "Use your email and password to continue. Your projects stay scoped to your workspace."
+                    : googleSignInAvailable
                     ? "Use your Google account to continue. Your projects stay scoped to your workspace."
                     : usesDevSession
                       ? "Local development uses the existing dev workspace session. No email or password login is enabled here."
                       : "Ask the workspace owner to configure Google sign-in before continuing."}
                 </p>
+                {setupAvailable && (
+                  <Link
+                    href="/setup"
+                    className="mt-3 inline-flex text-xs font-medium text-zinc-600 underline underline-offset-4 outline-none hover:text-zinc-950 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
+                  >
+                    Set up this self-hosted installation
+                  </Link>
+                )}
               </div>
             </div>
 
