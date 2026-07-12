@@ -51,3 +51,18 @@ test("SELF-HOST-AUTH-UI-SETUP-001: setup page headers override the general polic
   assert.ok(setupHeaders.some((header) => header.key === "Cache-Control" && header.value === "no-store, max-age=0"))
   assert.ok(setupHeaders.some((header) => header.key === "Referrer-Policy" && header.value === "no-referrer"))
 })
+
+test("PR-48-SETUP-RETRY-BROWSER-001: a temporary completion failure stays on the owner form", async () => {
+  const source = await readProjectFile("src/app/setup/page.tsx")
+  const completion = source.match(/async function completeSetup[\s\S]*?(?=\n  async function copyCodes)/)?.[0]
+
+  assert.ok(completion)
+  assert.match(completion, /if \(response\.status === 503\) \{\s*setFormError\("Setup is temporarily unavailable\. Try again\."\)\s*return/)
+  assert.doesNotMatch(completion, /if \(response\.status === 503\) \{\s*setScreen\("temporary"\)/)
+})
+
+test("PR-48-SETUP-RETRY-BROWSER-001: CI enforces the isolated setup browser test", async () => {
+  const workflow = await readProjectFile(".github/workflows/ci.yml")
+
+  assert.match(workflow, /npx playwright test --config=playwright\.setup\.config\.ts/)
+})

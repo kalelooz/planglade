@@ -219,7 +219,7 @@ export default function SetupPage() {
         return
       }
       if (response.status === 503) {
-        setScreen("temporary")
+        setFormError("Setup is temporarily unavailable. Try again.")
         return
       }
       if (response.status === 409) {
