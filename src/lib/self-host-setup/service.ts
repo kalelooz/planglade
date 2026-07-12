@@ -86,7 +86,9 @@ export async function completeSetup(
       if (setup?.status !== "IN_PROGRESS") return "unavailable" as const
       if (!setup.claimantHash || !fixedDigestEqual(setup.claimantHash, claimantHash)) return "invalid" as const
       if (!setup.claimExpiresAt || setup.claimExpiresAt <= now) {
-        await tx.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "AVAILABLE", claimantHash: null, claimExpiresAt: null } })
+        if (await resolveSetupEligibility(tx, now) === "eligible") {
+          await tx.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "AVAILABLE", claimantHash: null, claimExpiresAt: null } })
+        }
         return "expired" as const
       }
       if (await resolveSetupEligibility(tx, now) !== "actively_claimed") return "conflict" as const

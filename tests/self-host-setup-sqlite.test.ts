@@ -47,3 +47,28 @@ test("real SQLite permits one claimant and atomically creates one installation",
     await isolated.cleanup()
   }
 })
+
+test("expired claims reopen only an otherwise empty installation", async () => {
+  const isolated = createIsolatedTestDatabase()
+  const { PrismaClient } = await import("@prisma/client")
+  const { completeSetup, resolveSetupEligibility } = await import("../src/lib/self-host-setup/service")
+  const client = new PrismaClient()
+  const expired = new Date(Date.now() - 60_000)
+  try {
+    const { sha256Hex } = await import("../src/lib/self-host-setup/security")
+    await client.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "IN_PROGRESS", claimantHash: sha256Hex("claimant"), claimExpiresAt: expired } })
+    const expiredEmpty = await completeSetup({ email: "owner@example.com", name: "Owner", password: "correct horse battery staple", workspaceName: "Workspace" }, "claimant", new Date(), client)
+    assert.deepEqual(expiredEmpty, { ok: false, reason: "expired" })
+    assert.equal((await client.selfHostSetup.findUniqueOrThrow({ where: { id: "singleton" } })).status, "AVAILABLE")
+
+    await client.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "IN_PROGRESS", claimantHash: sha256Hex("claimant"), claimExpiresAt: expired } })
+    await client.user.create({ data: { email: "collision@example.com", normalizedEmail: "collision@example.com" } })
+    const blocked = await completeSetup({ email: "owner@example.com", name: "Owner", password: "correct horse battery staple", workspaceName: "Workspace" }, "claimant", new Date(), client)
+    assert.deepEqual(blocked, { ok: false, reason: "expired" })
+    assert.equal((await client.selfHostSetup.findUniqueOrThrow({ where: { id: "singleton" } })).status, "IN_PROGRESS")
+    assert.equal(await resolveSetupEligibility(client), "blocked")
+  } finally {
+    await client.$disconnect()
+    await isolated.cleanup()
+  }
+})

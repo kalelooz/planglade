@@ -13,13 +13,72 @@ test("the three setup routes complete once and never replay recovery codes", asy
   process.env.NEXTAUTH_URL = "http://localhost:3000/"
   process.env.NEXTAUTH_SECRET = "test-nextauth-secret"
   process.env.PLANGLADE_SETUP_TOKEN = "a".repeat(64)
-  const [{ GET }, claimRoute, completeRoute, { disconnectSetupDatabaseForTests }] = await Promise.all([
+  const [{ GET, getSetupDiscovery }, claimRoute, completeRoute, { disconnectSetupDatabaseForTests }] = await Promise.all([
     import("../src/app/api/auth/setup/route"),
     import("../src/app/api/auth/setup/claim/route"),
     import("../src/app/api/auth/setup/complete/route"),
     import("../src/lib/self-host-setup/service"),
   ])
   try {
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "false"
+    let unavailable = await GET(new Request("http://localhost:3000/api/auth/setup", { headers: { host: "localhost:3000" } }))
+    assert.equal(unavailable.status, 200)
+    assert.deepEqual(await unavailable.json(), { status: "unavailable" })
+    assert.equal(unavailable.headers.get("set-cookie"), null)
+
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "true"
+    for (const configuration of [
+      { token: undefined, secret: "test-nextauth-secret" },
+      { token: "malformed", secret: "test-nextauth-secret" },
+      { token: "a".repeat(64), secret: undefined },
+    ]) {
+      if (configuration.token) process.env.PLANGLADE_SETUP_TOKEN = configuration.token
+      else delete process.env.PLANGLADE_SETUP_TOKEN
+      if (configuration.secret) process.env.NEXTAUTH_SECRET = configuration.secret
+      else delete process.env.NEXTAUTH_SECRET
+      unavailable = await GET(new Request("http://localhost:3000/api/auth/setup", { headers: { host: "localhost:3000" } }))
+      assert.equal(unavailable.status, 200)
+      assert.deepEqual(await unavailable.json(), { status: "unavailable" })
+      assert.equal(unavailable.headers.get("set-cookie"), null)
+    }
+
+    process.env.NEXTAUTH_SECRET = "test-nextauth-secret"
+    process.env.PLANGLADE_SETUP_TOKEN = "a".repeat(64)
+    for (const configuredUrl of [undefined, "not-a-url"]) {
+      if (configuredUrl) process.env.NEXTAUTH_URL = configuredUrl
+      else delete process.env.NEXTAUTH_URL
+      unavailable = await GET(new Request("http://localhost:3000/api/auth/setup", { headers: { host: "localhost:3000" } }))
+      assert.equal(unavailable.status, 200)
+      assert.deepEqual(await unavailable.json(), { status: "unavailable" })
+      assert.equal(unavailable.headers.get("set-cookie"), null)
+    }
+    process.env.NEXTAUTH_URL = "http://localhost:3000/"
+
+    const captured: string[] = []
+    const originalError = console.error
+    const originalLog = console.log
+    const originalWarn = console.warn
+    const capture = (...values: unknown[]) => captured.push(values.join(" "))
+    console.error = capture
+    console.log = capture
+    console.warn = capture
+    try {
+      unavailable = await getSetupDiscovery(
+        new Request("http://localhost:3000/api/auth/setup", { headers: { host: "localhost:3000" } }),
+        async () => { throw new Error("C:\\private\\database.db PRISMA_MARKER STACK_MARKER") },
+      )
+    } finally {
+      console.error = originalError
+      console.log = originalLog
+      console.warn = originalWarn
+    }
+    assert.equal(unavailable.status, 200)
+    assert.deepEqual(await unavailable.json(), { status: "unavailable" })
+    assert.equal(unavailable.headers.get("set-cookie"), null)
+
+    const wrongHost = await GET(new Request("http://localhost:3000/api/auth/setup", { headers: { host: "evil.example" } }))
+    assert.equal(wrongHost.status, 403)
+
     const discovery = await GET(new Request("http://localhost:3000/api/auth/setup", { headers: { host: "localhost:3000" } }))
     assert.equal(discovery.status, 200)
     assert.deepEqual(await discovery.json(), { status: "available" })
@@ -41,6 +100,15 @@ test("the three setup routes complete once and never replay recovery codes", asy
 
     const body = JSON.stringify({ email: "owner@example.com", name: "Owner", password: "correct horse battery staple", workspaceName: "My Workspace" })
     const completionHeaders = { ...common, cookie: `planglade-setup-claim=${claimant}; planglade-setup-csrf=${completeCsrf}`, "x-planglade-csrf": completeCsrf }
+    const temporary = await completeRoute.completeSetupRequest(
+      new Request("http://localhost:3000/api/auth/setup/complete", { method: "POST", headers: completionHeaders, body }),
+      async () => ({ ok: false as const, reason: "temporary" as const }),
+    )
+    captured.push(JSON.stringify(await temporary.clone().json()))
+    assert.equal(temporary.status, 503)
+    assert.equal(temporary.headers.get("set-cookie"), null)
+    assert.doesNotMatch(captured.join("\n"), /owner@example|database\.db|PRISMA_MARKER|STACK_MARKER|correct horse/i)
+
     const completion = await completeRoute.POST(new Request("http://localhost:3000/api/auth/setup/complete", { method: "POST", headers: completionHeaders, body }))
     assert.equal(completion.status, 201)
     const result = await completion.json()
@@ -52,6 +120,7 @@ test("the three setup routes complete once and never replay recovery codes", asy
     const retry = await completeRoute.POST(new Request("http://localhost:3000/api/auth/setup/complete", { method: "POST", headers: completionHeaders, body }))
     assert.equal(retry.status, 409)
     assert.equal((await retry.json()).error.code, "SETUP_UNAVAILABLE")
+    assert.match(retry.headers.get("set-cookie") ?? "", /planglade-setup-claim=;.*Max-Age=0/i)
   } finally {
     await disconnectSetupDatabaseForTests()
     for (const key of ["PLANGLADE_LOCAL_AUTH_ENABLED", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "PLANGLADE_SETUP_TOKEN", "DATABASE_URL"]) delete process.env[key]
