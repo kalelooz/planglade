@@ -19,7 +19,7 @@ test("an operator can set up an owner, save codes, then sign in locally", async 
   await expect(page.getByRole("heading", { name: "Owner and workspace details" })).toBeVisible()
   await page.getByLabel("Owner name").fill("Setup Owner")
   await page.getByLabel("Email").fill("owner@example.com")
-  await page.getByLabel("Password", { exact: true }).fill("correct horse battery staple")
+  await page.getByLabel(/^Password\b/).fill("correct horse battery staple")
   await page.getByLabel("Confirm password").fill("correct horse battery staple")
   await page.getByLabel("Workspace name").fill("My workspace")
   let completionRequests = 0
@@ -45,11 +45,11 @@ test("an operator can set up an owner, save codes, then sign in locally", async 
   await expect(page.getByLabel("Owner name")).toHaveValue("Setup Owner")
   await expect(page.getByLabel("Email")).toHaveValue("owner@example.com")
   await expect(page.getByLabel("Workspace name")).toHaveValue("My workspace")
-  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("")
+  await expect(page.getByLabel(/^Password\b/)).toHaveValue("")
   await expect(page.getByLabel("Confirm password")).toHaveValue("")
   expect(completionRequests).toBe(1)
 
-  await page.getByLabel("Password", { exact: true }).fill("correct horse battery staple")
+  await page.getByLabel(/^Password\b/).fill("correct horse battery staple")
   await page.getByLabel("Confirm password").fill("correct horse battery staple")
   await page.getByRole("button", { name: "Create owner and workspace" }).click()
 
