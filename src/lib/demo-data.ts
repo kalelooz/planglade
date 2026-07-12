@@ -18,6 +18,7 @@ export type DemoTask = {
   priority: "High" | "Medium" | "Low"
   due: string
   noteId?: string
+  parentId?: string
   details: string
 }
 
@@ -105,6 +106,7 @@ export const demoTasks: DemoTask[] = [
     priority: "Medium",
     due: "2026-07-10",
     details: "Call both suppliers and record backup contacts for opening week.",
+    parentId: "bakery-menu-print",
   },
   {
     id: "thesis-literature-review",
@@ -280,7 +282,7 @@ const apiTasks = demoTasks.map((task) => ({
   priority: task.priority.toUpperCase(),
   assigneeId: demoUser.id,
   projectId: task.projectId,
-  parentId: null,
+  parentId: task.parentId ?? null,
   startDate: null,
   dueDate: `${task.due}T00:00:00.000Z`,
   description: task.details,
@@ -298,6 +300,15 @@ const apiNotes = demoNotes.map((note) => ({
   updatedAt: "2026-07-04T00:00:00.000Z",
 }))
 
+const demoRelations = [
+  {
+    id: "demo-relation-release-install",
+    sourceId: "release-notes",
+    targetId: "release-install-check",
+    relationType: "BLOCKED_BY",
+  },
+]
+
 export function getDemoApiResponse(input: RequestInfo | URL): Response | null {
   const value = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
   const url = new URL(value, "http://demo.local")
@@ -314,7 +325,7 @@ export function getDemoApiResponse(input: RequestInfo | URL): Response | null {
   if (/^\/api\/work-items\/[^/]+\/comments$/.test(path)) return Response.json({ comments: [] })
   if (/^\/api\/work-items\/[^/]+\/history$/.test(path)) return Response.json({ events: [] })
   if (path === "/api/work-items") return Response.json({ workItems: apiTasks })
-  if (path === "/api/work-item-relations") return Response.json({ relations: [] })
+  if (path === "/api/work-item-relations") return Response.json({ relations: demoRelations })
   if (path === "/api/notes") return Response.json({ notes: apiNotes })
   if (path === "/api/labels") return Response.json({ labels: [] })
   if (path === "/api/notifications") return Response.json({ notifications: [], unreadCount: 0 })

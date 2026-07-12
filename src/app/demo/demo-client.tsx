@@ -11,7 +11,7 @@ import { ProjectsPageContent } from "@/app/app/projects/projects-page-content"
 import WorkItemsPage from "@/app/app/tasks/page"
 import styles from "./demo.module.css"
 
-const DEMO_ROUTES = ["/demo/tasks", "/demo/projects", "/demo/notes", "/demo/calendar"]
+const DEMO_ROUTES = ["/demo/tasks", "/demo/projects", "/demo/notes", "/demo/calendar", "/demo/connections"]
 
 function demoHref(href: string) {
   return href === "/app" ? "/demo" : href.replace(/^\/app(?=\/|\?|#|$)/, "/demo")

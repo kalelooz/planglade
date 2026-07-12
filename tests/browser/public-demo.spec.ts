@@ -41,6 +41,7 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
     ["Projects", "/demo/projects"],
     ["Notes", "/demo/notes"],
     ["Calendar", "/demo/calendar"],
+    ["Connections", "/demo/connections"],
   ] as const) {
     const navigation = page.getByRole("navigation")
     const link = navigation.getByRole("link", {
@@ -50,6 +51,14 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
     await link.click()
     await expect(page).toHaveURL(new RegExp(`${path}$`))
   }
+
+  await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
+  await expect(page.getByText("is blocked by", { exact: true })).toBeVisible()
+  await expect(page.getByText("has child", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Current workspace" }).click()
+  await expect(page.getByRole("menu").getByText("PlanGlade Demo", { exact: true })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByText("Role: OWNER", { exact: true })).toBeHidden()
 
   await page.goto("/demo/projects/bakery-launch")
   await expect(page.getByRole("heading", { name: "Small bakery launch", exact: true })).toBeVisible()

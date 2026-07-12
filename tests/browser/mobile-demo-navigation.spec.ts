@@ -26,7 +26,7 @@ test("mobile demo navigation stays contained and omits settings", async ({ page,
   await expect(page.getByRole("button", { name: "Close navigation" })).toBeVisible()
 
   const navigation = page.getByRole("navigation")
-  for (const label of ["Inbox", "Tasks", "Projects", "Notes", "Calendar"]) {
+  for (const label of ["Inbox", "Tasks", "Projects", "Notes", "Calendar", "Connections"]) {
     await expect(
       navigation.getByRole("link", {
         name: label === "Inbox" ? /^Inbox\b/ : label,
@@ -36,8 +36,10 @@ test("mobile demo navigation stays contained and omits settings", async ({ page,
   }
   await expect(navigation.getByRole("link", { name: "Settings", exact: true })).toHaveCount(0)
 
-  await navigation.getByRole("link", { name: "Tasks", exact: true }).click()
-  await expect(page).toHaveURL(/\/demo\/tasks$/)
+  await navigation.getByRole("link", { name: "Connections", exact: true }).click()
+  await expect(page).toHaveURL(/\/demo\/connections$/)
+  await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Close navigation" })).toBeHidden()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(applicationErrors).toEqual([])
 })

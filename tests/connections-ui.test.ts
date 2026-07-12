@@ -4,29 +4,48 @@ import path from "node:path"
 import test from "node:test"
 
 const root = process.cwd()
+const read = (filePath: string) => readFile(path.join(root, filePath), "utf8")
 
-async function readProjectFile(filePath: string) {
-  return readFile(path.join(root, filePath), "utf8")
-}
+test("Connections canonical route renders a supported relationship surface", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
 
-// SCOPE-FREEZE-001: Connections/Work Map is a deferred product surface for the
-// solo-first MVP. Both the canonical and legacy routes must redirect to /app
-// instead of rendering a full relationship-graph product surface.
-test("Connections canonical and legacy routes redirect to /app", async () => {
-  const [canonical, legacy] = await Promise.all([
-    readProjectFile("src/app/app/connections/page.tsx"),
-    readProjectFile("src/app/connections/page.tsx"),
-  ])
-
-  assert.match(canonical, /redirect\("\/app"\)/)
-  assert.match(legacy, /redirect\("\/app"\)/)
+  assert.doesNotMatch(page, /redirect\("\/app"\)/)
+  assert.match(page, /buildConnectionsModel/)
+  assert.match(page, /Loading connections/)
+  assert.match(page, /No connections yet/)
+  assert.match(page, /Unable to load connections/)
+  assert.match(page, /You do not have access to these connections/)
+  assert.match(page, /connection\.label/)
+  assert.match(page, /tasks\?task=/)
+  assert.match(page, /projects\//)
 })
 
-test("Connections no longer renders the graph product surface", async () => {
-  const canonical = await readProjectFile("src/app/app/connections/page.tsx")
+test("legacy Connections route redirects once to the canonical route", async () => {
+  const legacy = await read("src/app/connections/page.tsx")
+  assert.match(legacy, /redirect\("\/app\/connections"\)/)
+  assert.doesNotMatch(legacy, /redirect\("\/app"\)/)
+})
 
-  assert.doesNotMatch(canonical, /getServerSession\(\)/)
-  assert.doesNotMatch(canonical, /data-connection-graph="true"/)
-  assert.doesNotMatch(canonical, /EDGE_STYLES/)
-  assert.doesNotMatch(canonical, /TYPE_STYLE/)
+test("Connections layout stays responsive and exposes relationship text", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
+  assert.match(page, /overflow-x-hidden/)
+  assert.match(page, /md:grid-cols|lg:grid-cols/)
+  assert.match(page, /aria-live/)
+  assert.doesNotMatch(page, /ReactFlow|canvas|drag-to-connect|zoom/)
+})
+
+test("demo Connections uses fixture relationships without write controls", async () => {
+  const [page, data, client] = await Promise.all([
+    read("src/app/demo/connections/page.tsx"),
+    read("src/lib/demo-data.ts"),
+    read("src/app/demo/demo-client.tsx"),
+  ])
+
+  assert.match(page, /ConnectionsPageContent/)
+  assert.match(page, /basePath="\/demo"/)
+  assert.match(data, /parentId:/)
+  assert.match(data, /demoRelations/)
+  assert.match(data, /BLOCKED_BY/)
+  assert.match(client, /\/demo\/connections/)
+  assert.doesNotMatch(page, /create|update|delete/i)
 })

@@ -115,23 +115,23 @@ test("primary navigation and auth defaults use canonical app routes", async () =
     readProjectFile("src/components/lovable/auth-context.tsx"),
   ])
 
-  for (const route of ["/app", "/app/inbox", "/app/tasks", "/app/projects", "/app/notes", "/app/calendar", "/app/settings"]) {
+  for (const route of ["/app", "/app/inbox", "/app/tasks", "/app/projects", "/app/notes", "/app/calendar", "/app/connections", "/app/settings"]) {
     assert.ok(shell.includes(`\"${route}\"`), `Shell is missing ${route}`)
   }
 
-  for (const route of ["/app", "/app/inbox", "/app/tasks", "/app/projects", "/app/notes", "/app/calendar", "/app/settings"]) {
+  for (const route of ["/app", "/app/inbox", "/app/tasks", "/app/projects", "/app/notes", "/app/calendar", "/app/connections", "/app/settings"]) {
     assert.ok(commandPalette.includes(`\"${route}\"`), `Command palette is missing ${route}`)
   }
 
-  assert.doesNotMatch(shell, /label: "Connections"/)
-  assert.doesNotMatch(commandPalette, /Go to Connections|\/app\/connections/)
+  assert.match(shell, /label: "Connections"/)
+  assert.match(commandPalette, /Go to Connections|\/app\/connections/)
 
   assert.match(login, /searchParams\.get\("next"\) \|\| "\/app"/)
   assert.match(onboarding, /searchParams\.get\("next"\) \|\| "\/app"/)
   assert.match(authContext, /callbackUrl: nextPath \?\? "\/app"/)
 })
 
-// SCOPE-FREEZE-001 regression guards: deferred product surfaces must not appear
+// SCOPE-FREEZE-001 regression guards: still-deferred product surfaces must not appear
 // in primary navigation, command palette, or shell scope helpers, and must not
 // be reachable as full product pages.
 test("SCOPE-FREEZE-001: deferred routes are not present in MVP nav, command palette, or shell helpers", async () => {
@@ -144,11 +144,9 @@ test("SCOPE-FREEZE-001: deferred routes are not present in MVP nav, command pale
     /\/team\b/,
     /\/activity\b/,
     /\/timeline\b/,
-    /\/connections\b/,
     /label: "Team"/,
     /label: "Activity"/,
     /label: "Timeline"/,
-    /label: "Connections"/,
     /label: "Reports"/,
     /label: "Work Map"/,
   ]
@@ -158,7 +156,7 @@ test("SCOPE-FREEZE-001: deferred routes are not present in MVP nav, command pale
     assert.doesNotMatch(commandPalette, pattern, `Command palette should not reference deferred route: ${pattern}`)
   }
 
-  // Scope helper must only point at MVP routes (no /timeline or /app/connections).
+  // Scope helper must only point at project-scoped routes.
   const scopedRoutesMatch = shell.match(/const scopedRoutes = \[[^\]]*\]/)
   assert.ok(scopedRoutesMatch, "scopedRoutes helper should exist")
   assert.doesNotMatch(scopedRoutesMatch[0], /\/timeline/)
@@ -174,8 +172,6 @@ test("SCOPE-FREEZE-001: deferred routes redirect to /app instead of rendering pr
     "src/app/team/page.tsx",
     "src/app/activity/page.tsx",
     "src/app/timeline/page.tsx",
-    "src/app/app/connections/page.tsx",
-    "src/app/connections/page.tsx",
   ]
 
   for (const filePath of deferredRoutes) {
