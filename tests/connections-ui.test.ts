@@ -6,29 +6,28 @@ import test from "node:test"
 const root = process.cwd()
 const read = (filePath: string) => readFile(path.join(root, filePath), "utf8")
 
-test("Connections canonical route renders a supported relationship surface", async () => {
+test("Connections canonical route keeps the recovered workspace graph data sources", async () => {
   const page = await read("src/app/app/connections/page.tsx")
 
   assert.doesNotMatch(page, /redirect\("\/app"\)/)
-  assert.match(page, /buildConnectionsModel/)
-  assert.match(page, /Loading connections/)
-  assert.match(page, /No connections yet/)
-  assert.match(page, /Unable to load connections/)
-  assert.match(page, /You do not have access to these connections/)
-  assert.match(page, /connection\.label/)
+  assert.match(page, /getServerSession\(\)/)
+  assert.match(page, /\/api\/projects/)
+  assert.match(page, /\/api\/work-items/)
+  assert.match(page, /\/api\/notes/)
+  assert.match(page, /\/api\/work-item-relations/)
+  assert.match(page, /applyWorkItemDependencyRelations/)
   assert.match(page, /tasks\?task=/)
   assert.match(page, /projects\//)
 })
 
-test("Connections list shows project context for both sides without nested anchors", async () => {
+test("Connections includes an accessible inspector and relationship fallback", async () => {
   const page = await read("src/app/app/connections/page.tsx")
 
-  // Each side surfaces its own project context so cross-project relations stay legible.
-  assert.match(page, /connection\.sourceProject/)
-  assert.match(page, /connection\.targetProject/)
-  // Project context renders as a sibling link to the task link, never a nested anchor.
-  assert.match(page, /ConnectionSide/)
-  assert.doesNotMatch(page, /<Link[^>]*>[^<]*<Link/)
+  assert.match(page, /Relationship text fallback/)
+  assert.match(page, /selectedNode/)
+  assert.match(page, /Open task/)
+  assert.match(page, /Open project/)
+  assert.doesNotMatch(page, /drag-to-connect/)
 })
 
 test("legacy Connections route redirects once to the canonical route", async () => {
@@ -41,14 +40,24 @@ test("Connections layout stays responsive with an interactive graph and authorit
   const page = await read("src/app/app/connections/page.tsx")
   assert.match(page, /overflow-x-hidden/)
   assert.match(page, /md:grid-cols|lg:grid-cols/)
-  assert.match(page, /aria-live/)
   assert.match(page, /data-connection-graph/)
   assert.match(page, /aria-label="Zoom in"/)
-  assert.match(page, /aria-label="Fit graph to view"/)
-  assert.match(page, /Open task in graph/)
-  assert.match(page, /Math\.max\(0\.3/)
+  assert.match(page, /aria-label="Fit to view"/)
+  assert.match(page, /MAX_TASK_ROWS/)
   assert.match(page, /Relationship list/)
   assert.doesNotMatch(page, /ReactFlow|drag-to-connect/)
+})
+
+test("Connections keeps the recovered Work Map composition instead of a fixed task grid", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
+
+  assert.match(page, /ProjectViewTitle/)
+  assert.match(page, /Search graph/)
+  assert.match(page, /Current project/)
+  assert.match(page, /data-graph-edges="true"/)
+  assert.match(page, /aria-label="Fit to view"/)
+  assert.match(page, /Relationship text fallback/)
+  assert.doesNotMatch(page, /buildConnectionsGraphModel/)
 })
 
 test("demo Connections uses fixture relationships without write controls", async () => {
@@ -58,8 +67,7 @@ test("demo Connections uses fixture relationships without write controls", async
     read("src/app/demo/demo-client.tsx"),
   ])
 
-  assert.match(page, /ConnectionsPageContent/)
-  assert.match(page, /basePath="\/demo"/)
+  assert.match(page, /ConnectionsPage/)
   assert.match(data, /parentId:/)
   assert.match(data, /demoRelations/)
   assert.match(data, /BLOCKED_BY/)

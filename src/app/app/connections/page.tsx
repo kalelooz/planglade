@@ -1,234 +1,1138 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
-import { AlertTriangle, ArrowRight, FolderKanban, GitBranch, Link2, Maximize2, Minus, Network, Plus, RotateCcw } from "lucide-react"
-
-import { AppShell } from "@/components/lovable/shell"
-import { apiFetch, getServerSession } from "@/lib/server-session-client"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
-  buildConnectionsGraphModel,
-  buildConnectionsModel,
-  type Connection,
-  type ConnectionProject,
-  type ConnectionRelation,
-  type ConnectionWorkItem,
-} from "@/lib/connections"
+  Calendar,
+  CheckSquare,
+  CircleDot,
+  ClipboardList,
+  Flag,
+  FolderKanban,
+  Hash,
+  Maximize2,
+  Minus,
+  Network,
+  Plus,
+  RotateCcw,
+  Search,
+  StickyNote,
+  Tag,
+  User,
+  X,
+} from "lucide-react";
 
-type LoadState = "loading" | "ready" | "error" | "unauthorized"
-type RelationFilter = Connection["kind"]
+import { AppShell } from "@/components/lovable/shell";
+import { Avatar, PriorityIcon } from "@/components/lovable/icons";
+import { Chip, ProjectViewTitle, Toolbar } from "@/components/lovable/page";
+import { type Priority, type Status, type WorkItem, type Member, type Project } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { apiFetch, getServerSession } from "@/lib/server-session-client";
+import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import {
+  type ApiNote,
+  type ApiProject,
+  type ApiWorkItem,
+  toUiNotePreview,
+  toUiProject,
+  toUiWorkItem,
+} from "@/lib/server-ui-mappers";
 
-export function ConnectionsPageContent({ basePath = "/app" }: { basePath?: "/app" | "/demo" }) {
-  const [state, setState] = useState<LoadState>("loading")
-  const [projects, setProjects] = useState<ConnectionProject[]>([])
-  const [workItems, setWorkItems] = useState<ConnectionWorkItem[]>([])
-  const [relations, setRelations] = useState<ConnectionRelation[]>([])
+type NodeType = "project" | "task" | "note" | "person" | "label";
+type EdgeType = "contains" | "assigned" | "tagged" | "referenced" | "dependency" | "related";
 
-  useEffect(() => {
-    let active = true
-    void (async () => {
-      try {
-        const session = await getServerSession()
-        const query = `workspaceId=${encodeURIComponent(session.workspace.id)}`
-        const responses = await Promise.all([
-          apiFetch(`/api/projects?${query}`, { cache: "no-store" }),
-          apiFetch(`/api/work-items?${query}`, { cache: "no-store" }),
-          apiFetch(`/api/work-item-relations?${query}`, { cache: "no-store" }),
-        ])
-        if (!active) return
-        if (responses.some((response) => response.status === 401 || response.status === 403)) {
-          setState("unauthorized")
-          return
-        }
-        if (responses.some((response) => !response.ok)) throw new Error("Connections request failed")
-        const [projectPayload, workItemPayload, relationPayload] = await Promise.all(responses.map((response) => response.json()))
-        setProjects(projectPayload.projects)
-        setWorkItems(workItemPayload.workItems)
-        setRelations(relationPayload.relations)
-        setState("ready")
-      } catch {
-        if (active) setState("error")
-      }
-    })()
-    return () => { active = false }
-  }, [])
+type GraphNode = {
+  id: string;
+  refId: string;
+  type: NodeType;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  accent?: string;
+  meta?: string;
+  priority?: Priority;
+  status?: Status;
+  due?: string;
+  count?: number;
+};
 
-  const model = buildConnectionsModel({ projects, workItems, relations })
+type GraphEdge = {
+  id: string;
+  from: string;
+  to: string;
+  type: EdgeType;
+  label?: string;
+};
 
-  return (
-    <AppShell title={<span className="font-medium">Connections</span>}>
-      <main className="flex w-full max-w-none flex-col gap-5 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8" aria-live="polite">
-        <header>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace relationships</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Connections</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">See dependencies and parent work without duplicating the tasks that define them.</p>
-        </header>
+type GraphNote = ReturnType<typeof toUiNotePreview> & {
+  projectId: string | null;
+};
 
-        {state === "loading" && <StateMessage icon={Network} title="Loading connections" body="Gathering workspace relationships." />}
-        {state === "error" && <StateMessage icon={AlertTriangle} title="Unable to load connections" body="Try refreshing the page. Your workspace data was not changed." />}
-        {state === "unauthorized" && <StateMessage icon={AlertTriangle} title="You do not have access to these connections" body="Ask a workspace administrator to confirm your membership." />}
+const CANVAS_W = 1560;
+const CANVAS_H = 900;
+const MIN_ZOOM = 0.45;
+const MAX_ZOOM = 1.7;
+const MAX_TASK_ROWS = 6;
+const TASK_COLUMN_GAP = 270;
 
-        {state === "ready" && model.connections.length === 0 && (
-          <StateMessage icon={GitBranch} title="No connections yet" body="Add a dependency or a child task from a task's details. Connections will appear here automatically." />
-        )}
+const FILTERS = [
+  { key: "projects", label: "Projects", type: "project" },
+  { key: "tasks", label: "Tasks", type: "task" },
+  { key: "notes", label: "Notes", type: "note" },
+  { key: "people", label: "People", type: "person" },
+  { key: "labels", label: "Labels", type: "label" },
+] as const;
 
-        {state === "ready" && model.connections.length > 0 && (
-          <>
-            <section className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card md:grid-cols-5" aria-label="Relationship summary">
-              <Summary label="Connections" value={model.summary.total} />
-              <Summary label="Blocking" value={model.summary.blocking} />
-              <Summary label="Related" value={model.summary.related} />
-              <Summary label="Parent / child" value={model.summary.hierarchy} />
-              <Summary label="Projects" value={model.summary.projects} />
-            </section>
+type FilterKey = (typeof FILTERS)[number]["key"];
 
-            <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(22rem,.85fr)]">
-              <ConnectionsGraph basePath={basePath} connections={model.connections} />
-              <RelationshipList basePath={basePath} connections={model.connections} />
-            </section>
-          </>
-        )}
-      </main>
-    </AppShell>
-  )
+const NODE_SIZE: Record<NodeType, { width: number; height: number }> = {
+  project: { width: 210, height: 58 },
+  task: { width: 234, height: 54 },
+  note: { width: 196, height: 48 },
+  person: { width: 164, height: 44 },
+  label: { width: 124, height: 38 },
+};
+
+const EDGE_STYLES: Record<EdgeType, { color: string; width: number; dash?: string }> = {
+  contains: { color: "rgb(113 113 122)", width: 1.25 },
+  assigned: { color: "rgb(161 161 170)", width: 1.1, dash: "5 5" },
+  tagged: { color: "rgb(161 161 170)", width: 1.05, dash: "4 4" },
+  referenced: { color: "rgb(113 113 122)", width: 1.1 },
+  dependency: { color: "rgb(180 83 9)", width: 1.45 },
+  related: { color: "rgb(161 161 170)", width: 1.1, dash: "6 4" },
+};
+
+function relationEdgeDirection(relation: WorkItemDependencyRelation) {
+  if (relation.relationType === "BLOCKED_BY") {
+    return { from: `task:${relation.targetId}`, to: `task:${relation.sourceId}`, type: "dependency" as const };
+  }
+  if (relation.relationType === "BLOCKS") {
+    return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "dependency" as const };
+  }
+  return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "related" as const };
 }
 
-function ConnectionsGraph({ basePath, connections }: { basePath: "/app" | "/demo"; connections: Connection[] }) {
-  const [filters, setFilters] = useState<Record<RelationFilter, boolean>>({ blocking: true, related: true, hierarchy: true })
-  const [projectId, setProjectId] = useState("all")
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [dragging, setDragging] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(false)
-  const graphRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+const TYPE_STYLE: Record<NodeType, { label: string; border: string; bg: string; text: string }> = {
+  project: {
+    label: "Project",
+    border: "border-zinc-300",
+    bg: "bg-zinc-50",
+    text: "text-zinc-700",
+  },
+  task: {
+    label: "Task",
+    border: "border-zinc-200",
+    bg: "bg-white",
+    text: "text-zinc-700",
+  },
+  note: {
+    label: "Note",
+    border: "border-zinc-200",
+    bg: "bg-zinc-50",
+    text: "text-zinc-700",
+  },
+  person: {
+    label: "Person",
+    border: "border-zinc-200",
+    bg: "bg-white",
+    text: "text-zinc-700",
+  },
+  label: {
+    label: "Label",
+    border: "border-zinc-200",
+    bg: "bg-zinc-50",
+    text: "text-zinc-700",
+  },
+};
 
-  const projectOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const connection of connections) {
-      if (connection.sourceProject) map.set(connection.sourceProject.id, connection.sourceProject.name)
-      if (connection.targetProject) map.set(connection.targetProject.id, connection.targetProject.name)
-    }
-    return [...map].map(([id, name]) => ({ id, name }))
-  }, [connections])
-  const visibleConnections = connections.filter((connection) =>
-    filters[connection.kind] && (projectId === "all" || connection.sourceProject?.id === projectId || connection.targetProject?.id === projectId)
-  )
-  const graph = useMemo(() => buildConnectionsGraphModel(visibleConnections), [visibleConnections])
-  const selectedNode = graph.nodes.find((node) => node.id === selectedId) ?? null
+function dueTone(due?: string) {
+  if (!due) return "neutral" as const;
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  if (due < todayKey) return "danger" as const;
+  if (due === todayKey) return "warning" as const;
+  return "neutral" as const;
+}
 
-  const fitGraph = useCallback(() => {
-    const rect = graphRef.current?.getBoundingClientRect()
-    if (!rect || graph.nodes.length === 0) return
-    const nextZoom = Math.min(1, Math.max(0.3, Math.min((rect.width - 64) / graph.width, (rect.height - 64) / graph.height)))
-    setZoom(nextZoom)
-    setPan({ x: (rect.width - graph.width * nextZoom) / 2, y: (rect.height - graph.height * nextZoom) / 2 })
-  }, [graph.height, graph.nodes.length, graph.width])
+function priorityTone(priority?: Priority) {
+  if (priority === "High") return "danger" as const;
+  if (priority === "Medium") return "warning" as const;
+  return "neutral" as const;
+}
 
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const update = () => setReducedMotion(media.matches)
-    update()
-    media.addEventListener("change", update)
-    return () => media.removeEventListener("change", update)
-  }, [])
+function NodeGlyph({ type, className }: { type: NodeType; className?: string }) {
+  if (type === "project") return <FolderKanban className={className} />;
+  if (type === "task") return <CheckSquare className={className} />;
+  if (type === "note") return <StickyNote className={className} />;
+  if (type === "person") return <User className={className} />;
+  return <Tag className={className} />;
+}
 
-  useEffect(() => {
-    const frame = requestAnimationFrame(fitGraph)
-    return () => cancelAnimationFrame(frame)
-  }, [fitGraph])
+function TypePill({ type }: { type: NodeType }) {
+  const style = TYPE_STYLE[type];
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider ${style.border} ${style.bg} ${style.text}`}>
+      {style.label}
+    </span>
+  );
+}
 
-  const zoomBy = (amount: number) => {
-    const nextZoom = Math.min(1.7, Math.max(0.3, zoom + amount))
-    const rect = graphRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const ratio = nextZoom / zoom
-    setPan({ x: rect.width / 2 - ratio * (rect.width / 2 - pan.x), y: rect.height / 2 - ratio * (rect.height / 2 - pan.y) })
-    setZoom(nextZoom)
-  }
-  const resetGraph = () => {
-    setFilters({ blocking: true, related: true, hierarchy: true })
-    setProjectId("all")
-    setSelectedId(null)
-  }
+function pathBetween(from: GraphNode, to: GraphNode) {
+  const x1 = from.x + from.width / 2;
+  const y1 = from.y + from.height;
+  const x2 = to.x + to.width / 2;
+  const y2 = to.y;
+  const bend = Math.max(48, Math.abs(y2 - y1) * 0.42);
+  return `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`;
+}
+
+function truncateLabel(label: string, max = 28) {
+  return label.length > max ? `${label.slice(0, max - 1)}.` : label;
+}
+
+function localDateLabel(value?: string) {
+  if (!value) return "No date";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function nodeBounds(nodes: GraphNode[]) {
+  return nodes.reduce(
+    (acc, node) => ({
+      minX: Math.min(acc.minX, node.x),
+      minY: Math.min(acc.minY, node.y),
+      maxX: Math.max(acc.maxX, node.x + node.width),
+      maxY: Math.max(acc.maxY, node.y + node.height),
+    }),
+    { minX: Number.POSITIVE_INFINITY, minY: Number.POSITIVE_INFINITY, maxX: 0, maxY: 0 }
+  );
+}
+
+function GraphNodeView({
+  node,
+  selected,
+  dimmed,
+  related,
+  onSelect,
+  onHover,
+}: {
+  node: GraphNode;
+  selected: boolean;
+  dimmed: boolean;
+  related: boolean;
+  onSelect: () => void;
+  onHover: (id: string | null) => void;
+}) {
+  const typeStyle = TYPE_STYLE[node.type];
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border bg-card" aria-labelledby="connection-graph-title">
-      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
-        <div className="mr-auto min-w-0">
-          <h2 id="connection-graph-title" className="text-sm font-semibold">Relationship graph</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">Pan the map, choose a node, or use the relationship list beside it.</p>
-        </div>
-        <select value={projectId} onChange={(event) => setProjectId(event.target.value)} aria-label="Filter graph by project" className="h-8 max-w-40 rounded border bg-background px-2 text-xs">
-          <option value="all">All projects</option>
-          {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-        </select>
-        <div className="flex items-center gap-1" aria-label="Graph view controls">
-          <button type="button" onClick={() => zoomBy(-0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom out"><Minus className="h-3.5 w-3.5" /></button>
-          <button type="button" onClick={fitGraph} className="lov-icon-btn h-8 w-8" aria-label="Fit graph to view"><Maximize2 className="h-3.5 w-3.5" /></button>
-          <button type="button" onClick={resetGraph} className="lov-icon-btn h-8 w-8" aria-label="Reset graph view"><RotateCcw className="h-3.5 w-3.5" /></button>
-          <button type="button" onClick={() => zoomBy(0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom in"><Plus className="h-3.5 w-3.5" /></button>
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-1 border-b px-4 py-2" aria-label="Filter relationship types">
-        {(["blocking", "related", "hierarchy"] as const).map((kind) => (
-          <button key={kind} type="button" aria-pressed={filters[kind]} onClick={() => setFilters((current) => ({ ...current, [kind]: !current[kind] }))} className={`rounded border px-2 py-1 text-[11px] font-medium ${filters[kind] ? "bg-muted text-foreground" : "text-muted-foreground"}`}>
-            {kind === "blocking" ? "Blocking" : kind === "related" ? "Related" : "Parent / child"}
-          </button>
-        ))}
-      </div>
-      <div
-        ref={graphRef}
-        data-connection-graph="true"
-        role="region"
-        aria-label="Interactive relationship graph"
-        className="relative h-[28rem] min-h-[22rem] touch-none overflow-hidden bg-muted/30 sm:h-[32rem]"
-        onWheel={(event) => { event.preventDefault(); zoomBy(event.deltaY > 0 ? -0.08 : 0.08) }}
-        onPointerDown={(event) => { if (event.target !== event.currentTarget) return; setDragging(true); dragRef.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }; event.currentTarget.setPointerCapture(event.pointerId) }}
-        onPointerMove={(event) => { if (!dragging) return; setPan({ x: dragRef.current.panX + event.clientX - dragRef.current.x, y: dragRef.current.panY + event.clientY - dragRef.current.y }) }}
-        onPointerUp={() => setDragging(false)}
-        onPointerCancel={() => setDragging(false)}
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect();
+      }}
+      onMouseEnter={() => onHover(node.id)}
+      onMouseLeave={() => onHover(null)}
+      style={{
+        left: node.x,
+        top: node.y,
+        width: node.width,
+        height: node.height,
+        borderColor: selected ? "rgb(24 24 27)" : related ? "rgb(113 113 122)" : undefined,
+        boxShadow: selected ? "0 0 0 2px rgb(24 24 27 / 0.14)" : undefined,
+        opacity: dimmed ? 0.28 : 1,
+      }}
+      data-graph-node={node.type}
+      className={`absolute flex items-center gap-2 rounded-md border bg-white px-3 text-left shadow-sm transition-[border-color,box-shadow,opacity,transform] hover:-translate-y-0.5 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 ${typeStyle.border}`}
+    >
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-zinc-200 bg-zinc-50 text-zinc-600"
       >
-        {graph.nodes.length === 0 ? <p className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground">No relationships match these filters.</p> : (
-          <div className="absolute left-0 top-0 origin-top-left" style={{ width: graph.width, height: graph.height, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transition: dragging || reducedMotion ? "none" : "transform 120ms ease-out" }}>
-            <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${graph.width} ${graph.height}`} aria-hidden="true">
-              <defs><marker id="connections-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker></defs>
-              {graph.edges.map((edge) => {
-                const source = graph.nodes.find((node) => node.id === edge.sourceId)
-                const target = graph.nodes.find((node) => node.id === edge.targetId)
-                if (!source || !target) return null
-                const startX = source.x + 220, startY = source.y + 36, endX = target.x, endY = target.y + 36
-                const midpointX = (startX + endX) / 2, midpointY = (startY + endY) / 2
-                const stroke = edge.kind === "blocking" ? "text-amber-700" : edge.kind === "hierarchy" ? "text-sky-700" : "text-muted-foreground"
-                return <g key={edge.id} className={stroke}><title>{edge.ariaLabel}</title><path d={`M ${startX} ${startY} C ${midpointX} ${startY}, ${midpointX} ${endY}, ${endX} ${endY}`} fill="none" stroke="currentColor" strokeWidth={edge.kind === "blocking" ? 2 : 1.4} strokeDasharray={edge.kind === "related" ? "5 4" : undefined} markerEnd="url(#connections-arrow)" /><text x={midpointX} y={midpointY - 7} textAnchor="middle" className="fill-current text-[10px] font-medium">{edge.label}</text></g>
-              })}
-            </svg>
-            {graph.nodes.map((node) => (
-              <div key={node.id} className="absolute w-[220px]" style={{ left: node.x, top: node.y }}>
-                <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setSelectedId(node.id)} aria-pressed={selectedId === node.id} aria-label={`Select ${node.title}, ${node.projectName}, ${node.status}`} className={`w-full rounded-md border bg-background px-3 py-2 pr-8 text-left shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedId === node.id ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-foreground/30"}`}>
-                  <span className="block truncate text-[12px] font-semibold">{node.title}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{node.projectName} · {node.status.replaceAll("_", " ")}</span>
-                </button>
-                <Link href={`${basePath}/tasks?task=${encodeURIComponent(node.id)}`} onPointerDown={(event) => event.stopPropagation()} aria-label={`Open task in graph: ${node.title}`} className="absolute right-1 top-1 rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowRight className="h-3.5 w-3.5" /></Link>
-              </div>
-            ))}
-          </div>
+        {node.type === "person" ? (
+          <Avatar id={node.refId} name={node.label} />
+        ) : (
+          <NodeGlyph type={node.type} className="h-3.5 w-3.5" />
         )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="mb-0.5 flex min-w-0">
+          <span className="truncate text-[12.5px] font-medium leading-4">{truncateLabel(node.label, node.type === "label" ? 16 : 28)}</span>
+        </span>
+        <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">{node.meta}</span>
+      </span>
+      {node.type === "task" && node.priority && <PriorityIcon p={node.priority} />}
+      {node.count != null && (
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{node.count}</span>
+      )}
+    </button>
+  );
+}
+
+function FilterButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded border px-2 py-1 text-[11px] font-medium transition-colors ${
+        active ? "border-foreground/20 bg-foreground text-background" : "border-border bg-card text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function InspectorRow({ icon: Icon, label, value }: { icon: typeof CircleDot; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2 py-1.5 text-[12px]">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate font-medium">{value}</span>
+    </div>
+  );
+}
+
+function GraphPageContent() {
+  const params = useSearchParams();
+  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/demo") ? "/demo" : "/app";
+  const routeProjectId = params.get("project");
+  const activeProjectId = useStore((s) => s.settings.activeProjectId);
+  const updateSettings = useStore((s) => s.updateSettings);
+
+  // Server-backed data
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [notes, setNotes] = useState<GraphNote[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [relations, setRelations] = useState<WorkItemDependencyRelation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const scopedProjectId = routeProjectId ?? activeProjectId;
+  const activeProject = scopedProjectId ? projects.find((p) => p.id === scopedProjectId) ?? null : null;
+
+  const [filters, setFilters] = useState<Record<FilterKey, boolean>>({
+    projects: true,
+    tasks: true,
+    notes: true,
+    people: true,
+    labels: true,
+  });
+  const [scopeMode, setScopeMode] = useState<"workspace" | "project">("workspace");
+  const [query, setQuery] = useState("");
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragMoved, setDragMoved] = useState(false);
+  const [viewport, setViewport] = useState({ w: CANVAS_W, h: CANVAS_H });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  useEffect(() => {
+    if (routeProjectId && routeProjectId !== activeProjectId) {
+      updateSettings({ activeProjectId: routeProjectId });
+    }
+  }, [activeProjectId, routeProjectId, updateSettings]);
+
+  // Fetch data from server
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const session = await getServerSession();
+        if (!active) return;
+
+        setMembers(
+          (session.members ?? []).map((m) => ({
+            id: m.id,
+            name: m.name || m.email,
+            role: m.role ?? "Member",
+            color: "rgb(113 113 122)",
+          }))
+        );
+
+        const [projectsRes, workItemsRes, notesRes, relationsRes] = await Promise.all([
+          apiFetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          apiFetch(`/api/work-items?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          apiFetch(`/api/notes?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+          apiFetch(`/api/work-item-relations?workspaceId=${encodeURIComponent(session.workspace.id)}`, { cache: "no-store" }),
+        ]);
+
+        if (!projectsRes.ok) throw new Error("Failed to load projects");
+        if (!workItemsRes.ok) throw new Error("Failed to load work items");
+        if (!notesRes.ok) throw new Error("Failed to load notes");
+        if (!relationsRes.ok) throw new Error("Failed to load task relations");
+
+        const projectsPayload = (await projectsRes.json()) as { projects: ApiProject[] };
+        const workItemsPayload = (await workItemsRes.json()) as { workItems: ApiWorkItem[] };
+        const notesPayload = (await notesRes.json()) as { notes: ApiNote[] };
+        const relationsPayload = (await relationsRes.json()) as { relations: WorkItemDependencyRelation[] };
+        if (!active) return;
+
+        const mappedItems = workItemsPayload.workItems.map((w) => toUiWorkItem(w, session.user.id));
+        setProjects(projectsPayload.projects.map((p) => toUiProject(p, session.user.id)));
+        setWorkItems(applyWorkItemDependencyRelations(mappedItems, relationsPayload.relations));
+        setNotes(notesPayload.notes.map((note) => ({ ...toUiNotePreview(note), projectId: note.projectId ?? null })));
+        setRelations(relationsPayload.relations);
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load graph data");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, []);
+
+  const memberName = (id: string) => members.find((m) => m.id === id)?.name ?? "Unassigned";
+
+  const useProjectScope = scopeMode === "project" && scopedProjectId != null;
+  const scopedProjects = useProjectScope ? projects.filter((p) => p.id === scopedProjectId) : projects;
+  const scopedWorkItems = useProjectScope ? workItems.filter((w) => w.project === scopedProjectId) : workItems;
+
+  const { nodes, edges, canvasWidth, canvasHeight } = useMemo(() => {
+    const nextNodes: GraphNode[] = [];
+    const nextEdges: GraphEdge[] = [];
+    const queryText = query.trim().toLowerCase();
+    const matchesQuery = (text: string) => !queryText || text.toLowerCase().includes(queryText);
+
+    const visibleProjects = scopedProjects.filter((project) => matchesQuery(project.name) || scopedWorkItems.some((item) => item.project === project.id && matchesQuery(item.title)));
+    const projectTaskMap = new Map(visibleProjects.map((project) => [
+      project.id,
+      scopedWorkItems.filter((item) => item.project === project.id && matchesQuery(item.title)),
+    ]));
+    const laneWidths = visibleProjects.map((project) => {
+      const columnCount = Math.max(1, Math.ceil((projectTaskMap.get(project.id)?.length ?? 0) / MAX_TASK_ROWS));
+      return Math.max(360, columnCount * TASK_COLUMN_GAP + 72);
+    });
+    const contentWidth = Math.max(CANVAS_W, laneWidths.reduce((sum, width) => sum + width, 0));
+    let laneStart = (contentWidth - laneWidths.reduce((sum, width) => sum + width, 0)) / 2;
+
+    visibleProjects.forEach((project, projectIndex) => {
+      const laneWidth = laneWidths[projectIndex] ?? 360;
+      const laneCenter = laneStart + laneWidth / 2;
+      const projectTasks = projectTaskMap.get(project.id) ?? [];
+      const taskColumns = Math.max(1, Math.ceil(projectTasks.length / MAX_TASK_ROWS));
+
+      if (filters.projects) {
+        const size = NODE_SIZE.project;
+        nextNodes.push({
+          id: `project:${project.id}`,
+          refId: project.id,
+          type: "project",
+          label: project.name,
+          meta: `${project.status} / due ${localDateLabel(project.due)}`,
+          x: laneCenter - size.width / 2,
+          y: 92,
+          width: size.width,
+          height: size.height,
+          accent: project.accent,
+          count: projectTasks.length,
+        });
+      }
+
+      if (filters.tasks) {
+        projectTasks.forEach((item, itemIndex) => {
+          const size = NODE_SIZE.task;
+          const col = Math.floor(itemIndex / MAX_TASK_ROWS);
+          const row = itemIndex % MAX_TASK_ROWS;
+          const colOffset = (col - (taskColumns - 1) / 2) * TASK_COLUMN_GAP;
+          const taskId = `task:${item.id}`;
+          nextNodes.push({
+            id: taskId,
+            refId: item.id,
+            type: "task",
+            label: item.title,
+            meta: `${item.status} / ${memberName(item.assignee)}`,
+            x: laneCenter - size.width / 2 + colOffset,
+            y: 220 + row * 76,
+            width: size.width,
+            height: size.height,
+            priority: item.priority,
+            status: item.status,
+            due: item.due,
+          });
+          if (filters.projects) nextEdges.push({ id: `project:${project.id}->${taskId}`, from: `project:${project.id}`, to: taskId, type: "contains" });
+        });
+      }
+
+      laneStart += laneWidth;
+    });
+
+    const visibleTaskIds = new Set(nextNodes.filter((node) => node.type === "task").map((node) => node.refId));
+    const taskX = new Map(nextNodes.filter((node) => node.type === "task").map((node) => [node.refId, node.x + node.width / 2]));
+
+    if (filters.notes) {
+      const relatedNoteIds = new Set<string>();
+      scopedWorkItems.forEach((item) => {
+        if (!visibleTaskIds.has(item.id)) return;
+        (item.noteIds ?? []).forEach((noteId) => relatedNoteIds.add(noteId));
+      });
+      const visibleNotes = notes.filter((note) => matchesQuery(note.title) || relatedNoteIds.has(note.id));
+      visibleNotes.forEach((note, index) => {
+        const size = NODE_SIZE.note;
+        const linkedTasks = scopedWorkItems.filter((item) => (item.noteIds ?? []).includes(note.id));
+        const linkedProject = note.projectId ? scopedProjects.find((project) => project.id === note.projectId) ?? null : null;
+        const linkedX = linkedTasks.map((item) => taskX.get(item.id)).filter((x): x is number => typeof x === "number");
+        const x = linkedX.length
+          ? linkedX.reduce((sum, value) => sum + value, 0) / linkedX.length - size.width / 2
+          : linkedProject
+            ? (nextNodes.find((node) => node.id === `project:${linkedProject.id}`)?.x ?? 0) + (NODE_SIZE.project.width - size.width) / 2
+          : contentWidth * ((index + 0.5) / Math.max(visibleNotes.length, 1)) - size.width / 2;
+        nextNodes.push({
+          id: `note:${note.id}`,
+          refId: note.id,
+          type: "note",
+          label: note.title,
+          meta: `${note.tag} / updated ${note.updated}`,
+          x,
+          y: 700,
+          width: size.width,
+          height: size.height,
+          count: linkedTasks.length || undefined,
+        });
+        linkedTasks.forEach((item) => {
+          if (visibleTaskIds.has(item.id)) nextEdges.push({ id: `task:${item.id}->note:${note.id}`, from: `task:${item.id}`, to: `note:${note.id}`, type: "referenced" });
+        });
+        if (linkedProject && filters.projects) {
+          nextEdges.push({ id: `project:${linkedProject.id}->note:${note.id}`, from: `project:${linkedProject.id}`, to: `note:${note.id}`, type: "referenced" });
+        }
+      });
+    }
+
+    if (filters.people) {
+      const involved = new Set<string>();
+      scopedWorkItems.forEach((item) => {
+        if (visibleTaskIds.has(item.id)) involved.add(item.assignee);
+      });
+      scopedProjects.forEach((project) => {
+        if (!queryText || matchesQuery(project.name)) involved.add(project.owner);
+      });
+      const visibleMembers = members.filter((member) => involved.has(member.id) && matchesQuery(member.name));
+      visibleMembers.forEach((member, index) => {
+        const size = NODE_SIZE.person;
+        const assigned = scopedWorkItems.filter((item) => item.assignee === member.id && visibleTaskIds.has(item.id));
+        nextNodes.push({
+          id: `person:${member.id}`,
+          refId: member.id,
+          type: "person",
+          label: member.name,
+          meta: member.role,
+          x: contentWidth * ((index + 0.5) / Math.max(visibleMembers.length, 1)) - size.width / 2,
+          y: 792,
+          width: size.width,
+          height: size.height,
+          accent: member.color,
+          count: assigned.length || undefined,
+        });
+        assigned.forEach((item) => nextEdges.push({ id: `task:${item.id}->person:${member.id}`, from: `task:${item.id}`, to: `person:${member.id}`, type: "assigned" }));
+      });
+    }
+
+    if (filters.labels) {
+      const labels = new Map<string, number>();
+      scopedWorkItems.forEach((item) => {
+        if (!visibleTaskIds.has(item.id) || !item.label || !matchesQuery(item.label)) return;
+        labels.set(item.label, (labels.get(item.label) ?? 0) + 1);
+      });
+      Array.from(labels.entries()).forEach(([label, count], index, list) => {
+        const size = NODE_SIZE.label;
+        nextNodes.push({
+          id: `label:${label}`,
+          refId: label,
+          type: "label",
+          label,
+          meta: `${count} work item${count === 1 ? "" : "s"}`,
+          x: contentWidth * ((index + 0.5) / Math.max(list.length, 1)) - size.width / 2,
+          y: 24,
+          width: size.width,
+          height: size.height,
+          count,
+        });
+        scopedWorkItems.forEach((item) => {
+          if (item.label === label && visibleTaskIds.has(item.id)) {
+            nextEdges.push({ id: `label:${label}->task:${item.id}`, from: `label:${label}`, to: `task:${item.id}`, type: "tagged" });
+          }
+        });
+      });
+    }
+
+    if (filters.tasks) {
+      relations.forEach((relation) => {
+        const edge = relationEdgeDirection(relation);
+        if (!visibleTaskIds.has(relation.sourceId) || !visibleTaskIds.has(relation.targetId)) return;
+        nextEdges.push({
+          id: `relation:${relation.id}`,
+          from: edge.from,
+          to: edge.to,
+          type: edge.type,
+          label: relation.relationType,
+        });
+      });
+    }
+
+    return {
+      nodes: nextNodes,
+      edges: nextEdges.filter((edge) => nextNodes.some((node) => node.id === edge.from) && nextNodes.some((node) => node.id === edge.to)),
+      canvasWidth: contentWidth,
+      canvasHeight: CANVAS_H,
+    };
+  }, [filters, members, notes, query, relations, scopedProjects, scopedWorkItems]);
+
+  const selectedNode = selectedId ? nodes.find((node) => node.id === selectedId) ?? null : null;
+  const focusId = hoveredId ?? selectedId;
+  const relatedIds = useMemo(() => {
+    if (!focusId) return new Set<string>();
+    const ids = new Set<string>([focusId]);
+    edges.forEach((edge) => {
+      if (edge.from === focusId) ids.add(edge.to);
+      if (edge.to === focusId) ids.add(edge.from);
+    });
+    return ids;
+  }, [edges, focusId]);
+
+  const connectedNodes = useMemo(() => {
+    if (!selectedNode) return [];
+    return nodes.filter((node) => node.id !== selectedNode.id && relatedIds.has(node.id));
+  }, [nodes, relatedIds, selectedNode]);
+
+  const selectedProject = selectedNode?.type === "project" ? projects.find((project) => project.id === selectedNode.refId) ?? null : null;
+  const selectedTask = selectedNode?.type === "task" ? workItems.find((item) => item.id === selectedNode.refId) ?? null : null;
+  const selectedNote = selectedNode?.type === "note" ? notes.find((note) => note.id === selectedNode.refId) ?? null : null;
+  const selectedMember = selectedNode?.type === "person" ? members.find((member) => member.id === selectedNode.refId) ?? null : null;
+  const selectedLabelItems = selectedNode?.type === "label" ? scopedWorkItems.filter((item) => item.label === selectedNode.refId) : [];
+  const relationshipRows = useMemo(() => {
+    return edges.slice(0, 10).map((edge) => {
+      const from = nodes.find((node) => node.id === edge.from);
+      const to = nodes.find((node) => node.id === edge.to);
+      if (!from || !to) return null;
+      return {
+        id: edge.id,
+        from: from.label,
+        to: to.label,
+        type: edge.type === "contains" ? "Project to task" : edge.type === "assigned" ? "Assignee to task" : edge.type === "dependency" ? "Blocked work" : edge.type === "referenced" ? "Linked context" : "Related work",
+      };
+    }).filter((row): row is { id: string; from: string; to: string; type: string } => Boolean(row));
+  }, [edges, nodes]);
+
+  const fitBoundsToView = useCallback((bounds: ReturnType<typeof nodeBounds>, padding = 72, maxZoom = 1.08) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const boundsW = Math.max(1, bounds.maxX - bounds.minX);
+    const boundsH = Math.max(1, bounds.maxY - bounds.minY);
+    const z = Math.min(maxZoom, Math.max(MIN_ZOOM, Math.min((rect.width - padding * 2) / boundsW, (rect.height - padding * 2) / boundsH)));
+    setZoom(z);
+    setPan({
+      x: (rect.width - boundsW * z) / 2 - bounds.minX * z,
+      y: (rect.height - boundsH * z) / 2 - bounds.minY * z,
+    });
+  }, []);
+
+  const fitToView = useCallback(() => {
+    fitBoundsToView(nodes.length ? nodeBounds(nodes) : { minX: 0, minY: 0, maxX: canvasWidth, maxY: canvasHeight });
+  }, [canvasHeight, canvasWidth, fitBoundsToView, nodes]);
+
+  const fitToRelated = useCallback((nodeId: string) => {
+    const ids = new Set<string>([nodeId]);
+    edges.forEach((edge) => {
+      if (edge.from === nodeId) ids.add(edge.to);
+      if (edge.to === nodeId) ids.add(edge.from);
+    });
+
+    const relatedNodes = nodes.filter((node) => ids.has(node.id));
+    if (relatedNodes.length === 0) return;
+    fitBoundsToView(nodeBounds(relatedNodes), relatedNodes.length === 1 ? 180 : 104, relatedNodes.length <= 3 ? 1.45 : 1.22);
+  }, [edges, fitBoundsToView, nodes]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(fitToView);
+    return () => cancelAnimationFrame(frame);
+  }, [fitToView]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const resize = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      setViewport({ w: entry.contentRect.width, h: entry.contentRect.height });
+    });
+    resize.observe(container);
+    return () => resize.disconnect();
+  }, []);
+
+  const zoomBy = (delta: number) => {
+    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + delta));
+    const cx = viewport.w / 2;
+    const cy = viewport.h / 2;
+    const ratio = nextZoom / zoom;
+    setPan({ x: cx - ratio * (cx - pan.x), y: cy - ratio * (cy - pan.y) });
+    setZoom(nextZoom);
+  };
+
+  const handleWheel = (event: React.WheelEvent) => {
+    event.preventDefault();
+    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + (event.deltaY > 0 ? -0.08 : 0.08)));
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mx = event.clientX - rect.left;
+    const my = event.clientY - rect.top;
+    const ratio = nextZoom / zoom;
+    setPan({ x: mx - ratio * (mx - pan.x), y: my - ratio * (my - pan.y) });
+    setZoom(nextZoom);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent) => {
+    if (event.button !== 0) return;
+    setIsDragging(true);
+    setDragMoved(false);
+    dragRef.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
+  };
+
+  const handlePointerMove = (event: React.PointerEvent) => {
+    if (!isDragging) return;
+    const dx = event.clientX - dragRef.current.x;
+    const dy = event.clientY - dragRef.current.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) setDragMoved(true);
+    setPan({ x: dragRef.current.panX + dx, y: dragRef.current.panY + dy });
+  };
+
+  const selectNode = (node: GraphNode) => {
+    setSelectedId(node.id);
+    fitToRelated(node.id);
+  };
+
+  const resetLayout = () => {
+    setFilters({ projects: true, tasks: true, notes: true, people: true, labels: true });
+    setScopeMode("workspace");
+    setQuery("");
+    setSelectedId(null);
+    setHoveredId(null);
+    requestAnimationFrame(fitToView);
+  };
+
+  const openItems = scopedWorkItems.filter((item) => item.status !== "Done").length;
+  const overdue = scopedWorkItems.filter((item) => dueTone(item.due) === "danger" && item.status !== "Done").length;
+  const unlinkedNotes = notes.filter((note) => !scopedWorkItems.some((item) => (item.noteIds ?? []).includes(note.id))).length;
+
+  return (
+    <AppShell
+      title={<ProjectViewTitle projectName={useProjectScope ? activeProject?.name : null} view="Connections" />}
+      toolbar={
+        <Toolbar>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Network className="h-3.5 w-3.5" />
+            <span>{nodes.length} nodes</span>
+            <span>/</span>
+            <span>{edges.length} links</span>
+          </div>
+          {error && <span className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] text-red-700">{error}</span>}
+          {loading && <span className="text-[12px] text-muted-foreground">Loading graph data...</span>}
+          <div className="ml-auto flex items-center gap-2">
+            <Chip tone={overdue ? "danger" : "neutral"}>{overdue} overdue</Chip>
+            <Chip>{openItems} open</Chip>
+            <Chip>{relations.length} relations</Chip>
+            <Chip tone={unlinkedNotes ? "warning" : "neutral"}>{unlinkedNotes} unlinked notes</Chip>
+          </div>
+        </Toolbar>
+      }
+    >
+      <div className="flex h-full min-h-0 flex-col overflow-x-hidden">
+        <header className="shrink-0 border-b bg-background px-4 py-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Workspace graph</div>
+          <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-[18px] font-semibold tracking-tight text-zinc-950">Connections</h1>
+              <p className="mt-1 max-w-2xl text-[13px] text-zinc-500">
+                See how projects, tasks, notes, and people connect.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[12px] text-zinc-500">
+              <Network className="h-3.5 w-3.5" />
+              <span>{nodes.length} visible nodes</span>
+            </div>
+          </div>
+        </header>
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(28rem,1fr)_22rem] overflow-hidden lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-1">
+        <div className="flex min-h-0 flex-col border-r">
+          <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b bg-background px-3 py-2">
+            <div className="relative w-64 max-w-full">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search graph"
+                className="h-8 w-full rounded border bg-card pl-8 pr-2 text-[12px] outline-none focus:border-zinc-950"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <FilterButton
+                label="All projects"
+                active={scopeMode === "workspace"}
+                onClick={() => setScopeMode("workspace")}
+              />
+              <FilterButton
+                label="Current project"
+                active={scopeMode === "project"}
+                onClick={() => setScopeMode("project")}
+              />
+              {FILTERS.map((filter) => (
+                <FilterButton
+                  key={filter.key}
+                  label={filter.label}
+                  active={filters[filter.key]}
+                  onClick={() => setFilters((prev) => ({ ...prev, [filter.key]: !prev[filter.key] }))}
+                />
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-1">
+              <button type="button" onClick={() => zoomBy(-0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom out"><Minus className="h-4 w-4" /></button>
+              <button type="button" onClick={fitToView} className="lov-icon-btn h-8 w-8" aria-label="Fit to view"><Maximize2 className="h-4 w-4" /></button>
+              <button type="button" onClick={resetLayout} className="lov-icon-btn h-8 w-8" aria-label="Reset layout"><RotateCcw className="h-4 w-4" /></button>
+              <button type="button" onClick={() => zoomBy(0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom in"><Plus className="h-4 w-4" /></button>
+              <span className="w-10 text-right text-[11px] font-medium text-muted-foreground">{Math.round(zoom * 100)}%</span>
+            </div>
+          </div>
+
+          <div
+            ref={containerRef}
+            data-connection-graph="true"
+            className="relative min-h-0 flex-1 cursor-grab overflow-hidden bg-zinc-50 active:cursor-grabbing"
+            onWheel={handleWheel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={() => setIsDragging(false)}
+            onPointerLeave={() => setIsDragging(false)}
+            onClick={() => {
+              if (!dragMoved) {
+                setSelectedId(null);
+              }
+            }}
+          >
+            <div className="pointer-events-none absolute left-3 top-3 z-10 flex gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="rounded border bg-background/90 px-2 py-1">Labels</span>
+              <span className="rounded border bg-background/90 px-2 py-1">Projects</span>
+              <span className="rounded border bg-background/90 px-2 py-1">Work</span>
+              <span className="rounded border bg-background/90 px-2 py-1">Notes</span>
+              <span className="rounded border bg-background/90 px-2 py-1">People</span>
+            </div>
+
+            <div
+              className="absolute left-0 top-0 origin-top-left"
+              style={{
+                width: canvasWidth,
+                height: canvasHeight,
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transition: isDragging ? "none" : "transform 120ms ease-out",
+              }}
+            >
+              <svg data-graph-edges="true" className="absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}>
+                <defs>
+                  <marker id="graph-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-muted-foreground)" opacity="0.55" />
+                  </marker>
+                </defs>
+                {edges.map((edge) => {
+                  const from = nodes.find((node) => node.id === edge.from);
+                  const to = nodes.find((node) => node.id === edge.to);
+                  if (!from || !to) return null;
+                  const highlighted = focusId ? relatedIds.has(edge.from) && relatedIds.has(edge.to) : false;
+                  const dimmed = focusId ? !highlighted : false;
+                  const style = EDGE_STYLES[edge.type];
+                  return (
+                    <path
+                      key={edge.id}
+                      d={pathBetween(from, to)}
+                      fill="none"
+                      stroke={style.color}
+                      strokeWidth={highlighted ? style.width + 0.8 : style.width}
+                      strokeDasharray={style.dash}
+                      markerEnd="url(#graph-arrow)"
+                      opacity={dimmed ? 0.12 : highlighted ? 0.95 : 0.42}
+                    />
+                  );
+                })}
+              </svg>
+
+              {nodes.map((node) => (
+                <GraphNodeView
+                  key={node.id}
+                  node={node}
+                  selected={selectedId === node.id}
+                  related={focusId ? relatedIds.has(node.id) : false}
+                  dimmed={focusId ? !relatedIds.has(node.id) : false}
+                  onSelect={() => selectNode(node)}
+                  onHover={setHoveredId}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <aside className="min-h-0 overflow-y-auto border-t bg-background lg:border-l lg:border-t-0">
+          <div className={`border-b px-4 py-4 ${selectedNode ? TYPE_STYLE[selectedNode.type].bg : ""}`}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              {selectedNode ? <TypePill type={selectedNode.type} /> : (
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Overview</div>
+              )}
+              {selectedNode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedId(null);
+                    fitToView();
+                  }}
+                  className="lov-icon-btn h-7 w-7"
+                  aria-label="Close details"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <h2 className="truncate text-[16px] font-semibold tracking-tight">
+              {selectedNode?.label ?? (useProjectScope && activeProject ? activeProject.name : "All projects")}
+            </h2>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              {selectedNode?.meta ?? "Map relationships PlanGlade can derive from server-backed projects, tasks, notes, labels, assignments, and task relations."}
+            </p>
+          </div>
+
+          <div className="space-y-5 px-4 py-4">
+            {!selectedNode ? (
+              <>
+                <section>
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Readiness</div>
+                  <div className="space-y-1">
+                    <InspectorRow icon={CheckSquare} label="Open" value={`${openItems} tasks`} />
+                    <InspectorRow icon={Flag} label="Risk" value={`${overdue} overdue`} />
+                    <InspectorRow icon={StickyNote} label="Notes" value={`${unlinkedNotes} unlinked`} />
+                    <InspectorRow icon={Network} label="Links" value={`${edges.length} explicit links`} />
+                  </div>
+                </section>
+                <section>
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Level-up notes</div>
+                  <div className="space-y-2 text-[12px] text-muted-foreground">
+                    <p>Graph links come from server-backed projects, task assignments, labels, note references, and task relations.</p>
+                    <p>Dependency arrows point from the blocker to the blocked task so risky work is easier to spot.</p>
+                  </div>
+                </section>
+                <section aria-label="Relationship text fallback">
+                  <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span>Relationship list</span>
+                    <span>{relationshipRows.length}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {relationshipRows.length === 0 ? (
+                      <p className="rounded border border-dashed px-3 py-5 text-center text-[12px] text-muted-foreground">No relationships found for the current filters.</p>
+                    ) : (
+                      relationshipRows.map((row) => (
+                        <div key={row.id} className="rounded border border-zinc-200 px-2 py-1.5 text-[12px]">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{row.type}</div>
+                          <div className="mt-0.5 min-w-0 truncate text-zinc-700">{row.from}{" -> "}{row.to}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <>
+                <section>
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Details</div>
+                  <div className="space-y-1">
+                    <InspectorRow icon={Hash} label="Id" value={selectedNode.refId} />
+                    <InspectorRow icon={CircleDot} label="Type" value={selectedNode.type} />
+                    {selectedProject && <InspectorRow icon={User} label="Owner" value={memberName(selectedProject.owner)} />}
+                    {selectedProject && <InspectorRow icon={Calendar} label="Due" value={localDateLabel(selectedProject.due)} />}
+                    {selectedProject && <InspectorRow icon={ClipboardList} label="Status" value={selectedProject.status} />}
+                    {selectedTask && <InspectorRow icon={FolderKanban} label="Project" value={projects.find((project) => project.id === selectedTask.project)?.name ?? selectedTask.project} />}
+                    {selectedTask && <InspectorRow icon={User} label="Assignee" value={memberName(selectedTask.assignee)} />}
+                    {selectedNode.due && <InspectorRow icon={Calendar} label="Due" value={localDateLabel(selectedNode.due)} />}
+                    {selectedNode.priority && <InspectorRow icon={Flag} label="Priority" value={selectedNode.priority} />}
+                    {selectedNode.status && <InspectorRow icon={CheckSquare} label="Status" value={selectedNode.status} />}
+                    {selectedTask && <InspectorRow icon={Tag} label="Label" value={selectedTask.label} />}
+                    {selectedNote && <InspectorRow icon={Tag} label="Tag" value={selectedNote.tag} />}
+                    {selectedNote && <InspectorRow icon={Calendar} label="Updated" value={selectedNote.updated} />}
+                    {selectedMember && <InspectorRow icon={User} label="Role" value={selectedMember.role} />}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {selectedProject && <Chip tone={selectedProject.status === "On Hold" ? "warning" : "neutral"}>{selectedProject.status}</Chip>}
+                    {selectedTask && <Chip>{selectedTask.id}</Chip>}
+                    {selectedNode.priority && <Chip tone={priorityTone(selectedNode.priority)}>{selectedNode.priority}</Chip>}
+                    {selectedNode.due && <Chip tone={dueTone(selectedNode.due)}>{localDateLabel(selectedNode.due)}</Chip>}
+                    {selectedNode.count != null && <Chip>{selectedNode.count} linked</Chip>}
+                  </div>
+                  {(selectedTask || selectedProject) && (
+                    <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-medium">
+                      {selectedTask && <Link href={`${basePath}/tasks?task=${encodeURIComponent(selectedTask.id)}`} className="rounded underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950">Open task</Link>}
+                      {selectedProject && <Link href={`${basePath}/projects/${encodeURIComponent(selectedProject.id)}`} className="rounded underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950">Open project</Link>}
+                    </div>
+                  )}
+                </section>
+
+                {selectedTask && (
+                  <section>
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Task details</div>
+                    <div className="rounded-md border bg-card p-3 text-[12px]">
+                      <p className="text-muted-foreground">{selectedTask.description || "No description yet."}</p>
+                      {selectedTask.checklist && selectedTask.checklist.length > 0 && (
+                        <div className="mt-3 space-y-1.5">
+                          {selectedTask.checklist.map((item) => (
+                            <div key={item.id} className="flex items-center gap-2">
+                              <span className={`h-3 w-3 rounded-sm border ${item.done ? "bg-foreground" : "bg-background"}`} />
+                              <span className={item.done ? "text-muted-foreground line-through" : ""}>{item.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {selectedProject && (
+                  <section>
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <span>Project Work</span>
+                      <span>{workItems.filter((item) => item.project === selectedProject.id).length}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {workItems.filter((item) => item.project === selectedProject.id).slice(0, 8).map((item) => (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => {
+                            const taskNode = nodes.find((node) => node.id === `task:${item.id}`);
+                            if (taskNode) selectNode(taskNode);
+                          }}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[var(--color-hover)]"
+                        >
+                          <PriorityIcon p={item.priority} />
+                          <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                          <span className="text-[10px] text-muted-foreground">{item.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {selectedNote && (
+                  <section>
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Note Preview</div>
+                    <div className="rounded-md border bg-card p-3 text-[12px] text-muted-foreground">
+                      {selectedNote.excerpt}
+                    </div>
+                  </section>
+                )}
+
+                {selectedMember && (
+                  <section>
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <span>Assigned Work</span>
+                      <span>{workItems.filter((item) => item.assignee === selectedMember.id).length}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {workItems.filter((item) => item.assignee === selectedMember.id).slice(0, 8).map((item) => (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => {
+                            const taskNode = nodes.find((node) => node.id === `task:${item.id}`);
+                            if (taskNode) selectNode(taskNode);
+                          }}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[var(--color-hover)]"
+                        >
+                          <PriorityIcon p={item.priority} />
+                          <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                          <span className="text-[10px] text-muted-foreground">{item.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {selectedNode.type === "label" && (
+                  <section>
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <span>Tagged Work</span>
+                      <span>{selectedLabelItems.length}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {selectedLabelItems.slice(0, 10).map((item) => (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => {
+                            const taskNode = nodes.find((node) => node.id === `task:${item.id}`);
+                            if (taskNode) selectNode(taskNode);
+                          }}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[var(--color-hover)]"
+                        >
+                          <PriorityIcon p={item.priority} />
+                          <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                          <span className="text-[10px] text-muted-foreground">{item.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <section>
+                  <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span>Connected</span>
+                    <span>{connectedNodes.length}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {connectedNodes.length === 0 ? (
+                      <p className="rounded border border-dashed px-3 py-5 text-center text-[12px] text-muted-foreground">No explicit relationships found.</p>
+                    ) : (
+                      connectedNodes.map((node) => {
+                        return (
+                          <button
+                            type="button"
+                            key={node.id}
+                            onClick={() => selectNode(node)}
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[var(--color-hover)]"
+                          >
+                            <NodeGlyph type={node.type} className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="min-w-0 flex-1 truncate">{node.label}</span>
+                            <span className="text-[10px] uppercase text-muted-foreground">{node.type}</span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+
+              </>
+            )}
+          </div>
+        </aside>
+        </div>
       </div>
-      {selectedNode && <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-xs"><span className="font-medium">{selectedNode.title}</span><span className="text-muted-foreground">{selectedNode.projectName} · {selectedNode.status.replaceAll("_", " ")}</span><Link href={`${basePath}/tasks?task=${encodeURIComponent(selectedNode.id)}`} className="ml-auto rounded-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Open task</Link></div>}
-    </section>
-  )
+    </AppShell>
+  );
 }
 
-function RelationshipList({ basePath, connections }: { basePath: "/app" | "/demo"; connections: Connection[] }) {
-  return <section className="min-w-0 overflow-hidden rounded-lg border bg-card" aria-labelledby="connection-list-title"><div className="border-b px-4 py-3"><h2 id="connection-list-title" className="text-sm font-semibold">Relationship list</h2><p className="mt-0.5 text-xs text-muted-foreground">Text labels are the authoritative description of each relationship.</p></div><div className="divide-y">{connections.map((connection) => <article key={connection.id} className="grid min-w-0 gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center"><ConnectionSide basePath={basePath} item={connection.source} project={connection.sourceProject} /><span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground md:justify-center">{connection.kind === "blocking" ? <AlertTriangle className="h-3.5 w-3.5" /> : connection.kind === "hierarchy" ? <GitBranch className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}{connection.label}<ArrowRight className="h-3 w-3" aria-hidden="true" /></span><ConnectionSide basePath={basePath} item={connection.target} project={connection.targetProject} /></article>)}</div></section>
+export default function GraphPage() {
+  return (
+    <Suspense fallback={null}>
+      <GraphPageContent />
+    </Suspense>
+  );
 }
-
-function ConnectionSide({ basePath, item, project }: { basePath: "/app" | "/demo"; item: ConnectionWorkItem; project: ConnectionProject | null }) {
-  return <div className="flex min-w-0 flex-col gap-0.5"><Link href={`${basePath}/tasks?task=${encodeURIComponent(item.id)}`} className="min-w-0 truncate rounded-sm text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title}</Link>{project ? <Link href={`${basePath}/projects/${encodeURIComponent(project.id)}`} className="inline-flex min-w-0 items-center gap-1 self-start rounded-sm text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><FolderKanban className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{project.name}</span></Link> : <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground/70"><FolderKanban className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">No project</span></span>}</div>
-}
-
-function Summary({ label, value }: { label: string; value: number }) { return <div className="border-b border-r p-3 last:border-r-0 md:border-b-0"><div className="text-lg font-semibold">{value}</div><div className="text-xs text-muted-foreground">{label}</div></div> }
-function StateMessage({ icon: Icon, title, body }: { icon: typeof Network; title: string; body: string }) { return <section className="rounded-lg border border-dashed bg-card px-6 py-12 text-center"><Icon className="mx-auto h-6 w-6 text-muted-foreground" /><h2 className="mt-3 text-sm font-semibold">{title}</h2><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{body}</p></section> }
-
-export default function ConnectionsPage() { return <ConnectionsPageContent /> }
