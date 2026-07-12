@@ -46,7 +46,7 @@ test("command palette uses cmdk list items so keyboard navigation scrolls correc
   assert.doesNotMatch(source, /window\.addEventListener\("keydown"/)
   assert.doesNotMatch(source, /useState\(0\)/)
   assert.doesNotMatch(source, /max-h-80 overflow-y-auto/)
-  assert.doesNotMatch(source, /Go to Connections/)
+  assert.match(source, /Go to Connections/)
 })
 
 test("production source has no visible smoke or debug data strings", async () => {

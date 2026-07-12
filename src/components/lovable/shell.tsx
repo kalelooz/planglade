@@ -5,7 +5,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText,
   Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, Bell, ListTodo,
-  LogOut,
+  LogOut, Network, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -17,6 +17,14 @@ import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
 import { useAuth } from "@/components/lovable/auth-context";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
 
 const STORAGE_KEY = "fb.sidebarOpen";
@@ -29,6 +37,7 @@ const APP_ROUTES = {
   notes: "/app/notes",
   calendar: "/app/calendar",
   settings: "/app/settings",
+  connections: "/app/connections",
 } as const;
 
 type AppShellProps = {
@@ -53,6 +62,8 @@ type SessionIdentity = {
   name: string;
   email: string;
   authMode: string;
+  workspaceName: string;
+  workspaceRole: string;
 };
 
 export function AppShell(props: AppShellProps) {
@@ -165,6 +176,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const navAfterProjects: NavItem[] = [
     { to: `${routePrefix}/notes`, label: "Notes", icon: FileText },
     { to: `${routePrefix}/calendar`, label: "Calendar", icon: Calendar },
+    { to: `${routePrefix}/connections`, label: "Connections", icon: Network },
+    ...(!isDemoMode ? [{ to: APP_ROUTES.settings, label: "Settings", icon: Settings }] : []),
   ];
 
   // Flat list used for the collapsed icon rail
@@ -243,6 +256,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           name: session.user.name ?? session.user.email,
           email: session.user.email,
           authMode: session.authMode ?? "dev-session-scaffold",
+          workspaceName: session.workspace.name,
+          workspaceRole: session.members?.find((member) => member.id === session.user.id)?.role ?? "MEMBER",
         });
         const projectsResponse = await apiFetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, {
           cache: "no-store",
@@ -324,7 +339,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
   }, [projectScopeOpen, quickOpen, notificationsOpen]);
 
   const isActive = (to: string) => to === routePrefix ? path === routePrefix : path.startsWith(to);
@@ -447,26 +464,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </nav>
 
-        <div className={`border-t ${sidebarOpen ? "p-3" : "flex flex-col items-center gap-2 py-2"}`}>
-          {sidebarOpen ? (
-            <div className="flex flex-col gap-1.5 w-full">
-              {!isDemoMode && (
-                <Link href={APP_ROUTES.settings} className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
-                  <Settings className="h-3.5 w-3.5" />
-                  <span>Settings</span>
-                </Link>
-              )}
-            </div>
-          ) : (
-            <>
-              {!isDemoMode && (
-                <Link href={APP_ROUTES.settings} title="Settings" className={`lov-nav-item h-8 w-8 justify-center ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
-                  <Settings className="h-4 w-4" />
-                </Link>
-              )}
-            </>
-          )}
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -662,23 +659,48 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <Avatar id={displayAvatarId} name={displayName} size={26} />
-            <span className="hidden max-w-28 truncate text-[12px] font-medium text-foreground">{displayName}</span>
-            {shouldShowSignOut && (
-              <button
-                type="button"
-                onClick={() => {
-                  void signOut("/login");
-                }}
-                className="lov-icon-btn"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Current workspace"
+                    className="lov-btn h-9 max-w-48 gap-2 px-2"
+                  >
+                    <Avatar id={displayAvatarId} name={displayName} size={24} />
+                    <span className="hidden min-w-0 sm:block"><span className="block truncate text-left text-[12px] font-medium">{sessionIdentity?.workspaceName ?? "Current workspace"}</span><span className="block text-left text-[10px] text-muted-foreground">{sessionIdentity?.workspaceRole ?? "Workspace"}</span></span>
+                    <ChevronDown className="hidden h-3 w-3 text-muted-foreground sm:block" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel asChild>
+                    <div className="py-1">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Current workspace</div>
+                      <div className="mt-1 truncate text-sm font-semibold">{sessionIdentity?.workspaceName ?? "Workspace"}</div>
+                      <div className="mt-2 truncate text-xs text-muted-foreground">{displayName}</div>
+                      <div className="truncate text-xs text-muted-foreground">{sessionIdentity?.email}</div>
+                      <div className="mt-1 text-xs font-medium">Role: {sessionIdentity?.workspaceRole ?? "Member"}</div>
+                    </div>
+                  </DropdownMenuLabel>
+                  {(!isDemoMode || shouldShowSignOut) && <DropdownMenuSeparator />}
+                  {!isDemoMode && (
+                    <DropdownMenuItem asChild>
+                      <Link href={APP_ROUTES.settings}>
+                        <Building2 className="h-3.5 w-3.5" />
+                        <span>Workspace settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {shouldShowSignOut && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => { void signOut("/login"); }}
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Sign out</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
         </header>
 
         {isDemoMode && (
@@ -747,18 +769,6 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               )}
               <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
             </nav>
-            {!isDemoMode && (
-              <div className="border-t p-3">
-                <button
-                  type="button"
-                  onClick={() => { setMobileNavOpen(false); router.push(APP_ROUTES.settings); }}
-                  className="lov-nav-item min-h-[44px] w-full gap-2 px-2 py-1 text-[13px]"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  <span>Settings</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

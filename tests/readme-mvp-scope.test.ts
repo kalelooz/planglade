@@ -39,6 +39,7 @@ test("README-TRIM-1: includes the MVP feature set and roadmap separation", async
   assert.match(readme, /Notes and project context/)
   assert.match(readme, /\bCalendar\b/)
   assert.match(readme, /\bSettings\b/)
+  assert.match(readme, /Connections relationship view/)
 
   // Roadmap section exists with the three honest tiers.
   assert.match(readme, /## Roadmap/)
