@@ -60,6 +60,18 @@ test("Connections keeps the recovered Work Map composition instead of a fixed ta
   assert.doesNotMatch(page, /buildConnectionsGraphModel/)
 })
 
+test("Connections restores historical inline relationship tags and focused edge colors", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
+
+  assert.match(page, /showRelationshipLabels/)
+  assert.match(page, /Show labels/)
+  assert.match(page, /data-relationship-edge-label="true"/)
+  assert.match(page, /function edgeLabel\(edge: GraphEdge\)/)
+  assert.match(page, /TYPE_STYLE\[focusNode\.type\]\.edge/)
+  assert.match(page, /edge: "rgb\(29 78 216\)"/)
+  assert.match(page, /edge: "rgb\(109 40 217\)"/)
+})
+
 test("demo Connections uses fixture relationships without write controls", async () => {
   const [page, data, client] = await Promise.all([
     read("src/app/demo/connections/page.tsx"),

@@ -115,36 +115,41 @@ function relationEdgeDirection(relation: WorkItemDependencyRelation) {
   return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "related" as const };
 }
 
-const TYPE_STYLE: Record<NodeType, { label: string; border: string; bg: string; text: string }> = {
+const TYPE_STYLE: Record<NodeType, { label: string; border: string; bg: string; text: string; edge: string }> = {
   project: {
     label: "Project",
     border: "border-zinc-300",
     bg: "bg-zinc-50",
     text: "text-zinc-700",
+    edge: "rgb(29 78 216)",
   },
   task: {
     label: "Task",
     border: "border-zinc-200",
     bg: "bg-white",
     text: "text-zinc-700",
+    edge: "rgb(109 40 217)",
   },
   note: {
     label: "Note",
     border: "border-zinc-200",
     bg: "bg-zinc-50",
     text: "text-zinc-700",
+    edge: "rgb(14 116 144)",
   },
   person: {
     label: "Person",
     border: "border-zinc-200",
     bg: "bg-white",
     text: "text-zinc-700",
+    edge: "rgb(190 24 93)",
   },
   label: {
     label: "Label",
     border: "border-zinc-200",
     bg: "bg-zinc-50",
     text: "text-zinc-700",
+    edge: "rgb(113 113 122)",
   },
 };
 
@@ -187,6 +192,24 @@ function pathBetween(from: GraphNode, to: GraphNode) {
   const y2 = to.y;
   const bend = Math.max(48, Math.abs(y2 - y1) * 0.42);
   return `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`;
+}
+
+function edgeLabel(edge: GraphEdge) {
+  if (edge.type === "contains") return "has task";
+  if (edge.type === "referenced") return "has note";
+  if (edge.type === "assigned") return "assigned to";
+  if (edge.type === "tagged") return "labeled";
+  if (edge.type === "related") return "related";
+  if (edge.label === "BLOCKED_BY") return "blocked by";
+  if (edge.label === "BLOCKS") return "blocks";
+  return "blocks";
+}
+
+function edgeLabelPoint(from: GraphNode, to: GraphNode) {
+  return {
+    x: (from.x + from.width / 2 + to.x + to.width / 2) / 2,
+    y: (from.y + from.height / 2 + to.y + to.height / 2) / 2,
+  };
 }
 
 function truncateLabel(label: string, max = 28) {
@@ -331,6 +354,7 @@ function GraphPageContent() {
     people: true,
     labels: true,
   });
+  const [showRelationshipLabels, setShowRelationshipLabels] = useState(false);
   const [scopeMode, setScopeMode] = useState<"workspace" | "project">("workspace");
   const [query, setQuery] = useState("");
   const [zoom, setZoom] = useState(1);
@@ -598,6 +622,7 @@ function GraphPageContent() {
 
   const selectedNode = selectedId ? nodes.find((node) => node.id === selectedId) ?? null : null;
   const focusId = hoveredId ?? selectedId;
+  const focusNode = focusId ? nodes.find((node) => node.id === focusId) ?? null : null;
   const relatedIds = useMemo(() => {
     if (!focusId) return new Set<string>();
     const ids = new Set<string>([focusId]);
@@ -720,6 +745,7 @@ function GraphPageContent() {
 
   const resetLayout = () => {
     setFilters({ projects: true, tasks: true, notes: true, people: true, labels: true });
+    setShowRelationshipLabels(false);
     setScopeMode("workspace");
     setQuery("");
     setSelectedId(null);
@@ -802,6 +828,14 @@ function GraphPageContent() {
               ))}
             </div>
             <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowRelationshipLabels((value) => !value)}
+                aria-pressed={showRelationshipLabels}
+                className="rounded border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950"
+              >
+                {showRelationshipLabels ? "Hide labels" : "Show labels"}
+              </button>
               <button type="button" onClick={() => zoomBy(-0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom out"><Minus className="h-4 w-4" /></button>
               <button type="button" onClick={fitToView} className="lov-icon-btn h-8 w-8" aria-label="Fit to view"><Maximize2 className="h-4 w-4" /></button>
               <button type="button" onClick={resetLayout} className="lov-icon-btn h-8 w-8" aria-label="Reset layout"><RotateCcw className="h-4 w-4" /></button>
@@ -855,17 +889,40 @@ function GraphPageContent() {
                   const highlighted = focusId ? relatedIds.has(edge.from) && relatedIds.has(edge.to) : false;
                   const dimmed = focusId ? !highlighted : false;
                   const style = EDGE_STYLES[edge.type];
+                  const highlightColor = edge.type === "dependency" ? style.color : focusNode ? TYPE_STYLE[focusNode.type].edge : style.color;
+                  const label = edgeLabel(edge);
+                  const labelPoint = edgeLabelPoint(from, to);
+                  const showLabel = !dimmed && (showRelationshipLabels || highlighted);
+                  const labelWidth = Math.max(edge.type === "dependency" ? 68 : 56, label.length * 6 + 16);
                   return (
-                    <path
-                      key={edge.id}
-                      d={pathBetween(from, to)}
-                      fill="none"
-                      stroke={style.color}
-                      strokeWidth={highlighted ? style.width + 0.8 : style.width}
-                      strokeDasharray={style.dash}
-                      markerEnd="url(#graph-arrow)"
-                      opacity={dimmed ? 0.12 : highlighted ? 0.95 : 0.42}
-                    />
+                    <g key={edge.id}>
+                      <path
+                        d={pathBetween(from, to)}
+                        fill="none"
+                        stroke={highlighted ? highlightColor : style.color}
+                        strokeWidth={highlighted ? style.width + 0.8 : style.width}
+                        strokeDasharray={style.dash}
+                        markerEnd="url(#graph-arrow)"
+                        opacity={dimmed ? 0.12 : highlighted ? 0.95 : 0.42}
+                      />
+                      {showLabel && (
+                        <g data-relationship-edge-label="true" className="pointer-events-none transition-opacity motion-reduce:transition-none" opacity={highlighted ? 1 : 0.72}>
+                          <rect
+                            x={labelPoint.x - labelWidth / 2}
+                            y={labelPoint.y - 10}
+                            width={labelWidth}
+                            height="20"
+                            rx="4"
+                            fill={edge.type === "dependency" ? "rgb(255 251 235)" : "white"}
+                            stroke={edge.type === "dependency" ? "rgb(217 119 6)" : "rgb(228 228 231)"}
+                            strokeWidth="1"
+                          />
+                          <text x={labelPoint.x} y={labelPoint.y + 3.5} textAnchor="middle" className={edge.type === "dependency" ? "fill-amber-800 text-[10px] font-semibold" : "fill-zinc-600 text-[10px] font-medium"}>
+                            {label}
+                          </text>
+                        </g>
+                      )}
+                    </g>
                   );
                 })}
               </svg>
