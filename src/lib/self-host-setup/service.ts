@@ -17,6 +17,18 @@ export function disconnectSetupDatabaseForTests() {
 }
 
 export type CompletionWrite = "user" | "credential" | "recovery" | "workspace" | "membership" | "complete"
+export type CompletionPreflight = "authorized" | "invalid" | "expired" | "unavailable" | "conflict" | "temporary"
+
+type CompletionInput = { email: string; name: string; password: string; workspaceName: string }
+
+type PreparedCompletion = {
+  passwordHash: string
+  codes: string[]
+  codeHashes: string[]
+  userId: string
+  workspaceId: string
+  slug: string
+}
 
 export async function resolveSetupEligibility(db: Database = prisma, now = new Date()): Promise<Eligibility> {
   const [setup, users, credentials, recovery, workspaces, memberships, owners] = await Promise.all([
@@ -68,19 +80,57 @@ function workspaceSlug(name: string) {
   return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "workspace"
 }
 
+export async function preflightSetupCompletion(
+  claimantHash: string,
+  now = new Date(),
+  client: PrismaClient = prisma,
+): Promise<CompletionPreflight> {
+  try {
+    return await client.$transaction(async (tx) => {
+      const setup = await tx.selfHostSetup.findUnique({ where: { id: "singleton" } })
+      if (setup?.status !== "IN_PROGRESS") return "unavailable"
+      if (!setup.claimantHash || !fixedDigestEqual(setup.claimantHash, claimantHash)) return "invalid"
+      if (!setup.claimExpiresAt || setup.claimExpiresAt <= now) {
+        if (await resolveSetupEligibility(tx, now) === "eligible") {
+          await tx.selfHostSetup.update({ where: { id: "singleton" }, data: { status: "AVAILABLE", claimantHash: null, claimExpiresAt: null } })
+        }
+        return "expired"
+      }
+      const eligibility = await resolveSetupEligibility(tx, now)
+      if (eligibility === "actively_claimed") return "authorized"
+      return eligibility === "complete" ? "unavailable" : "conflict"
+    }, { isolationLevel: "Serializable" })
+  } catch {
+    return "temporary"
+  }
+}
+
+export async function prepareSetupCompletion(input: CompletionInput): Promise<PreparedCompletion> {
+  const passwordHash = await hashPassword(input.password)
+  const codes = recoveryCodes()
+  return {
+    passwordHash,
+    codes,
+    codeHashes: codes.map((code) => sha256Hex(normalizeRecoveryCode(code)!)),
+    userId: randomUUID(),
+    workspaceId: randomUUID(),
+    slug: workspaceSlug(input.workspaceName),
+  }
+}
+
 export async function completeSetup(
-  input: { email: string; name: string; password: string; workspaceName: string },
+  input: CompletionInput,
   claimant: string,
   now = new Date(),
   client: PrismaClient = prisma,
   beforeWrite: (write: CompletionWrite) => void = () => {},
+  prepare: (input: CompletionInput) => Promise<PreparedCompletion> = prepareSetupCompletion,
 ) {
   const claimantHash = sha256Hex(claimant)
-  const passwordHash = await hashPassword(input.password)
-  const codes = recoveryCodes()
-  const codeHashes = codes.map((code) => sha256Hex(normalizeRecoveryCode(code)!))
-  const userId = randomUUID(), workspaceId = randomUUID(), slug = workspaceSlug(input.workspaceName)
+  const preflight = await preflightSetupCompletion(claimantHash, now, client)
+  if (preflight !== "authorized") return { ok: false as const, reason: preflight }
   try {
+    const { passwordHash, codes, codeHashes, userId, workspaceId, slug } = await prepare(input)
     const result = await client.$transaction(async (tx) => {
       const setup = await tx.selfHostSetup.findUnique({ where: { id: "singleton" } })
       if (setup?.status !== "IN_PROGRESS") return "unavailable" as const

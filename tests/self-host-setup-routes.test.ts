@@ -13,11 +13,12 @@ test("the three setup routes complete once and never replay recovery codes", asy
   process.env.NEXTAUTH_URL = "http://localhost:3000/"
   process.env.NEXTAUTH_SECRET = "test-nextauth-secret"
   process.env.PLANGLADE_SETUP_TOKEN = "a".repeat(64)
-  const [{ GET, getSetupDiscovery }, claimRoute, completeRoute, { disconnectSetupDatabaseForTests }] = await Promise.all([
+  const [{ GET, getSetupDiscovery }, claimRoute, completeRoute, setupService, setupSecurity] = await Promise.all([
     import("../src/app/api/auth/setup/route"),
     import("../src/app/api/auth/setup/claim/route"),
     import("../src/app/api/auth/setup/complete/route"),
     import("../src/lib/self-host-setup/service"),
+    import("../src/lib/self-host-setup/security"),
   ])
   try {
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "false"
@@ -100,6 +101,32 @@ test("the three setup routes complete once and never replay recovery codes", asy
 
     const body = JSON.stringify({ email: "owner@example.com", name: "Owner", password: "correct horse battery staple", workspaceName: "My Workspace" })
     const completionHeaders = { ...common, cookie: `planglade-setup-claim=${claimant}; planglade-setup-csrf=${completeCsrf}`, "x-planglade-csrf": completeCsrf }
+    const attacker = "attacker-controlled-claimant"
+    const attackerCsrf = setupSecurity.createCsrfToken("complete", attacker, setupSecurity.sha256Base64url(attacker))
+    let attackerPreparations = 0
+    const attackerResponse = await completeRoute.completeSetupRequest(
+      new Request("http://localhost:3000/api/auth/setup/complete", {
+        method: "POST",
+        headers: { ...common, cookie: `planglade-setup-claim=${attacker}; planglade-setup-csrf=${attackerCsrf}`, "x-planglade-csrf": attackerCsrf },
+        body,
+      }),
+      ((input, suppliedClaimant) => setupService.completeSetup(
+        input,
+        suppliedClaimant,
+        new Date(),
+        undefined,
+        undefined,
+        async (preparedInput) => {
+          attackerPreparations += 1
+          return setupService.prepareSetupCompletion(preparedInput)
+        },
+      )) as typeof setupService.completeSetup,
+    )
+    assert.equal(attackerResponse.status, 401)
+    assert.equal(attackerPreparations, 0)
+    captured.push(JSON.stringify(await attackerResponse.json()))
+    assert.doesNotMatch(captured.join("\n"), /attacker-controlled|owner@example|database\.db|PRISMA_MARKER|STACK_MARKER|correct horse/i)
+
     const temporary = await completeRoute.completeSetupRequest(
       new Request("http://localhost:3000/api/auth/setup/complete", { method: "POST", headers: completionHeaders, body }),
       async () => ({ ok: false as const, reason: "temporary" as const }),
@@ -107,6 +134,28 @@ test("the three setup routes complete once and never replay recovery codes", asy
     captured.push(JSON.stringify(await temporary.clone().json()))
     assert.equal(temporary.status, 503)
     assert.equal(temporary.headers.get("set-cookie"), null)
+    assert.doesNotMatch(captured.join("\n"), /owner@example|database\.db|PRISMA_MARKER|STACK_MARKER|correct horse/i)
+
+    let failedPreflightPreparations = 0
+    const failingClient = { $transaction: async () => { throw new Error("C:\\private\\database.db PRISMA_MARKER STACK_MARKER") } }
+    const preflightFailure = await completeRoute.completeSetupRequest(
+      new Request("http://localhost:3000/api/auth/setup/complete", { method: "POST", headers: completionHeaders, body }),
+      ((input, suppliedClaimant) => setupService.completeSetup(
+        input,
+        suppliedClaimant,
+        new Date(),
+        failingClient as never,
+        undefined,
+        async (preparedInput) => {
+          failedPreflightPreparations += 1
+          return setupService.prepareSetupCompletion(preparedInput)
+        },
+      )) as typeof setupService.completeSetup,
+    )
+    assert.equal(preflightFailure.status, 503)
+    assert.equal(preflightFailure.headers.get("set-cookie"), null)
+    assert.equal(failedPreflightPreparations, 0)
+    captured.push(JSON.stringify(await preflightFailure.json()))
     assert.doesNotMatch(captured.join("\n"), /owner@example|database\.db|PRISMA_MARKER|STACK_MARKER|correct horse/i)
 
     const completion = await completeRoute.POST(new Request("http://localhost:3000/api/auth/setup/complete", { method: "POST", headers: completionHeaders, body }))
@@ -122,7 +171,7 @@ test("the three setup routes complete once and never replay recovery codes", asy
     assert.equal((await retry.json()).error.code, "SETUP_UNAVAILABLE")
     assert.match(retry.headers.get("set-cookie") ?? "", /planglade-setup-claim=;.*Max-Age=0/i)
   } finally {
-    await disconnectSetupDatabaseForTests()
+    await setupService.disconnectSetupDatabaseForTests()
     for (const key of ["PLANGLADE_LOCAL_AUTH_ENABLED", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "PLANGLADE_SETUP_TOKEN", "DATABASE_URL"]) delete process.env[key]
     await isolated.cleanup()
   }
