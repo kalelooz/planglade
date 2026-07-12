@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test"
 test.skip(process.env.PLANGLADE_BROWSER_SETUP_UI !== "true", "Runs only in the isolated local-auth setup harness.")
 
 test("an operator can set up an owner, save codes, then sign in locally", async ({ page }) => {
-  const ownerPasswordLabel = "Password Use at least 15 characters. A password manager is recommended."
+  const ownerPassword = page.locator('input[type="password"]').first()
+  const confirmationPassword = page.locator('input[type="password"]').nth(1)
   const discovery = page.waitForResponse(
     (response) => response.url().endsWith("/api/auth/setup") && response.request().method() === "GET"
   )
@@ -20,8 +21,8 @@ test("an operator can set up an owner, save codes, then sign in locally", async 
   await expect(page.getByRole("heading", { name: "Owner and workspace details" })).toBeVisible()
   await page.getByLabel("Owner name").fill("Setup Owner")
   await page.getByLabel("Email").fill("owner@example.com")
-  await page.getByLabel(ownerPasswordLabel, { exact: true }).fill("correct horse battery staple")
-  await page.getByLabel("Confirm password").fill("correct horse battery staple")
+  await ownerPassword.fill("correct horse battery staple")
+  await confirmationPassword.fill("correct horse battery staple")
   await page.getByLabel("Workspace name").fill("My workspace")
   let completionRequests = 0
   await page.route("**/api/auth/setup/complete", async (route) => {
@@ -46,12 +47,12 @@ test("an operator can set up an owner, save codes, then sign in locally", async 
   await expect(page.getByLabel("Owner name")).toHaveValue("Setup Owner")
   await expect(page.getByLabel("Email")).toHaveValue("owner@example.com")
   await expect(page.getByLabel("Workspace name")).toHaveValue("My workspace")
-  await expect(page.getByLabel(ownerPasswordLabel, { exact: true })).toHaveValue("")
-  await expect(page.getByLabel("Confirm password")).toHaveValue("")
+  await expect(ownerPassword).toHaveValue("")
+  await expect(confirmationPassword).toHaveValue("")
   expect(completionRequests).toBe(1)
 
-  await page.getByLabel(ownerPasswordLabel, { exact: true }).fill("correct horse battery staple")
-  await page.getByLabel("Confirm password").fill("correct horse battery staple")
+  await ownerPassword.fill("correct horse battery staple")
+  await confirmationPassword.fill("correct horse battery staple")
   await page.getByRole("button", { name: "Create owner and workspace" }).click()
 
   await expect(page.getByRole("heading", { name: "Save recovery codes" })).toBeVisible()
