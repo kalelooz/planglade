@@ -1,8 +1,10 @@
 import { defineConfig } from "@playwright/test"
+import path from "node:path"
 
 process.env.PLANGLADE_BROWSER_SETUP_UI = "true"
 
 const baseURL = "https://127.0.0.1:3100"
+const databaseUrl = `file:${path.resolve("test-results", "browser-setup.db").replaceAll("\\", "/")}`
 
 export default defineConfig({
   testDir: "./tests/browser",
@@ -26,7 +28,7 @@ export default defineConfig({
       ...process.env,
       PORT: "3100",
       HOSTNAME: "127.0.0.1",
-      DATABASE_URL: "file:../test-results/browser-setup.db",
+      DATABASE_URL: databaseUrl,
       PLANGLADE_AUTH_MODE: "nextauth",
       NEXT_PUBLIC_PLANGLADE_AUTH_MODE: "nextauth",
       NEXTAUTH_SECRET: "browser-setup-only-secret-not-for-production",

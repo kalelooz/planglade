@@ -66,3 +66,10 @@ test("PR-48-SETUP-RETRY-BROWSER-001: CI enforces the isolated setup browser test
 
   assert.match(workflow, /npx playwright test --config=playwright\.setup\.config\.ts/)
 })
+
+test("PR-48-FINAL-E2E-FIX: setup browser config uses an absolute disposable database path", async () => {
+  const config = await readProjectFile("playwright.setup.config.ts")
+
+  assert.match(config, /path\.resolve\("test-results", "browser-setup\.db"\)/)
+  assert.match(config, /DATABASE_URL: databaseUrl/)
+})
