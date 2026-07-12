@@ -37,12 +37,18 @@ test("legacy Connections route redirects once to the canonical route", async () 
   assert.doesNotMatch(legacy, /redirect\("\/app"\)/)
 })
 
-test("Connections layout stays responsive and exposes relationship text", async () => {
+test("Connections layout stays responsive with an interactive graph and authoritative relationship text", async () => {
   const page = await read("src/app/app/connections/page.tsx")
   assert.match(page, /overflow-x-hidden/)
   assert.match(page, /md:grid-cols|lg:grid-cols/)
   assert.match(page, /aria-live/)
-  assert.doesNotMatch(page, /ReactFlow|canvas|drag-to-connect|zoom/)
+  assert.match(page, /data-connection-graph/)
+  assert.match(page, /aria-label="Zoom in"/)
+  assert.match(page, /aria-label="Fit graph to view"/)
+  assert.match(page, /Open task in graph/)
+  assert.match(page, /Math\.max\(0\.3/)
+  assert.match(page, /Relationship list/)
+  assert.doesNotMatch(page, /ReactFlow|drag-to-connect/)
 })
 
 test("demo Connections uses fixture relationships without write controls", async () => {
@@ -57,6 +63,7 @@ test("demo Connections uses fixture relationships without write controls", async
   assert.match(data, /parentId:/)
   assert.match(data, /demoRelations/)
   assert.match(data, /BLOCKED_BY/)
+  assert.match(data, /RELATES_TO/)
   assert.match(client, /\/demo\/connections/)
   assert.doesNotMatch(page, /create|update|delete/i)
 })

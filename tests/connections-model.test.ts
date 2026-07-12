@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildConnectionsModel } from "../src/lib/connections"
+import { buildConnectionsGraphModel, buildConnectionsModel } from "../src/lib/connections"
 
 const projects = [{ id: "project-1", name: "Launch" }]
 const workItems = [
@@ -83,3 +83,33 @@ test("same-project relations show the same project on both sides", () => {
   assert.equal(relation?.targetProject?.id, "project-1")
 })
 
+test("builds directional, text-labelled graph edges including cross-project context", () => {
+  const model = buildConnectionsModel({
+    projects: [
+      { id: "project-1", name: "Launch" },
+      { id: "project-2", name: "Website" },
+    ],
+    workItems: [
+      { id: "blocked", title: "Publish release", projectId: "project-1", parentId: null, status: "TODO" },
+      { id: "blocker", title: "Approve copy", projectId: "project-2", parentId: null, status: "IN_PROGRESS" },
+      { id: "child", title: "Send announcement", projectId: "project-1", parentId: "blocked", status: "BACKLOG" },
+    ],
+    relations: [
+      { id: "blocked-by", sourceId: "blocked", targetId: "blocker", relationType: "BLOCKED_BY" },
+      { id: "related", sourceId: "blocked", targetId: "blocker", relationType: "RELATES_TO" },
+    ],
+  })
+
+  const graph = buildConnectionsGraphModel(model.connections)
+
+  assert.deepEqual(
+    graph.edges.map(({ id, sourceId, targetId, label }) => ({ id, sourceId, targetId, label })),
+    [
+      { id: "blocked-by", sourceId: "blocker", targetId: "blocked", label: "blocks" },
+      { id: "related", sourceId: "blocked", targetId: "blocker", label: "relates to" },
+      { id: "parent:blocked:child", sourceId: "blocked", targetId: "child", label: "has child" },
+    ]
+  )
+  assert.match(graph.edges[0]?.ariaLabel ?? "", /Approve copy \(Website\) blocks Publish release \(Launch\)/)
+  assert.equal(graph.nodes.find((node) => node.id === "blocked")?.status, "TODO")
+})

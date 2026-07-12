@@ -23,6 +23,24 @@ export type Connection = {
   targetProject: ConnectionProject | null
 }
 
+export type ConnectionGraphNode = {
+  id: string
+  title: string
+  projectName: string
+  status: string
+  x: number
+  y: number
+}
+
+export type ConnectionGraphEdge = {
+  id: string
+  kind: Connection["kind"]
+  sourceId: string
+  targetId: string
+  label: "blocks" | "relates to" | "has child"
+  ariaLabel: string
+}
+
 export function buildConnectionsModel({
   projects,
   workItems,
@@ -84,3 +102,47 @@ export function buildConnectionsModel({
   }
 }
 
+export function buildConnectionsGraphModel(connections: Connection[]) {
+  const nodes = new Map<string, ConnectionGraphNode>()
+
+  for (const connection of connections) {
+    for (const [item, project] of [[connection.source, connection.sourceProject], [connection.target, connection.targetProject]] as const) {
+      if (nodes.has(item.id)) continue
+      const index = nodes.size
+      nodes.set(item.id, {
+        id: item.id,
+        title: item.title,
+        projectName: project?.name ?? "No project",
+        status: item.status,
+        x: 48 + (index % 3) * 288,
+        y: 48 + Math.floor(index / 3) * 144,
+      })
+    }
+  }
+
+  const graphNodes = [...nodes.values()]
+  const edges = connections.map((connection): ConnectionGraphEdge => {
+    const blockedBy = connection.label === "is blocked by"
+    const source = blockedBy ? connection.target : connection.source
+    const target = blockedBy ? connection.source : connection.target
+    const sourceProject = blockedBy ? connection.targetProject : connection.sourceProject
+    const targetProject = blockedBy ? connection.sourceProject : connection.targetProject
+    const label: ConnectionGraphEdge["label"] = connection.kind === "blocking" ? "blocks" : connection.kind === "related" ? "relates to" : "has child"
+
+    return {
+      id: connection.id,
+      kind: connection.kind,
+      sourceId: source.id,
+      targetId: target.id,
+      label,
+      ariaLabel: `${source.title} (${sourceProject?.name ?? "No project"}) ${label} ${target.title} (${targetProject?.name ?? "No project"})`,
+    }
+  })
+
+  return {
+    nodes: graphNodes,
+    edges,
+    width: Math.max(936, 96 + Math.min(3, graphNodes.length) * 288),
+    height: Math.max(384, 96 + Math.ceil(graphNodes.length / 3) * 144),
+  }
+}

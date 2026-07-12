@@ -88,24 +88,20 @@ test("WEBSITE-POST-LIVE-AUDIT-001: app shell has skip link and demo disabled aff
   assert.match(css, /cursor: not-allowed/)
 })
 
-test("DEMO-NAV-001: demo navigation omits Settings on desktop and mobile", async () => {
+test("DEMO-NAV-001: demo navigation exposes the safe Settings route on desktop and mobile", async () => {
   const shell = await readProjectFile("src/components/lovable/shell.tsx")
 
-  assert.doesNotMatch(
-    shell,
-    /isDemoMode \? \([\s\S]*?<span>Settings<\/span>[\s\S]*?APP_ROUTES\.settings/,
-  )
-  assert.doesNotMatch(
-    shell,
-    /if \(isDemoMode\) toast\(DEMO_MODE_MESSAGE\); else router\.push\(APP_ROUTES\.settings\)/,
-  )
-  assert.match(shell, /href=\{APP_ROUTES\.settings\}/)
+  assert.match(shell, /to: `\$\{routePrefix\}\/settings`, label: "Settings"/)
+  assert.match(shell, /WorkspaceControl/)
+  assert.match(shell, /href=\{`\$\{routePrefix\}\/settings`\}/)
 })
 
-test("DEMO-NAV-001: direct demo Settings resolves to the supported demo landing", async () => {
+test("DEMO-NAV-001: direct demo Settings is a safe read-only page", async () => {
   const route = await readProjectFile("src/app/demo/settings/page.tsx")
 
-  assert.match(route, /redirect\("\/demo"\)/)
+  assert.match(route, /Demo settings/)
+  assert.match(route, /DEMO_MODE_MESSAGE/)
+  assert.doesNotMatch(route, /apiFetch|guidedImport|workspace.*change/i)
 })
 
 test("DEMO-NAV-001: demo project mutation controls are disabled and cannot reach mutation handlers", async () => {

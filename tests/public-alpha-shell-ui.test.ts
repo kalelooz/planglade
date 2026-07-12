@@ -28,7 +28,7 @@ test("workspace menu uses the accessible dropdown primitive and omits switching"
   assert.match(shell, /workspaceName/)
   assert.match(shell, /workspaceRole/)
   assert.match(shell, /Current workspace/)
-  assert.match(shell, /Workspace settings/)
+  assert.match(shell, /<span>Settings<\/span>/)
 
   // The menu is the repository's accessible Radix dropdown, not a hand-built element.
   assert.match(shell, /DropdownMenuTrigger/)
@@ -45,4 +45,3 @@ test("workspace menu uses the accessible dropdown primitive and omits switching"
   // No workspace switching or creation is offered.
   assert.doesNotMatch(shell, /Switch workspace|Create workspace|availableWorkspaces/)
 })
-

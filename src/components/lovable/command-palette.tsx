@@ -69,7 +69,7 @@ export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boo
       { label: "Go to Notes", to: scopedRoute(APP_COMMAND_ROUTES.notes, basePath), icon: FileText, group: "Navigate", search: "notes" },
       { label: "Go to Calendar", to: scopedRoute(APP_COMMAND_ROUTES.calendar, basePath), icon: Calendar, group: "Navigate", search: "calendar" },
       { label: "Go to Connections", to: scopedRoute(APP_COMMAND_ROUTES.connections, basePath), icon: Network, group: "Navigate", search: "connections relationships dependencies" },
-      ...(basePath === "/app" ? [{ label: "Go to Settings", to: APP_COMMAND_ROUTES.settings, icon: Settings, group: "Navigate", search: "settings" }] : []),
+      { label: "Go to Settings", to: scopedRoute(APP_COMMAND_ROUTES.settings, basePath), icon: Settings, group: "Navigate", search: "settings" },
       { label: "Open Tasks board", to: scopedRoute(APP_COMMAND_ROUTES.tasksBoard, basePath), icon: LayoutGrid, group: "Tasks", search: "board kanban tasks" },
     ];
 

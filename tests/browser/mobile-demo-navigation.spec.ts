@@ -15,7 +15,7 @@ const test = base.extend<{ applicationErrors: string[] }>({
 
 test.use({ viewport: { width: 375, height: 812 } })
 
-test("mobile demo navigation stays contained and omits settings", async ({ page, applicationErrors }) => {
+test("mobile demo navigation stays contained and includes safe settings", async ({ page, applicationErrors }) => {
   await page.goto("/demo")
   await expect(page.locator('[data-demo-banner="mobile"]')).toHaveText(
     "Demo mode - changes are disabled."
@@ -26,7 +26,7 @@ test("mobile demo navigation stays contained and omits settings", async ({ page,
   await expect(page.getByRole("button", { name: "Close navigation" })).toBeVisible()
 
   const navigation = page.getByRole("navigation")
-  for (const label of ["Inbox", "Tasks", "Projects", "Notes", "Calendar", "Connections"]) {
+  for (const label of ["Inbox", "Tasks", "Projects", "Notes", "Calendar", "Connections", "Settings"]) {
     await expect(
       navigation.getByRole("link", {
         name: label === "Inbox" ? /^Inbox\b/ : label,
@@ -34,8 +34,6 @@ test("mobile demo navigation stays contained and omits settings", async ({ page,
       })
     ).toBeVisible()
   }
-  await expect(navigation.getByRole("link", { name: "Settings", exact: true })).toHaveCount(0)
-
   await navigation.getByRole("link", { name: "Connections", exact: true }).click()
   await expect(page).toHaveURL(/\/demo\/connections$/)
   await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
