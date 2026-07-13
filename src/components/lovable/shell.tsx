@@ -177,7 +177,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     { to: `${routePrefix}/notes`, label: "Notes", icon: FileText },
     { to: `${routePrefix}/calendar`, label: "Calendar", icon: Calendar },
     { to: `${routePrefix}/connections`, label: "Connections", icon: Network },
-    ...(!isDemoMode ? [{ to: APP_ROUTES.settings, label: "Settings", icon: Settings }] : []),
+    { to: `${routePrefix}/settings`, label: "Settings", icon: Settings },
   ];
 
   // Flat list used for the collapsed icon rail
@@ -429,6 +429,29 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </div>
 
+        <div className={sidebarOpen ? "border-b p-2" : "border-b p-1"}>
+          <WorkspaceControl
+            collapsed={false}
+            hidden={!sidebarOpen}
+            routePrefix={routePrefix}
+            identity={sessionIdentity}
+            displayName={displayName}
+            displayAvatarId={displayAvatarId}
+            showSignOut={shouldShowSignOut}
+            onSignOut={() => { void signOut("/login"); }}
+          />
+          <WorkspaceControl
+            collapsed={true}
+            hidden={sidebarOpen}
+            routePrefix={routePrefix}
+            identity={sessionIdentity}
+            displayName={displayName}
+            displayAvatarId={displayAvatarId}
+            showSignOut={shouldShowSignOut}
+            onSignOut={() => { void signOut("/login"); }}
+          />
+        </div>
+
         <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-2" : "px-1"}`}>
           {sidebarOpen ? (
             <>
@@ -659,48 +682,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               </div>
             )}
           </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Current workspace"
-                    className="lov-btn h-9 max-w-48 gap-2 px-2"
-                  >
-                    <Avatar id={displayAvatarId} name={displayName} size={24} />
-                    <span className="hidden min-w-0 sm:block"><span className="block truncate text-left text-[12px] font-medium">{sessionIdentity?.workspaceName ?? "Current workspace"}</span><span className="block text-left text-[10px] text-muted-foreground">{sessionIdentity?.workspaceRole ?? "Workspace"}</span></span>
-                    <ChevronDown className="hidden h-3 w-3 text-muted-foreground sm:block" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72">
-                  <DropdownMenuLabel asChild>
-                    <div className="py-1">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Current workspace</div>
-                      <div className="mt-1 truncate text-sm font-semibold">{sessionIdentity?.workspaceName ?? "Workspace"}</div>
-                      <div className="mt-2 truncate text-xs text-muted-foreground">{displayName}</div>
-                      <div className="truncate text-xs text-muted-foreground">{sessionIdentity?.email}</div>
-                      <div className="mt-1 text-xs font-medium">Role: {sessionIdentity?.workspaceRole ?? "Member"}</div>
-                    </div>
-                  </DropdownMenuLabel>
-                  {(!isDemoMode || shouldShowSignOut) && <DropdownMenuSeparator />}
-                  {!isDemoMode && (
-                    <DropdownMenuItem asChild>
-                      <Link href={APP_ROUTES.settings}>
-                        <Building2 className="h-3.5 w-3.5" />
-                        <span>Workspace settings</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {shouldShowSignOut && (
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => { void signOut("/login"); }}
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      <span>Sign out</span>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+          <div title={displayName}><Avatar id={displayAvatarId} name={displayName} size={24} /></div>
         </header>
 
         {isDemoMode && (
@@ -742,6 +724,18 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 <X className="h-4 w-4" />
               </button>
             </div>
+            <div className="border-b p-2">
+              <WorkspaceControl
+                collapsed={false}
+                routePrefix={routePrefix}
+                identity={sessionIdentity}
+                displayName={displayName}
+                displayAvatarId={displayAvatarId}
+                showSignOut={shouldShowSignOut}
+                onNavigate={() => setMobileNavOpen(false)}
+                onSignOut={() => { setMobileNavOpen(false); void signOut("/login"); }}
+              />
+            </div>
             <nav className="flex-1 overflow-y-auto px-2 py-3 [&_a]:min-h-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <ProjectsNavItem
@@ -775,6 +769,67 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} basePath={routePrefix} />
     </div>
+  );
+}
+
+function WorkspaceControl({
+  collapsed,
+  hidden = false,
+  routePrefix,
+  identity,
+  displayName,
+  displayAvatarId,
+  showSignOut,
+  onNavigate,
+  onSignOut,
+}: {
+  collapsed: boolean;
+  hidden?: boolean;
+  routePrefix: "/app" | "/demo";
+  identity: SessionIdentity | null;
+  displayName: string;
+  displayAvatarId: string;
+  showSignOut: boolean;
+  onNavigate?: () => void;
+  onSignOut: () => void;
+}) {
+  const workspaceName = identity?.workspaceName ?? "Current workspace";
+  const workspaceRole = identity?.workspaceRole ?? "Workspace";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          data-workspace-control="true"
+          aria-label={`Current workspace: ${workspaceName}`}
+          title={collapsed ? `Current workspace: ${workspaceName}` : undefined}
+          className={`${hidden ? "hidden" : "flex"} ${collapsed ? "lov-icon-btn h-9 w-full" : "w-full items-center gap-2 rounded-md border bg-background px-2 py-2 text-left hover:bg-muted/60"}`}
+        >
+          {collapsed ? <Building2 className="h-4 w-4" /> : <Avatar id={displayAvatarId} name={displayName} size={24} />}
+          {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-[12px] font-semibold">{workspaceName}</span><span className="block truncate text-[10px] text-muted-foreground">{workspaceRole}</span></span>}
+          {!collapsed && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={collapsed ? "start" : "center"} side={collapsed ? "right" : "bottom"} className="w-72">
+        <DropdownMenuLabel asChild>
+          <div className="py-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Current workspace</div>
+            <div className="mt-1 truncate text-sm font-semibold">{workspaceName}</div>
+            <div className="mt-2 truncate text-xs text-muted-foreground">{displayName}</div>
+            <div className="truncate text-xs text-muted-foreground">{identity?.email}</div>
+            <div className="mt-1 text-xs font-medium">Role: {workspaceRole}</div>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={`${routePrefix}/settings`} onClick={onNavigate}>
+            <Settings className="h-3.5 w-3.5" />
+            <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        {showSignOut && <DropdownMenuItem variant="destructive" onSelect={onSignOut}><LogOut className="h-3.5 w-3.5" /><span>Sign out</span></DropdownMenuItem>}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

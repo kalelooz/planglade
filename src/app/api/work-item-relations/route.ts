@@ -54,13 +54,15 @@ export async function GET(request: NextRequest) {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
       await resolveRequestActorUserId(request),
-      "MEMBER"
+      "VIEWER"
     )
     if (!access.ok) return access.response
 
     const relations = await db.workItemRelation.findMany({
       where: {
         workspaceId: query.data.workspaceId,
+        source: { is: { workspaceId: query.data.workspaceId } },
+        target: { is: { workspaceId: query.data.workspaceId } },
         ...(query.data.sourceId ? { sourceId: query.data.sourceId } : {}),
         ...(query.data.targetId ? { targetId: query.data.targetId } : {}),
         ...(query.data.relationType ? { relationType: query.data.relationType } : {}),

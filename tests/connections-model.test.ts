@@ -82,4 +82,3 @@ test("same-project relations show the same project on both sides", () => {
   assert.equal(relation?.sourceProject?.id, "project-1")
   assert.equal(relation?.targetProject?.id, "project-1")
 })
-
