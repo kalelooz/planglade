@@ -23,7 +23,9 @@ test("Connections canonical route keeps the recovered workspace graph data sourc
 test("Connections includes an accessible inspector and relationship fallback", async () => {
   const page = await read("src/app/app/connections/page.tsx")
 
-  assert.match(page, /Relationship text fallback/)
+  assert.match(page, /aria-label="Relationship list"/)
+  assert.match(page, /Interactive relationship graph/)
+  assert.match(page, /Select \$\{node\.type\}/)
   assert.match(page, /selectedNode/)
   assert.match(page, /Open task/)
   assert.match(page, /Open project/)
@@ -42,7 +44,8 @@ test("Connections layout stays responsive with an interactive graph and authorit
   assert.match(page, /md:grid-cols|lg:grid-cols/)
   assert.match(page, /data-connection-graph/)
   assert.match(page, /aria-label="Zoom in"/)
-  assert.match(page, /aria-label="Fit to view"/)
+  assert.match(page, /aria-label="Fit graph to view"/)
+  assert.match(page, /MIN_ZOOM = 0\.25/)
   assert.match(page, /MAX_TASK_ROWS/)
   assert.match(page, /Relationship list/)
   assert.doesNotMatch(page, /ReactFlow|drag-to-connect/)
@@ -55,8 +58,8 @@ test("Connections keeps the recovered Work Map composition instead of a fixed ta
   assert.match(page, /Search graph/)
   assert.match(page, /Current project/)
   assert.match(page, /data-graph-edges="true"/)
-  assert.match(page, /aria-label="Fit to view"/)
-  assert.match(page, /Relationship text fallback/)
+  assert.match(page, /aria-label="Fit graph to view"/)
+  assert.match(page, /aria-label="Relationship list"/)
   assert.doesNotMatch(page, /buildConnectionsGraphModel/)
 })
 
@@ -70,6 +73,34 @@ test("Connections restores historical inline relationship tags and focused edge 
   assert.match(page, /TYPE_STYLE\[focusNode\.type\]\.edge/)
   assert.match(page, /edge: "rgb\(29 78 216\)"/)
   assert.match(page, /edge: "rgb\(109 40 217\)"/)
+})
+
+test("Connections keeps parent links, exact direction text, and honest async states", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
+
+  assert.match(page, /type: "hierarchy"/)
+  assert.match(page, /return "has child"/)
+  assert.match(page, /label: "BLOCKS"/)
+  assert.match(page, /Unable to load connections/)
+  assert.match(page, /No connections found/)
+  assert.doesNotMatch(page, /edges\.slice\(0, 10\)/)
+})
+
+test("Connections clears hidden selection state when filters change", async () => {
+  const page = await read("src/app/app/connections/page.tsx")
+
+  assert.match(page, /visibleNodeIds/)
+  assert.match(page, /!visibleNodeIds\.has\(selectedId\)/)
+  assert.match(page, /!visibleNodeIds\.has\(hoveredId\)/)
+})
+
+test("relationship reads allow viewers and reject cross-workspace endpoints", async () => {
+  const route = await read("src/app/api/work-item-relations/route.ts")
+  const getHandler = route.slice(route.indexOf("export async function GET"), route.indexOf("export async function POST"))
+
+  assert.match(getHandler, /"VIEWER"/)
+  assert.match(getHandler, /source: \{ is: \{ workspaceId: query\.data\.workspaceId \} \}/)
+  assert.match(getHandler, /target: \{ is: \{ workspaceId: query\.data\.workspaceId \} \}/)
 })
 
 test("demo Connections uses fixture relationships without write controls", async () => {

@@ -40,7 +40,7 @@ import {
 } from "@/lib/server-ui-mappers";
 
 type NodeType = "project" | "task" | "note" | "person" | "label";
-type EdgeType = "contains" | "assigned" | "tagged" | "referenced" | "dependency" | "related";
+type EdgeType = "contains" | "assigned" | "tagged" | "referenced" | "dependency" | "related" | "hierarchy";
 
 type GraphNode = {
   id: string;
@@ -73,7 +73,7 @@ type GraphNote = ReturnType<typeof toUiNotePreview> & {
 
 const CANVAS_W = 1560;
 const CANVAS_H = 900;
-const MIN_ZOOM = 0.45;
+const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 1.7;
 const MAX_TASK_ROWS = 6;
 const TASK_COLUMN_GAP = 270;
@@ -103,16 +103,20 @@ const EDGE_STYLES: Record<EdgeType, { color: string; width: number; dash?: strin
   referenced: { color: "rgb(113 113 122)", width: 1.1 },
   dependency: { color: "rgb(180 83 9)", width: 1.45 },
   related: { color: "rgb(161 161 170)", width: 1.1, dash: "6 4" },
+  hierarchy: { color: "rgb(113 113 122)", width: 1.25 },
 };
 
 function relationEdgeDirection(relation: WorkItemDependencyRelation) {
   if (relation.relationType === "BLOCKED_BY") {
-    return { from: `task:${relation.targetId}`, to: `task:${relation.sourceId}`, type: "dependency" as const };
+    return { from: `task:${relation.targetId}`, to: `task:${relation.sourceId}`, type: "dependency" as const, label: "BLOCKS" };
   }
   if (relation.relationType === "BLOCKS") {
-    return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "dependency" as const };
+    return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "dependency" as const, label: "BLOCKS" };
   }
-  return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "related" as const };
+  if (relation.relationType === "RELATES_TO") {
+    return { from: `task:${relation.sourceId}`, to: `task:${relation.targetId}`, type: "related" as const, label: "RELATES_TO" };
+  }
+  return null;
 }
 
 const TYPE_STYLE: Record<NodeType, { label: string; border: string; bg: string; text: string; edge: string }> = {
@@ -200,6 +204,7 @@ function edgeLabel(edge: GraphEdge) {
   if (edge.type === "assigned") return "assigned to";
   if (edge.type === "tagged") return "labeled";
   if (edge.type === "related") return "related";
+  if (edge.type === "hierarchy") return "has child";
   if (edge.label === "BLOCKED_BY") return "blocked by";
   if (edge.label === "BLOCKS") return "blocks";
   return "blocks";
@@ -270,6 +275,7 @@ function GraphNodeView({
         boxShadow: selected ? "0 0 0 2px rgb(24 24 27 / 0.14)" : undefined,
         opacity: dimmed ? 0.28 : 1,
       }}
+      aria-label={`Select ${node.type}: ${node.label}${node.meta ? `. ${node.meta}` : ""}`}
       data-graph-node={node.type}
       className={`absolute flex items-center gap-2 rounded-md border bg-white px-3 text-left shadow-sm transition-[border-color,box-shadow,opacity,transform] hover:-translate-y-0.5 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 ${typeStyle.border}`}
     >
@@ -601,13 +607,24 @@ function GraphPageContent() {
     if (filters.tasks) {
       relations.forEach((relation) => {
         const edge = relationEdgeDirection(relation);
+        if (!edge) return;
         if (!visibleTaskIds.has(relation.sourceId) || !visibleTaskIds.has(relation.targetId)) return;
         nextEdges.push({
           id: `relation:${relation.id}`,
           from: edge.from,
           to: edge.to,
           type: edge.type,
-          label: relation.relationType,
+          label: edge.label,
+        });
+      });
+
+      scopedWorkItems.forEach((child) => {
+        if (!child.parentId || !visibleTaskIds.has(child.parentId) || !visibleTaskIds.has(child.id)) return;
+        nextEdges.push({
+          id: `parent:${child.parentId}:${child.id}`,
+          from: `task:${child.parentId}`,
+          to: `task:${child.id}`,
+          type: "hierarchy",
         });
       });
     }
@@ -621,8 +638,14 @@ function GraphPageContent() {
   }, [filters, members, notes, query, relations, scopedProjects, scopedWorkItems]);
 
   const selectedNode = selectedId ? nodes.find((node) => node.id === selectedId) ?? null : null;
-  const focusId = hoveredId ?? selectedId;
+  const hoveredNode = hoveredId ? nodes.find((node) => node.id === hoveredId) ?? null : null;
+  const focusId = hoveredNode?.id ?? selectedNode?.id ?? null;
   const focusNode = focusId ? nodes.find((node) => node.id === focusId) ?? null : null;
+  useEffect(() => {
+    const visibleNodeIds = new Set(nodes.map((node) => node.id));
+    if (selectedId && !visibleNodeIds.has(selectedId)) setSelectedId(null);
+    if (hoveredId && !visibleNodeIds.has(hoveredId)) setHoveredId(null);
+  }, [hoveredId, nodes, selectedId]);
   const relatedIds = useMemo(() => {
     if (!focusId) return new Set<string>();
     const ids = new Set<string>([focusId]);
@@ -644,18 +667,33 @@ function GraphPageContent() {
   const selectedMember = selectedNode?.type === "person" ? members.find((member) => member.id === selectedNode.refId) ?? null : null;
   const selectedLabelItems = selectedNode?.type === "label" ? scopedWorkItems.filter((item) => item.label === selectedNode.refId) : [];
   const relationshipRows = useMemo(() => {
-    return edges.slice(0, 10).map((edge) => {
+    const projectNameForNode = (node: GraphNode) => {
+      if (node.type === "project") return node.label;
+      if (node.type === "task") {
+        const item = workItems.find((candidate) => candidate.id === node.refId);
+        return projects.find((project) => project.id === item?.project)?.name ?? null;
+      }
+      if (node.type === "note") {
+        const note = notes.find((candidate) => candidate.id === node.refId);
+        return projects.find((project) => project.id === note?.projectId)?.name ?? null;
+      }
+      return null;
+    };
+
+    return edges.flatMap((edge) => {
       const from = nodes.find((node) => node.id === edge.from);
       const to = nodes.find((node) => node.id === edge.to);
-      if (!from || !to) return null;
-      return {
+      if (!from || !to) return [];
+      return [{
         id: edge.id,
         from: from.label,
         to: to.label,
-        type: edge.type === "contains" ? "Project to task" : edge.type === "assigned" ? "Assignee to task" : edge.type === "dependency" ? "Blocked work" : edge.type === "referenced" ? "Linked context" : "Related work",
-      };
-    }).filter((row): row is { id: string; from: string; to: string; type: string } => Boolean(row));
-  }, [edges, nodes]);
+        fromProject: projectNameForNode(from),
+        toProject: projectNameForNode(to),
+        label: edgeLabel(edge),
+      }];
+    });
+  }, [edges, nodes, notes, projects, workItems]);
 
   const fitBoundsToView = useCallback((bounds: ReturnType<typeof nodeBounds>, padding = 72, maxZoom = 1.08) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -764,18 +802,21 @@ function GraphPageContent() {
         <Toolbar>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Network className="h-3.5 w-3.5" />
-            <span>{nodes.length} nodes</span>
-            <span>/</span>
-            <span>{edges.length} links</span>
+            {loading ? (
+              <span>Loading graph data...</span>
+            ) : error ? (
+              <span>Graph unavailable</span>
+            ) : (
+              <><span>{nodes.length} nodes</span><span>/</span><span>{edges.length} links</span></>
+            )}
           </div>
-          {error && <span className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] text-red-700">{error}</span>}
-          {loading && <span className="text-[12px] text-muted-foreground">Loading graph data...</span>}
-          <div className="ml-auto flex items-center gap-2">
+          {error && <span className="ml-auto rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] text-red-700">{error}</span>}
+          {!loading && !error && <div className="ml-auto flex items-center gap-2">
             <Chip tone={overdue ? "danger" : "neutral"}>{overdue} overdue</Chip>
             <Chip>{openItems} open</Chip>
             <Chip>{relations.length} relations</Chip>
             <Chip tone={unlinkedNotes ? "warning" : "neutral"}>{unlinkedNotes} unlinked notes</Chip>
-          </div>
+          </div>}
         </Toolbar>
       }
     >
@@ -801,6 +842,7 @@ function GraphPageContent() {
             <div className="relative w-64 max-w-full">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
+                aria-label="Search Connections graph"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search graph"
@@ -837,7 +879,7 @@ function GraphPageContent() {
                 {showRelationshipLabels ? "Hide labels" : "Show labels"}
               </button>
               <button type="button" onClick={() => zoomBy(-0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom out"><Minus className="h-4 w-4" /></button>
-              <button type="button" onClick={fitToView} className="lov-icon-btn h-8 w-8" aria-label="Fit to view"><Maximize2 className="h-4 w-4" /></button>
+              <button type="button" onClick={fitToView} className="lov-icon-btn h-8 w-8" aria-label="Fit graph to view"><Maximize2 className="h-4 w-4" /></button>
               <button type="button" onClick={resetLayout} className="lov-icon-btn h-8 w-8" aria-label="Reset layout"><RotateCcw className="h-4 w-4" /></button>
               <button type="button" onClick={() => zoomBy(0.12)} className="lov-icon-btn h-8 w-8" aria-label="Zoom in"><Plus className="h-4 w-4" /></button>
               <span className="w-10 text-right text-[11px] font-medium text-muted-foreground">{Math.round(zoom * 100)}%</span>
@@ -847,6 +889,8 @@ function GraphPageContent() {
           <div
             ref={containerRef}
             data-connection-graph="true"
+            role="region"
+            aria-label="Interactive relationship graph"
             className="relative min-h-0 flex-1 cursor-grab overflow-hidden bg-zinc-50 active:cursor-grabbing"
             onWheel={handleWheel}
             onPointerDown={handlePointerDown}
@@ -866,6 +910,24 @@ function GraphPageContent() {
               <span className="rounded border bg-background/90 px-2 py-1">Notes</span>
               <span className="rounded border bg-background/90 px-2 py-1">People</span>
             </div>
+
+            {loading && (
+              <div role="status" className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-zinc-50/85 text-sm text-muted-foreground">
+                Loading connections...
+              </div>
+            )}
+            {!loading && error && (
+              <div role="alert" className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-50/90 px-6 text-center">
+                <span className="text-sm font-semibold text-zinc-900">Unable to load connections</span>
+                <span className="mt-1 text-xs text-muted-foreground">{error}. Refresh the page to try again.</span>
+              </div>
+            )}
+            {!loading && !error && nodes.length === 0 && (
+              <div role="status" className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-50/90 px-6 text-center">
+                <span className="text-sm font-semibold text-zinc-900">No connections found</span>
+                <span className="mt-1 text-xs text-muted-foreground">{query.trim() ? "Clear the search or adjust the filters." : "Adjust the filters or add workspace relationships."}</span>
+              </div>
+            )}
 
             <div
               className="absolute left-0 top-0 origin-top-left"
@@ -989,7 +1051,7 @@ function GraphPageContent() {
                     <p>Dependency arrows point from the blocker to the blocked task so risky work is easier to spot.</p>
                   </div>
                 </section>
-                <section aria-label="Relationship text fallback">
+                <section aria-label="Relationship list">
                   <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     <span>Relationship list</span>
                     <span>{relationshipRows.length}</span>
@@ -998,12 +1060,18 @@ function GraphPageContent() {
                     {relationshipRows.length === 0 ? (
                       <p className="rounded border border-dashed px-3 py-5 text-center text-[12px] text-muted-foreground">No relationships found for the current filters.</p>
                     ) : (
-                      relationshipRows.map((row) => (
-                        <div key={row.id} className="rounded border border-zinc-200 px-2 py-1.5 text-[12px]">
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{row.type}</div>
-                          <div className="mt-0.5 min-w-0 truncate text-zinc-700">{row.from}{" -> "}{row.to}</div>
-                        </div>
-                      ))
+                        relationshipRows.map((row) => (
+                          <article key={row.id} className="rounded border border-zinc-200 px-2 py-1.5 text-[12px]">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{row.label}</div>
+                            <div className="mt-0.5 min-w-0 text-zinc-700">
+                              <span>{row.from}</span>
+                              {row.fromProject && row.fromProject !== row.from && <span className="text-zinc-500"> / <span>{row.fromProject}</span></span>}
+                              <span aria-hidden="true"> {" -> "} </span>
+                              <span>{row.to}</span>
+                              {row.toProject && row.toProject !== row.to && <span className="text-zinc-500"> / <span>{row.toProject}</span></span>}
+                            </div>
+                          </article>
+                        ))
                     )}
                   </div>
                 </section>

@@ -55,18 +55,24 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
 
   await page.goto("/demo/connections")
   await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
-  await expect(page.getByText("is blocked by", { exact: true })).toBeVisible()
-  await expect(page.getByLabel("Relationship list").getByText("has child", { exact: true })).toBeVisible()
+  const relationshipList = page.getByLabel("Relationship list")
+  await expect(relationshipList.getByText("blocks", { exact: true })).toBeVisible()
+  await expect(relationshipList.getByText("has child", { exact: true })).toBeVisible()
   await expect(page.getByLabel("Interactive relationship graph")).toBeVisible()
+  await page.getByRole("button", { name: "Show labels" }).click()
+  await expect(page.locator('[data-relationship-edge-label="true"]').first()).toBeVisible()
   await page.getByRole("button", { name: "Zoom in" }).click()
   await page.getByRole("button", { name: "Fit graph to view" }).click()
-  await page.getByLabel("Interactive relationship graph").getByRole("button", { name: /^Select / }).first().click()
+  await page.getByLabel("Interactive relationship graph").getByRole("button", { name: /^Select task:/ }).first().click()
   await expect(page.getByRole("link", { name: "Open task", exact: true })).toBeVisible()
+  await page.getByLabel("Search Connections graph").fill("no-such-connection")
+  await expect(page.getByText("No connections found", { exact: true })).toBeVisible()
+  await page.getByLabel("Search Connections graph").fill("")
 
   // Cross-project context: the cross-project relation row identifies each side's project.
   const crossProjectRow = page
     .getByRole("article")
-    .filter({ hasText: "relates to" })
+    .filter({ hasText: "related" })
     .filter({ hasText: "Draft release notes" })
     .filter({ hasText: "Review homepage copy with client" })
   await expect(crossProjectRow).toBeVisible()
