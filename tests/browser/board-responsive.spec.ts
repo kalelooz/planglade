@@ -15,10 +15,14 @@ const viewports = [
 
 const writeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"])
 
-async function openBoardDrawer(page: Page) {
-  const card = page.locator('[data-task-id="thesis-survey-cleanup"]')
+async function openBoardDrawer(
+  page: Page,
+  taskId = "thesis-survey-cleanup",
+  taskTitle = "Clean survey response spreadsheet",
+) {
+  const card = page.locator(`[data-task-id="${taskId}"]`)
   await expect(card).toBeVisible()
-  const trigger = card.getByRole("button", { name: "Clean survey response spreadsheet", exact: true })
+  const trigger = card.getByRole("button", { name: taskTitle, exact: true })
   await trigger.click()
   const drawer = page.locator('[data-board-drawer="true"]')
   await expect(drawer).toBeVisible()
@@ -119,7 +123,7 @@ for (const viewport of viewports) {
 test("project-filtered demo Board inherits the responsive drawer", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto("/demo/tasks?view=board&project=community-event")
-  await openBoardDrawer(page)
+  await openBoardDrawer(page, "event-volunteer-roles", "Assign volunteer arrival roles")
   const measured = await geometry(page)
   expect(measured.drawerPosition).toBe("absolute")
   expect(measured.documentScrollWidth).toBeLessThanOrEqual(measured.documentClientWidth)
