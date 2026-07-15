@@ -1,19 +1,33 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTheme } from "next-themes";
+import { useEffect, useRef } from "react";
 
 import { useHasHydrated, useStore } from "@/lib/store";
+import {
+  readExplicitLocalThemePreference,
+  resolveHydratedTheme,
+  useThemePreference,
+} from "@/lib/theme-preference";
 
 export function AppSettingsBridge() {
   const hydrated = useHasHydrated();
   const settings = useStore((s) => s.settings);
-  const { setTheme } = useTheme();
+  const initializedTheme = useRef(false);
+  const { initializeTheme } = useThemePreference();
 
   useEffect(() => {
-    if (!hydrated) return;
-    setTheme(settings.theme);
-  }, [hydrated, settings.theme, setTheme]);
+    if (!hydrated || initializedTheme.current) return;
+    initializedTheme.current = true;
+
+    const localTheme = readExplicitLocalThemePreference();
+    const initialTheme = resolveHydratedTheme(localTheme, settings.theme);
+
+    // A clean light-first device needs no stored override; explicit local and
+    // hydrated non-default preferences are synchronized into both theme systems.
+    if (localTheme || initialTheme !== "light") {
+      initializeTheme(initialTheme);
+    }
+  }, [hydrated, initializeTheme, settings.theme]);
 
   useEffect(() => {
     if (!hydrated || typeof document === "undefined") return;
