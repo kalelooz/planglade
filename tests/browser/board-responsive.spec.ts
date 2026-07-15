@@ -4,6 +4,7 @@ test.setTimeout(60_000)
 
 const viewports = [
   { width: 1920, height: 1080 },
+  { width: 1907, height: 976 },
   { width: 1720, height: 900 },
   { width: 1684, height: 896 },
   { width: 1440, height: 1000 },
@@ -15,9 +16,9 @@ const viewports = [
 const writeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"])
 
 async function openBoardDrawer(page: Page) {
-  const card = page.locator('[data-task-id="event-volunteer-roles"]')
+  const card = page.locator('[data-task-id="thesis-survey-cleanup"]')
   await expect(card).toBeVisible()
-  const trigger = card.getByRole("button", { name: "Assign volunteer arrival roles", exact: true })
+  const trigger = card.getByRole("button", { name: "Clean survey response spreadsheet", exact: true })
   await trigger.click()
   const drawer = page.locator('[data-board-drawer="true"]')
   await expect(drawer).toBeVisible()
@@ -29,6 +30,7 @@ async function geometry(page: Page) {
     const drawer = document.querySelector<HTMLElement>('[data-board-drawer="true"]')
     const workspace = document.querySelector<HTMLElement>('[data-board-workspace="true"]')
     const board = document.querySelector<HTMLElement>('[data-board-scroll-region="true"]')
+    const grid = document.querySelector<HTMLElement>('[data-board-grid="true"]')
     const columns = [...document.querySelectorAll<HTMLElement>("[data-board-column]")]
     const cards = [...document.querySelectorAll<HTMLElement>("[data-task-card]")]
     const drawerRect = drawer?.getBoundingClientRect()
@@ -42,11 +44,12 @@ async function geometry(page: Page) {
       boardClientWidth: board?.clientWidth ?? 0,
       boardScrollWidth: board?.scrollWidth ?? 0,
       boardWidth: board?.getBoundingClientRect().width ?? 0,
+      gridWidth: grid?.getBoundingClientRect().width ?? 0,
       drawerPosition: drawer ? getComputedStyle(drawer).position : "missing",
       drawerWidth: drawerRect?.width ?? 0,
       drawerRight: drawerRect?.right ?? Infinity,
       columnWidths: columns.map((column) => column.getBoundingClientRect().width),
-      firstCardWidth: cards[0]?.getBoundingClientRect().width ?? 0,
+      cardWidths: cards.map((card) => card.getBoundingClientRect().width),
       cardsInsideColumns: cards.every((card) => {
         const column = card.closest<HTMLElement>("[data-board-column]")
         if (!column) return false
@@ -71,12 +74,12 @@ for (const viewport of viewports) {
     await expect(page.locator("[data-board-column]")).toHaveCount(5)
     await expect(page.locator("[data-task-card]").first()).toBeVisible()
     const closed = await geometry(page)
-    if (viewport.width === 1684) {
+    if (viewport.width === 1907 || viewport.width === 1920) {
       await page.screenshot({ path: testInfo.outputPath("board-closed.png"), fullPage: true })
     }
     const { trigger, drawer } = await openBoardDrawer(page)
     const measured = await geometry(page)
-    if (viewport.width === 1684 || viewport.width === 390) {
+    if (viewport.width === 1907 || viewport.width === 1920 || viewport.width === 390) {
       await page.screenshot({ path: testInfo.outputPath("board-drawer-open.png"), fullPage: true })
     }
 
@@ -89,15 +92,15 @@ for (const viewport of viewports) {
     await expect(drawer.getByRole("button", { name: "Close task drawer" })).toBeVisible()
     await expect(drawer.getByRole("button", { name: "Close task drawer" })).toBeFocused()
 
-    if (viewport.width >= 1800) {
-      expect(measured.drawerPosition).toBe("relative")
-      expect(measured.boardScrollWidth).toBeLessThanOrEqual(measured.boardClientWidth)
-    } else {
-      expect(["absolute", "fixed"]).toContain(measured.drawerPosition)
-      expect(Math.abs(measured.boardWidth - closed.boardWidth)).toBeLessThanOrEqual(2)
-      expect(Math.abs(measured.columnWidths[0] - closed.columnWidths[0])).toBeLessThanOrEqual(2)
-      expect(Math.abs(measured.firstCardWidth - closed.firstCardWidth)).toBeLessThanOrEqual(2)
-    }
+    expect(["absolute", "fixed"]).toContain(measured.drawerPosition)
+    expect(Math.abs(measured.boardWidth - closed.boardWidth)).toBeLessThanOrEqual(2)
+    expect(Math.abs(measured.gridWidth - closed.gridWidth)).toBeLessThanOrEqual(2)
+    measured.columnWidths.forEach((width, index) => {
+      expect(Math.abs(width - closed.columnWidths[index])).toBeLessThanOrEqual(2)
+    })
+    measured.cardWidths.forEach((width, index) => {
+      expect(Math.abs(width - closed.cardWidths[index])).toBeLessThanOrEqual(2)
+    })
     if (viewport.width >= 1280) {
       expect(measured.boardScrollWidth).toBeLessThanOrEqual(measured.boardClientWidth)
     }

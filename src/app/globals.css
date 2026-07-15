@@ -624,17 +624,6 @@ html[data-density="comfortable"] {
     max-width: min(420px, 100%);
     box-shadow: -8px 0 24px color-mix(in oklch, var(--color-foreground) 10%, transparent);
   }
-  @media (min-width: 1800px) {
-    .drawer-board-backdrop {
-      display: none;
-    }
-    .drawer-inline.drawer-board {
-      position: relative;
-      inset: auto;
-      z-index: auto;
-      box-shadow: -1px 0 0 color-mix(in oklch, var(--color-foreground) 5%, transparent);
-    }
-  }
   @media (max-width: 767px) {
     .drawer-board-backdrop {
       position: fixed;
