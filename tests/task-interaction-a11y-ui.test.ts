@@ -45,21 +45,22 @@ test("task drawer controls use accessible focus and close labeling", async () =>
   assert.doesNotMatch(source, /focus:border-ring/)
 })
 
-test("task list and calendar controls avoid colored focus rings", async () => {
+test("task list, calendar, and board controls preserve visible focus rings", async () => {
   const [tasks, calendar, board] = await Promise.all([
     readProjectFile("src/app/app/tasks/page.tsx"),
     readProjectFile("src/app/app/calendar/page.tsx"),
     readProjectFile("src/app/board/board-page-content.tsx"),
   ])
 
-  for (const [name, source] of [
-    ["tasks", tasks],
-    ["calendar", calendar],
-    ["board", board],
-  ] as const) {
-    assert.match(source, /focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/, `${name} surface needs zinc focus`)
-    assert.doesNotMatch(source, /focus-visible:(?:outline|ring)-(?:primary|ring)/, `${name} surface must not use colored focus rings`)
-  }
+  assert.match(tasks, /focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/, "tasks surface needs visible focus")
+  assert.doesNotMatch(tasks, /focus-visible:(?:outline|ring)-(?:primary|ring)/, "tasks surface must not use colored focus rings")
+
+  assert.match(calendar, /focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/, "calendar surface needs semantic visible focus")
+  assert.match(calendar, /focus-visible:ring-offset-background/, "calendar focus ring needs a semantic background offset")
+  assert.doesNotMatch(calendar, /focus-visible:ring-zinc-950/, "calendar surface must not require a raw zinc focus ring")
+
+  assert.match(board, /focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/, "board surface needs visible focus")
+  assert.doesNotMatch(board, /focus-visible:(?:outline|ring)-(?:primary|ring)/, "board surface must not use colored focus rings")
 })
 
 test("mobile calendar keeps the month grid inside the viewport", async () => {

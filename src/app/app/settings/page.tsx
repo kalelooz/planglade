@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import Papa from "papaparse";
-import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import type { WorkItem, Status, Priority } from "@/lib/mock-data";
 import { AppShell } from "@/components/lovable/shell";
@@ -14,6 +13,11 @@ import { AvatarPicker } from "@/components/lovable/avatar-picker";
 import { SaveIndicator } from "@/components/lovable/save-indicator";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } from "@/lib/notification-preferences";
+import {
+  canInitializeThemeFromServer,
+  getLocalThemeSelectionVersion,
+  useThemePreference,
+} from "@/lib/theme-preference";
 
 const sections = ["General", "Appearance", "Data", "Account"] as const;
 type Section = (typeof sections)[number];
@@ -260,7 +264,7 @@ export default function SettingsPage() {
   const updateSettings = useStore((s) => s.updateSettings);
   const updateMember = useStore((s) => s.updateMember);
   const resetData = useStore((s) => s.resetData);
-  const { setTheme } = useTheme();
+  const { selectTheme, initializeTheme } = useThemePreference();
   const fileRef = useRef<HTMLInputElement>(null);
   const guidedImportFileRef = useRef<HTMLInputElement>(null);
   const csvRef = useRef<HTMLInputElement>(null);
@@ -310,6 +314,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     let active = true;
+    const requestThemeSelectionVersion = getLocalThemeSelectionVersion();
     void (async () => {
       try {
         const session = await getServerSession();
@@ -343,15 +348,17 @@ export default function SettingsPage() {
         if (!active) return;
 
         const notifications = normalizeNotificationPreferences(payload.settings?.notifications);
+        const serverTheme = payload.settings?.theme;
+        const initializeServerTheme = Boolean(serverTheme) &&
+          canInitializeThemeFromServer(requestThemeSelectionVersion);
         updateSettings({
-          ...(payload.settings?.theme ? { theme: payload.settings.theme } : {}),
           ...(payload.settings?.density ? { density: payload.settings.density } : {}),
           ...(payload.settings?.accent ? { accent: payload.settings.accent } : {}),
           ...(payload.workspace?.taskPriorityDisplayStyle ? { priorityDisplayStyle: payload.workspace.taskPriorityDisplayStyle } : {}),
           notifications,
         });
-        if (payload.settings?.theme) {
-          setTheme(payload.settings.theme);
+        if (serverTheme && initializeServerTheme) {
+          initializeTheme(serverTheme);
         }
       } catch {
         // keep local defaults when remote settings are unavailable
@@ -361,7 +368,7 @@ export default function SettingsPage() {
     return () => {
       active = false;
     };
-  }, [setTheme, updateSettings]);
+  }, [initializeTheme, updateSettings]);
 
   const exportWorkspaceSnapshot = async () => {
     if (!workspaceId) {
@@ -466,7 +473,7 @@ export default function SettingsPage() {
           notifications,
         });
         if (parsed.settings.theme) {
-          setTheme(parsed.settings.theme);
+          selectTheme(parsed.settings.theme);
         }
       }
 
@@ -729,10 +736,11 @@ export default function SettingsPage() {
                     <button
                       key={t}
                       onClick={() => {
-                        setTheme(t);
-                        updateSettings({ theme: t });
+                        selectTheme(t);
                         void persistUserSettings({ theme: t });
                       }}
+                      type="button"
+                      aria-pressed={settings.theme === t}
                       className={`lov-btn capitalize ${settings.theme === t ? "lov-btn-active" : ""}`}
                     >
                       {t.charAt(0).toUpperCase() + t.slice(1)}

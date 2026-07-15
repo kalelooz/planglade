@@ -1,11 +1,10 @@
 "use client"
 
 import { Monitor, Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
 
 import { AppShell } from "@/components/lovable/shell"
 import { DEMO_MODE_MESSAGE, demoSession } from "@/lib/demo-data"
-import { useStore } from "@/lib/store"
+import { useThemePreference } from "@/lib/theme-preference"
 
 const themes = [
   { value: "light", label: "Light", icon: Sun },
@@ -14,13 +13,7 @@ const themes = [
 ] as const
 
 export default function DemoSettingsPage() {
-  const { theme, setTheme } = useTheme()
-  const updateSettings = useStore((state) => state.updateSettings)
-
-  const chooseTheme = (value: (typeof themes)[number]["value"]) => {
-    setTheme(value)
-    updateSettings({ theme: value })
-  }
+  const { theme, selectTheme } = useThemePreference()
 
   return (
     <AppShell title={<span className="font-medium">Settings</span>}>
@@ -34,7 +27,7 @@ export default function DemoSettingsPage() {
         <section className="overflow-hidden rounded-lg border bg-card" aria-labelledby="demo-appearance-title">
           <div className="border-b px-4 py-3"><h2 id="demo-appearance-title" className="text-sm font-semibold">Appearance</h2><p className="mt-0.5 text-xs text-muted-foreground">Choose how the demo looks on this device.</p></div>
           <div className="flex flex-wrap gap-2 p-4">
-            {themes.map(({ value, label, icon: Icon }) => <button key={value} type="button" onClick={() => chooseTheme(value)} aria-pressed={theme === value} className={`lov-btn gap-2 ${theme === value ? "border-foreground/30 bg-muted" : ""}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
+            {themes.map(({ value, label, icon: Icon }) => <button key={value} type="button" onClick={() => selectTheme(value)} aria-pressed={theme === value} className={`lov-btn gap-2 ${theme === value ? "border-foreground/30 bg-muted" : ""}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
           </div>
         </section>
 

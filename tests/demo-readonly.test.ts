@@ -103,7 +103,8 @@ test("DEMO-NAV-001: direct demo Settings is a safe read-only page", async () => 
 
   assert.match(route, /Demo settings/)
   assert.match(route, /DEMO_MODE_MESSAGE/)
-  assert.match(route, /setTheme\(value\)[\s\S]*?updateSettings\(\{ theme: value \}\)/)
+  assert.match(route, /useThemePreference\(\)/)
+  assert.match(route, /onClick=\{\(\) => selectTheme\(value\)\}/)
   assert.doesNotMatch(route, /apiFetch|guidedImport|workspace.*change/i)
 })
 
