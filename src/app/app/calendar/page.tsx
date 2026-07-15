@@ -13,7 +13,7 @@ import { apiFetch, buildSessionAuthHeaders, getServerSession } from "@/lib/serve
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, isBlockedByOpenTask, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
-import { blockReadOnlyMutation } from "@/lib/demo-readonly";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -848,6 +848,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
         }),
       });
       if (!response.ok) {
+        if (handleDemoReadOnlyResponse(response)) return;
         setError("Failed to create task");
         return;
       }

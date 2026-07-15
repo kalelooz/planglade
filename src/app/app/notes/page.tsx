@@ -15,7 +15,7 @@ import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
-import { blockReadOnlyMutation } from "@/lib/demo-readonly";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 type ApiNote = {
   id: string;
@@ -238,6 +238,7 @@ function NotesInner() {
       body: JSON.stringify(patch),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to save note");
     }
   };
@@ -269,6 +270,7 @@ function NotesInner() {
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return null;
       setError("Failed to create note");
       return null;
     }
@@ -289,6 +291,7 @@ function NotesInner() {
     });
     if (!response.ok) {
       setNotes(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return false;
       setError("Failed to delete note");
       return false;
     }
@@ -313,7 +316,10 @@ function NotesInner() {
         noteIds: noteId ? [noteId] : undefined,
       }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      handleDemoReadOnlyResponse(response);
+      return null;
+    }
     const payload = (await response.json()) as { workItem: ApiWorkItem };
     const next = toUiWorkItem(payload.workItem, currentUserId);
     setWorkItems((current) => [next, ...current]);

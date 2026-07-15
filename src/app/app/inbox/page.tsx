@@ -24,7 +24,7 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
-import { blockReadOnlyMutation } from "@/lib/demo-readonly";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 const compactPrimaryActionClass =
   "lov-btn lov-btn-primary h-7 justify-center gap-1.5 px-2 text-[11px] disabled:opacity-50";
@@ -145,6 +145,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
 
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return false;
       setError("Failed to update capture");
       return false;
     }
@@ -168,6 +169,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
     );
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return false;
       setError("Failed to delete capture");
       return false;
     }
@@ -191,6 +193,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return false;
       setError("Failed to capture item");
       return false;
     }

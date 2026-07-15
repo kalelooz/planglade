@@ -12,7 +12,7 @@ test("demo write requests stop before fetch while server defense remains", async
     source("middleware.ts"),
   ]);
 
-  assert.match(client, /if \(demoMode\) \{\s*return Response\.json\(\{ error: DEMO_MODE_MESSAGE \}, \{ status: 403 \}\)/);
+  assert.match(client, /if \(demoMode\) \{[\s\S]*?status: 403[\s\S]*?DEMO_READ_ONLY_HEADER/);
   assert.match(client, /headers\.set\(DEMO_MODE_HEADER, "true"\)/);
   assert.match(apiGuard, /x-planglade-demo-mode|DEMO_MODE_HEADER|demo/i);
 });
@@ -49,4 +49,19 @@ test("canonical feedback copy remains exact", async () => {
   const guard = await source("src/lib/demo-readonly.ts");
   assert.match(demoData, /Demo mode - changes are disabled\./);
   assert.match(guard, /id: "demo-read-only"/);
+  assert.match(guard, /handleDemoReadOnlyResponse/);
+  assert.match(guard, /DEMO_READ_ONLY_HEADER/);
+});
+
+test("fallback demo responses cannot become generic mutation failures", async () => {
+  const files = await Promise.all([
+    source("src/app/app/inbox/page.tsx"),
+    source("src/app/app/tasks/page.tsx"),
+    source("src/app/board/board-page-content.tsx"),
+    source("src/components/lovable/task-drawer.tsx"),
+  ]);
+
+  for (const file of files) assert.match(file, /handleDemoReadOnlyResponse\(response\)/);
+  assert.match(files[2], /if \(snapshot\) setWorkItems\(snapshot\)/);
+  assert.match(files[2], /useSortable\(\{ id: item\.id, disabled: readOnly \}\)/);
 });

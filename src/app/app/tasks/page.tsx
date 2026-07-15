@@ -23,7 +23,7 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
-import { blockReadOnlyMutation } from "@/lib/demo-readonly";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 const order: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const sortOptions = ["Due", "Priority", "Created"] as const;
@@ -204,6 +204,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to create task");
       return;
     }
@@ -236,6 +237,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
     });
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to update task");
     }
   };
@@ -253,6 +255,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
     });
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to delete task");
     }
   };

@@ -15,7 +15,7 @@ import { type ApiWorkItem, toApiWorkPriority, toApiWorkStatus, toIsoDateTime, to
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
 import { TaskCompletionToggle } from "./task-completion-toggle";
-import { blockReadOnlyMutation } from "@/lib/demo-readonly";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 const STATUSES: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
@@ -258,6 +258,7 @@ function DrawerContent({
 
     if (!response.ok) {
       restoreItem(previous);
+      handleDemoReadOnlyResponse(response);
       return false;
     }
     return true;
@@ -349,7 +350,10 @@ function DrawerContent({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ workspaceId, name: trimmed }),
     });
-    if (!response.ok) return undefined;
+    if (!response.ok) {
+      handleDemoReadOnlyResponse(response);
+      return undefined;
+    }
     const payload = (await response.json()) as { label: { id: string; name: string } };
     setKnownLabels((current) => ({ ...current, [payload.label.name.toLowerCase()]: payload.label.id }));
     return payload.label.id;
@@ -377,7 +381,10 @@ function DrawerContent({
           body: JSON.stringify({ body: commentDraft.trim() }),
         }
       );
-      if (!response.ok) return;
+      if (!response.ok) {
+        handleDemoReadOnlyResponse(response);
+        return;
+      }
 
       const payload = (await response.json()) as { comment: DrawerComment };
       setComments((current) => [...current, payload.comment]);
@@ -451,6 +458,8 @@ function DrawerContent({
     if (response.ok) {
       setDependencyPickerOpen(false);
       await refreshDependencies();
+    } else {
+      handleDemoReadOnlyResponse(response);
     }
   };
 
@@ -465,6 +474,7 @@ function DrawerContent({
       }
     );
     if (response.ok) await refreshDependencies();
+    else handleDemoReadOnlyResponse(response);
   };
 
   useEffect(() => {
@@ -658,6 +668,7 @@ function DrawerContent({
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       const payload = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
       setSubtaskError(payload?.error ?? payload?.message ?? "Could not add subtask.");
       return;
@@ -688,7 +699,10 @@ function DrawerContent({
         }),
       }
     );
-    if (!response.ok) onItemsReplaced(snapshot);
+    if (!response.ok) {
+      onItemsReplaced(snapshot);
+      handleDemoReadOnlyResponse(response);
+    }
   };
 
   const panelInitial = { opacity: 1, width: INLINE_DRAWER_WIDTH };
@@ -708,12 +722,13 @@ function DrawerContent({
       <div className="flex h-10 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3 text-[12px]">
           <span className="font-medium text-muted-foreground">Task</span>
-          <StatusSelect value={item.status} onChange={(s) => { void onStatusChange(s); }} />
+          <StatusSelect readOnly={readOnly} value={item.status} onChange={(s) => { void onStatusChange(s); }} />
         </div>
         <button type="button" onClick={onClose} title="Close" aria-label="Close task drawer" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
+        {readOnly && <p role="status" className="mb-3 rounded border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">Demo mode - changes are disabled.</p>}
         <input
           readOnly={readOnly}
           ref={titleRef}
@@ -756,12 +771,12 @@ function DrawerContent({
         <dl className="mt-4 grid grid-cols-[72px_1fr] gap-y-2 text-[12px]">
           <dt className="pt-0.5 text-muted-foreground">Priority</dt>
           <dd>
-            <PrioritySelect value={item.priority} onChange={(p) => { void onPriorityChange(p); }} />
+            <PrioritySelect readOnly={readOnly} value={item.priority} onChange={(p) => { void onPriorityChange(p); }} />
           </dd>
 
           <dt className="pt-0.5 text-muted-foreground">Assignee</dt>
           <dd>
-            <AssigneeSelect members={members} value={item.assignee} onChange={(id) => { void onAssigneeChange(id); }} />
+            <AssigneeSelect readOnly={readOnly} members={members} value={item.assignee} onChange={(id) => { void onAssigneeChange(id); }} />
           </dd>
 
           <dt className="pt-0.5 text-muted-foreground">Label</dt>
@@ -780,6 +795,8 @@ function DrawerContent({
           <dt className="pt-0.5 text-muted-foreground">Due</dt>
           <dd>
             <DateField
+              readOnly={readOnly}
+              onClick={() => { blockReadOnlyMutation(readOnly); }}
               value={dueValue}
               onChange={(value) => {
                 void onDueChange(value);
@@ -791,6 +808,8 @@ function DrawerContent({
           <dt className="pt-0.5 text-muted-foreground">Start</dt>
           <dd>
             <DateField
+              readOnly={readOnly}
+              onClick={() => { blockReadOnlyMutation(readOnly); }}
               value={startValue}
               onChange={(value) => {
                 void onStartChange(value);
@@ -804,6 +823,7 @@ function DrawerContent({
             <select
               value={item.project}
               onChange={(e) => {
+                if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = item.project; return; }
                 void onProjectChange(e.target.value);
               }}
               className="h-7 rounded border bg-card px-2 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
@@ -1166,13 +1186,16 @@ const CompactSection = forwardRef<HTMLDivElement, { title: string; count?: numbe
   }
 );
 
-function StatusSelect({ value, onChange }: { value: Status; onChange: (s: Status) => void }) {
+function StatusSelect({ value, onChange, readOnly }: { value: Status; onChange: (s: Status) => void; readOnly: boolean }) {
   return (
     <label className="flex items-center gap-1.5">
       <StatusIcon s={value} />
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as Status)}
+        onChange={(e) => {
+          if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = value; return; }
+          onChange(e.target.value as Status);
+        }}
         className="rounded bg-transparent text-[12px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
         {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -1181,7 +1204,7 @@ function StatusSelect({ value, onChange }: { value: Status; onChange: (s: Status
   );
 }
 
-function AssigneeSelect({ members, value, onChange }: { members: { id: string; name: string }[]; value: string; onChange: (id: string) => void }) {
+function AssigneeSelect({ members, value, onChange, readOnly }: { members: { id: string; name: string }[]; value: string; onChange: (id: string) => void; readOnly: boolean }) {
   const fallback = members[0] ?? { id: "unassigned", name: "Unassigned" };
   const current = members.find((member) => member.id === value) ?? fallback;
   const options = members.length > 0 ? members : [fallback];
@@ -1190,7 +1213,10 @@ function AssigneeSelect({ members, value, onChange }: { members: { id: string; n
       <Avatar id={current.id} name={current.name} />
       <select
         value={members.some((member) => member.id === value) ? value : current.id}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = current.id; return; }
+          onChange(e.target.value);
+        }}
         className="rounded bg-transparent text-[12px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
         {options.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -1199,13 +1225,16 @@ function AssigneeSelect({ members, value, onChange }: { members: { id: string; n
   );
 }
 
-function PrioritySelect({ value, onChange }: { value: Priority; onChange: (p: Priority) => void }) {
+function PrioritySelect({ value, onChange, readOnly }: { value: Priority; onChange: (p: Priority) => void; readOnly: boolean }) {
   return (
     <span className="flex items-center gap-1.5">
       <PriorityIndicator priority={value} />
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as Priority)}
+        onChange={(e) => {
+          if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = value; return; }
+          onChange(e.target.value as Priority);
+        }}
         className="rounded bg-transparent text-[12px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
         {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}

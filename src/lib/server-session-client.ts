@@ -4,6 +4,7 @@ import type { PriorityDisplayStyle } from "@/lib/appearance-defaults"
 import { DEMO_MODE_MESSAGE, demoSession, getDemoApiResponse } from "@/lib/demo-data"
 
 export const DEMO_MODE_HEADER = "x-planglade-demo-mode"
+export const DEMO_READ_ONLY_HEADER = "x-planglade-demo-read-only"
 
 function isDemoMode() {
   return typeof window !== "undefined" && window.location.pathname.startsWith("/demo")
@@ -68,7 +69,10 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
     if (response) return response
   }
   if (demoMode) {
-    return Response.json({ error: DEMO_MODE_MESSAGE }, { status: 403 })
+    return Response.json(
+      { error: DEMO_MODE_MESSAGE },
+      { status: 403, headers: { [DEMO_READ_ONLY_HEADER]: "true" } },
+    )
   }
 
   const headers = await buildApiAuthHeaders(init.headers)

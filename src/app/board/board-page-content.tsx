@@ -61,7 +61,7 @@ import {
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
 import { getDemoFixtures } from "@/lib/demo-data";
-import { blockReadOnlyMutation } from "@/lib/demo-readonly";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 const cols: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const columnIds = new Set(cols as string[]);
@@ -248,7 +248,7 @@ export function BoardPageContent() {
     };
   }, [isDemoMode, updateSettings]);
 
-  const patchTaskStatus = async (id: string, status: Status) => {
+  const patchTaskStatus = async (id: string, status: Status, snapshot?: WorkItem[]) => {
     if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const response = await apiFetch(
@@ -263,6 +263,8 @@ export function BoardPageContent() {
       }
     );
     if (!response.ok) {
+      if (snapshot) setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to move task");
     }
   };
@@ -288,6 +290,7 @@ export function BoardPageContent() {
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to create task");
       return;
     }
@@ -314,6 +317,7 @@ export function BoardPageContent() {
     );
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to delete task");
       return;
     }
@@ -348,7 +352,7 @@ export function BoardPageContent() {
       if (moved.status === targetStatus && list[list.length - 1]?.id === activeId) return;
       setWorkItems((current) => reorderLocalWorkItems(current, activeId, targetStatus, null, scopedProjectId));
       if (moved.status !== targetStatus) {
-        void patchTaskStatus(activeId, targetStatus);
+        void patchTaskStatus(activeId, targetStatus, workItems);
         toast.success("Task moved", { description: `Moved to ${targetStatus}` });
       }
       return;
@@ -362,7 +366,7 @@ export function BoardPageContent() {
       // Fallback: if we're over the column shell but not a concrete card, append in target status.
       setWorkItems((current) => reorderLocalWorkItems(current, activeId, targetStatus, null, scopedProjectId));
       if (moved.status !== targetStatus) {
-        void patchTaskStatus(activeId, targetStatus);
+        void patchTaskStatus(activeId, targetStatus, workItems);
         toast.success("Task moved", { description: `Moved to ${targetStatus}` });
       }
       return;
@@ -383,7 +387,7 @@ export function BoardPageContent() {
     }
 
     if (moved.status !== targetStatus) {
-      void patchTaskStatus(activeId, targetStatus);
+      void patchTaskStatus(activeId, targetStatus, workItems);
       toast.success("Task moved", { description: `Moved to ${targetStatus}` });
     }
   };
@@ -446,8 +450,9 @@ export function BoardPageContent() {
                       onAdd={() => { void createAndFocus(col); }}
                       onMove={(id, s) => {
                         if (blockReadOnlyMutation(isDemoMode)) return;
+                        const snapshot = workItems;
                         setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, status: s } : workItem)));
-                        void patchTaskStatus(id, s);
+                        void patchTaskStatus(id, s, snapshot);
                       }}
                       onDelete={(item) => { void handleDelete(item); }}
                       members={members}
@@ -515,7 +520,7 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div className="flex min-w-0 flex-col">
+    <div className="flex min-w-0 flex-col" data-board-column={status}>
       <div className="mb-2 flex items-center gap-2 px-1 text-[12px] font-medium">
         <StatusIcon s={status} />
         <span>{status}</span>
@@ -601,6 +606,8 @@ function Card({
     <div
       ref={setNodeRef}
       data-task-card="true"
+      data-task-id={item.id}
+      data-task-status={item.status}
       style={style}
       className={`group relative rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
     >
@@ -610,6 +617,7 @@ function Card({
           ref={setActivatorNodeRef}
           {...listeners}
           {...attributes}
+          onPointerDown={() => { if (readOnly) blockReadOnlyMutation(true); }}
           onClick={() => { if (readOnly) blockReadOnlyMutation(true); }}
           title={readOnly ? "Demo mode - changes are disabled." : "Drag task"}
           aria-label={`Drag ${item.title}`}
