@@ -28,7 +28,7 @@ import { getDemoFixtures } from "@/lib/demo-data";
 const compactPrimaryActionClass =
   "lov-btn lov-btn-primary h-7 justify-center gap-1.5 px-2 text-[11px] disabled:opacity-50";
 const compactControlClass =
-  "inline-flex h-7 w-full min-w-0 items-center justify-between gap-1 rounded-md border border-border/80 bg-card px-2 text-[11px] text-muted-foreground outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-ring";
+  "inline-flex h-7 w-full min-w-0 items-center justify-between gap-1 rounded-md border border-border/70 bg-background px-2 text-[11px] text-muted-foreground outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-ring";
 
 function parseDateValue(value: string) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -342,8 +342,8 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
               </p>
             </div>
 
-            <div className="mb-5 rounded-lg border border-border/80 bg-card">
-              <div className="flex w-full items-center gap-3 px-3 py-2.5 transition-colors focus-within:bg-hover hover:bg-hover">
+            <div data-inbox-surface="quick-capture" className="mb-5 rounded-lg border border-border/70 bg-surface/60">
+              <div className="flex w-full items-center gap-3 px-3 py-2.5 transition-colors focus-within:bg-hover/60 hover:bg-hover/60">
                 <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <input
                   value={captureValue}
@@ -359,11 +359,11 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                   className="h-7 min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
                 <span className="hidden shrink-0 font-mono text-[10px] text-muted-foreground lg:inline">Needs triage</span>
-                <kbd className="shrink-0 rounded border border-border bg-muted px-1 font-mono text-[9px] text-muted-foreground">Enter</kbd>
+                <kbd className="shrink-0 rounded border border-border/70 bg-background px-1 font-mono text-[9px] text-muted-foreground">Enter</kbd>
               </div>
             </div>
 
-            <section className="min-w-0 rounded-lg border border-border/80 bg-card">
+            <section data-inbox-surface="pending-captures" className="min-w-0 rounded-lg border border-border/70 bg-surface/40">
               <div className="flex w-full flex-wrap items-center gap-3 border-b border-border/60 px-3 py-2 text-left">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Pending captures</span>
@@ -402,7 +402,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                     <div
                       key={item.id}
                       data-inbox-row="pending-capture"
-                      className={`group grid w-full min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-border/60 px-3 py-2.5 text-xs transition-colors last:border-b-0 hover:bg-hover xl:grid-cols-[24px_minmax(0,1fr)_minmax(0,220px)_minmax(0,140px)_minmax(0,112px)_minmax(0,168px)] ${selected ? "bg-muted/80" : ""}`}
+                      className={`group grid w-full min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-border/50 bg-transparent px-3 py-2.5 text-xs transition-colors last:border-b-0 hover:bg-hover/60 xl:grid-cols-[24px_minmax(0,1fr)_minmax(0,220px)_minmax(0,140px)_minmax(0,112px)_minmax(0,168px)] ${selected ? "bg-hover/70" : ""}`}
                     >
                       <input
                         type="checkbox"

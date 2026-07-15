@@ -100,15 +100,15 @@ function chipStyle(state: CalendarTaskState, isSelected = false): CSSProperties 
 }
 
 function taskTone(state: CalendarTaskState, isSelected = false): string {
-  if (isSelected) return "border-ring bg-muted text-foreground ring-1 ring-ring hover:bg-muted shadow-[inset_3px_0_0_var(--color-ring)]";
-  if (state === "done") return "border-border/60 bg-muted/60 text-muted-foreground hover:bg-muted";
-  return "border-border/80 bg-card text-foreground hover:bg-hover";
+  if (isSelected) return "border-ring bg-hover text-foreground ring-1 ring-ring hover:bg-hover shadow-[inset_3px_0_0_var(--color-ring)]";
+  if (state === "done") return "border-border/50 bg-surface/50 text-muted-foreground hover:bg-hover/60";
+  return "border-border/70 bg-surface/80 text-foreground hover:bg-hover/70";
 }
 
 function inspectorRowTone(state: CalendarTaskState, isSelected = false): string {
-  if (isSelected) return "border-ring bg-muted/80 text-foreground ring-1 ring-ring hover:bg-muted";
-  if (state === "done") return "border-border/70 bg-muted/60 text-muted-foreground hover:bg-muted";
-  return "border-border/80 bg-card text-foreground hover:bg-hover";
+  if (isSelected) return "border-ring bg-hover text-foreground ring-1 ring-ring hover:bg-hover";
+  if (state === "done") return "border-border/50 bg-surface/50 text-muted-foreground hover:bg-hover/60";
+  return "border-border/70 bg-surface/80 text-foreground hover:bg-hover/70";
 }
 
 function titleTone(state: CalendarTaskState, isSelected = false): string {
@@ -152,6 +152,7 @@ function MonthTaskCard({
   return (
     <button
       type="button"
+      data-calendar-task-card="month"
       data-selected={isSelected ? "true" : "false"}
       aria-current={isSelected ? "true" : undefined}
       onClick={() => onSelect(item.id)}
@@ -161,7 +162,7 @@ function MonthTaskCard({
     >
       <span className={`min-w-0 truncate font-medium ${isSelected && !isDone ? "font-semibold" : ""} ${titleTone(state, isSelected)}`}>{item.title}</span>
       <span className="hidden shrink-0 items-center gap-1 text-muted-foreground sm:inline-flex">
-        <PriorityIcon p={item.priority} />
+        <PriorityIcon p={item.priority} className="!border-border/70 !bg-background !text-muted-foreground" />
       </span>
       <span className="sr-only">{projectName} / {stateLabel}</span>
       {isSelected && <span className="sr-only">Selected</span>}
@@ -229,9 +230,10 @@ function CalendarDayAddButton({
   return (
     <button
       type="button"
+      data-calendar-add="day"
       aria-label={`Add task for ${fullDateLabel(dateKey)}`}
       onClick={handleClick}
-      className={`flex h-6 w-full items-center justify-center rounded border border-dashed border-border/80 bg-card/60 text-[10px] text-muted-foreground transition-colors hover:border-border hover:bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${className}`}
+      className={`flex h-6 w-full items-center justify-center rounded border border-dashed border-border/50 bg-transparent text-[10px] text-muted-foreground transition-colors hover:border-border/80 hover:bg-hover/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${className}`}
     >
       <Plus className="mr-1 h-3 w-3" /> Add
     </button>
@@ -277,7 +279,7 @@ function TaskChip({
         <span className="mt-0.5 block min-w-0 truncate text-[11px] text-muted-foreground">{projectName}</span>
       </span>
       <span className="inline-flex min-w-0 items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-        <PriorityIcon p={item.priority} />
+        <PriorityIcon p={item.priority} className="!border-border/70 !bg-background !text-muted-foreground" />
         <span className="truncate">{item.priority}</span>
       </span>
       <span className={`min-w-0 truncate text-[11px] ${dueTone(state)}`}>{stateLabel}</span>
@@ -352,12 +354,12 @@ function DayInspector({
           ))}
         </div>
         {dateKey && (
-          <div className="shrink-0 border-t border-border/70 bg-card/80 px-4 py-3">
+          <div className="shrink-0 border-t border-border/70 bg-surface/70 px-4 py-3">
             <button
               type="button"
               aria-label={`Add task for ${fullDateLabel(dateKey)}`}
               onClick={handleAdd}
-              className="inline-flex h-8 w-full items-center justify-center rounded border border-border bg-card px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:w-auto"
+              className="inline-flex h-8 w-full items-center justify-center rounded border border-border/70 bg-background px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:w-auto"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Add task for this day
             </button>
@@ -410,7 +412,7 @@ function MonthView({
       {WEEKDAY_HEADERS.map((d, index) => (
         <div
           key={`${d.long}-${index}`}
-          className="border-r border-t border-border/70 bg-card/60 px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+          className="border-r border-t border-border/70 bg-surface/40 px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
         >
           <span className="sm:hidden">{d.short}</span>
           <span className="hidden sm:inline">{d.long}</span>
@@ -522,7 +524,7 @@ function WeekView({
         return (
           <div key={key} className="flex min-h-0 flex-col border-r border-t border-border/70">
             <div
-              className={`flex shrink-0 items-center gap-1.5 border-b border-border/60 px-2 py-2 ${isToday ? "bg-primary/[0.08]" : "bg-card/60"}`}
+              className={`flex shrink-0 items-center gap-1.5 border-b border-border/60 px-2 py-2 ${isToday ? "bg-primary/[0.08]" : "bg-surface/40"}`}
             >
               <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {dayLabel}
@@ -606,7 +608,7 @@ function NoDateTask({
         {projectNameFor(item, projectsById)}
       </span>
       <span className="hidden min-w-0 items-center gap-1 text-muted-foreground md:inline-flex">
-        <PriorityIcon p={item.priority} />
+        <PriorityIcon p={item.priority} className="!border-border/70 !bg-background !text-muted-foreground" />
         <span className="truncate">{item.priority}</span>
       </span>
       <span className="hidden min-w-0 items-center gap-1 text-foreground/75 md:inline-flex">
@@ -892,7 +894,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
           </div>
           <span className="ml-auto" />
           {projects.length > 0 && (
-            <label className="hidden h-7 items-center gap-1.5 rounded border bg-card px-2 text-[12px] text-muted-foreground sm:flex">
+            <label className="hidden h-7 items-center gap-1.5 rounded border border-border/70 bg-background px-2 text-[12px] text-muted-foreground sm:flex">
               <span>Project</span>
               <select
                 value={projectFilterValue}
@@ -942,7 +944,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
           </div>
           {!loading && scopedWorkItems.length === 0 && (
             <div className="mx-4 mt-4">
-              <div className="flow-empty py-8">
+              <div className="flow-empty !border-border/60 !bg-surface/50 !shadow-none py-8">
                 <p className="text-[13px] font-medium text-foreground">Nothing scheduled yet.</p>
                 <p className="mt-1 max-w-sm text-[12px] text-muted-foreground">
                   Add a due date to a task in {selectedProjectName} to see it here. You can also click any day to create a task for that date.
@@ -992,13 +994,13 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
             onCreate={createOnDate}
           />
           {noDateTasks.length > 0 && (
-            <section className="w-full min-w-0 border-t border-border/70 bg-card/70">
+            <section className="w-full min-w-0 border-t border-border/70 bg-surface/50">
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <div>
                   <h2 className="text-[13px] font-semibold">No date</h2>
                   <p className="text-[12px] text-muted-foreground">Open a task to add a due date and place it on the calendar.</p>
                 </div>
-                <span className="rounded-md border border-border/60 bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{noDateTasks.length}</span>
+                <span className="rounded-md border border-border/60 bg-background px-2 py-0.5 text-[11px] text-muted-foreground">{noDateTasks.length}</span>
               </div>
               <div className="w-full min-w-0 border-t border-border/60">
                 <div className="hidden min-h-8 w-full min-w-0 grid-cols-[minmax(18rem,1fr)_minmax(10rem,16rem)_96px_minmax(8rem,12rem)_96px_88px] items-center gap-x-3 border-b border-border/60 px-4 text-[10px] font-medium uppercase text-muted-foreground md:grid">

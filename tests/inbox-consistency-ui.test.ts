@@ -9,18 +9,19 @@ test("Inbox uses flat Home-style rows and compact metadata", async () => {
   const inbox = await readFile(inboxPath, "utf8")
 
   assert.doesNotMatch(inbox, /import \{ FlowRow \}/)
-  assert.match(inbox, /rounded-lg border border-border\/80 bg-card/)
-  assert.match(inbox, /border-b border-border\/60/)
-  assert.match(inbox, /hover:bg-hover/)
+  assert.match(inbox, /data-inbox-row="pending-capture"/)
+  assert.match(inbox, /border-b border-border\/50 bg-transparent/)
+  assert.match(inbox, /hover:bg-hover\/60/)
   assert.match(inbox, /text-xs/)
   assert.match(inbox, /font-mono text-\[10px\]/)
 })
 
-test("Inbox capture and pending list use standard bordered panels", async () => {
+test("Inbox capture and pending list use quiet workspace surfaces", async () => {
   const inbox = await readFile(inboxPath, "utf8")
 
-  assert.match(inbox, /mb-5 rounded-lg border border-border\/80 bg-card/)
-  assert.match(inbox, /rounded-lg border border-border\/80 bg-card/)
+  assert.match(inbox, /data-inbox-surface="quick-capture"[^>]*border border-border\/70 bg-surface\/60/)
+  assert.match(inbox, /data-inbox-surface="pending-captures"[^>]*border border-border\/70 bg-surface\/40/)
+  assert.match(inbox, /border border-border\/70 bg-background/)
   assert.doesNotMatch(inbox, /border-y border-zinc-200 bg-white/)
 })
 

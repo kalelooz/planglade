@@ -15,8 +15,8 @@ test("Calendar task cards use semantic neutral surfaces with restrained status s
   const inspectorRowSource = source.match(/function TaskChip[\s\S]*?function DayOverflowPopover/)?.[0] ?? ""
   const toneSource = source.match(/const TASK_RAIL_COLOR[\s\S]*?function projectNameFor/)?.[0] ?? ""
 
-  assert.match(toneSource, /border-border\/80 bg-card text-foreground hover:bg-hover/)
-  assert.match(toneSource, /border-border\/60 bg-muted\/60 text-muted-foreground hover:bg-muted/)
+  assert.match(toneSource, /border-border\/70 bg-surface\/80 text-foreground hover:bg-hover\/70/)
+  assert.match(toneSource, /border-border\/50 bg-surface\/50 text-muted-foreground hover:bg-hover\/60/)
   assert.match(monthCardSource, /border-l-2/)
   assert.match(inspectorRowSource, /border-l-2/)
   assert.match(toneSource, /line-through/)
@@ -111,7 +111,7 @@ test("Calendar busy days open a focused day inspector with all tasks and an add 
   assert.match(inspectorSource, /<DialogTitle className="truncate text-\[16px\]">\{dateLabel\}<\/DialogTitle>/)
   assert.match(inspectorSource, /\{items\.length\} task/)
   assert.match(inspectorSource, /<button[\s\S]*type="button"[\s\S]*Add task for this day/)
-  assert.match(inspectorSource, /border-t border-border\/70 bg-card\/80/)
+  assert.match(inspectorSource, /border-t border-border\/70 bg-surface\/70/)
   assert.doesNotMatch(inspectorSource, /<CalendarDayAddButton[\s\S]*dateKey=\{dateKey\}/)
   assert.match(inspectorSource, /items\.map\(\(item\) => \(/)
   assert.match(inspectorSource, /<TaskChip/)
@@ -143,7 +143,9 @@ test("Calendar day add controls remain available for empty, filled, and busy day
   assert.match(addButtonSource, /aria-label=\{`Add task for \$\{fullDateLabel\(dateKey\)\}`\}/)
   assert.match(addButtonSource, /event\.stopPropagation\(\)/)
   assert.match(addButtonSource, /onCreate\(dateKey\)/)
-  assert.match(addButtonSource, /border-border\/80 bg-card\/60/)
+  assert.match(addButtonSource, /data-calendar-add="day"/)
+  assert.match(addButtonSource, /border-border\/50 bg-transparent/)
+  assert.match(addButtonSource, /hover:bg-hover\/60/)
 
   assert.match(monthSource, /const visible = dayItems\.slice\(0, MONTH_VISIBLE\)/)
   assert.match(monthSource, /const hasOverflow = dayItems\.length > MONTH_VISIBLE/)
@@ -172,10 +174,10 @@ test("Calendar selected task state follows the open drawer task id", async () =>
   assert.match(source, /function chipStyle\(state: CalendarTaskState, isSelected = false\)/)
   assert.match(source, /isSelected \? "rgb\(63 63 70\)" : TASK_RAIL_COLOR\[state\]/)
   assert.match(source, /function taskTone\(state: CalendarTaskState, isSelected = false\)/)
-  assert.match(source, /border-ring bg-muted text-foreground ring-1 ring-ring/)
+  assert.match(source, /border-ring bg-hover text-foreground ring-1 ring-ring/)
   assert.match(source, /shadow-\[inset_3px_0_0_var\(--color-ring\)\]/)
   assert.match(source, /function inspectorRowTone\(state: CalendarTaskState, isSelected = false\)/)
-  assert.match(source, /border-ring bg-muted\/80 text-foreground ring-1 ring-ring/)
+  assert.match(source, /border-ring bg-hover text-foreground ring-1 ring-ring/)
   assert.doesNotMatch(source.match(/function taskTone[\s\S]*?function titleTone/)?.[0] ?? "", /red|amber|emerald|green|cyan|sky|blue|violet|purple|pink/)
 
   assert.match(monthCardSource, /data-selected=\{isSelected \? "true" : "false"\}/)

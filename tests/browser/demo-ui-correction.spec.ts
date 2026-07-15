@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Locator } from "@playwright/test"
 
 test.use({ viewport: { width: 1440, height: 1000 } })
 
@@ -58,4 +58,39 @@ test("explicit dark selection remains persisted", async ({ page }) => {
     return getComputedStyle(element).color === expected
   })
   expect(usesForeground).toBe(true)
+})
+
+test("dark Inbox and Calendar surfaces stay recessed with visible focus", async ({ page }) => {
+  const surfaceLightness = async (locator: Locator) => locator.evaluate((element) => {
+    const color = getComputedStyle(element).backgroundColor
+    const oklMatch = color.match(/^okl(?:ch|ab)\(([\d.]+)/)
+    if (oklMatch) return Number(oklMatch[1])
+    const rgbMatch = color.match(/^rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/)
+    if (!rgbMatch) return 1
+    return (Number(rgbMatch[1]) + Number(rgbMatch[2]) + Number(rgbMatch[3])) / (255 * 3)
+  })
+
+  await page.goto("/demo/settings")
+  await page.getByRole("button", { name: "Dark", exact: true }).click()
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+
+  await page.goto("/demo/inbox")
+  const capture = page.locator('[data-inbox-surface="quick-capture"]')
+  const pending = page.locator('[data-inbox-surface="pending-captures"]')
+  await expect(capture).toBeVisible()
+  await expect(pending).toBeVisible()
+  expect(await surfaceLightness(capture)).toBeLessThan(0.45)
+  expect(await surfaceLightness(pending)).toBeLessThan(0.45)
+
+  await page.goto("/demo/calendar")
+  const taskCard = page.locator('[data-calendar-task-card="month"]').first()
+  const addControl = page.locator('[data-calendar-add="day"]').first()
+  await expect(taskCard).toBeVisible()
+  await expect(addControl).toBeVisible()
+  expect(await surfaceLightness(taskCard)).toBeLessThan(0.45)
+  expect(await surfaceLightness(addControl)).toBeLessThan(0.45)
+
+  await addControl.focus()
+  const focusShadow = await addControl.evaluate((element) => getComputedStyle(element).boxShadow)
+  expect(focusShadow).not.toBe("none")
 })
