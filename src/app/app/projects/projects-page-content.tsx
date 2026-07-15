@@ -827,6 +827,7 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
             </div>
           </div>
           <TaskDrawer
+            readOnly={isDemoMode}
             item={selectedTask}
             onClose={() => setSelectedTaskId(null)}
             workspaceId={workspaceId}

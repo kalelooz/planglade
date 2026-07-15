@@ -23,6 +23,7 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation } from "@/lib/demo-readonly";
 
 const order: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const sortOptions = ["Due", "Priority", "Created"] as const;
@@ -180,6 +181,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
   }, [isDemoMode, updateSettings]);
 
   const createAndFocus = async (status?: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const targetProjectId = scopedProjectId ?? projects[0]?.id ?? null;
     if (!targetProjectId) {
@@ -215,6 +217,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
   };
 
   const patchTaskStatus = async (id: string, nextStatus: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const snapshot = workItems;
     const completedAt = nextStatus === "Done" ? new Date().toISOString() : null;
@@ -238,6 +241,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
   };
 
   const handleDelete = async (id: string) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const snapshot = workItems;
     setWorkItems((current) => current.filter((item) => item.id !== id));
@@ -452,6 +456,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
         </div>
 
         <TaskDrawer
+          readOnly={isDemoMode}
           item={selected}
           focusTitle={focusNew}
           onTitleFocused={() => setFocusNew(false)}

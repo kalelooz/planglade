@@ -24,6 +24,7 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation } from "@/lib/demo-readonly";
 
 const compactPrimaryActionClass =
   "lov-btn lov-btn-primary h-7 justify-center gap-1.5 px-2 text-[11px] disabled:opacity-50";
@@ -125,6 +126,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   }, [isDemoMode]);
 
   const patchWorkItem = async (id: string, localPatch: Partial<WorkItem>, apiPatch: Record<string, unknown>) => {
+    if (blockReadOnlyMutation(isDemoMode)) return false;
     if (!workspaceId) return false;
     const snapshot = workItems;
     setWorkItems((current) => current.map((item) => (item.id === id ? { ...item, ...localPatch } : item)));
@@ -155,6 +157,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   };
 
   const deleteWorkItem = async (id: string) => {
+    if (blockReadOnlyMutation(isDemoMode)) return false;
     if (!workspaceId) return false;
     const snapshot = workItems;
     setWorkItems((current) => current.filter((item) => item.id !== id));
@@ -172,7 +175,8 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   };
 
   const createCapture = async (title: string) => {
-    if (!workspaceId) return;
+    if (blockReadOnlyMutation(isDemoMode)) return false;
+    if (!workspaceId) return false;
     const response = await apiFetch("/api/work-items", {
       method: "POST",
       headers: {
@@ -188,11 +192,12 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
     });
     if (!response.ok) {
       setError("Failed to capture item");
-      return;
+      return false;
     }
     const payload = (await response.json()) as { workItem: ApiWorkItem };
     setWorkItems((current) => [toUiWorkItem(payload.workItem, currentUserId), ...current]);
     toast.success("Captured to Inbox");
+    return true;
   };
 
   const toggleSelected = (id: string) => {
@@ -209,6 +214,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   };
 
   const bulkUpdate = async (patch: Partial<WorkItem>, label: string) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     const ids = Array.from(selectedIds);
     if (patch.priority !== undefined) {
       setClearedPriorityIds((current) => {
@@ -228,6 +234,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   };
 
   const bulkPromote = async () => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (bulkPending) return;
     setBulkPending(true);
     const ids = Array.from(selectedIds);
@@ -243,6 +250,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   };
 
   const bulkDelete = async () => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (bulkPending) return;
     setBulkPending(true);
     const ids = Array.from(selectedIds);
@@ -257,6 +265,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
   };
 
   const clearAll = async () => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (inboxItems.length === 0) return;
     setClearAllPending(true);
     for (const item of inboxItems) {
@@ -351,7 +360,6 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && captureValue.trim()) {
                       void createCapture(captureValue.trim());
-                      setCaptureValue("");
                     }
                   }}
                   placeholder="Capture a thought, task, or idea."
@@ -446,6 +454,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                           assigned={priorityAssigned}
                           menuSide={itemIndex === inboxItems.length - 1 ? "top" : "bottom"}
                           onPick={(p) => {
+                            if (blockReadOnlyMutation(isDemoMode)) return;
                             setClearedPriorityIds((current) => {
                               const next = new Set(current);
                               next.delete(item.id);
@@ -454,6 +463,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                             void patchWorkItem(item.id, { priority: p }, { priority: toApiWorkPriority(p) });
                           }}
                           onClear={() => {
+                            if (blockReadOnlyMutation(isDemoMode)) return;
                             setClearedPriorityIds((current) => new Set(current).add(item.id));
                             void patchWorkItem(item.id, { priority: "Medium" }, { priority: toApiWorkPriority("Medium") });
                           }}
@@ -532,6 +542,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
           </div>
         </div>
         <TaskDrawer
+          readOnly={isDemoMode}
           item={selectedTask}
           onClose={() => setSelectedTaskId(null)}
           workspaceId={workspaceId}

@@ -231,10 +231,12 @@ export function MarkdownEditor({
   markdown,
   onChange,
   placeholder = "Start writing.",
+  readOnly = false,
 }: {
   markdown: string;
   onChange: (markdown: string) => void;
   placeholder?: string;
+  readOnly?: boolean;
 }) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -248,12 +250,13 @@ export function MarkdownEditor({
       handlePaste: (_view, event) => Boolean(event.clipboardData?.files.length),
       handleDrop: (_view, event) => Boolean(event.dataTransfer?.files.length),
     },
-    onUpdate: ({ editor: current }) => onChange(serializeNoteMarkdown(current)),
+    editable: !readOnly,
+    onUpdate: ({ editor: current }) => { if (!readOnly) onChange(serializeNoteMarkdown(current)); },
   });
 
   return (
     <div className="note-tiptap w-full min-w-0 overflow-hidden rounded-lg border bg-card shadow-sm">
-      {editor ? <EditorToolbar editor={editor} /> : <div className="h-10 animate-pulse border-b bg-muted/30" />}
+      {!readOnly && (editor ? <EditorToolbar editor={editor} /> : <div className="h-10 animate-pulse border-b bg-muted/30" />)}
       <EditorContent editor={editor} />
     </div>
   );

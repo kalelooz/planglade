@@ -13,6 +13,7 @@ import { apiFetch, buildSessionAuthHeaders, getServerSession } from "@/lib/serve
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, isBlockedByOpenTask, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation } from "@/lib/demo-readonly";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -825,6 +826,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
   }
 
   function createOnDate(dateKey: string) {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     void (async () => {
       const sessionHeaders = await buildSessionAuthHeaders();
@@ -1026,6 +1028,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
           )}
         </div>
         <TaskDrawer
+          readOnly={isDemoMode}
           item={selectedItem}
           focusTitle={focusNewTask}
           workspaceId={workspaceId}

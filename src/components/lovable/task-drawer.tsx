@@ -15,6 +15,7 @@ import { type ApiWorkItem, toApiWorkPriority, toApiWorkStatus, toIsoDateTime, to
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
 import { TaskCompletionToggle } from "./task-completion-toggle";
+import { blockReadOnlyMutation } from "@/lib/demo-readonly";
 
 const STATUSES: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
@@ -63,6 +64,7 @@ type DrawerHistoryEvent = {
 };
 export function TaskDrawer({
   item,
+  readOnly = false,
   onClose,
   focusTitle,
   initialFocusSection,
@@ -79,6 +81,7 @@ export function TaskDrawer({
   onSelectItem,
 }: {
   item: WorkItem | null;
+  readOnly?: boolean;
   onClose: () => void;
   focusTitle?: boolean;
   initialFocusSection?: "comments" | "history";
@@ -99,6 +102,7 @@ export function TaskDrawer({
       {item && (
         <DrawerContent
           item={item}
+          readOnly={readOnly}
           onClose={onClose}
           focusTitle={!!focusTitle}
           initialFocusSection={initialFocusSection}
@@ -121,6 +125,7 @@ export function TaskDrawer({
 
 type DrawerContentProps = {
   item: WorkItem;
+  readOnly: boolean;
   onClose: () => void;
   focusTitle: boolean;
   initialFocusSection?: "comments" | "history";
@@ -139,6 +144,7 @@ type DrawerContentProps = {
 
 function DrawerContent({
   item,
+  readOnly,
   onClose,
   focusTitle,
   initialFocusSection,
@@ -233,6 +239,7 @@ function DrawerContent({
   };
 
   const patchServer = async (uiPatch: Partial<WorkItem>, apiPatch: Record<string, unknown>) => {
+    if (blockReadOnlyMutation(readOnly)) return false;
     const previous = item;
     applyLocalPatch(uiPatch);
     if (!workspaceId) return true;
@@ -330,6 +337,7 @@ function DrawerContent({
   }, [serverMode, workspaceId, item.id, currentUserId]);
 
   const resolveLabelId = async (name: string) => {
+    if (blockReadOnlyMutation(readOnly)) return undefined;
     if (!workspaceId) return undefined;
     const trimmed = name.trim();
     if (!trimmed) return undefined;
@@ -354,6 +362,7 @@ function DrawerContent({
   };
 
   const postComment = async () => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!serverMode || !workspaceId || !commentDraft.trim() || postingComment) return;
     setPostingComment(true);
     try {
@@ -391,6 +400,7 @@ function DrawerContent({
   };
 
   const linkNote = (noteId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (linkedNoteIds.includes(noteId)) return;
     const nextNoteIds = [...linkedNoteIds, noteId];
     if (!serverMode) {
@@ -402,6 +412,7 @@ function DrawerContent({
   };
 
   const unlinkNote = (noteId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     const nextNoteIds = linkedNoteIds.filter((id) => id !== noteId);
     if (!serverMode) {
       applyLocalPatch({ noteIds: nextNoteIds });
@@ -422,6 +433,7 @@ function DrawerContent({
   };
 
   const addBlocker = async (blockerId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!workspaceId || !serverMode || !onItemsReplaced) return;
     const response = await apiFetch("/api/work-item-relations", {
       method: "POST",
@@ -443,6 +455,7 @@ function DrawerContent({
   };
 
   const removeBlocker = async (relationId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!workspaceId || !serverMode || !onItemsReplaced) return;
     const response = await apiFetch(
       `/api/work-item-relations/${encodeURIComponent(relationId)}?workspaceId=${encodeURIComponent(workspaceId)}`,
@@ -579,6 +592,7 @@ function DrawerContent({
   };
 
   const onAddChecklistItem = () => {
+    if (blockReadOnlyMutation(readOnly)) return;
     const text = newChecklistText.trim();
     if (!text) return;
     const nextItem = {
@@ -599,6 +613,7 @@ function DrawerContent({
   };
 
   const onToggleChecklistItem = (checklistItemId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!serverMode) {
       toggleChecklistItem(item.id, checklistItemId);
       return;
@@ -610,6 +625,7 @@ function DrawerContent({
   };
 
   const onRemoveChecklistItem = (checklistItemId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!serverMode) {
       removeChecklistItem(item.id, checklistItemId);
       return;
@@ -619,6 +635,7 @@ function DrawerContent({
   };
 
   const createSubtask = async () => {
+    if (blockReadOnlyMutation(readOnly)) return;
     const title = newSubtaskTitle.trim();
     if (!title || !workspaceId || !serverMode || !onItemsReplaced) return;
     setSubtaskError(null);
@@ -652,6 +669,7 @@ function DrawerContent({
   };
 
   const setSubtaskDone = async (subtask: WorkItem, done: boolean) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!workspaceId || !serverMode || !onItemsReplaced) return;
     const nextStatus: Status = done ? "Done" : "To Do";
     const snapshot = drawerItems;
@@ -697,6 +715,7 @@ function DrawerContent({
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <input
+          readOnly={readOnly}
           ref={titleRef}
           value={titleDraft}
           onChange={(e) => setTitleDraft(e.target.value)}
@@ -725,6 +744,7 @@ function DrawerContent({
           </div>
         )}
         <textarea
+          readOnly={readOnly}
           value={descriptionDraft}
           onChange={(e) => setDescriptionDraft(e.target.value)}
           onBlur={() => { void onDescriptionCommit(); }}
@@ -747,6 +767,7 @@ function DrawerContent({
           <dt className="pt-0.5 text-muted-foreground">Label</dt>
           <dd>
             <input
+              readOnly={readOnly}
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
               onBlur={() => {
@@ -880,6 +901,7 @@ function DrawerContent({
             <li className="flex items-center gap-2 px-1 py-1">
               <Plus className="h-3.5 w-3.5 text-muted-foreground" />
               <input
+                readOnly={readOnly}
                 value={newSubtaskTitle}
                 onChange={(event) => setNewSubtaskTitle(event.target.value)}
                 onKeyDown={(event) => {
@@ -924,6 +946,7 @@ function DrawerContent({
             <li className="flex items-center gap-2.5 px-1 py-0.5">
               <Plus className="h-3.5 w-3.5 text-muted-foreground" />
               <input
+                readOnly={readOnly}
                 value={newChecklistText}
                 onChange={(e) => setNewChecklistText(e.target.value)}
                 onKeyDown={(e) => {
@@ -1019,6 +1042,7 @@ function DrawerContent({
 
             <div className="mb-4">
               <textarea
+                readOnly={readOnly}
                 ref={commentRef}
                 value={commentDraft}
                 onChange={(event) => setCommentDraft(event.target.value)}

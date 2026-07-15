@@ -4,6 +4,7 @@ import { Monitor, Moon, Sun } from "lucide-react"
 
 import { AppShell } from "@/components/lovable/shell"
 import { DEMO_MODE_MESSAGE, demoSession } from "@/lib/demo-data"
+import { useStore } from "@/lib/store"
 import { useThemePreference } from "@/lib/theme-preference"
 
 const themes = [
@@ -14,6 +15,8 @@ const themes = [
 
 export default function DemoSettingsPage() {
   const { theme, selectTheme } = useThemePreference()
+  const density = useStore((state) => state.settings.density)
+  const updateSettings = useStore((state) => state.updateSettings)
 
   return (
     <AppShell title={<span className="font-medium">Settings</span>}>
@@ -26,8 +29,19 @@ export default function DemoSettingsPage() {
 
         <section className="overflow-hidden rounded-lg border bg-card" aria-labelledby="demo-appearance-title">
           <div className="border-b px-4 py-3"><h2 id="demo-appearance-title" className="text-sm font-semibold">Appearance</h2><p className="mt-0.5 text-xs text-muted-foreground">Choose how the demo looks on this device.</p></div>
-          <div className="flex flex-wrap gap-2 p-4">
-            {themes.map(({ value, label, icon: Icon }) => <button key={value} type="button" onClick={() => selectTheme(value)} aria-pressed={theme === value} className={`lov-btn gap-2 ${theme === value ? "border-foreground/30 bg-muted" : ""}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
+          <div className="grid gap-5 p-4 sm:grid-cols-2">
+            <fieldset>
+              <legend className="mb-2 text-xs font-medium text-muted-foreground">Theme</legend>
+              <div className="flex flex-wrap gap-2">
+                {themes.map(({ value, label, icon: Icon }) => <button key={value} type="button" onClick={() => selectTheme(value)} aria-pressed={theme === value} className={`lov-btn gap-2 ${theme === value ? "border-foreground/30 bg-muted" : ""}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend className="mb-2 text-xs font-medium text-muted-foreground">Density</legend>
+              <div className="flex flex-wrap gap-2">
+                {(["compact", "comfortable"] as const).map((value) => <button key={value} type="button" onClick={() => updateSettings({ density: value })} aria-pressed={density === value} className={`lov-btn capitalize ${density === value ? "border-foreground/30 bg-muted" : ""}`}>{value}</button>)}
+              </div>
+            </fieldset>
           </div>
         </section>
 

@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical, LayoutGrid, List,
 } from "lucide-react";
@@ -60,6 +60,8 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
+import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation } from "@/lib/demo-readonly";
 
 const cols: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const columnIds = new Set(cols as string[]);
@@ -128,20 +130,24 @@ function reorderLocalWorkItems(
 }
 
 export function BoardPageContent() {
+  const pathname = usePathname() ?? "";
+  const isDemoMode = pathname.startsWith("/demo");
+  const demoData = isDemoMode ? getDemoFixtures() : null;
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const activeProjectId = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
-  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>([]);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations) : []);
+  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>(() => demoData ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user")) : []);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
   const [notes, setNotes] = useState<Array<{ id: string; title: string; tag: string; updated: string; excerpt: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
   const scopedProjectId = routeProjectId ?? activeProjectId;
-  const listHref = scopedProjectId ? `/app/tasks?project=${encodeURIComponent(scopedProjectId)}` : "/app/tasks";
+  const routePrefix = isDemoMode ? "/demo" : "/app";
+  const listHref = scopedProjectId ? `${routePrefix}/tasks?project=${encodeURIComponent(scopedProjectId)}` : `${routePrefix}/tasks`;
   const activeProject = scopedProjectId ? projects.find((p) => p.id === scopedProjectId) ?? null : null;
   const scopedWorkItems = useMemo(
     () => (scopedProjectId ? workItems.filter((w) => w.project === scopedProjectId) : workItems),
@@ -166,6 +172,7 @@ export function BoardPageContent() {
   };
 
   useEffect(() => {
+    if (isDemoMode) return;
     if (routeProjectId && routeProjectId !== activeProjectId) {
       updateSettings({ activeProjectId: routeProjectId });
     }
@@ -239,9 +246,10 @@ export function BoardPageContent() {
     return () => {
       active = false;
     };
-  }, [updateSettings]);
+  }, [isDemoMode, updateSettings]);
 
   const patchTaskStatus = async (id: string, status: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const response = await apiFetch(
       `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
@@ -260,6 +268,7 @@ export function BoardPageContent() {
   };
 
   const createAndFocus = async (status: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const targetProjectId = scopedProjectId ?? projects[0]?.id ?? null;
     if (!targetProjectId) {
@@ -292,6 +301,7 @@ export function BoardPageContent() {
   };
 
   const handleDelete = async (item: WorkItem) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const snapshot = workItems;
     setWorkItems((current) => current.filter((workItem) => workItem.id !== item.id));
@@ -316,10 +326,12 @@ export function BoardPageContent() {
   };
 
   const onDragStart = (e: DragStartEvent) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     setActiveDragId(String(e.active.id));
   };
 
   const onDragEnd = (e: DragEndEvent) => {
+    if (blockReadOnlyMutation(isDemoMode)) { setActiveDragId(null); return; }
     setActiveDragId(null);
     const activeId = String(e.active.id);
     if (!e.over) return;
@@ -433,12 +445,14 @@ export function BoardPageContent() {
                       onSelect={(id) => setSelectedId(id)}
                       onAdd={() => { void createAndFocus(col); }}
                       onMove={(id, s) => {
+                        if (blockReadOnlyMutation(isDemoMode)) return;
                         setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, status: s } : workItem)));
                         void patchTaskStatus(id, s);
                       }}
                       onDelete={(item) => { void handleDelete(item); }}
                       members={members}
                       allItems={workItems}
+                      readOnly={isDemoMode}
                     />
                   );
                 })}
@@ -451,6 +465,7 @@ export function BoardPageContent() {
         </div>
 
         <TaskDrawer
+          readOnly={isDemoMode}
           item={selected}
           focusTitle={focusNew}
           onTitleFocused={() => setFocusNew(false)}
@@ -485,6 +500,7 @@ function Column({
   onDelete,
   members,
   allItems,
+  readOnly,
 }: {
   status: Status;
   items: WorkItem[];
@@ -495,6 +511,7 @@ function Column({
   onDelete: (item: WorkItem) => void;
   members: Array<{ id: string; name: string }>;
   allItems: WorkItem[];
+  readOnly: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
@@ -522,6 +539,7 @@ function Column({
               onDelete={() => onDelete(w)}
               members={members}
               allItems={allItems}
+              readOnly={readOnly}
             />
           ))}
         </SortableContext>
@@ -547,6 +565,7 @@ function Card({
   onDelete,
   members,
   allItems,
+  readOnly,
 }: {
   item: WorkItem;
   selected: boolean;
@@ -555,6 +574,7 @@ function Card({
   onDelete: () => void;
   members: Array<{ id: string; name: string }>;
   allItems: WorkItem[];
+  readOnly: boolean;
 }) {
   const {
     attributes,
@@ -564,7 +584,7 @@ function Card({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ id: item.id, disabled: readOnly });
   const m = members.find((member) => member.id === item.assignee) ?? { id: "unassigned", name: "Unassigned" };
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -580,6 +600,7 @@ function Card({
   return (
     <div
       ref={setNodeRef}
+      data-task-card="true"
       style={style}
       className={`group relative rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
     >
@@ -589,7 +610,8 @@ function Card({
           ref={setActivatorNodeRef}
           {...listeners}
           {...attributes}
-          title="Drag task"
+          onClick={() => { if (readOnly) blockReadOnlyMutation(true); }}
+          title={readOnly ? "Demo mode - changes are disabled." : "Drag task"}
           aria-label={`Drag ${item.title}`}
           className="lov-icon-btn h-7 w-7 shrink-0 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
         >
