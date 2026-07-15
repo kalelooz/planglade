@@ -609,7 +609,26 @@ html[data-density="comfortable"] {
     max-width: 100%;
     box-shadow: -1px 0 0 color-mix(in oklch, var(--color-foreground) 5%, transparent);
   }
+  .drawer-board-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 45;
+    background: color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  }
+  .drawer-inline.drawer-board {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    z-index: 50;
+    width: clamp(340px, 34vw, 420px);
+    max-width: min(420px, 100%);
+    box-shadow: -8px 0 24px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  }
   @media (max-width: 767px) {
+    .drawer-board-backdrop {
+      position: fixed;
+      z-index: 79;
+    }
     .drawer-inline {
       position: fixed;
       inset: 0;
@@ -619,6 +638,13 @@ html[data-density="comfortable"] {
       max-width: none;
       border-left: 0;
       box-shadow: none;
+    }
+    aside.drawer-inline.drawer-board {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 80 !important;
+      width: 100% !important;
+      max-width: none !important;
     }
     .drawer-inline dl {
       grid-template-columns: minmax(0, 1fr) !important;
