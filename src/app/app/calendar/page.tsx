@@ -12,6 +12,7 @@ import { formatDueLabel, getDatePart, localDateKey, parseLocalDate } from "@/lib
 import { apiFetch, buildSessionAuthHeaders, getServerSession } from "@/lib/server-session-client";
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, isBlockedByOpenTask, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import { getDemoFixtures } from "@/lib/demo-data";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -622,17 +623,23 @@ function NoDateTask({
 
 type CalView = "month" | "week";
 
-function CalendarPageContent() {
+function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
   const params = useSearchParams();
   const routeProjectId = params.get("project");
-  const [loading, setLoading] = useState(true);
+  const isDemoMode = basePath === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>(() => demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : []);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
 
   const [cursor, setCursor] = useState(() => new Date());
   const [now, setNow] = useState(() => new Date());
@@ -642,6 +649,7 @@ function CalendarPageContent() {
   const [inspectedDateKey, setInspectedDateKey] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
     async function load() {
       setLoading(true);
@@ -697,7 +705,7 @@ function CalendarPageContent() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isDemoMode]);
 
   const scopedProjectId = routeProjectId ?? activeProjectId;
   const projectsById = useMemo(() => {
@@ -1042,10 +1050,10 @@ function CalendarPageContent() {
   );
 }
 
-export default function CalendarPage() {
+export default function CalendarPage({ basePath = "/app" }: { basePath?: "/app" | "/demo" }) {
   return (
     <Suspense fallback={null}>
-      <CalendarPageContent />
+      <CalendarPageContent basePath={basePath} />
     </Suspense>
   );
 }

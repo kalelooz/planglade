@@ -91,7 +91,7 @@ type Actions = {
 };
 
 const defaultSettings: Settings = {
-  theme: "system",
+  theme: "light",
   accent: "oklch(0.395 0.120 155)",
   density: "compact",
   workspaceName: "PlanGlade Workspace",

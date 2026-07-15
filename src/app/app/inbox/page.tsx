@@ -23,6 +23,7 @@ import {
   toUiWorkItem,
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import { getDemoFixtures } from "@/lib/demo-data";
 
 const compactPrimaryActionClass =
   "lov-btn lov-btn-primary h-7 justify-center gap-1.5 px-2 text-[11px] disabled:opacity-50";
@@ -42,14 +43,20 @@ function formatDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export default function InboxPage() {
-  const [loading, setLoading] = useState(true);
+export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "/demo" }) {
+  const isDemoMode = basePath === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>(() => demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : []);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
   const [captureValue, setCaptureValue] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [clearedPriorityIds, setClearedPriorityIds] = useState<Set<string>>(new Set());
@@ -73,6 +80,7 @@ export default function InboxPage() {
   }, [partiallySelected]);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
     async function load() {
       setLoading(true);
@@ -114,7 +122,7 @@ export default function InboxPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isDemoMode]);
 
   const patchWorkItem = async (id: string, localPatch: Partial<WorkItem>, apiPatch: Record<string, unknown>) => {
     if (!workspaceId) return false;

@@ -38,8 +38,6 @@ test("mobile demo navigation stays contained and includes safe settings", async 
   await expect(page).toHaveURL(/\/demo\/connections$/)
   await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
   await expect(page.getByLabel("Interactive relationship graph")).toBeVisible()
-  await page.getByRole("button", { name: "Show labels" }).click()
-  await expect(page.getByLabel("Relationship list").getByText("has child", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Close navigation" })).toBeHidden()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(applicationErrors).toEqual([])

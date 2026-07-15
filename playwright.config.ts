@@ -8,9 +8,12 @@ export default defineConfig({
   retries: 1,
   workers: 1,
   reporter: process.env.CI ? "github" : "list",
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "firefox", use: { browserName: "firefox" } },
+  ],
   use: {
     baseURL,
-    browserName: "chromium",
     ignoreHTTPSErrors: true,
     trace: "on-first-retry",
     screenshot: "only-on-failure",

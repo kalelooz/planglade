@@ -25,6 +25,7 @@ import {
   toUiWorkItem,
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import { getDemoFixtures } from "@/lib/demo-data";
 
 function projectHref(projectId: string, basePath: "/app" | "/demo", section?: "notes") {
   const base = `${basePath}/projects/${encodeURIComponent(projectId)}`;
@@ -34,12 +35,12 @@ function projectHref(projectId: string, basePath: "/app" | "/demo", section?: "n
 function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "danger" | "warning" | "success" }) {
   const toneClass =
     tone === "danger"
-      ? "border-red-200/80 bg-red-50/70 text-red-700"
+      ? "border-red-200/80 bg-red-50/70 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
       : tone === "warning"
-        ? "border-amber-200/80 bg-amber-50/70 text-amber-700"
+        ? "border-amber-200/80 bg-amber-50/70 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
         : tone === "success"
-          ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-700"
-          : "border-zinc-200/80 bg-zinc-50 text-zinc-500";
+          ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+          : "border-border bg-muted/50 text-muted-foreground";
 
   return (
     <span className={`inline-flex h-5 shrink-0 items-center rounded-full border px-2 font-mono text-[10px] font-medium leading-none ${toneClass}`}>
@@ -60,10 +61,10 @@ function SectionHeader({
   icon?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+    <div className="app-section-header">
       <div className="flex min-w-0 items-center gap-2">
-        {icon ? <span className="text-zinc-400">{icon}</span> : null}
-        <h2 className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-zinc-950">{title}</h2>
+        {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+        <h2 className="truncate text-[12px] font-semibold text-foreground">{title}</h2>
         {typeof count === "number" ? <Pill>{count}</Pill> : null}
       </div>
       {action}
@@ -73,9 +74,9 @@ function SectionHeader({
 
 function EmptyRow({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-zinc-100 bg-white px-3 py-5 text-center">
-      <p className="text-xs font-medium text-zinc-900">{title}</p>
-      <p className="mt-1 text-[10.5px] leading-4 text-zinc-500">{children}</p>
+    <div className="flow-empty flow-empty-inline">
+      <p className="text-xs font-medium text-foreground">{title}</p>
+      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{children}</p>
     </div>
   );
 }
@@ -129,8 +130,8 @@ function TaskRow({
       onClick={onOpen}
       title={displayTitle}
       data-home-task-preview-row
-      className={`flow-row group grid w-full min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-3 py-2.5 text-left text-[13px] sm:grid-cols-[minmax(0,1fr)_auto] ${
-        selected ? "flow-row-selected text-zinc-950" : ""
+      className={`flow-row flow-row-flat group grid w-full min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-3 py-2.5 text-left text-[13px] sm:grid-cols-[minmax(0,1fr)_auto] ${
+        selected ? "flow-row-selected text-foreground" : ""
       }`}
     >
       <span
@@ -140,7 +141,7 @@ function TaskRow({
         <span
           className={`block min-w-0 truncate ${
             isNextMode ? "font-semibold tracking-tight" : "font-medium"
-          } ${completed ? "text-zinc-400" : "text-zinc-900"}`}
+          } ${completed ? "text-muted-foreground" : "text-foreground"}`}
         >
           {displayTitle}
         </span>
@@ -163,7 +164,7 @@ function TaskRow({
         ) : null}
         {showType ? <span className="shrink-0 whitespace-nowrap"><Chip>{displayLabel}</Chip></span> : null}
         {showDate ? (
-          <FlowMetaPill className={`shrink-0 whitespace-nowrap border-transparent bg-transparent ${danger ? "font-medium text-red-600" : ""}`}>
+          <FlowMetaPill className={`shrink-0 whitespace-nowrap border-transparent bg-transparent ${danger ? "font-medium text-red-600 dark:text-red-300" : ""}`}>
             {dueLabel}
           </FlowMetaPill>
         ) : null}
@@ -215,28 +216,41 @@ function ContextRow({ href, title, kind, meta }: { href: string; title: string; 
   return (
     <Link
       href={href}
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-md px-3 py-2.5 text-xs transition-colors hover:bg-zinc-50"
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2.5 text-xs transition-colors hover:bg-[var(--color-hover)]"
     >
-      <span className="min-w-0 truncate font-medium text-zinc-900">{title}</span>
-      <span className="font-mono text-[10px] text-zinc-400">{kind}</span>
-      <span className="font-mono text-[10px] text-zinc-500">{meta}</span>
+      <span className="min-w-0 truncate font-medium text-foreground">{title}</span>
+      <span className="font-mono text-[10px] text-muted-foreground/75">{kind}</span>
+      <span className="font-mono text-[10px] text-muted-foreground">{meta}</span>
     </Link>
   );
 }
 
 export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/demo" }) {
-  const activeProjectId = useStore((state) => state.settings.activeProjectId);
+  const storedActiveProjectId = useStore((state) => state.settings.activeProjectId);
   const updateSettings = useStore((state) => state.updateSettings);
+  const isDemoMode = basePath === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
+  const activeProjectId = isDemoMode && !demoData?.apiProjects.some((project) => project.id === storedActiveProjectId)
+    ? null
+    : storedActiveProjectId;
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([{ id: "unassigned", name: "Unassigned" }]);
-  const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; tag: string; updated: string; excerpt: string; projectId: string | null }>>([]);
-  const [hasMoreRecentNotes, setHasMoreRecentNotes] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(demoData?.projects ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(demoData ? "demo-user" : null);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
+  const [projects, setProjects] = useState<Project[]>(() => demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : []);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => demoData
+    ? [{ id: "demo-user", name: "Demo User" }]
+    : [{ id: "unassigned", name: "Unassigned" }]);
+  const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; tag: string; updated: string; excerpt: string; projectId: string | null }>>(() => demoData
+    ? demoData.apiNotes.map((note) => ({ ...toUiNotePreview(note), projectId: note.projectId ?? null })).slice(0, 5)
+    : []);
+  const [hasMoreRecentNotes, setHasMoreRecentNotes] = useState(() => (demoData?.apiNotes.length ?? 0) > 5);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const currentMemberName = currentUserId ? members.find((member) => member.id === currentUserId)?.name : null;
@@ -251,6 +265,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
   }, []);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
 
     async function load() {
@@ -307,7 +322,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
     return () => {
       active = false;
     };
-  }, [updateSettings]);
+  }, [isDemoMode, updateSettings]);
 
   const buckets = useMemo(
     () => selectHomeSections({ workItems, activeProjectId, now }),
@@ -371,39 +386,36 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
     <AppShell title={<span className="font-medium">Home</span>}>
       <div className="flex h-full">
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
-            <div className="space-y-10 animate-fade-in">
+          <div className="mx-auto w-full max-w-6xl py-4 sm:px-4 sm:py-5 lg:px-6">
+            <div className="app-workspace-canvas space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
               {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10.5px] text-red-700">{error}</div>}
 
               <div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
-                    <h1 className="text-[22px] font-semibold tracking-tight text-zinc-950">{greeting}, {firstName}</h1>
-                    <p className="mt-1 text-[11px] text-zinc-500">
-                      {todayLabel}.{" "}
-                      <Link href={taskHref("today")} className="underline decoration-dotted underline-offset-2 hover:text-zinc-950">
-                        {buckets.today.length} today
-                      </Link>
-                      ,{" "}
-                      <Link
-                        href={taskHref("overdue")}
-                        className={`underline decoration-dotted underline-offset-2 hover:text-zinc-950 ${buckets.overdue.length > 0 ? "font-medium text-red-600" : ""}`}
-                      >
-                        {buckets.overdue.length} overdue
-                      </Link>
-                      ,{" "}
-                      <Link href={`${basePath}/inbox`} className="underline decoration-dotted underline-offset-2 hover:text-zinc-950">
-                        {inboxCount} captured
-                      </Link>
-                      .
-                    </p>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{greeting}, {firstName}</h1>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{todayLabel}</p>
                   </div>
                   {loading ? <span className="font-mono text-[10px] text-zinc-400">Loading home data...</span> : null}
                 </div>
+                <nav aria-label="Today overview" className="mt-4 grid grid-cols-3 border-y border-border text-[11px]">
+                  <Link href={taskHref("today")} className="flex min-h-11 items-center gap-2 px-3 hover:bg-[var(--color-hover)]">
+                    <span className="text-base font-semibold text-foreground">{buckets.today.length}</span>
+                    <span className="text-muted-foreground">due today</span>
+                  </Link>
+                  <Link href={taskHref("overdue")} className="flex min-h-11 items-center gap-2 border-x border-border px-3 hover:bg-[var(--color-hover)]">
+                    <span className={`text-base font-semibold ${buckets.overdue.length > 0 ? "text-red-600 dark:text-red-300" : "text-foreground"}`}>{buckets.overdue.length}</span>
+                    <span className="text-muted-foreground">overdue</span>
+                  </Link>
+                  <Link href={`${basePath}/inbox`} className="flex min-h-11 items-center gap-2 px-3 hover:bg-[var(--color-hover)]">
+                    <span className="text-base font-semibold text-foreground">{inboxCount}</span>
+                    <span className="text-muted-foreground">in inbox</span>
+                  </Link>
+                </nav>
               </div>
 
-              <main className="grid grid-cols-1 gap-12 pt-2 lg:grid-cols-12">
-                <div className="min-w-0 space-y-10 lg:col-span-8">
+              <main className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                <div className="min-w-0 space-y-7 lg:col-span-7">
                   <section>
                     <SectionHeader
                       title="Today’s tasks"
@@ -414,7 +426,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                         ) : null
                       }
                     />
-                    <div>
+                    <div className="border-t border-border">
                       <TaskList
                         items={todayPreview}
                         selectedTaskId={selectedTaskId}
@@ -442,7 +454,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                         ) : null
                       }
                     />
-                    <div>
+                    <div className="border-t border-border">
                       <TaskList
                         items={overduePreview}
                         selectedTaskId={selectedTaskId}
@@ -467,7 +479,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                       icon={<Inbox className="h-3.5 w-3.5" />}
                       action={<Link href={`${basePath}/inbox`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Open Inbox</Link>}
                     />
-                    <div>
+                    <div className="border-t border-border">
                       <TaskList
                         items={inboxPreview}
                         selectedTaskId={selectedTaskId}
@@ -485,37 +497,37 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                   </section>
                 </div>
 
-                <aside className="min-w-0 space-y-10 lg:col-span-4">
+                <aside className="min-w-0 space-y-7 lg:col-span-5 lg:border-l lg:border-border lg:pl-8">
                   <section>
                     <SectionHeader title="Projects" count={projectMetrics.length} icon={<Folder className="h-3.5 w-3.5" />} />
                     {projectMetrics.length === 0 ? (
                       <EmptyRow title="No active projects.">Create a project to group related work.</EmptyRow>
                     ) : (
-                      <div className="rounded-lg border border-zinc-200/80 bg-white shadow-xs">
-                        <div className="divide-y divide-zinc-100">
+                      <div className="border-t border-border">
+                        <div className="divide-y divide-border">
                         {projectMetrics.map(({ project, openCount, overdueCount, next, progress }) => (
                           <Link
                             key={project.id}
                             href={projectHref(project.id, basePath)}
-                            className="block px-3 py-2.5 transition-colors hover:bg-zinc-50"
+                            className="block px-3 py-2.5 transition-colors hover:bg-[var(--color-hover)]"
                           >
                             <div className="flex min-w-0 items-center justify-between gap-3">
-                              <span className="min-w-0 truncate text-xs font-medium text-zinc-950">{project.name}</span>
+                              <span className="min-w-0 truncate text-xs font-medium text-foreground">{project.name}</span>
                               <span
                                 className={`shrink-0 font-mono text-[10px] ${
-                                  overdueCount > 0 ? "text-red-600" : project.status === "On Hold" ? "text-amber-600" : "text-zinc-400"
+                                  overdueCount > 0 ? "text-red-600 dark:text-red-300" : project.status === "On Hold" ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground"
                                 }`}
                               >
                                 {overdueCount > 0 ? `${overdueCount} overdue` : project.status === "On Hold" ? "On hold" : `${openCount} open`}
                               </span>
                             </div>
-                            <div className="mt-2 h-1 overflow-hidden rounded-full bg-zinc-100">
+                            <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
                               <div
-                                className="h-full bg-zinc-900 transition-all duration-500"
+                                className="h-full bg-foreground"
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               />
                             </div>
-                            <div className="mt-2 flex items-center justify-between gap-2 font-mono text-[10px] text-zinc-500">
+                            <div className="mt-2 flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
                               <span className="min-w-0 truncate">
                                 {next ? `Next / ${next.title}` : project.due ? `Due / ${formatDueLabel(project.due)}` : "No dated task"}
                               </span>
@@ -535,7 +547,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                       icon={<CalendarDays className="h-3.5 w-3.5" />}
                       action={<Link href={`${basePath}/calendar`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Calendar</Link>}
                     />
-                    <div>
+                    <div className="border-t border-border">
                       <TaskList
                         items={upcomingPreview}
                         selectedTaskId={selectedTaskId}
@@ -562,15 +574,15 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                     {recentContext.length === 0 ? (
                       <EmptyRow title="No recent notes.">New notes will appear here.</EmptyRow>
                     ) : (
-                      <div className="rounded-lg border border-zinc-200/80 bg-white shadow-xs">
-                        <div className="divide-y divide-zinc-100">
+                      <div className="border-t border-border">
+                        <div className="divide-y divide-border">
                           {recentContext.map((row) => (
                             <ContextRow key={row.id} href={row.href} title={row.title} kind={row.kind} meta={row.meta} />
                           ))}
                         </div>
                         {hasMoreRecentNotes ? (
-                          <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2 font-mono text-[10px] text-zinc-500">
-                            <Link href={`${basePath}/notes`} className="hover:text-zinc-950">More notes</Link>
+                          <div className="flex items-center justify-between border-t border-border px-3 py-2 font-mono text-[10px] text-muted-foreground">
+                            <Link href={`${basePath}/notes`} className="hover:text-foreground">More notes</Link>
                           </div>
                         ) : null}
                       </div>

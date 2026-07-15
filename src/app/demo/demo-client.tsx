@@ -32,11 +32,11 @@ export function DemoClient({ slug }: { slug: string[] }) {
   }
 
   let page = <HomePage basePath="/demo" />
-  if (section === "inbox") page = <InboxPage />
-  if (section === "tasks") page = <WorkItemsPage />
+  if (section === "inbox") page = <InboxPage basePath="/demo" />
+  if (section === "tasks") page = <WorkItemsPage basePath="/demo" />
   if (section === "projects") page = <ProjectsPageContent projectId={id} basePath="/demo" />
   if (section === "notes") page = <NotesPage />
-  if (section === "calendar") page = <CalendarPage />
+  if (section === "calendar") page = <CalendarPage basePath="/demo" />
 
   return (
     <div className={styles.root} onClickCapture={keepNavigationInDemo} data-demo-routes={DEMO_ROUTES.join(",")}>

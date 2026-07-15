@@ -14,6 +14,7 @@ import { findUncheckedNoteTasks, splitNoteMarkdown } from "@/lib/note-markdown";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import { getDemoFixtures } from "@/lib/demo-data";
 
 type ApiNote = {
   id: string;
@@ -118,25 +119,32 @@ function NotesInner() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const routePrefix = pathname.startsWith("/demo") ? "/demo" : "/app";
+  const isDemoMode = routePrefix === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
   const idFromUrl = params.get("id");
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({});
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
-  const [notes, setNotes] = useState<UiNote[]>([]);
-  const [projects, setProjects] = useState<UiProject[]>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
+  const [notes, setNotes] = useState<UiNote[]>(() => demoData ? demoData.apiNotes.map(mapNote) : []);
+  const [projects, setProjects] = useState<UiProject[]>(() => demoData
+    ? demoData.apiProjects.map((project) => ({ id: project.id, name: project.name }))
+    : []);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
 
-  const [selId, setSelId] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(() => demoData?.apiNotes[0]?.id ?? null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [linkedOpen, setLinkedOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
     async function load() {
       setLoading(true);
@@ -189,7 +197,7 @@ function NotesInner() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     if (idFromUrl) {
