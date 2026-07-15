@@ -52,7 +52,6 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
     await link.click()
     await expect(page).toHaveURL(new RegExp(`${path}$`))
   }
-
   await page.goto("/demo/connections")
   await expect(page.getByRole("heading", { name: "Connections", exact: true })).toBeVisible()
   const relationshipList = page.getByLabel("Relationship list")

@@ -62,14 +62,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL: file:../test-results/browser-smoke.db
       PLANGLADE_AUTH_MODE: nextauth
       NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
       NEXTAUTH_SECRET: browser-smoke-only-secret-not-for-production
       NEXTAUTH_URL: http://127.0.0.1:3100
       PLANGLADE_STORAGE_PROVIDER: local
       PLANGLADE_STORAGE_SIGNING_SECRET: browser-smoke-storage-secret-not-for-production
-      PLANGLADE_LOCAL_STORAGE_DIR: test-results/browser-smoke-attachments
       PLANGLADE_EMAIL_PROVIDER: disabled
 
     steps:
@@ -88,8 +86,17 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Prepare browser-smoke runtime
+        run: |
+          echo "DATABASE_URL=file:${{ runner.temp }}/planglade-browser-smoke.db" >> "$GITHUB_ENV"
+          echo "PLANGLADE_LOCAL_STORAGE_DIR=${{ runner.temp }}/planglade-browser-smoke-attachments" >> "$GITHUB_ENV"
+          export DATABASE_URL="file:${{ runner.temp }}/planglade-browser-smoke.db"
+          export PLANGLADE_LOCAL_STORAGE_DIR="${{ runner.temp }}/planglade-browser-smoke-attachments"
+          mkdir -p "${{ runner.temp }}/planglade-browser-smoke-attachments"
+          npm run db:migrate:deploy
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
 
       - name: Run browser smoke tests
         run: npm run test:browser

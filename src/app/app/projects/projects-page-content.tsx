@@ -19,6 +19,7 @@ import { FlowMetaPill, FlowRow } from "@/components/lovable/flow-ui";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { ProjectNotesSection, type UiProjectNote } from "@/components/projects/project-notes-section";
 import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
+import { getDemoFixtures } from "@/lib/demo-data";
 import {
   type ApiNote,
   type ApiProject,
@@ -114,24 +115,31 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   const setStoreProjects = useStore((s) => s.setProjects);
   const activeProjectId = useStore((s) => s.settings.activeProjectId);
   const router = useRouter();
+  const isDemoMode = basePath === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ReturnType<typeof toUiProject>[]>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [projects, setProjects] = useState<ReturnType<typeof toUiProject>[]>(() => demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : []);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
   const [members, setMembers] = useState<Array<{ id: string; name: string }>>(
-    storeMembers.map((member) => ({ id: member.id, name: member.name }))
+    isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : storeMembers.map((member) => ({ id: member.id, name: member.name }))
   );
-  const [projectNotes, setProjectNotes] = useState<ProjectNotePreview[]>([]);
+  const [projectNotes, setProjectNotes] = useState<ProjectNotePreview[]>(() => demoData
+    ? demoData.apiNotes.map((note) => ({ ...toUiNotePreview(note), body: note.body ?? "", projectId: note.projectId ?? null }))
+    : []);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [quickTaskTitle, setQuickTaskTitle] = useState("");
   const [now, setNow] = useState(() => new Date());
 
-  const isDemoMode = basePath === "/demo";
   const blockDemoAction = () => toast(DEMO_MODE_MESSAGE);
   const today = useMemo(() => startOfLocalDay(now), [now]);
   const todayKey = localDateKey(today);
@@ -145,6 +153,7 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
   }, []);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
 
     async function load() {
@@ -196,7 +205,7 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
     return () => {
       active = false;
     };
-  }, [setStoreProjects]);
+  }, [isDemoMode, setStoreProjects]);
 
   const createProject = async (input: { name: string; description: string; status: ProjectStatus; owner: string; due: string; icon: string }) => {
     if (isDemoMode) {

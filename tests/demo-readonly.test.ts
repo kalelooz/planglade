@@ -53,6 +53,8 @@ test("DEMO-READONLY-001: /demo is public, fixture-backed, and read-only", async 
   assert.match(shell, /DEMO_MODE_MESSAGE/)
   assert.match(fixtures, new RegExp(demoMessage))
   assert.doesNotMatch(fixtures, /PlanGlade Public Launch|planglade\.com|alex\.morgan@flowboard\.dev/i)
+  assert.match(client, /"\/demo\/connections"/)
+  assert.match(shell, /to: `\$\{routePrefix\}\/connections`, label: "Connections"/)
 })
 
 test("WEBSITE-POST-LIVE-AUDIT-001: demo metadata is read-only specific and noindexed", async () => {
@@ -101,6 +103,7 @@ test("DEMO-NAV-001: direct demo Settings is a safe read-only page", async () => 
 
   assert.match(route, /Demo settings/)
   assert.match(route, /DEMO_MODE_MESSAGE/)
+  assert.match(route, /setTheme\(value\)[\s\S]*?updateSettings\(\{ theme: value \}\)/)
   assert.doesNotMatch(route, /apiFetch|guidedImport|workspace.*change/i)
 })
 
@@ -156,17 +159,34 @@ test("DEMO-REAL-UI-RESCUE-001: demo navigation stays under /demo", async () => {
   assert.match(commandPalette, /scopedRoute\(APP_COMMAND_ROUTES\.tasks, basePath\)/)
 })
 
-test("DEMO-REAL-UI-RESCUE-001: public demo stays light without changing the saved app theme", async () => {
-  const [client, css] = await Promise.all([
+test("DEMO-UI-TRUST-001-CORRECTION: clean sessions are light-first without blocking explicit themes", async () => {
+  const [client, css, layout, store, settings] = await Promise.all([
     readProjectFile("src/app/demo/demo-client.tsx"),
     readProjectFile("src/app/demo/demo.module.css"),
+    readProjectFile("src/app/layout.tsx"),
+    readProjectFile("src/lib/store.ts"),
+    readProjectFile("src/app/app/settings/page.tsx"),
   ])
 
   assert.match(client, /demo\.module\.css/)
   assert.match(client, /className=\{styles\.root\}/)
-  assert.match(css, /--color-card: var\(--card\)/)
-  assert.match(css, /--color-background: var\(--background\)/)
+  assert.match(layout, /className=\{`\$\{geistSans\.variable\} \$\{geistMono\.variable\} light`\}/)
+  assert.match(layout, /defaultTheme="light"/)
+  assert.match(layout, /enableSystem/)
+  assert.match(store, /const defaultSettings:[\s\S]*?theme: "light"/)
+  assert.match(settings, /\["system", "light", "dark"\]/)
+  assert.doesNotMatch(css, /color-scheme:\s*light|--color-background|--background:/)
   assert.doesNotMatch(client, /setTheme\(|localStorage|MutationObserver|document\.documentElement/)
+})
+
+test("DEMO-UI-TRUST-001-POLISH-2: demo navigation restores supported Connections", async () => {
+  const [client, shell] = await Promise.all([
+    readProjectFile("src/app/demo/demo-client.tsx"),
+    readProjectFile("src/components/lovable/shell.tsx"),
+  ])
+
+  assert.match(client, /DEMO_ROUTES[^\n]*\/demo\/connections/)
+  assert.match(shell, /to: `\$\{routePrefix\}\/connections`, label: "Connections"/)
 })
 
 test("DEMO-READONLY-001: demo fixtures cover broad non-tech-only projects", async () => {

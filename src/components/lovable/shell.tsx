@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
+import { DEMO_MODE_MESSAGE, getDemoFixtures } from "@/lib/demo-data";
 
 const STORAGE_KEY = "fb.sidebarOpen";
 const PROJECTS_STORAGE_KEY = "fb.sidebarProjectsOpen";
@@ -85,8 +85,12 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const path = usePathname() ?? "/";
   const isDemoMode = path.startsWith("/demo");
   const routePrefix = isDemoMode ? "/demo" : "/app";
-  const projects = useStore((s) => s.projects);
+  const storedProjects = useStore((s) => s.projects);
   const setProjects = useStore((s) => s.setProjects);
+  const demoData = isDemoMode ? getDemoFixtures() : null;
+  const projects = demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : storedProjects;
   const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
   const projectPathMatch = path.match(/^\/(?:app|demo)\/projects\/([^/]+)$/);
@@ -97,8 +101,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
 
   // Server-backed sidebar counts
-  const [inboxCount, setInboxCount] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
+  const [inboxCount, setInboxCount] = useState(() => demoData?.counts.inboxCount ?? 0);
+  const [todayCount, setTodayCount] = useState(() => demoData?.counts.todayCount ?? 0);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickValue, setQuickValue] = useState("");
@@ -107,8 +111,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(null);
-  const [sessionIdentity, setSessionIdentity] = useState<SessionIdentity | null>(null);
+  const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(() => demoData ? { workspaceId: "demo-workspace", userId: "demo-user" } : null);
+  const [sessionIdentity, setSessionIdentity] = useState<SessionIdentity | null>(() => demoData ? {
+    name: "Demo User",
+    email: "demo@local.invalid",
+    authMode: "dev-session-scaffold",
+    workspaceName: "PlanGlade Demo",
+    workspaceRole: "OWNER",
+  } : null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
 
@@ -140,6 +150,19 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const projectScopeRef = useRef<HTMLDivElement>(null);
   const quickCaptureRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileNavCloseRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mobileNavCloseRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      mobileNavTriggerRef.current?.focus();
+    };
+  }, [mobileNavOpen]);
 
   // Fetch sidebar counts from server on mount + poll every 15 seconds
   useEffect(() => {
@@ -179,6 +202,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     { to: `${routePrefix}/connections`, label: "Connections", icon: Network },
     { to: `${routePrefix}/settings`, label: "Settings", icon: Settings },
   ];
+  const mobileNavAfterProjects = navAfterProjects.filter((item) => item.label !== "Settings");
+  const mobileNavSettings = navAfterProjects.filter((item) => item.label === "Settings");
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
@@ -374,7 +399,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const shouldShowSignOut = (sessionIdentity?.authMode ?? clientAuthMode) !== "dev-session-scaffold" && clientAuthMode !== "dev";
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
       <a
         href="#app-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[120] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow"
@@ -491,7 +516,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
-          <button onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
+          <button ref={mobileNavTriggerRef} onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px]">
@@ -712,31 +737,19 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       </div>
 
       {mobileNavOpen && (
-        <div className="fixed inset-0 z-[90] md:hidden">
-          <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl">
+        <div className="fixed inset-0 z-[90] md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+          <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl" data-mobile-navigation-drawer="true">
             <div className="flex h-12 items-center justify-between border-b px-3">
               <Link href={routePrefix} onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2">
                 <PlanGladeMark />
                 <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
               </Link>
-              <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn h-[44px] w-[44px]" aria-label="Close navigation">
+              <button ref={mobileNavCloseRef} onClick={() => setMobileNavOpen(false)} className="lov-icon-btn h-[44px] w-[44px]" aria-label="Close navigation">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="border-b p-2">
-              <WorkspaceControl
-                collapsed={false}
-                routePrefix={routePrefix}
-                identity={sessionIdentity}
-                displayName={displayName}
-                displayAvatarId={displayAvatarId}
-                showSignOut={shouldShowSignOut}
-                onNavigate={() => setMobileNavOpen(false)}
-                onSignOut={() => { setMobileNavOpen(false); void signOut("/login"); }}
-              />
-            </div>
-            <nav className="flex-1 overflow-y-auto px-2 py-3 [&_a]:min-h-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
+            <nav className="flex flex-1 flex-col overflow-y-auto px-2 py-3 [&_a]:min-h-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <ProjectsNavItem
                 href={`${routePrefix}/projects`}
@@ -761,8 +774,23 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   })}
                 </div>
               )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <SidebarSection items={mobileNavAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <div className="mt-auto border-t pt-2">
+                <SidebarSection items={mobileNavSettings} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              </div>
             </nav>
+            <div className="border-t p-2">
+              <WorkspaceControl
+                collapsed={false}
+                routePrefix={routePrefix}
+                identity={sessionIdentity}
+                displayName={displayName}
+                displayAvatarId={displayAvatarId}
+                showSignOut={shouldShowSignOut}
+                onNavigate={() => setMobileNavOpen(false)}
+                onSignOut={() => { setMobileNavOpen(false); void signOut("/login"); }}
+              />
+            </div>
           </div>
         </div>
       )}
