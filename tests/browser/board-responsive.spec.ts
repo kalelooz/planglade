@@ -5,6 +5,7 @@ test.setTimeout(60_000)
 const viewports = [
   { width: 1920, height: 1080 },
   { width: 1720, height: 900 },
+  { width: 1684, height: 896 },
   { width: 1440, height: 1000 },
   { width: 1280, height: 900 },
   { width: 1024, height: 768 },
@@ -40,10 +41,12 @@ async function geometry(page: Page) {
       workspaceScrollWidth: workspace?.scrollWidth ?? 0,
       boardClientWidth: board?.clientWidth ?? 0,
       boardScrollWidth: board?.scrollWidth ?? 0,
+      boardWidth: board?.getBoundingClientRect().width ?? 0,
       drawerPosition: drawer ? getComputedStyle(drawer).position : "missing",
       drawerWidth: drawerRect?.width ?? 0,
       drawerRight: drawerRect?.right ?? Infinity,
       columnWidths: columns.map((column) => column.getBoundingClientRect().width),
+      firstCardWidth: cards[0]?.getBoundingClientRect().width ?? 0,
       cardsInsideColumns: cards.every((card) => {
         const column = card.closest<HTMLElement>("[data-board-column]")
         if (!column) return false
@@ -56,7 +59,7 @@ async function geometry(page: Page) {
 }
 
 for (const viewport of viewports) {
-  test(`Board and drawer stay contained at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`Board and drawer stay contained at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport)
     const writes: string[] = []
     page.on("request", (request) => {
@@ -64,10 +67,18 @@ for (const viewport of viewports) {
     })
     await page.goto("/demo/tasks?view=board")
 
-    const board = page.locator('[data-board-scroll-region="true"]')
-    const closedWidth = await board.evaluate((element) => element.clientWidth)
+    await expect(page.locator('[data-board-scroll-region="true"]')).toBeVisible()
+    await expect(page.locator("[data-board-column]")).toHaveCount(5)
+    await expect(page.locator("[data-task-card]").first()).toBeVisible()
+    const closed = await geometry(page)
+    if (viewport.width === 1684) {
+      await page.screenshot({ path: testInfo.outputPath("board-closed.png"), fullPage: true })
+    }
     const { trigger, drawer } = await openBoardDrawer(page)
     const measured = await geometry(page)
+    if (viewport.width === 1684 || viewport.width === 390) {
+      await page.screenshot({ path: testInfo.outputPath("board-drawer-open.png"), fullPage: true })
+    }
 
     expect(measured.documentScrollWidth).toBeLessThanOrEqual(measured.documentClientWidth)
     expect(measured.bodyScrollWidth).toBeLessThanOrEqual(measured.bodyClientWidth)
@@ -83,7 +94,9 @@ for (const viewport of viewports) {
       expect(measured.boardScrollWidth).toBeLessThanOrEqual(measured.boardClientWidth)
     } else {
       expect(["absolute", "fixed"]).toContain(measured.drawerPosition)
-      expect(measured.boardClientWidth).toBeCloseTo(closedWidth, 0)
+      expect(Math.abs(measured.boardWidth - closed.boardWidth)).toBeLessThanOrEqual(2)
+      expect(Math.abs(measured.columnWidths[0] - closed.columnWidths[0])).toBeLessThanOrEqual(2)
+      expect(Math.abs(measured.firstCardWidth - closed.firstCardWidth)).toBeLessThanOrEqual(2)
     }
     if (viewport.width >= 1280) {
       expect(measured.boardScrollWidth).toBeLessThanOrEqual(measured.boardClientWidth)
