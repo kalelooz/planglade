@@ -99,6 +99,17 @@ test("Board pointer drags and quick moves cannot change column, order, or positi
   expect(afterBox?.x).toBeCloseTo(beforeBox.x, 0)
   expect(afterBox?.y).toBeCloseTo(beforeBox.y, 0)
 
+  const sameColumnTarget = page.locator('[data-task-id="thesis-survey-cleanup"]')
+  const sameColumnBox = await sameColumnTarget.boundingBox()
+  if (!sameColumnBox) throw new Error("Same-column drag geometry unavailable")
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(sameColumnBox.x + sameColumnBox.width / 2, sameColumnBox.y + sameColumnBox.height / 2, { steps: 12 })
+  await page.mouse.up()
+  await expectCanonical(page)
+  expect(await card.evaluate((element) => element.closest("[data-board-column]")?.getAttribute("data-board-column"))).toBe(beforeColumn)
+  expect(await page.locator("[data-task-card]").evaluateAll((cards) => cards.map((item) => item.getAttribute("data-task-id")))).toEqual(beforeOrder)
+
   await card.getByRole("button", { name: "More actions" }).click()
   await page.getByRole("menuitem", { name: "Move to" }).click()
   await page.getByRole("menuitem", { name: "To Do" }).click()
