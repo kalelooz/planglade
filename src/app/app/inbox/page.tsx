@@ -27,8 +27,8 @@ import { getDemoFixtures } from "@/lib/demo-data";
 
 const compactPrimaryActionClass =
   "lov-btn lov-btn-primary h-7 justify-center gap-1.5 px-2 text-[11px] disabled:opacity-50";
-const zincControlClass =
-  "inline-flex h-7 w-full min-w-0 items-center justify-between gap-1 rounded-md border border-zinc-200/80 bg-white px-2 text-[11px] text-zinc-500 outline-none transition-colors hover:bg-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-950";
+const compactControlClass =
+  "inline-flex h-7 w-full min-w-0 items-center justify-between gap-1 rounded-md border border-border/80 bg-card px-2 text-[11px] text-muted-foreground outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-ring";
 
 function parseDateValue(value: string) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -275,7 +275,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
         <Toolbar>
           {selectedCount > 0 ? (
             <>
-              <span className="px-1 font-mono text-[10px] font-medium text-zinc-600">{selectedCount} selected</span>
+              <span className="px-1 font-mono text-[10px] font-medium text-muted-foreground">{selectedCount} selected</span>
               <BulkMenu label="Project">
                 {projects.map((project) => (
                   <button
@@ -321,7 +321,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
             </>
           ) : inboxItems.length > 0 ? (
             <>
-              <span className="hidden font-mono text-[10px] text-zinc-500 md:inline">Set project, due, and priority, then convert.</span>
+              <span className="hidden font-mono text-[10px] text-muted-foreground md:inline">Set project, due, and priority, then convert.</span>
               <button type="button" onClick={() => setClearAllOpen(true)} className="lov-btn lov-btn-ghost h-7 px-2">
                 Clear all
               </button>
@@ -333,18 +333,18 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
           <div className="mx-auto w-full max-w-5xl px-4 py-6 xl:px-6">
-            {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
+            {error && <div className="mb-3 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading inbox data...</div>}
             <div className="mb-5 px-1">
               <h1 className="text-[15px] font-semibold tracking-tight">Inbox</h1>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
                 Capture loose thoughts, then convert the useful ones to tasks.
               </p>
             </div>
 
-            <div className="mb-5 rounded-lg border border-zinc-200/80 bg-white">
-              <div className="flex w-full items-center gap-3 px-3 py-2.5 transition-colors focus-within:bg-zinc-50 hover:bg-zinc-50">
-                <Plus className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <div className="mb-5 rounded-lg border border-border/80 bg-card">
+              <div className="flex w-full items-center gap-3 px-3 py-2.5 transition-colors focus-within:bg-hover hover:bg-hover">
+                <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <input
                   value={captureValue}
                   onChange={(e) => setCaptureValue(e.target.value)}
@@ -356,21 +356,21 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                   }}
                   placeholder="Capture a thought, task, or idea."
                   aria-label="Quick Capture"
-                  className="h-7 min-w-0 flex-1 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-zinc-400"
+                  className="h-7 min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
-                <span className="hidden shrink-0 font-mono text-[10px] text-zinc-400 lg:inline">Needs triage</span>
-                <kbd className="shrink-0 rounded border border-zinc-200 bg-zinc-50 px-1 font-mono text-[9px] text-zinc-500">Enter</kbd>
+                <span className="hidden shrink-0 font-mono text-[10px] text-muted-foreground lg:inline">Needs triage</span>
+                <kbd className="shrink-0 rounded border border-border bg-muted px-1 font-mono text-[9px] text-muted-foreground">Enter</kbd>
               </div>
             </div>
 
-            <section className="min-w-0 rounded-lg border border-zinc-200/80 bg-white">
-              <div className="flex w-full flex-wrap items-center gap-3 border-b border-zinc-100 px-3 py-2 text-left">
+            <section className="min-w-0 rounded-lg border border-border/80 bg-card">
+              <div className="flex w-full flex-wrap items-center gap-3 border-b border-border/60 px-3 py-2 text-left">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Pending captures</span>
-                  <span className="font-mono text-[10px] text-zinc-400">{inboxItems.length}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Pending captures</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{inboxItems.length}</span>
                 </div>
                 {inboxItems.length > 0 ? (
-                  <label className={`ml-auto inline-flex h-7 items-center gap-1.5 rounded px-2 font-mono text-[10px] text-zinc-500 hover:bg-zinc-50 ${bulkPending ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                  <label className={`ml-auto inline-flex h-7 items-center gap-1.5 rounded px-2 font-mono text-[10px] text-muted-foreground hover:bg-hover ${bulkPending ? "cursor-not-allowed" : "cursor-pointer"}`}>
                     <input
                       ref={selectAllRef}
                       type="checkbox"
@@ -378,7 +378,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                       onChange={toggleAll}
                       disabled={bulkPending}
                       aria-label="Select all pending captures"
-                      className="h-3.5 w-3.5 shrink-0 cursor-pointer appearance-auto accent-zinc-950 disabled:cursor-not-allowed"
+                      className="h-3.5 w-3.5 shrink-0 cursor-pointer appearance-auto accent-primary disabled:cursor-not-allowed"
                     />
                     Select all
                   </label>
@@ -387,8 +387,8 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
 
               {inboxItems.length === 0 ? (
                 <div className="px-3 py-8 text-center">
-                  <p className="text-xs font-medium text-zinc-900">Inbox is clear.</p>
-                  <p className="mt-1 text-[10px] text-zinc-500">Use Quick Capture to add something new.</p>
+                  <p className="text-xs font-medium text-foreground">Inbox is clear.</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Use Quick Capture to add something new.</p>
                 </div>
               ) : (
                 <div>
@@ -402,7 +402,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                     <div
                       key={item.id}
                       data-inbox-row="pending-capture"
-                      className={`group grid w-full min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-zinc-100 px-3 py-2.5 text-xs transition-colors last:border-b-0 hover:bg-zinc-50 xl:grid-cols-[24px_minmax(0,1fr)_minmax(0,220px)_minmax(0,140px)_minmax(0,112px)_minmax(0,168px)] ${selected ? "bg-zinc-100/80" : ""}`}
+                      className={`group grid w-full min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-border/60 px-3 py-2.5 text-xs transition-colors last:border-b-0 hover:bg-hover xl:grid-cols-[24px_minmax(0,1fr)_minmax(0,220px)_minmax(0,140px)_minmax(0,112px)_minmax(0,168px)] ${selected ? "bg-muted/80" : ""}`}
                     >
                       <input
                         type="checkbox"
@@ -410,18 +410,18 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                         onChange={() => toggleSelected(item.id)}
                         disabled={bulkPending}
                         aria-label={`Select ${item.title}`}
-                        className="h-3.5 w-3.5 shrink-0 cursor-pointer justify-self-start accent-zinc-950 disabled:cursor-not-allowed"
+                        className="h-3.5 w-3.5 shrink-0 cursor-pointer justify-self-start accent-primary disabled:cursor-not-allowed"
                       />
                       <div data-inbox-title-dependency-cell className="min-w-0 overflow-hidden">
                         <button
                           type="button"
                           onClick={() => setSelectedTaskId(item.id)}
                           title={item.title}
-                          className="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap break-words text-left text-xs font-medium text-zinc-950 hover:underline focus:outline-none focus-visible:underline"
+                          className="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap break-words text-left text-xs font-medium text-foreground hover:underline focus:outline-none focus-visible:underline"
                         >
                           {item.title}
                         </button>
-                        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-zinc-500">
+                        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
                           <DependencyBadge item={item} allItems={workItems} />
                         </span>
                       </div>
@@ -500,7 +500,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                             }}
                             title="Dismiss"
                             aria-label="Dismiss capture"
-                            className="lov-icon-btn h-6 w-6 shrink-0 opacity-100 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100"
+                            className="lov-icon-btn h-6 w-6 shrink-0 opacity-100 hover:text-red-600 dark:hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -611,7 +611,7 @@ function ProjectChip({
             </span>
           )
         }
-        triggerClassName={zincControlClass}
+        triggerClassName={compactControlClass}
       >
         {items.map((p) => (
           <button
@@ -636,7 +636,7 @@ function ProjectChip({
             event.stopPropagation();
             onClear();
           }}
-          className="lov-icon-btn absolute right-0 h-4 w-4 opacity-0 hover:text-zinc-950 group-hover:opacity-100"
+          className="lov-icon-btn absolute right-0 h-4 w-4 opacity-0 hover:text-foreground group-hover:opacity-100"
           aria-label="Clear project"
         >
           <X className="h-2.5 w-2.5" />
@@ -688,10 +688,10 @@ function CompactDateControl({
             aria-label={ariaLabel}
             aria-haspopup="dialog"
             aria-expanded={open}
-            className={`${zincControlClass} font-mono text-[10px]`}
+            className={`${compactControlClass} font-mono text-[10px]`}
           >
             {value ? <span className="truncate">{value}</span> : <span>No date</span>}
-            <CalendarDays className="h-3 w-3 shrink-0 text-zinc-400" />
+            <CalendarDays className="h-3 w-3 shrink-0 text-muted-foreground" />
           </button>
         </PopoverTrigger>
       </div>
@@ -703,7 +703,7 @@ function CompactDateControl({
         sideOffset={4}
         avoidCollisions
         collisionPadding={8}
-        className="z-[100] w-auto max-w-[calc(100vw-1rem)] rounded-md border border-zinc-200/80 bg-white p-2 shadow-sm"
+        className="z-[100] w-auto max-w-[calc(100vw-1rem)] rounded-md border border-border/80 bg-popover p-2 shadow-sm"
       >
         <Calendar
           mode="single"
@@ -719,13 +719,13 @@ function CompactDateControl({
           classNames={{
             month: "flex flex-col w-full gap-2",
             week: "flex w-full mt-1",
-            weekday: "text-zinc-400 rounded-md flex-1 font-normal text-[10px] select-none",
+            weekday: "text-muted-foreground rounded-md flex-1 font-normal text-[10px] select-none",
             caption_label: "select-none font-medium text-xs",
             button_previous: "h-7 w-7 p-0",
             button_next: "h-7 w-7 p-0",
           }}
         />
-        <div className="mt-2 flex items-center justify-end border-t border-zinc-100 pt-1.5">
+        <div className="mt-2 flex items-center justify-end border-t border-border/60 pt-1.5">
           <button
             type="button"
             onClick={() => {
@@ -733,7 +733,7 @@ function CompactDateControl({
               else onChange("");
               setOpen(false);
             }}
-            className="h-6 rounded-md px-2 text-xs text-zinc-500 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950"
+            className="h-6 rounded-md px-2 text-xs text-muted-foreground hover:bg-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             Clear
           </button>
@@ -775,7 +775,7 @@ function DueChip({
             event.stopPropagation();
             onClear();
           }}
-          className="lov-icon-btn h-4 w-4 opacity-0 hover:text-zinc-950 group-hover:opacity-100"
+          className="lov-icon-btn h-4 w-4 opacity-0 hover:text-foreground group-hover:opacity-100"
           aria-label="Clear due date"
         >
           <X className="h-2.5 w-2.5" />
@@ -799,7 +799,7 @@ function PriorityChip({
   menuSide?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
-  const priorityTone: Record<Priority, string> = { High: "font-semibold text-zinc-950", Medium: "text-zinc-600", Low: "text-zinc-400" };
+  const priorityTone: Record<Priority, string> = { High: "font-semibold text-foreground", Medium: "text-muted-foreground", Low: "text-muted-foreground/70" };
 
   useEffect(() => {
     if (!open) return;
@@ -818,7 +818,7 @@ function PriorityChip({
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className={zincControlClass}
+          className={compactControlClass}
         >
           {assigned ? (
             <span className={`inline-flex items-center gap-1 whitespace-nowrap pr-3 font-mono text-[10px] ${priorityTone[assigned]}`}>
@@ -837,7 +837,7 @@ function PriorityChip({
             <div className="fixed inset-0 z-[90]" onMouseDown={() => setOpen(false)} />
             <div
               role="menu"
-              className={`absolute left-0 ${menuSide === "top" ? "bottom-full mb-1" : "top-full mt-1"} z-[100] w-36 max-w-[calc(100vw-2rem)] rounded-md border border-zinc-200/80 bg-white py-1 shadow-sm`}
+              className={`absolute left-0 ${menuSide === "top" ? "bottom-full mb-1" : "top-full mt-1"} z-[100] w-36 max-w-[calc(100vw-2rem)] rounded-md border border-border/80 bg-popover py-1 shadow-sm`}
             >
               {(["High", "Medium", "Low"] as Priority[]).map((p) => (
                 <button
@@ -848,7 +848,7 @@ function PriorityChip({
                     onPick(p);
                     setOpen(false);
                   }}
-                  className={`flex h-7 w-full items-center px-2 text-left font-mono text-xs transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none ${priorityTone[p]}`}
+                  className={`flex h-7 w-full items-center px-2 text-left font-mono text-xs transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-none ${priorityTone[p]}`}
                 >
                   {p}
                 </button>
@@ -865,7 +865,7 @@ function PriorityChip({
             event.stopPropagation();
             onClear();
           }}
-          className="lov-icon-btn h-4 w-4 shrink-0 opacity-0 hover:text-zinc-950 group-hover:opacity-100"
+          className="lov-icon-btn h-4 w-4 shrink-0 opacity-0 hover:text-foreground group-hover:opacity-100"
           aria-label="Reset priority"
         >
           <X className="h-2.5 w-2.5" />
@@ -901,7 +901,7 @@ function MenuButton({
       {open && (
         <>
           <div className="fixed inset-0 z-[70]" onMouseDown={() => setOpen(false)} />
-          <div className={`absolute ${align === "left" ? "left-0" : "right-0"} ${side === "top" ? "bottom-full mb-1" : "mt-1"} z-[80] max-h-56 overflow-y-auto ${width} rounded-md border border-zinc-200/80 bg-white py-1 shadow-md`}>{children}</div>
+          <div className={`absolute ${align === "left" ? "left-0" : "right-0"} ${side === "top" ? "bottom-full mb-1" : "mt-1"} z-[80] max-h-56 overflow-y-auto ${width} rounded-md border border-border/80 bg-popover py-1 shadow-md`}>{children}</div>
         </>
       )}
     </div>

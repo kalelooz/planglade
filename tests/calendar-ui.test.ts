@@ -9,23 +9,23 @@ async function readProjectFile(filePath: string) {
   return readFile(path.join(root, filePath), "utf8")
 }
 
-test("Calendar task cards use a neutral zinc recipe with restrained status signals", async () => {
+test("Calendar task cards use semantic neutral surfaces with restrained status signals", async () => {
   const source = await readProjectFile("src/app/app/calendar/page.tsx")
   const monthCardSource = source.match(/function MonthTaskCard[\s\S]*?function DayOverflowButton/)?.[0] ?? ""
   const inspectorRowSource = source.match(/function TaskChip[\s\S]*?function DayOverflowPopover/)?.[0] ?? ""
   const toneSource = source.match(/const TASK_RAIL_COLOR[\s\S]*?function projectNameFor/)?.[0] ?? ""
 
-  assert.match(toneSource, /border-zinc-200\/80 bg-white text-zinc-900 hover:bg-zinc-50/)
-  assert.match(toneSource, /border-zinc-200\/60 bg-zinc-50\/60 text-zinc-500 hover:bg-zinc-50/)
+  assert.match(toneSource, /border-border\/80 bg-card text-foreground hover:bg-hover/)
+  assert.match(toneSource, /border-border\/60 bg-muted\/60 text-muted-foreground hover:bg-muted/)
   assert.match(monthCardSource, /border-l-2/)
   assert.match(inspectorRowSource, /border-l-2/)
   assert.match(toneSource, /line-through/)
-  assert.match(monthCardSource, /text-zinc-500/)
+  assert.match(monthCardSource, /text-muted-foreground/)
 
   assert.match(toneSource, /overdue:\s*"rgb\(185 28 28\)"/)
   assert.match(toneSource, /blocked:\s*"rgb\(180 83 9\)"/)
-  assert.match(toneSource, /text-red-700/)
-  assert.match(toneSource, /text-amber-700/)
+  assert.match(toneSource, /text-red-700 dark:text-red-300/)
+  assert.match(toneSource, /text-amber-700 dark:text-amber-300/)
   assert.match(toneSource, /isBlockedByOpenTask/)
 
   assert.doesNotMatch(source, /color-mix\(in oklch, \$\{accent\}/)
@@ -70,7 +70,7 @@ test("Calendar busy month days use compact rows and calm overflow", async () => 
   assert.match(monthCardSource, /grid-cols-\[minmax\(0,1fr\)_auto\] grid-rows-\[auto_auto\]/)
   assert.match(monthCardSource, /min-w-0 truncate font-medium/)
   assert.match(monthCardSource, /<PriorityIcon p=\{item\.priority\}/)
-  assert.match(monthCardSource, /col-span-2 hidden min-w-0 truncate text-\[10px\] text-zinc-500 lg:block/)
+  assert.match(monthCardSource, /col-span-2 hidden min-w-0 truncate text-\[10px\] text-muted-foreground lg:block/)
   assert.doesNotMatch(monthCardSource, /<Avatar/)
   assert.doesNotMatch(monthCardSource, /<Chip>\{displayLabel\}<\/Chip>/)
   assert.doesNotMatch(monthCardSource, /formatDueLabel|dueLabel|\{dueLabel\}/)
@@ -79,8 +79,8 @@ test("Calendar busy month days use compact rows and calm overflow", async () => 
   assert.match(overflowSource, /type="button"/)
   assert.match(overflowSource, /aria-label=\{`View all \$\{total\} tasks for \$\{fullDateLabel\(dateKey\)\}`\}/)
   assert.match(overflowSource, /View all \{total\}/)
-  assert.match(overflowSource, /border-zinc-400 bg-zinc-100/)
-  assert.match(overflowSource, /focus-visible:ring-2 focus-visible:ring-zinc-950/)
+  assert.match(overflowSource, /border-border bg-muted/)
+  assert.match(overflowSource, /focus-visible:ring-2 focus-visible:ring-ring/)
   assert.match(overflowSource, /onInspect\(dateKey\)/)
   assert.match(inspectorRowSource, /sm:grid-cols-\[minmax\(0,1fr\)_104px_minmax\(5rem,7rem\)\]/)
   assert.match(inspectorRowSource, /block min-w-0 truncate text-\[13px\] font-medium/)
@@ -100,7 +100,7 @@ test("Calendar busy days open a focused day inspector with all tasks and an add 
   assert.match(monthSource, /const visible = dayItems\.slice\(0, MONTH_VISIBLE\)/)
   assert.match(monthSource, /const hasOverflow = dayItems\.length > MONTH_VISIBLE/)
   assert.match(monthSource, /hasOverflow \? \([\s\S]*?<DayOverflowPopover[\s\S]*total=\{dayItems\.length\}/)
-  assert.match(monthSource, /hasOverflow \? \([\s\S]*<DayOverflowPopover[\s\S]*\) : \([\s\S]*<span className="shrink-0 rounded border border-zinc-200 bg-zinc-50/)
+  assert.match(monthSource, /hasOverflow \? \([\s\S]*<DayOverflowPopover[\s\S]*\) : \([\s\S]*<span className="shrink-0 rounded border border-border bg-muted/)
 
   assert.match(overflowSource, /type="button"/)
   assert.match(overflowSource, /event\.stopPropagation\(\)/)
@@ -125,7 +125,7 @@ test("Calendar busy days open a focused day inspector with all tasks and an add 
   assert.match(mainSource, /<DayInspector[\s\S]*onSelect=\{setSelectedId\}/)
 
   assert.match(inspectorRowSource, /block min-w-0 truncate text-\[13px\] font-medium/)
-  assert.match(inspectorRowSource, /mt-0\.5 block min-w-0 truncate text-\[11px\] text-zinc-500/)
+  assert.match(inspectorRowSource, /mt-0\.5 block min-w-0 truncate text-\[11px\] text-muted-foreground/)
   assert.doesNotMatch(inspectorRowSource, /DependencyBadge/)
   assert.doesNotMatch(monthSource, /overflow-y-auto[\s\S]*<MonthTaskCard/)
   assert.doesNotMatch(source, /PopoverTrigger|PopoverContent/)
@@ -143,7 +143,7 @@ test("Calendar day add controls remain available for empty, filled, and busy day
   assert.match(addButtonSource, /aria-label=\{`Add task for \$\{fullDateLabel\(dateKey\)\}`\}/)
   assert.match(addButtonSource, /event\.stopPropagation\(\)/)
   assert.match(addButtonSource, /onCreate\(dateKey\)/)
-  assert.match(addButtonSource, /border-zinc-200\/80 bg-white\/60/)
+  assert.match(addButtonSource, /border-border\/80 bg-card\/60/)
 
   assert.match(monthSource, /const visible = dayItems\.slice\(0, MONTH_VISIBLE\)/)
   assert.match(monthSource, /const hasOverflow = dayItems\.length > MONTH_VISIBLE/)
@@ -172,10 +172,10 @@ test("Calendar selected task state follows the open drawer task id", async () =>
   assert.match(source, /function chipStyle\(state: CalendarTaskState, isSelected = false\)/)
   assert.match(source, /isSelected \? "rgb\(63 63 70\)" : TASK_RAIL_COLOR\[state\]/)
   assert.match(source, /function taskTone\(state: CalendarTaskState, isSelected = false\)/)
-  assert.match(source, /border-zinc-900 bg-zinc-100 text-zinc-950 ring-1 ring-zinc-900/)
-  assert.match(source, /shadow-\[inset_3px_0_0_rgb\(24_24_27\)\]/)
+  assert.match(source, /border-ring bg-muted text-foreground ring-1 ring-ring/)
+  assert.match(source, /shadow-\[inset_3px_0_0_var\(--color-ring\)\]/)
   assert.match(source, /function inspectorRowTone\(state: CalendarTaskState, isSelected = false\)/)
-  assert.match(source, /border-zinc-300 bg-zinc-100\/80 text-zinc-950 ring-1 ring-zinc-300/)
+  assert.match(source, /border-ring bg-muted\/80 text-foreground ring-1 ring-ring/)
   assert.doesNotMatch(source.match(/function taskTone[\s\S]*?function titleTone/)?.[0] ?? "", /red|amber|emerald|green|cyan|sky|blue|violet|purple|pink/)
 
   assert.match(monthCardSource, /data-selected=\{isSelected \? "true" : "false"\}/)
@@ -191,7 +191,7 @@ test("Calendar selected task state follows the open drawer task id", async () =>
   assert.doesNotMatch(inspectorRowSource, /border-zinc-900|ring-zinc-900|shadow-\[inset_3px_0_0_rgb\(24_24_27\)\]/)
   assert.match(noDateSource, /data-selected=\{isSelected \? "true" : "false"\}/)
   assert.match(noDateSource, /aria-current=\{isSelected \? "true" : undefined\}/)
-  assert.match(noDateSource, /border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900/)
+  assert.match(noDateSource, /border-ring bg-muted ring-1 ring-ring/)
 
   assert.match(monthSource, /selectedId: string \| null/)
   assert.match(monthSource, /isSelected=\{t\.id === selectedId\}/)
@@ -220,7 +220,7 @@ test("Calendar No date rows use a stable aligned grid with safe truncation", asy
   assert.match(noDateSource, /hidden min-w-0 items-center gap-1 text-foreground\/75 md:inline-flex/)
   assert.match(noDateSource, /hidden min-w-0 max-w-full overflow-hidden md:inline-flex \[\&_\*\]:min-w-0 \[\&_\*\]:truncate/)
   assert.match(noDateSource, /hidden shrink-0 text-muted-foreground md:block/)
-  assert.match(noDateSource, /focus-visible:ring-2 focus-visible:ring-zinc-950/)
+  assert.match(noDateSource, /focus-visible:ring-2 focus-visible:ring-ring/)
   assert.match(noDateSectionSource, /section className="w-full min-w-0 border-t/)
   assert.match(noDateSectionSource, /div className="w-full min-w-0 border-t/)
   assert.match(noDateSectionSource, /md:grid/)

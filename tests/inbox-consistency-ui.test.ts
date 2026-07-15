@@ -9,9 +9,9 @@ test("Inbox uses flat Home-style rows and compact metadata", async () => {
   const inbox = await readFile(inboxPath, "utf8")
 
   assert.doesNotMatch(inbox, /import \{ FlowRow \}/)
-  assert.match(inbox, /rounded-lg border border-zinc-200\/80 bg-white/)
-  assert.match(inbox, /border-b border-zinc-100/)
-  assert.match(inbox, /hover:bg-zinc-50/)
+  assert.match(inbox, /rounded-lg border border-border\/80 bg-card/)
+  assert.match(inbox, /border-b border-border\/60/)
+  assert.match(inbox, /hover:bg-hover/)
   assert.match(inbox, /text-xs/)
   assert.match(inbox, /font-mono text-\[10px\]/)
 })
@@ -19,8 +19,8 @@ test("Inbox uses flat Home-style rows and compact metadata", async () => {
 test("Inbox capture and pending list use standard bordered panels", async () => {
   const inbox = await readFile(inboxPath, "utf8")
 
-  assert.match(inbox, /mb-5 rounded-lg border border-zinc-200\/80 bg-white/)
-  assert.match(inbox, /rounded-lg border border-zinc-200\/80 bg-white/)
+  assert.match(inbox, /mb-5 rounded-lg border border-border\/80 bg-card/)
+  assert.match(inbox, /rounded-lg border border-border\/80 bg-card/)
   assert.doesNotMatch(inbox, /border-y border-zinc-200 bg-white/)
 })
 
@@ -45,9 +45,9 @@ test("Inbox priority stays zinc-only", async () => {
   const priorityChip = inbox.match(/function PriorityChip[\s\S]*?function MenuButton/)?.[0] ?? ""
   const priorityTone = priorityChip.match(/const priorityTone[\s\S]*?};/)?.[0] ?? ""
 
-  assert.match(priorityChip, /High: "font-semibold text-zinc-950"/)
-  assert.match(priorityChip, /Medium: "text-zinc-600"/)
-  assert.match(priorityChip, /Low: "text-zinc-400"/)
+  assert.match(priorityChip, /High: "font-semibold text-foreground"/)
+  assert.match(priorityChip, /Medium: "text-muted-foreground"/)
+  assert.match(priorityChip, /Low: "text-muted-foreground\/70"/)
   assert.match(priorityChip, /Priority\s*<ChevronDown/)
   assert.doesNotMatch(priorityChip, /\+ priority/)
   assert.doesNotMatch(priorityChip, /<select|appearance-auto|appearance-none/)
@@ -117,8 +117,8 @@ test("Inbox project menu and empty due control stay compact", async () => {
   assert.match(projectChip, /truncate/)
   assert.match(inbox, /max-h-56 overflow-y-auto/)
   assert.match(compactDate, />No date</)
-  assert.match(compactDate, /zincControlClass/)
-  assert.match(compactDate, /max-w-\[calc\(100vw-1rem\)\] rounded-md border border-zinc-200\/80 bg-white p-2 shadow-sm/)
+  assert.match(compactDate, /compactControlClass/)
+  assert.match(compactDate, /max-w-\[calc\(100vw-1rem\)\] rounded-md border border-border\/80 bg-popover p-2 shadow-sm/)
 })
 
 test("Inbox date cell uses a compact calendar popover instead of a native picker or text editor", async () => {
@@ -153,7 +153,7 @@ test("Inbox date and priority controls avoid clipped native corner artifacts", a
   assert.doesNotMatch(priorityChip, /overflow-hidden/)
   assert.doesNotMatch(dueChip, /focus:outline-none|outline-black|ring-black/)
   assert.doesNotMatch(priorityChip, /focus:outline-none|outline-black|ring-black/)
-  assert.match(priorityChip, /className=\{zincControlClass\}/)
+  assert.match(priorityChip, /className=\{compactControlClass\}/)
 })
 
 test("Inbox priority uses a compact full-cell popover instead of the shared large menu", async () => {
@@ -168,7 +168,7 @@ test("Inbox priority uses a compact full-cell popover instead of the shared larg
   assert.match(priorityChip, /role="menuitem"/)
   assert.match(priorityChip, /fixed inset-0 z-\[90\]/)
   assert.match(priorityChip, /event\.key === "Escape"/)
-  assert.match(priorityChip, /z-\[100\] w-36 max-w-\[calc\(100vw-2rem\)\] rounded-md border border-zinc-200\/80 bg-white py-1 shadow-sm/)
+  assert.match(priorityChip, /z-\[100\] w-36 max-w-\[calc\(100vw-2rem\)\] rounded-md border border-border\/80 bg-popover py-1 shadow-sm/)
   assert.match(priorityChip, /bottom-full mb-1/)
   assert.match(priorityChip, /top-full mt-1/)
   assert.doesNotMatch(priorityChip, /max-h-56|overflow-y-auto|w-56|min-w-56|shadow-md|lov-menu-item/)

@@ -100,29 +100,29 @@ function chipStyle(state: CalendarTaskState, isSelected = false): CSSProperties 
 }
 
 function taskTone(state: CalendarTaskState, isSelected = false): string {
-  if (isSelected) return "border-zinc-900 bg-zinc-100 text-zinc-950 ring-1 ring-zinc-900 hover:bg-zinc-100 shadow-[inset_3px_0_0_rgb(24_24_27)]";
-  if (state === "done") return "border-zinc-200/60 bg-zinc-50/60 text-zinc-500 hover:bg-zinc-50";
-  return "border-zinc-200/80 bg-white text-zinc-900 hover:bg-zinc-50";
+  if (isSelected) return "border-ring bg-muted text-foreground ring-1 ring-ring hover:bg-muted shadow-[inset_3px_0_0_var(--color-ring)]";
+  if (state === "done") return "border-border/60 bg-muted/60 text-muted-foreground hover:bg-muted";
+  return "border-border/80 bg-card text-foreground hover:bg-hover";
 }
 
 function inspectorRowTone(state: CalendarTaskState, isSelected = false): string {
-  if (isSelected) return "border-zinc-300 bg-zinc-100/80 text-zinc-950 ring-1 ring-zinc-300 hover:bg-zinc-100";
-  if (state === "done") return "border-zinc-200/70 bg-zinc-50/60 text-zinc-500 hover:bg-zinc-50";
-  return "border-zinc-200/80 bg-white text-zinc-900 hover:bg-zinc-50";
+  if (isSelected) return "border-ring bg-muted/80 text-foreground ring-1 ring-ring hover:bg-muted";
+  if (state === "done") return "border-border/70 bg-muted/60 text-muted-foreground hover:bg-muted";
+  return "border-border/80 bg-card text-foreground hover:bg-hover";
 }
 
 function titleTone(state: CalendarTaskState, isSelected = false): string {
-  if (isSelected && state === "done") return "text-zinc-600 line-through";
-  if (isSelected && state !== "overdue") return "text-zinc-950";
-  if (state === "done") return "text-zinc-500 line-through";
-  if (state === "overdue") return "text-red-700";
-  return "text-zinc-900";
+  if (isSelected && state === "done") return "text-muted-foreground line-through";
+  if (isSelected && state !== "overdue") return "text-foreground";
+  if (state === "done") return "text-muted-foreground line-through";
+  if (state === "overdue") return "text-red-700 dark:text-red-300";
+  return "text-foreground";
 }
 
 function dueTone(state: CalendarTaskState): string {
-  if (state === "overdue") return "font-medium text-red-700";
-  if (state === "blocked") return "font-medium text-amber-700";
-  return "text-zinc-500";
+  if (state === "overdue") return "font-medium text-red-700 dark:text-red-300";
+  if (state === "blocked") return "font-medium text-amber-700 dark:text-amber-300";
+  return "text-muted-foreground";
 }
 
 function projectNameFor(item: WorkItem, projectsById: Record<string, Project>) {
@@ -157,15 +157,15 @@ function MonthTaskCard({
       onClick={() => onSelect(item.id)}
       title={`${item.title} / ${projectName} / ${stateLabel} / ${item.priority}`}
       style={chipStyle(state, isSelected)}
-      className={`grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto] items-center gap-x-1 rounded border border-l-2 px-1.5 py-1 text-left text-[10px] leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1 ${taskTone(state, isSelected)} ${isDone ? "opacity-80" : ""} ${className}`}
+      className={`grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto] items-center gap-x-1 rounded border border-l-2 px-1.5 py-1 text-left text-[10px] leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${taskTone(state, isSelected)} ${isDone ? "opacity-80" : ""} ${className}`}
     >
       <span className={`min-w-0 truncate font-medium ${isSelected && !isDone ? "font-semibold" : ""} ${titleTone(state, isSelected)}`}>{item.title}</span>
-      <span className="hidden shrink-0 items-center gap-1 text-zinc-500 sm:inline-flex">
+      <span className="hidden shrink-0 items-center gap-1 text-muted-foreground sm:inline-flex">
         <PriorityIcon p={item.priority} />
       </span>
       <span className="sr-only">{projectName} / {stateLabel}</span>
       {isSelected && <span className="sr-only">Selected</span>}
-      <span className="col-span-2 hidden min-w-0 truncate text-[10px] text-zinc-500 lg:block">{projectName}</span>
+      <span className="col-span-2 hidden min-w-0 truncate text-[10px] text-muted-foreground lg:block">{projectName}</span>
     </button>
   );
 }
@@ -191,7 +191,7 @@ function DayOverflowButton({
       type="button"
       aria-label={`View all ${total} tasks for ${fullDateLabel(dateKey)}`}
       onClick={handleClick}
-      className="inline-flex shrink-0 items-center rounded border border-zinc-400 bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-900 hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
+      className="inline-flex shrink-0 items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
     >
       <span className="truncate">View all {total}</span>
       <span className="sr-only"> tasks</span>
@@ -231,7 +231,7 @@ function CalendarDayAddButton({
       type="button"
       aria-label={`Add task for ${fullDateLabel(dateKey)}`}
       onClick={handleClick}
-      className={`flex h-6 w-full items-center justify-center rounded border border-dashed border-zinc-200/80 bg-white/60 text-[10px] text-muted-foreground transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1 ${className}`}
+      className={`flex h-6 w-full items-center justify-center rounded border border-dashed border-border/80 bg-card/60 text-[10px] text-muted-foreground transition-colors hover:border-border hover:bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${className}`}
     >
       <Plus className="mr-1 h-3 w-3" /> Add
     </button>
@@ -270,13 +270,13 @@ function TaskChip({
       onClick={() => onSelect(item.id)}
       title={`${item.title} / ${projectName} / ${stateLabel} / ${item.priority}`}
       style={chipStyle(state, isSelected)}
-      className={`grid min-h-14 w-full min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-x-4 gap-y-1 rounded border border-l-2 px-3 py-2.5 text-left text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1 sm:grid-cols-[minmax(0,1fr)_104px_minmax(5rem,7rem)] sm:items-center ${inspectorRowTone(state, isSelected)} ${isDone ? "opacity-80" : ""}`}
+      className={`grid min-h-14 w-full min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-x-4 gap-y-1 rounded border border-l-2 px-3 py-2.5 text-left text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:grid-cols-[minmax(0,1fr)_104px_minmax(5rem,7rem)] sm:items-center ${inspectorRowTone(state, isSelected)} ${isDone ? "opacity-80" : ""}`}
     >
       <span className="min-w-0">
-        <span className={`block min-w-0 truncate text-[13px] font-medium ${isSelected && !isDone ? "font-semibold text-zinc-950" : titleTone(state, isSelected)}`}>{item.title}</span>
-        <span className="mt-0.5 block min-w-0 truncate text-[11px] text-zinc-500">{projectName}</span>
+        <span className={`block min-w-0 truncate text-[13px] font-medium ${isSelected && !isDone ? "font-semibold text-foreground" : titleTone(state, isSelected)}`}>{item.title}</span>
+        <span className="mt-0.5 block min-w-0 truncate text-[11px] text-muted-foreground">{projectName}</span>
       </span>
-      <span className="inline-flex min-w-0 items-center gap-1 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] text-zinc-600">
+      <span className="inline-flex min-w-0 items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
         <PriorityIcon p={item.priority} />
         <span className="truncate">{item.priority}</span>
       </span>
@@ -357,7 +357,7 @@ function DayInspector({
               type="button"
               aria-label={`Add task for ${fullDateLabel(dateKey)}`}
               onClick={handleAdd}
-              className="inline-flex h-8 w-full items-center justify-center rounded border border-zinc-300 bg-white px-3 text-[12px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1 sm:w-auto"
+              className="inline-flex h-8 w-full items-center justify-center rounded border border-border bg-card px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:w-auto"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Add task for this day
             </button>
@@ -450,7 +450,7 @@ function MonthView({
                         onInspect={onInspect}
                       />
                     ) : (
-                      <span className="shrink-0 rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-500">
+                      <span className="shrink-0 rounded border border-border bg-muted px-1 text-[10px] text-muted-foreground">
                         {dayItems.length}
                       </span>
                     )
@@ -593,10 +593,10 @@ function NoDateTask({
       data-selected={isSelected ? "true" : "false"}
       aria-current={isSelected ? "true" : undefined}
       onClick={() => onSelect(item.id)}
-      className={`grid min-h-11 w-full min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-t px-4 py-2 text-left text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1 md:grid-cols-[minmax(18rem,1fr)_minmax(10rem,16rem)_96px_minmax(8rem,12rem)_96px_88px] ${isSelected ? "border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900 shadow-[inset_3px_0_0_rgb(24_24_27)] hover:bg-zinc-100" : "border-border/60 hover:bg-[var(--color-hover)]"}`}
+      className={`grid min-h-11 w-full min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-t px-4 py-2 text-left text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background md:grid-cols-[minmax(18rem,1fr)_minmax(10rem,16rem)_96px_minmax(8rem,12rem)_96px_88px] ${isSelected ? "border-ring bg-muted ring-1 ring-ring shadow-[inset_3px_0_0_var(--color-ring)] hover:bg-muted" : "border-border/60 hover:bg-hover"}`}
     >
       <span className="min-w-0 flex-1">
-        <span className={`block truncate font-medium ${isSelected ? "font-semibold text-zinc-950" : ""}`}>{item.title}</span>
+        <span className={`block truncate font-medium ${isSelected ? "font-semibold text-foreground" : ""}`}>{item.title}</span>
         {isSelected && <span className="sr-only">Selected</span>}
         <span className="block truncate text-[11px] text-muted-foreground md:hidden">
           {projectNameFor(item, projectsById)} / {item.status} / No date
@@ -860,13 +860,13 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
       title={<span className="font-medium">Calendar</span>}
       toolbar={
         <Toolbar>
-          <button onClick={prev} className="lov-icon-btn">
+          <button onClick={prev} aria-label={view === "month" ? "Previous month" : "Previous week"} className="lov-icon-btn">
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <span className="min-w-[120px] text-center text-[12px] font-medium sm:min-w-[180px] sm:text-[13px]">
             {navLabel}
           </span>
-          <button onClick={next} className="lov-icon-btn">
+          <button onClick={next} aria-label={view === "month" ? "Next month" : "Next week"} className="lov-icon-btn">
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
           <button
@@ -919,7 +919,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
       }
     >
       <div className="flex h-full min-h-0 w-full">
-        {error && <div className="absolute left-6 right-6 top-3 z-40 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
+        {error && <div className="absolute left-6 right-6 top-3 z-40 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div>}
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
           {loading && <div className="px-4 py-2 text-[12px] text-muted-foreground">Loading calendar data...</div>}
           <div className="flex flex-wrap items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 text-[12px] text-muted-foreground">
@@ -928,7 +928,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
               <span className="truncate">{selectedProjectName}</span>
             </span>
             <span>/</span>
-            <span className={dueSummary.overdue > 0 ? "text-red-700" : ""}>{dueSummary.overdue} overdue</span>
+            <span className={dueSummary.overdue > 0 ? "text-red-700 dark:text-red-300" : ""}>{dueSummary.overdue} overdue</span>
             <span>/</span>
             <span className={dueSummary.today > 0 ? "text-primary" : ""}>{dueSummary.today} today</span>
             <span>/</span>
@@ -936,7 +936,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
             {dueSummary.done > 0 && (
               <>
                 <span>/</span>
-                <span className="text-emerald-700">{dueSummary.done} done</span>
+                <span className="text-emerald-700 dark:text-emerald-300">{dueSummary.done} done</span>
               </>
             )}
           </div>
