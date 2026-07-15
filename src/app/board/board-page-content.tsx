@@ -158,6 +158,18 @@ export function BoardPageContent() {
   const [focusNew, setFocusNew] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
+  const openDrawer = (id: string) => setSelectedId(id);
+  const closeDrawer = () => {
+    const triggerId = selectedId;
+    setSelectedId(null);
+    setFocusNew(false);
+    if (triggerId) {
+      window.requestAnimationFrame(() => {
+        document.querySelector<HTMLButtonElement>(`[data-task-open="${globalThis.CSS.escape(triggerId)}"]`)?.focus();
+      });
+    }
+  };
+
   const selected = selectedId ? scopedWorkItems.find((w) => w.id === selectedId) ?? null : null;
   const activeDragItem = activeDragId ? scopedWorkItems.find((w) => w.id === activeDragId) ?? null : null;
 
@@ -425,7 +437,7 @@ export function BoardPageContent() {
         </Toolbar>
       }
     >
-      <div className="grid h-full min-h-0 w-full grid-cols-[minmax(0,1fr)_auto]">
+      <div className="relative flex h-full min-h-0 min-w-0 w-full overflow-hidden" data-board-workspace="true">
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <DndContext
             sensors={sensors}
@@ -434,10 +446,8 @@ export function BoardPageContent() {
             onDragEnd={onDragEnd}
             onDragCancel={() => setActiveDragId(null)}
           >
-            <div className="h-full max-w-full overflow-x-auto overflow-y-hidden">
-              <div className={`grid h-full gap-3 p-4 ${
-                selected ? "grid-cols-[repeat(5,minmax(128px,1fr))]" : "grid-cols-[repeat(5,minmax(220px,1fr))]"
-              }`}>
+            <div className="h-full max-w-full overflow-x-auto overflow-y-hidden" data-board-scroll-region="true">
+              <div className="grid h-full min-w-[960px] grid-cols-[repeat(5,minmax(0,1fr))] gap-3 p-4 xl:min-w-0" data-board-grid="true">
                 {cols.map((col) => {
                   const items = scopedWorkItems.filter((w) => w.status === col);
                   return (
@@ -446,7 +456,7 @@ export function BoardPageContent() {
                       status={col}
                       items={items}
                       selectedId={selectedId}
-                      onSelect={(id) => setSelectedId(id)}
+                      onSelect={openDrawer}
                       onAdd={() => { void createAndFocus(col); }}
                       onMove={(id, s) => {
                         if (blockReadOnlyMutation(isDemoMode)) return;
@@ -471,10 +481,11 @@ export function BoardPageContent() {
 
         <TaskDrawer
           readOnly={isDemoMode}
+          presentation="board"
           item={selected}
           focusTitle={focusNew}
           onTitleFocused={() => setFocusNew(false)}
-          onClose={() => { setSelectedId(null); setFocusNew(false); }}
+          onClose={closeDrawer}
           workspaceId={workspaceId}
           currentUserId={currentUserId}
           membersOverride={members}
@@ -609,10 +620,10 @@ function Card({
       data-task-id={item.id}
       data-task-status={item.status}
       style={style}
-      className={`group relative rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
+      className={`group relative min-w-0 overflow-hidden rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
     >
       {/* Row 1: controls plus canonical metadata order */}
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex min-w-0 items-center gap-2 overflow-hidden">
         <button
           ref={setActivatorNodeRef}
           {...listeners}
@@ -625,14 +636,14 @@ function Card({
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
-        {item.parentId && <Chip>Subtask</Chip>}
+        {item.parentId && <span className="shrink-0"><Chip>Subtask</Chip></span>}
         <PriorityIndicator priority={item.priority} />
         <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
           <Avatar id={m.id} name={m.name} size={18} />
           <span className="truncate">{m.name}</span>
         </div>
-        {item.label && <Chip>{item.label}</Chip>}
-        <span className="ml-auto text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
+        {item.label && <span className="min-w-0 overflow-hidden [&_.flow-meta-pill]:max-w-full [&_.flow-meta-pill]:overflow-hidden [&_.flow-meta-pill]:text-ellipsis"><Chip>{item.label}</Chip></span>}
+        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -672,9 +683,10 @@ function Card({
       <button
         type="button"
         onClick={onSelect}
-        className="mb-2.5 block w-full rounded text-left text-[13.5px] font-medium leading-[1.4] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
+        data-task-open={item.id}
+        className="mb-2.5 block w-full min-w-0 overflow-hidden rounded text-left text-[13.5px] font-medium leading-[1.4] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="flex min-w-0 items-center gap-1.5">
           {item.parentId && <span className="shrink-0 text-muted-foreground">↳</span>}
           <span className="truncate">{item.title}</span>
         </span>

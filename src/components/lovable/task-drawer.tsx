@@ -16,6 +16,7 @@ import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } fro
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
 import { TaskCompletionToggle } from "./task-completion-toggle";
 import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
+import { cn } from "@/lib/utils";
 
 const STATUSES: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
@@ -65,6 +66,7 @@ type DrawerHistoryEvent = {
 export function TaskDrawer({
   item,
   readOnly = false,
+  presentation = "inline",
   onClose,
   focusTitle,
   initialFocusSection,
@@ -82,6 +84,7 @@ export function TaskDrawer({
 }: {
   item: WorkItem | null;
   readOnly?: boolean;
+  presentation?: "inline" | "board";
   onClose: () => void;
   focusTitle?: boolean;
   initialFocusSection?: "comments" | "history";
@@ -103,6 +106,7 @@ export function TaskDrawer({
         <DrawerContent
           item={item}
           readOnly={readOnly}
+          presentation={presentation}
           onClose={onClose}
           focusTitle={!!focusTitle}
           initialFocusSection={initialFocusSection}
@@ -126,6 +130,7 @@ export function TaskDrawer({
 type DrawerContentProps = {
   item: WorkItem;
   readOnly: boolean;
+  presentation: "inline" | "board";
   onClose: () => void;
   focusTitle: boolean;
   initialFocusSection?: "comments" | "history";
@@ -145,6 +150,7 @@ type DrawerContentProps = {
 function DrawerContent({
   item,
   readOnly,
+  presentation,
   onClose,
   focusTitle,
   initialFocusSection,
@@ -186,6 +192,7 @@ function DrawerContent({
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const historySectionRef = useRef<HTMLDivElement>(null);
@@ -486,6 +493,10 @@ function DrawerContent({
   }, [focusTitle, item.id, onTitleFocused]);
 
   useEffect(() => {
+    if (!focusTitle && !initialFocusSection) closeRef.current?.focus();
+  }, [focusTitle, initialFocusSection, item.id]);
+
+  useEffect(() => {
     if (!serverMode || !initialFocusSection) return;
     const targetRef = initialFocusSection === "comments" ? commentsSectionRef : historySectionRef;
     const timerId = window.setTimeout(() => {
@@ -705,26 +716,40 @@ function DrawerContent({
     }
   };
 
-  const panelInitial = { opacity: 1, width: INLINE_DRAWER_WIDTH };
-  const panelAnimate = { opacity: 1, width: INLINE_DRAWER_WIDTH };
-  const panelExit = { opacity: 1, width: INLINE_DRAWER_WIDTH };
+  const panelInitial = presentation === "board" ? { opacity: 1 } : { opacity: 1, width: INLINE_DRAWER_WIDTH };
+  const panelAnimate = presentation === "board" ? { opacity: 1 } : { opacity: 1, width: INLINE_DRAWER_WIDTH };
+  const panelExit = presentation === "board" ? { opacity: 1 } : { opacity: 1, width: INLINE_DRAWER_WIDTH };
 
   return (
     <>
+      {presentation === "board" && (
+        <div
+          className="drawer-board-backdrop"
+          aria-hidden="true"
+          onClick={onClose}
+          data-board-drawer-backdrop="true"
+        />
+      )}
       <motion.aside
         key="inline-drawer"
         initial={panelInitial}
         animate={panelAnimate}
         exit={panelExit}
         transition={{ duration: 0, ease: "easeOut" }}
-        className="drawer-inline flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l bg-background"
+        role={presentation === "board" ? "dialog" : "complementary"}
+        aria-label="Task details"
+        data-board-drawer={presentation === "board" ? "true" : undefined}
+        className={cn(
+          "drawer-inline flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l bg-background",
+          presentation === "board" && "drawer-board",
+        )}
       >
       <div className="flex h-10 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3 text-[12px]">
           <span className="font-medium text-muted-foreground">Task</span>
           <StatusSelect readOnly={readOnly} value={item.status} onChange={(s) => { void onStatusChange(s); }} />
         </div>
-        <button type="button" onClick={onClose} title="Close" aria-label="Close task drawer" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
+        <button ref={closeRef} type="button" onClick={onClose} title="Close" aria-label="Close task drawer" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
