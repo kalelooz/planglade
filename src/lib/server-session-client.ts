@@ -3,7 +3,6 @@ import { getPublicConfiguredAuthMode } from "@/lib/auth-config"
 import type { PriorityDisplayStyle } from "@/lib/appearance-defaults"
 import { DEMO_MODE_MESSAGE, demoSession, getDemoApiResponse } from "@/lib/demo-data"
 
-export const DEMO_MODE_HEADER = "x-planglade-demo-mode"
 export const DEMO_READ_ONLY_HEADER = "x-planglade-demo-read-only"
 
 function isDemoMode() {
@@ -76,7 +75,6 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
   }
 
   const headers = await buildApiAuthHeaders(init.headers)
-  if (demoMode) headers.set(DEMO_MODE_HEADER, "true")
   return fetch(input, {
     ...init,
     headers,

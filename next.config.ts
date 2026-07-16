@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: false,
+  env: {
+    PLANGLADE_BUILD_DEMO_READ_ONLY:
+      process.env.PLANGLADE_NETLIFY_DEMO_READ_ONLY?.trim().toLowerCase() === "true"
+        ? "true"
+        : "false",
+  },
   async headers() {
     const contentSecurityPolicy = buildContentSecurityPolicy({
       nodeEnv: process.env.NODE_ENV,
