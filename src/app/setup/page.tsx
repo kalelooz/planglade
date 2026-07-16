@@ -7,6 +7,7 @@ import { CheckSquare, Copy, Printer } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { normalizeEmail } from "@/lib/local-auth-email"
 
 type SetupScreen = "checking" | "authorize" | "details" | "recovery" | "unavailable" | "temporary" | "completion-lost"
 type OwnerField = "name" | "email" | "password" | "confirmation" | "workspaceName"
@@ -14,7 +15,6 @@ type OwnerErrors = Partial<Record<OwnerField, string>>
 
 const csrfCookieName = "planglade-setup-csrf"
 const recoveryCodePattern = /^[0-9a-f]{4}(?:-[0-9a-f]{4}){7}$/
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function readCsrfCookie() {
   const prefix = `${csrfCookieName}=`
@@ -61,7 +61,7 @@ function ownerErrors(values: { name: string; email: string; password: string; co
   const errors: OwnerErrors = {}
   const nameLength = values.name.trim().length
   if (nameLength < 1 || nameLength > 120) errors.name = "Enter the owner's name."
-  if (values.email.length > 320 || !emailPattern.test(values.email.trim())) errors.email = "Enter a valid email address."
+  if (values.email.length > 320 || !normalizeEmail(values.email)) errors.email = "Enter a valid email address."
   const passwordLength = [...values.password].length
   if (passwordLength < 15 || passwordLength > 128) errors.password = "Use a password between 15 and 128 characters."
   if (!values.confirmation || values.password !== values.confirmation) errors.confirmation = "Passwords do not match."
@@ -140,6 +140,7 @@ export default function SetupPage() {
   React.useEffect(() => { void discover() }, [discover])
   React.useEffect(() => { if (screen !== "checking") headingRef.current?.focus() }, [screen])
   React.useEffect(() => {
+    mountedRef.current = true
     const clearRenderedSecrets = () => {
       if (tokenInputRef.current) tokenInputRef.current.value = ""
       document.querySelectorAll<HTMLInputElement>('input[type="password"]').forEach((input) => { input.value = "" })
@@ -257,30 +258,34 @@ export default function SetupPage() {
 
   function printCodes() {
     setRoutineStatus("")
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) {
+    let printWindow: Window | null = null
+    try {
+      printWindow = window.open("", "_blank")
+      if (!printWindow || printWindow.closed) throw new Error("Print window unavailable")
+      printWindow.opener = null
+      const document = printWindow.document
+      const style = document.createElement("style")
+      style.textContent = "body{color:#000;background:#fff;font:12pt system-ui,sans-serif;margin:2cm}ol{font:14pt ui-monospace,monospace;line-height:1.8}"
+      const main = document.createElement("main")
+      const title = document.createElement("h1")
+      const origin = document.createElement("p")
+      const generated = document.createElement("p")
+      const warning = document.createElement("p")
+      const list = document.createElement("ol")
+      title.textContent = "PlanGlade"
+      origin.textContent = window.location.origin
+      generated.textContent = `Generated: ${new Date().toLocaleDateString()}`
+      warning.textContent = "One-time recovery codes. Each code works once. PlanGlade cannot show them again."
+      recoveryCodes.forEach((code) => { const item = document.createElement("li"); item.textContent = code; list.append(item) })
+      main.append(title, origin, generated, warning, list)
+      document.head.append(style)
+      document.body.append(main)
+      printWindow.print()
+    } catch {
       setRoutineStatus("Print failed. Select and copy the codes manually.")
-      return
+    } finally {
+      try { printWindow?.close() } catch {}
     }
-    printWindow.opener = null
-    const document = printWindow.document
-    const style = document.createElement("style")
-    style.textContent = "body{color:#000;background:#fff;font:12pt system-ui,sans-serif;margin:2cm}ol{font:14pt ui-monospace,monospace;line-height:1.8}"
-    const main = document.createElement("main")
-    const title = document.createElement("h1")
-    const origin = document.createElement("p")
-    const generated = document.createElement("p")
-    const warning = document.createElement("p")
-    const list = document.createElement("ol")
-    title.textContent = "PlanGlade"
-    origin.textContent = window.location.origin
-    generated.textContent = `Generated: ${new Date().toLocaleDateString()}`
-    warning.textContent = "One-time recovery codes. Each code works once. PlanGlade cannot show them again."
-    recoveryCodes.forEach((code) => { const item = document.createElement("li"); item.textContent = code; list.append(item) })
-    main.append(title, origin, generated, warning, list)
-    document.head.append(style)
-    document.body.append(main)
-    try { printWindow.print() } finally { printWindow.close() }
   }
 
   function continueToLogin() {

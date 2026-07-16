@@ -30,12 +30,29 @@ async function fillOwner(page: Page) {
   await page.getByLabel("Workspace name").fill("My workspace")
 }
 
+async function reachRecovery(page: Page) {
+  await reachOwner(page)
+  await fillOwner(page)
+  await page.route("**/api/auth/setup/complete", (route) => route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ status: "complete", recoveryCodes: fakeCodes }) }))
+  await page.getByRole("button", { name: "Create owner and workspace" }).click()
+  await expect(page.getByRole("heading", { name: "Recovery codes" })).toBeFocused()
+}
+
 test("login remains normal and hides setup discovery unless the exact available payload is returned", async ({ page }) => {
   await routeDiscovery(page, { status: 200, body: { status: "available", internal: "must stay hidden" } })
   await page.goto("/login")
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible()
   await expect(page.getByRole("link", { name: "Set up this self-hosted installation" })).toBeHidden()
+})
+
+test("setup discovery works again after a route remount", async ({ page }) => {
+  await routeDiscovery(page, { status: 200, body: { status: "available" } })
+  await page.goto("/setup")
+  await expect(page.getByRole("heading", { name: "Authorize setup" })).toBeVisible()
+  await page.goto("/login")
+  await page.goto("/setup")
+  await expect(page.getByRole("heading", { name: "Authorize setup" })).toBeFocused()
 })
 
 test("direct setup shows unavailable and temporary discovery states", async ({ page }) => {
@@ -108,6 +125,29 @@ test("copy failure is announced without reading the clipboard", async ({ page })
   await expect(page.getByText("Copy failed. Select and copy the codes manually.")).toBeVisible()
 })
 
+test("print failures keep recovery codes visible without a download", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, "open", { configurable: true, value: () => null }))
+  await reachRecovery(page)
+  await page.getByRole("button", { name: "Print codes" }).click()
+  await expect(page.getByText("Print failed. Select and copy the codes manually.")).toBeVisible()
+  await expect(page.getByRole("list", { name: "Recovery codes" }).getByRole("listitem")).toHaveCount(10)
+  await expect(page.getByRole("link", { name: /download/i })).toHaveCount(0)
+})
+
+test("a throwing print dialog keeps recovery codes visible", async ({ page }) => {
+  await page.addInitScript(() => {
+    const printDocument = document.implementation.createHTMLDocument()
+    Object.defineProperty(window, "open", {
+      configurable: true,
+      value: () => ({ closed: false, opener: null, document: printDocument, print: () => { throw new Error("blocked") }, close: () => {} }),
+    })
+  })
+  await reachRecovery(page)
+  await page.getByRole("button", { name: "Print codes" }).click()
+  await expect(page.getByText("Print failed. Select and copy the codes manually.")).toBeVisible()
+  await expect(page.getByText(fakeCodes[0])).toBeVisible()
+})
+
 test("expired claim returns to authorization and clears passwords", async ({ page }) => {
   await reachOwner(page)
   await fillOwner(page)
@@ -137,21 +177,49 @@ test("refresh and Back do not restore token or owner passwords", async ({ page }
   await expect(page.getByLabel("Setup token")).toHaveValue("")
 })
 
-test("320px keyboard-only setup remains usable", async ({ page }) => {
+test("320px keyboard-only setup reaches login without creating a session", async ({ page, context }) => {
   await page.setViewportSize({ width: 320, height: 700 })
   await routeDiscovery(page, { status: 200, body: { status: "available" } })
   await page.route("**/api/auth/setup/claim", (route) => route.fulfill({ status: 201, contentType: "application/json", body: '{"status":"claimed"}' }))
+  let completionBody: Record<string, unknown> = {}
+  await page.route("**/api/auth/setup/complete", async (route) => {
+    completionBody = route.request().postDataJSON()
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ status: "complete", recoveryCodes: fakeCodes }) })
+  })
   await page.goto("/setup")
   await expect(page.getByRole("heading", { name: "Authorize setup" })).toBeFocused()
   await page.keyboard.press("Tab")
   await page.keyboard.type("keyboard-token")
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("heading", { name: "Create the owner" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Create the owner" })).toBeFocused()
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("Setup Owner")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("owner@localhost")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("correct horse battery staple")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("correct horse battery staple")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("My workspace")
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("heading", { name: "Recovery codes" })).toBeFocused()
+  expect(completionBody.email).toBe("owner@localhost")
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Space")
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Enter")
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByText(fakeCodes[0])).toBeHidden()
+  expect((await context.cookies()).some((cookie) => /(?:next-auth|authjs)\.session-token/.test(cookie.name))).toBe(false)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await page.screenshot({ path: "test-results/setup-mobile-320.png", fullPage: true })
 })
 
-test("an operator can set up an owner, acknowledge codes, then sign in locally", async ({ page }) => {
+test("an operator can set up an owner and continue to normal login", async ({ page, context }) => {
   const discovery = page.waitForResponse((response) => response.url().endsWith("/api/auth/setup") && response.request().method() === "GET")
   await page.goto("/login")
   expect((await discovery).status()).toBe(200)
@@ -166,8 +234,6 @@ test("an operator can set up an owner, acknowledge codes, then sign in locally",
   await page.getByRole("button", { name: "Continue to login" }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByText(/^[0-9a-f]{4}-/)).toBeHidden()
-  await page.getByLabel("Email").fill("owner@example.com")
-  await page.getByLabel("Password").fill("correct horse battery staple")
-  await page.getByRole("button", { name: "Continue with email" }).click()
-  await expect(page).toHaveURL(/\/app$/)
+  await expect(page.getByRole("button", { name: "Continue with email" })).toHaveCount(0)
+  expect((await context.cookies()).some((cookie) => /(?:next-auth|authjs)\.session-token/.test(cookie.name))).toBe(false)
 })

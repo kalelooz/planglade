@@ -41,8 +41,6 @@ export interface AuthContextValue {
   authMode: "dev" | "firebase" | "nextauth"
   /** Sign in with Google OAuth */
   signInWithGoogle: (nextPath?: string) => Promise<void>
-  /** Sign in with the enabled local Credentials provider. */
-  signInWithCredentials: (email: string, password: string, nextPath?: string) => Promise<boolean>
   /** Sign out and clear session */
   signOut: (nextPath?: string) => Promise<void>
 }
@@ -167,17 +165,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const signInWithCredentials = React.useCallback(async (email: string, password: string, nextPath?: string) => {
-    if (configuredAuthMode !== "nextauth") return false
-    const result = await nextAuthSignIn("credentials", {
-      redirect: false,
-      email,
-      password,
-      callbackUrl: nextPath ?? "/app",
-    })
-    return !result?.error
-  }, [])
-
   const signOut = React.useCallback(async (nextPath?: string) => {
     if (configuredAuthMode === "nextauth") {
       await nextAuthSignOut({
@@ -198,8 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const value = React.useMemo<AuthContextValue>(
-    () => ({ user, loading, authMode: configuredAuthMode, signInWithGoogle, signInWithCredentials, signOut }),
-    [user, loading, signInWithGoogle, signInWithCredentials, signOut]
+    () => ({ user, loading, authMode: configuredAuthMode, signInWithGoogle, signOut }),
+    [user, loading, signInWithGoogle, signOut]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -25,20 +25,19 @@ test("SELF-HOST-AUTH-UI-SETUP-001: setup route and one-time recovery screen exis
   assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB/i)
 })
 
-test("SELF-HOST-AUTH-UI-SETUP-001: login supports local credentials and conditional setup discovery", async () => {
+test("SELF-HOST-AUTH-UI-SETUP-001: login only adds conditional setup discovery", async () => {
   const [loginPage, loginRoute, authContext] = await Promise.all([
     readProjectFile("src/components/lovable/login-page.tsx"),
     readProjectFile("src/app/login/page.tsx"),
     readProjectFile("src/components/lovable/auth-context.tsx"),
   ])
 
-  assert.match(loginPage, /Continue with email/)
   assert.match(loginPage, /Set up this self-hosted installation/)
   assert.match(loginPage, /status === "available"/)
   assert.match(loginPage, /Object\.keys\(payload\)\.length === 1/)
-  assert.match(loginRoute, /localCredentials/)
-  assert.match(authContext, /signInWithCredentials/)
-  assert.match(authContext, /nextAuthSignIn\("credentials"/)
+  assert.doesNotMatch(loginPage, /Continue with email|signInWithCredentials/)
+  assert.doesNotMatch(loginRoute, /localCredentials/)
+  assert.doesNotMatch(authContext, /signInWithCredentials/)
 })
 
 test("SELF-HOST-AUTH-UI-SETUP-001: setup page headers override the general policy", async () => {
@@ -91,6 +90,17 @@ test("SELF-HOST-AUTH-UI-SETUP-001: approved state copy and cleanup hooks are pre
   assert.match(source, /replaceChildren/)
   assert.match(source, /router\.replace\("\/login"\)/)
   assert.match(source, /activeRequestRef\.current\?\.abort\(\)/)
+  assert.match(source, /mountedRef\.current = true/)
+  assert.match(source, /mountedRef\.current = false/)
+})
+
+test("SELF-HOST-AUTH-UI-SETUP-001: email validation shares the server rule and print failures are contained", async () => {
+  const source = await readProjectFile("src/app/setup/page.tsx")
+
+  assert.match(source, /import \{ normalizeEmail \} from "@\/lib\/local-auth-email"/)
+  assert.match(source, /values\.email\.length > 320 \|\| !normalizeEmail\(values\.email\)/)
+  assert.match(source, /try \{[\s\S]*printWindow\.print\(\)[\s\S]*\} catch \{[\s\S]*Print failed\. Select and copy the codes manually\./)
+  assert.match(source, /finally \{[\s\S]*printWindow\?\.close\(\)/)
 })
 
 test("PR-48-SETUP-RETRY-BROWSER-001: CI enforces the isolated setup browser test", async () => {
