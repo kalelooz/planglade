@@ -8,41 +8,36 @@ import { CheckSquare, Copy, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
-type SetupScreen = "checking" | "authorize" | "details" | "recovery" | "unavailable" | "temporary" | "expired" | "completion-lost"
-type SetupError = { error?: { code?: string; message?: string } }
+type SetupScreen = "checking" | "authorize" | "details" | "recovery" | "unavailable" | "temporary" | "completion-lost"
+type OwnerField = "name" | "email" | "password" | "confirmation" | "workspaceName"
+type OwnerErrors = Partial<Record<OwnerField, string>>
 
+const csrfCookieName = "planglade-setup-csrf"
 const recoveryCodePattern = /^[0-9a-f]{4}(?:-[0-9a-f]{4}){7}$/
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function readCsrfCookie() {
-  const prefix = "planglade-setup-csrf="
-  return document.cookie
+  const prefix = `${csrfCookieName}=`
+  const value = document.cookie
     .split(";")
     .map((part) => part.trim())
     .find((part) => part.startsWith(prefix))
     ?.slice(prefix.length)
+  return value ?? null
 }
 
-async function readError(response: Response) {
-  return (await response.json().catch(() => ({}))) as SetupError
+function exactSetupStatus(value: unknown, status: "available" | "unavailable") {
+  return value !== null && typeof value === "object" && Object.keys(value).length === 1 && "status" in value && value.status === status
 }
 
 function SetupFrame({ children }: { children: React.ReactNode }) {
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 text-zinc-950">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(161,161,170,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(161,161,170,0.12)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_78%)]"
-      />
-      <div className="relative mx-auto flex min-h-screen w-full max-w-xl items-center px-4 py-6 sm:px-6 sm:py-10">
-        <section className="w-full rounded-2xl border border-zinc-200 bg-white p-6 shadow-[0_24px_80px_rgba(24,24,27,0.12)] sm:p-10">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-4"
-            aria-label="PlanGlade landing page"
-          >
-            <span className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50">
-              <CheckSquare className="size-4" aria-hidden="true" />
-            </span>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(161,161,170,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(161,161,170,0.12)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_78%)]" />
+      <div className="relative mx-auto flex min-h-screen w-full max-w-xl items-center px-[max(1rem,env(safe-area-inset-left))] py-[max(1.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-10">
+        <section className="w-full min-w-0 rounded-2xl border border-zinc-200 bg-white p-6 shadow-[0_24px_80px_rgba(24,24,27,0.12)] sm:p-10">
+          <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-4" aria-label="PlanGlade landing page">
+            <span className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50"><CheckSquare className="size-4" aria-hidden="true" /></span>
             PlanGlade
           </Link>
           {children}
@@ -54,41 +49,58 @@ function SetupFrame({ children }: { children: React.ReactNode }) {
 
 function Progress({ current }: { current: 1 | 2 | 3 }) {
   return (
-    <ol className="mt-8 flex gap-2 text-xs font-medium text-zinc-500" aria-label="Setup progress">
+    <ol className="mt-8 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-zinc-500" aria-label="Setup progress">
       {[[1, "Authorize"], [2, "Owner"], [3, "Recovery codes"]].map(([step, label]) => (
-        <li key={String(step)} className={step === current ? "text-zinc-950" : undefined}>
-          {step} {label}
-        </li>
+        <li key={String(step)} aria-current={step === current ? "step" : undefined} className={step === current ? "text-zinc-950" : undefined}>{step} {label}</li>
       ))}
     </ol>
   )
 }
 
+function ownerErrors(values: { name: string; email: string; password: string; confirmation: string; workspaceName: string }): OwnerErrors {
+  const errors: OwnerErrors = {}
+  const nameLength = values.name.trim().length
+  if (nameLength < 1 || nameLength > 120) errors.name = "Enter the owner's name."
+  if (values.email.length > 320 || !emailPattern.test(values.email.trim())) errors.email = "Enter a valid email address."
+  const passwordLength = [...values.password].length
+  if (passwordLength < 15 || passwordLength > 128) errors.password = "Use a password between 15 and 128 characters."
+  if (!values.confirmation || values.password !== values.confirmation) errors.confirmation = "Passwords do not match."
+  const workspaceLength = values.workspaceName.trim().length
+  if (workspaceLength < 2 || workspaceLength > 80) errors.workspaceName = "Use a workspace name between 2 and 80 characters."
+  return errors
+}
+
 export default function SetupPage() {
   const router = useRouter()
-  const tokenInput = React.useRef<HTMLInputElement>(null)
+  const headingRef = React.useRef<HTMLHeadingElement>(null)
+  const summaryRef = React.useRef<HTMLDivElement>(null)
+  const tokenInputRef = React.useRef<HTMLInputElement>(null)
+  const recoveryRef = React.useRef<HTMLDivElement>(null)
+  const activeRequestRef = React.useRef<AbortController | null>(null)
+  const mountedRef = React.useRef(true)
   const [screen, setScreen] = React.useState<SetupScreen>("checking")
   const [setupToken, setSetupToken] = React.useState("")
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
-  const [passwordConfirmation, setPasswordConfirmation] = React.useState("")
+  const [confirmation, setConfirmation] = React.useState("")
   const [workspaceName, setWorkspaceName] = React.useState("")
+  const [touched, setTouched] = React.useState<Partial<Record<OwnerField, boolean>>>({})
+  const [errors, setErrors] = React.useState<OwnerErrors>({})
   const [formError, setFormError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
   const [recoveryCodes, setRecoveryCodes] = React.useState<string[]>([])
   const [codesSaved, setCodesSaved] = React.useState(false)
-  const [copyStatus, setCopyStatus] = React.useState<string | null>(null)
-  const [printStatus, setPrintStatus] = React.useState<string | null>(null)
+  const [routineStatus, setRoutineStatus] = React.useState("")
 
   const clearToken = React.useCallback(() => {
     setSetupToken("")
-    if (tokenInput.current) tokenInput.current.value = ""
+    if (tokenInputRef.current) tokenInputRef.current.value = ""
   }, [])
 
   const clearPasswords = React.useCallback(() => {
     setPassword("")
-    setPasswordConfirmation("")
+    setConfirmation("")
   }, [])
 
   const clearAllSensitiveState = React.useCallback(() => {
@@ -99,37 +111,53 @@ export default function SetupPage() {
     setWorkspaceName("")
     setRecoveryCodes([])
     setCodesSaved(false)
+    recoveryRef.current?.replaceChildren()
   }, [clearPasswords, clearToken])
 
+  const beginRequest = React.useCallback(() => {
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    activeRequestRef.current = controller
+    return controller
+  }, [])
+
   const discover = React.useCallback(async () => {
+    const controller = beginRequest()
     setScreen("checking")
     setFormError(null)
     try {
-      const response = await fetch("/api/auth/setup", { cache: "no-store", credentials: "same-origin" })
-      if (response.status === 503) {
-        setScreen("temporary")
-        return
-      }
-      const payload = (await response.json().catch(() => ({}))) as { status?: unknown }
-      setScreen(payload.status === "available" ? "authorize" : "unavailable")
+      const response = await fetch("/api/auth/setup", { cache: "no-store", credentials: "same-origin", signal: controller.signal })
+      const payload = response.ok ? (await response.json().catch(() => null)) as { status?: unknown } | null : null
+      if (!mountedRef.current || controller.signal.aborted) return
+      if (response.ok && exactSetupStatus(payload, "available")) setScreen("authorize")
+      else if (response.ok && exactSetupStatus(payload, "unavailable")) setScreen("unavailable")
+      else setScreen("temporary")
     } catch {
-      setScreen("temporary")
+      if (mountedRef.current && !controller.signal.aborted) setScreen("temporary")
+    }
+  }, [beginRequest])
+
+  React.useEffect(() => { void discover() }, [discover])
+  React.useEffect(() => { if (screen !== "checking") headingRef.current?.focus() }, [screen])
+  React.useEffect(() => {
+    const clearRenderedSecrets = () => {
+      if (tokenInputRef.current) tokenInputRef.current.value = ""
+      document.querySelectorAll<HTMLInputElement>('input[type="password"]').forEach((input) => { input.value = "" })
+      recoveryRef.current?.replaceChildren()
+    }
+    window.addEventListener("pagehide", clearRenderedSecrets)
+    return () => {
+      mountedRef.current = false
+      activeRequestRef.current?.abort()
+      clearRenderedSecrets()
+      window.removeEventListener("pagehide", clearRenderedSecrets)
     }
   }, [])
 
-  React.useEffect(() => {
-    void discover()
-  }, [discover])
-
-  React.useEffect(() => () => {
-    clearToken()
-    clearPasswords()
-    setRecoveryCodes([])
-  }, [clearPasswords, clearToken])
-
   async function claimSetup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const submittedToken = setupToken
+    let requestBody = JSON.stringify({ setupToken })
+    const controller = beginRequest()
     setSubmitting(true)
     setFormError(null)
     clearToken()
@@ -137,55 +165,44 @@ export default function SetupPage() {
       const response = await fetch("/api/auth/setup/claim", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          "content-type": "application/json",
-          "x-planglade-csrf": readCsrfCookie() ?? "",
-        },
-        body: JSON.stringify({ setupToken: submittedToken }),
+        cache: "no-store",
+        headers: { "content-type": "application/json", "x-planglade-csrf": readCsrfCookie() ?? "" },
+        body: requestBody,
+        signal: controller.signal,
       })
-      if (response.status === 201) {
-        setScreen("details")
-        return
-      }
-      if (response.status === 503) {
-        setScreen("temporary")
-        return
-      }
-      if (response.status === 409) {
-        setScreen("unavailable")
-        return
-      }
-      const payload = await readError(response)
-      setFormError(payload.error?.message ?? "Setup authorization failed.")
+      if (!mountedRef.current || controller.signal.aborted) return
+      if (response.status === 201) setScreen("details")
+      else if (response.status === 409 || response.status === 404) setScreen("unavailable")
+      else if (response.status === 401 || response.status === 403) setFormError("Setup authorization failed. Check the setup token and try again.")
+      else setScreen("temporary")
     } catch {
-      setScreen("temporary")
+      if (mountedRef.current && !controller.signal.aborted) await discover()
     } finally {
-      setSubmitting(false)
+      requestBody = ""
+      clearToken()
+      if (mountedRef.current) setSubmitting(false)
     }
   }
 
-  function validateOwnerForm() {
-    if (!name.trim()) return "Enter the owner's name."
-    if (!email.trim() || email.length > 320) return "Enter a valid email address."
-    const passwordLength = Array.from(password).length
-    if (passwordLength < 15 || passwordLength > 128) return "Use a password between 15 and 128 characters."
-    if (password !== passwordConfirmation) return "Passwords do not match."
-    const trimmedWorkspaceName = workspaceName.trim()
-    if (trimmedWorkspaceName.length < 2 || trimmedWorkspaceName.length > 80) {
-      return "Use a workspace name between 2 and 80 characters."
-    }
-    return null
+  function validateField(field: OwnerField) {
+    const next = ownerErrors({ name, email, password, confirmation, workspaceName })
+    setTouched((current) => ({ ...current, [field]: true }))
+    setErrors((current) => ({ ...current, [field]: next[field] }))
   }
 
   async function completeSetup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const validationError = validateOwnerForm()
-    if (validationError) {
-      setFormError(validationError)
+    const nextErrors = ownerErrors({ name, email, password, confirmation, workspaceName })
+    if (Object.keys(nextErrors).length) {
+      setTouched({ name: true, email: true, password: true, confirmation: true, workspaceName: true })
+      setErrors(nextErrors)
+      setFormError("Fix the errors below and try again.")
+      requestAnimationFrame(() => summaryRef.current?.focus())
       return
     }
 
-    const body = { name, email, password, workspaceName }
+    let requestBody = JSON.stringify({ name: name.trim(), email: email.trim(), password, workspaceName: workspaceName.trim() })
+    const controller = beginRequest()
     setSubmitting(true)
     setFormError(null)
     clearPasswords()
@@ -193,192 +210,101 @@ export default function SetupPage() {
       const response = await fetch("/api/auth/setup/complete", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          "content-type": "application/json",
-          "x-planglade-csrf": readCsrfCookie() ?? "",
-        },
-        body: JSON.stringify(body),
+        cache: "no-store",
+        headers: { "content-type": "application/json", "x-planglade-csrf": readCsrfCookie() ?? "" },
+        body: requestBody,
+        signal: controller.signal,
       })
+      if (!mountedRef.current || controller.signal.aborted) return
       if (response.status === 201) {
-        const payload = (await response.json()) as { recoveryCodes?: unknown }
-        if (
-          Array.isArray(payload.recoveryCodes) &&
-          payload.recoveryCodes.length === 10 &&
-          payload.recoveryCodes.every((code) => typeof code === "string" && recoveryCodePattern.test(code))
-        ) {
+        const payload = (await response.json().catch(() => null)) as { recoveryCodes?: unknown } | null
+        if (Array.isArray(payload?.recoveryCodes) && payload.recoveryCodes.length === 10 && payload.recoveryCodes.every((code) => typeof code === "string" && recoveryCodePattern.test(code))) {
           setRecoveryCodes(payload.recoveryCodes)
           setScreen("recovery")
-          return
+        } else {
+          clearAllSensitiveState()
+          setScreen("completion-lost")
         }
-        clearAllSensitiveState()
-        setScreen("completion-lost")
-        return
-      }
-      if (response.status === 410) {
-        setScreen("expired")
-        return
-      }
-      if (response.status === 503) {
-        setFormError("Setup is temporarily unavailable. Try again.")
-        return
-      }
-      if (response.status === 409) {
+      } else if (response.status === 410) {
+        clearPasswords()
+        setFormError("Your setup session expired. Enter the setup token again to continue.")
+        setScreen("authorize")
+      } else if (response.status === 409 || response.status === 404) {
         clearAllSensitiveState()
         setScreen("unavailable")
-        return
+      } else {
+        setFormError("Setup could not be completed. Check the details and try again.")
       }
-      await readError(response)
-      setFormError("Setup could not be completed. Check the details and try again.")
     } catch {
-      clearAllSensitiveState()
-      setScreen("completion-lost")
+      if (mountedRef.current && !controller.signal.aborted) {
+        clearAllSensitiveState()
+        setScreen("completion-lost")
+      }
     } finally {
-      setSubmitting(false)
+      requestBody = ""
+      if (mountedRef.current) setSubmitting(false)
     }
   }
 
   async function copyCodes() {
-    setCopyStatus(null)
     try {
-      await navigator.clipboard.writeText(`PlanGlade recovery codes\n${window.location.origin}\n\n${recoveryCodes.join("\n")}`)
-      setCopyStatus("Copied.")
+      await navigator.clipboard.writeText(`PlanGlade recovery codes\n${window.location.origin}\n${recoveryCodes.join("\n")}`)
+      setRoutineStatus("Copied.")
     } catch {
-      setCopyStatus("Copy failed. Select and copy the codes manually.")
+      setRoutineStatus("Copy failed. Select and copy the codes manually.")
     }
   }
 
   function printCodes() {
-    setPrintStatus(null)
+    setRoutineStatus("")
     const printWindow = window.open("", "_blank")
     if (!printWindow) {
-      setPrintStatus("Print failed. Select and copy the codes manually.")
+      setRoutineStatus("Print failed. Select and copy the codes manually.")
       return
     }
     printWindow.opener = null
-    printWindow.document.title = "PlanGlade recovery codes"
-    printWindow.document.body.innerHTML = ""
-    const content = printWindow.document.createElement("main")
-    const title = printWindow.document.createElement("h1")
-    const origin = printWindow.document.createElement("p")
-    const generated = printWindow.document.createElement("p")
-    const warning = printWindow.document.createElement("p")
-    const list = printWindow.document.createElement("ol")
-    title.textContent = "PlanGlade recovery codes"
+    const document = printWindow.document
+    const style = document.createElement("style")
+    style.textContent = "body{color:#000;background:#fff;font:12pt system-ui,sans-serif;margin:2cm}ol{font:14pt ui-monospace,monospace;line-height:1.8}"
+    const main = document.createElement("main")
+    const title = document.createElement("h1")
+    const origin = document.createElement("p")
+    const generated = document.createElement("p")
+    const warning = document.createElement("p")
+    const list = document.createElement("ol")
+    title.textContent = "PlanGlade"
     origin.textContent = window.location.origin
     generated.textContent = `Generated: ${new Date().toLocaleDateString()}`
-    warning.textContent = "Save these recovery codes now. Each code works once. PlanGlade cannot show them again."
-    for (const code of recoveryCodes) {
-      const item = printWindow.document.createElement("li")
-      item.textContent = code
-      list.append(item)
-    }
-    content.append(title, origin, generated, warning, list)
-    printWindow.document.body.append(content)
-    printWindow.addEventListener("afterprint", () => printWindow.close(), { once: true })
-    printWindow.print()
+    warning.textContent = "One-time recovery codes. Each code works once. PlanGlade cannot show them again."
+    recoveryCodes.forEach((code) => { const item = document.createElement("li"); item.textContent = code; list.append(item) })
+    main.append(title, origin, generated, warning, list)
+    document.head.append(style)
+    document.body.append(main)
+    try { printWindow.print() } finally { printWindow.close() }
   }
 
-  if (screen === "checking") {
-    return <SetupFrame><p className="mt-10 text-sm text-zinc-600" role="status">Checking setup availability...</p></SetupFrame>
+  function continueToLogin() {
+    clearAllSensitiveState()
+    router.replace("/login")
   }
 
-  if (screen === "unavailable") {
-    return (
-      <SetupFrame>
-        <div className="mt-10">
-          <h1 className="text-3xl font-semibold tracking-tight">Setup is not available</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-600">Return to login or ask the operator to check this installation.</p>
-          <Button asChild className="mt-6"><Link href="/login">Go to login</Link></Button>
-        </div>
-      </SetupFrame>
-    )
-  }
+  const fieldError = (field: OwnerField) => touched[field] ? errors[field] : undefined
+  const describedBy = (field: OwnerField, help?: string) => [help, fieldError(field) ? `${field}-error` : null].filter(Boolean).join(" ") || undefined
 
-  if (screen === "temporary") {
-    return (
-      <SetupFrame>
-        <div className="mt-10">
-          <h1 className="text-3xl font-semibold tracking-tight">Setup is temporarily unavailable</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-600">Try again in a moment or return to login.</p>
-          <div className="mt-6 flex gap-3"><Button onClick={() => void discover()}>Try again</Button><Button asChild variant="outline"><Link href="/login">Go to login</Link></Button></div>
-        </div>
-      </SetupFrame>
-    )
-  }
+  if (screen === "checking") return <SetupFrame><h1 className="mt-10 text-3xl font-semibold tracking-tight">Checking setup availability</h1></SetupFrame>
+  if (screen === "unavailable") return <SetupFrame><div className="mt-10"><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none">Setup is not available</h1><Button asChild className="mt-6"><Link href="/login">Go to login</Link></Button></div></SetupFrame>
+  if (screen === "temporary") return <SetupFrame><div className="mt-10"><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none">Setup is temporarily unavailable</h1><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => void discover()}>Try again</Button><Button asChild variant="outline"><Link href="/login">Go to login</Link></Button></div></div></SetupFrame>
+  if (screen === "completion-lost") return <SetupFrame><div className="mt-10"><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none">Setup may already be complete</h1><p className="mt-3 text-sm leading-6 text-zinc-600">Setup may already be complete. Try signing in with the owner email and password you entered.</p><Button asChild className="mt-6"><Link href="/login">Go to login</Link></Button></div></SetupFrame>
 
-  if (screen === "expired") {
-    return (
-      <SetupFrame>
-        <div className="mt-10">
-          <h1 className="text-3xl font-semibold tracking-tight">Your setup session expired</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-600">Enter the setup token again to continue.</p>
-          <Button className="mt-6" onClick={() => void discover()}>Enter setup token</Button>
-        </div>
-      </SetupFrame>
-    )
-  }
+  if (screen === "recovery") return (
+    <SetupFrame><Progress current={3} /><div ref={recoveryRef} className="mt-8"><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none">Recovery codes</h1><p className="mt-3 text-sm font-medium leading-6 text-zinc-800">Save these recovery codes now. Each code works once. PlanGlade cannot show them again.</p><ol className="mt-6 grid gap-2 font-mono text-sm" aria-label="Recovery codes">{recoveryCodes.map((code, index) => <li key={index} className="select-text rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"><span className="mr-3 text-zinc-500">{index + 1}.</span>{code.split("-").map((group, groupIndex) => <span key={groupIndex} className="inline-block whitespace-nowrap">{group}{groupIndex < 7 ? "-" : ""}</span>)}</li>)}</ol><div className="mt-5 flex flex-wrap gap-3"><Button type="button" variant="outline" className="min-h-11" onClick={() => void copyCodes()}><Copy className="size-4" aria-hidden="true" />Copy all codes</Button><Button type="button" variant="outline" className="min-h-11" onClick={printCodes}><Printer className="size-4" aria-hidden="true" />Print codes</Button></div><p className="mt-3 min-h-5 text-sm text-zinc-600" aria-live="polite">{routineStatus}</p><label className="mt-6 flex min-h-11 items-start gap-3 rounded-md border border-zinc-200 p-3 text-sm font-medium text-zinc-900"><input type="checkbox" checked={codesSaved} onChange={(event) => setCodesSaved(event.target.checked)} className="mt-0.5 size-5" />I saved these recovery codes. PlanGlade cannot show them again.</label><Button className="mt-5 min-h-11" disabled={!codesSaved} onClick={continueToLogin}>Continue to login</Button></div></SetupFrame>
+  )
 
-  if (screen === "completion-lost") {
-    return (
-      <SetupFrame>
-        <div className="mt-10">
-          <h1 className="text-3xl font-semibold tracking-tight">Setup may already be complete</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-600">Try signing in with the owner email and password you entered. The original recovery codes cannot be retrieved or replayed.</p>
-          <Button asChild className="mt-6"><Link href="/login">Go to login</Link></Button>
-        </div>
-      </SetupFrame>
-    )
-  }
-
-  if (screen === "recovery") {
-    return (
-      <SetupFrame>
-        <Progress current={3} />
-        <div className="mt-8">
-          <h1 className="text-3xl font-semibold tracking-tight">Save recovery codes</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-600">Save these recovery codes now. Each code works once. PlanGlade cannot show them again.</p>
-          <ol className="mt-6 grid gap-2 font-mono text-sm" aria-label="Recovery codes">
-            {recoveryCodes.map((code, index) => <li key={code} className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"><span className="mr-3 text-zinc-500">{index + 1}.</span>{code}</li>)}
-          </ol>
-          <div className="mt-5 flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={() => void copyCodes()}><Copy className="size-4" />Copy all codes</Button><Button type="button" variant="outline" onClick={printCodes}><Printer className="size-4" />Print codes</Button></div>
-          {(copyStatus || printStatus) && <p className="mt-3 text-sm text-zinc-600" aria-live="polite">{copyStatus ?? printStatus}</p>}
-          <label className="mt-8 flex items-start gap-3 rounded-md border border-zinc-200 p-3 text-sm font-medium text-zinc-900">
-            <input type="checkbox" checked={codesSaved} onChange={(event) => setCodesSaved(event.target.checked)} className="mt-0.5 size-4" />
-            I saved these recovery codes. PlanGlade cannot show them again.
-          </label>
-          <Button className="mt-5" disabled={!codesSaved} onClick={() => { setRecoveryCodes([]); router.replace("/login") }}>Continue to login</Button>
-        </div>
-      </SetupFrame>
-    )
-  }
-
-  if (screen === "details") {
-    return (
-      <SetupFrame>
-        <Progress current={2} />
-        <div className="mt-8"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Create the first owner</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Owner and workspace details</h1><p className="mt-3 text-sm leading-6 text-zinc-600">This creates the first owner and workspace on your self-hosted PlanGlade. It does not create a hosted PlanGlade account.</p></div>
-        <form className="mt-8 grid gap-4" onSubmit={completeSetup}>
-          <label className="grid gap-1.5 text-sm font-medium">Owner name<Input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" maxLength={120} required /></label>
-          <label className="grid gap-1.5 text-sm font-medium">Email<Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={320} required /></label>
-          <label className="grid gap-1.5 text-sm font-medium">Password<Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={15} maxLength={128} required /><span className="text-xs font-normal text-zinc-500">Use at least 15 characters. A password manager is recommended.</span></label>
-          <label className="grid gap-1.5 text-sm font-medium">Confirm password<Input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={15} maxLength={128} required /></label>
-          <label className="grid gap-1.5 text-sm font-medium">Workspace name<Input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoComplete="organization" minLength={2} maxLength={80} required /></label>
-          {formError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
-          <Button type="submit" disabled={submitting}>{submitting ? "Creating owner and workspace..." : "Create owner and workspace"}</Button>
-        </form>
-      </SetupFrame>
-    )
-  }
+  if (screen === "details") return (
+    <SetupFrame><Progress current={2} /><div className="mt-8"><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none">Create the owner</h1></div><form className="mt-8 grid gap-4" onSubmit={completeSetup} noValidate>{formError && <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 outline-none">{formError}</div>}<label className="grid gap-1.5 text-sm font-medium" htmlFor="name">Owner name</label><Input id="name" value={name} onChange={(event) => setName(event.target.value)} onBlur={() => validateField("name")} autoComplete="name" maxLength={120} required aria-invalid={Boolean(fieldError("name"))} aria-describedby={describedBy("name")} />{fieldError("name") && <p id="name-error" className="text-sm text-red-700">{fieldError("name")}</p>}<label className="grid gap-1.5 text-sm font-medium" htmlFor="email">Email</label><Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} onBlur={() => validateField("email")} autoComplete="email" maxLength={320} required aria-invalid={Boolean(fieldError("email"))} aria-describedby={describedBy("email")} />{fieldError("email") && <p id="email-error" className="text-sm text-red-700">{fieldError("email")}</p>}<label className="grid gap-1.5 text-sm font-medium" htmlFor="password">Password</label><Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} onBlur={() => validateField("password")} autoComplete="new-password" required aria-invalid={Boolean(fieldError("password"))} aria-describedby={describedBy("password", "password-help")} /><p id="password-help" className="text-xs text-zinc-500">Use at least 15 characters. A password manager is recommended.</p>{fieldError("password") && <p id="password-error" className="text-sm text-red-700">{fieldError("password")}</p>}<label className="grid gap-1.5 text-sm font-medium" htmlFor="confirmation">Confirm password</label><Input id="confirmation" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} onBlur={() => validateField("confirmation")} autoComplete="new-password" required aria-invalid={Boolean(fieldError("confirmation"))} aria-describedby={describedBy("confirmation")} />{fieldError("confirmation") && <p id="confirmation-error" className="text-sm text-red-700">{fieldError("confirmation")}</p>}<label className="grid gap-1.5 text-sm font-medium" htmlFor="workspaceName">Workspace name</label><Input id="workspaceName" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} onBlur={() => validateField("workspaceName")} autoComplete="organization" required aria-invalid={Boolean(fieldError("workspaceName"))} aria-describedby={describedBy("workspaceName")} />{fieldError("workspaceName") && <p id="workspaceName-error" className="text-sm text-red-700">{fieldError("workspaceName")}</p>}<Button type="submit" className="min-h-11" disabled={submitting}>{submitting ? "Creating owner and workspace..." : "Create owner and workspace"}</Button></form></SetupFrame>
+  )
 
   return (
-    <SetupFrame>
-      <Progress current={1} />
-      <div className="mt-8"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Local self-host setup</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Set up this PlanGlade installation</h1><p className="mt-3 text-sm leading-6 text-zinc-600">This creates the first owner and workspace on your self-hosted PlanGlade. It does not create a hosted PlanGlade account.</p></div>
-      <form className="mt-8 grid gap-4" onSubmit={claimSetup}>
-        <label className="grid gap-1.5 text-sm font-medium">Setup token<Input ref={tokenInput} type="password" value={setupToken} onChange={(event) => setSetupToken(event.target.value)} autoComplete="off" spellCheck="false" autoCapitalize="none" required /><span className="text-xs font-normal text-zinc-500">Use the token configured by the operator for this installation.</span></label>
-        {formError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
-        <Button type="submit" disabled={submitting}>{submitting ? "Checking token..." : "Continue"}</Button>
-      </form>
-    </SetupFrame>
+    <SetupFrame><Progress current={1} /><div className="mt-8"><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none">Authorize setup</h1></div><form className="mt-8 grid gap-4" onSubmit={claimSetup}><label className="grid gap-1.5 text-sm font-medium" htmlFor="setup-token">Setup token</label><Input id="setup-token" ref={tokenInputRef} type="password" value={setupToken} onChange={(event) => setSetupToken(event.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" required aria-describedby="setup-token-help" /><p id="setup-token-help" className="text-xs text-zinc-500">Use the token configured by the operator for this installation.</p>{formError && <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</p>}<Button type="submit" className="min-h-11" disabled={submitting}>{submitting ? "Checking token..." : "Continue"}</Button></form></SetupFrame>
   )
 }

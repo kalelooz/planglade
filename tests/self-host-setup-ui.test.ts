@@ -35,6 +35,7 @@ test("SELF-HOST-AUTH-UI-SETUP-001: login supports local credentials and conditio
   assert.match(loginPage, /Continue with email/)
   assert.match(loginPage, /Set up this self-hosted installation/)
   assert.match(loginPage, /status === "available"/)
+  assert.match(loginPage, /Object\.keys\(payload\)\.length === 1/)
   assert.match(loginRoute, /localCredentials/)
   assert.match(authContext, /signInWithCredentials/)
   assert.match(authContext, /nextAuthSignIn\("credentials"/)
@@ -52,13 +53,44 @@ test("SELF-HOST-AUTH-UI-SETUP-001: setup page headers override the general polic
   assert.ok(setupHeaders.some((header) => header.key === "Referrer-Policy" && header.value === "no-referrer"))
 })
 
-test("PR-48-SETUP-RETRY-BROWSER-001: a temporary completion failure stays on the owner form", async () => {
+test("SELF-HOST-AUTH-UI-SETUP-001: a retryable completion failure stays on the owner form without retrying", async () => {
   const source = await readProjectFile("src/app/setup/page.tsx")
   const completion = source.match(/async function completeSetup[\s\S]*?(?=\n  async function copyCodes)/)?.[0]
 
   assert.ok(completion)
-  assert.match(completion, /if \(response\.status === 503\) \{\s*setFormError\("Setup is temporarily unavailable\. Try again\."\)\s*return/)
-  assert.doesNotMatch(completion, /if \(response\.status === 503\) \{\s*setScreen\("temporary"\)/)
+  assert.match(completion, /Setup could not be completed\. Check the details and try again\./)
+  assert.doesNotMatch(completion, /retry|setTimeout|setInterval/i)
+})
+
+test("SELF-HOST-AUTH-UI-SETUP-001: requests use the approved paths, CSRF header, and no persistence", async () => {
+  const source = await readProjectFile("src/app/setup/page.tsx")
+
+  assert.match(source, /x-planglade-csrf/)
+  assert.match(source, /credentials: "same-origin"/)
+  assert.match(source, /cache: "no-store"/)
+  assert.match(source, /JSON\.stringify\(\{ name: name\.trim\(\), email: email\.trim\(\), password, workspaceName: workspaceName\.trim\(\) \}\)/)
+  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|caches\.|serviceWorker/i)
+  assert.doesNotMatch(source, /nextAuth|JSON\.stringify\(\{[^}]*confirmation/i)
+})
+
+test("SELF-HOST-AUTH-UI-SETUP-001: approved state copy and cleanup hooks are present", async () => {
+  const source = await readProjectFile("src/app/setup/page.tsx")
+
+  for (const text of [
+    "Checking setup availability",
+    "Authorize setup",
+    "Create the owner",
+    "Recovery codes",
+    "Setup is not available",
+    "Setup is temporarily unavailable",
+    "Your setup session expired. Enter the setup token again to continue.",
+    "Setup may already be complete. Try signing in with the owner email and password you entered.",
+  ]) assert.match(source, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+
+  assert.match(source, /pagehide/)
+  assert.match(source, /replaceChildren/)
+  assert.match(source, /router\.replace\("\/login"\)/)
+  assert.match(source, /activeRequestRef\.current\?\.abort\(\)/)
 })
 
 test("PR-48-SETUP-RETRY-BROWSER-001: CI enforces the isolated setup browser test", async () => {

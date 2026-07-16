@@ -74,7 +74,14 @@ export function LoginPage({
         return (await response.json()) as { status?: unknown }
       })
       .then((payload) => {
-        if (!cancelled) setSetupAvailable(payload?.status === "available")
+        if (!cancelled) {
+          setSetupAvailable(
+            payload !== null &&
+            typeof payload === "object" &&
+            Object.keys(payload).length === 1 &&
+            payload.status === "available"
+          )
+        }
       })
       .catch(() => {
         if (!cancelled) setSetupAvailable(false)

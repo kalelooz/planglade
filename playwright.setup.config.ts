@@ -9,6 +9,7 @@ const databaseUrl = `file:${path.resolve("test-results", "browser-setup.db").rep
 export default defineConfig({
   testDir: "./tests/browser",
   testMatch: "setup.spec.ts",
+  outputDir: "test-results/playwright",
   workers: 1,
   reporter: "list",
   use: {
@@ -22,7 +23,7 @@ export default defineConfig({
     command: "node scripts/validate-auth-config.mjs && node tests/browser/prepare-setup-db.mjs && node node_modules/next/dist/bin/next build && node scripts/postbuild-copy.js && node tests/browser/https-proxy.mjs",
     url: `${baseURL}/`,
     ignoreHTTPSErrors: true,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     timeout: 300_000,
     env: {
       ...process.env,
