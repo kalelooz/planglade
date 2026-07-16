@@ -101,6 +101,9 @@ jobs:
       - name: Run browser smoke tests
         run: npm run test:browser
 
+      - name: Run setup browser test
+        run: npx playwright test --config=playwright.setup.config.ts
+
       - name: Upload browser failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4

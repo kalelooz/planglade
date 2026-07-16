@@ -66,6 +66,14 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/setup",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
     ]
   },
   async redirects() {
