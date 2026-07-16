@@ -7,6 +7,7 @@ import {
   resolveRequestActorUserId,
   serverError,
 } from "@/lib/api-utils"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { sendWorkspaceInviteTestEmailSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { deliverWorkspaceInviteEmail } from "@/lib/workspace-invite-mailer"
@@ -36,6 +37,12 @@ export async function POST(request: NextRequest) {
     const actorUserId = await resolveRequestActorUserId(request)
     const access = await requireWorkspaceRole(parsed.data.workspaceId, actorUserId, "ADMIN")
     if (!access.ok) return access.response
+    const throttle = await consumeWorkspaceThrottle(
+      "invite-test-send",
+      access.actor.userId,
+      parsed.data.workspaceId,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const [workspace, actor, policy] = await Promise.all([
       db.workspace.findUnique({

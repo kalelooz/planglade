@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import {
   importPreviewWorkspaceSnapshotSchema,
   type ImportPreviewWorkspaceSnapshotInput,
@@ -104,6 +105,12 @@ export async function POST(request: NextRequest) {
       "ADMIN"
     )
     if (!access.ok) return access.response
+    const throttle = await consumeWorkspaceThrottle(
+      "import-preview",
+      access.actor.userId,
+      query.data.workspaceId,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const snapshot = parsed.data
     const [existingProjects, existingWorkItems, existingNotes, existingProjectDocs] = await Promise.all([

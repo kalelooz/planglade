@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 
 import { badRequest, forbidden, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { createAttachmentUploadUrlSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
@@ -90,6 +91,12 @@ export async function POST(request: NextRequest) {
       "MEMBER"
     )
     if (!access.ok) return access.response
+    const throttle = await consumeWorkspaceThrottle(
+      "attachment-upload-url",
+      access.actor.userId,
+      parsed.data.workspaceId,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const target = await validateAttachmentTarget(
       parsed.data.workspaceId,

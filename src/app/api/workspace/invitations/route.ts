@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { logActivityEvent } from "@/lib/activity"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import {
   badRequest,
   forbidden,
@@ -157,6 +158,13 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+    const throttle = await consumeWorkspaceThrottle(
+      "invite-create",
+      actorUserId,
+      parsed.data.workspaceId,
+      inviteEntries.length,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const policy = await getOrCreateWorkspaceInvitePolicy(parsed.data.workspaceId)
     if (!hasMinimumWorkspaceRole(access.actor.role, policy.minimumInviterRole)) {
