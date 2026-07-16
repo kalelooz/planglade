@@ -14,6 +14,8 @@ import { findUncheckedNoteTasks, splitNoteMarkdown } from "@/lib/note-markdown";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { type ApiProject, type ApiWorkItem, toUiProject, toUiWorkItem } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 type ApiNote = {
   id: string;
@@ -118,25 +120,32 @@ function NotesInner() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const routePrefix = pathname.startsWith("/demo") ? "/demo" : "/app";
+  const isDemoMode = routePrefix === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
   const idFromUrl = params.get("id");
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({});
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
-  const [notes, setNotes] = useState<UiNote[]>([]);
-  const [projects, setProjects] = useState<UiProject[]>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
+  const [notes, setNotes] = useState<UiNote[]>(() => demoData ? demoData.apiNotes.map(mapNote) : []);
+  const [projects, setProjects] = useState<UiProject[]>(() => demoData
+    ? demoData.apiProjects.map((project) => ({ id: project.id, name: project.name }))
+    : []);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
 
-  const [selId, setSelId] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(() => demoData?.apiNotes[0]?.id ?? null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [linkedOpen, setLinkedOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
     async function load() {
       setLoading(true);
@@ -189,7 +198,7 @@ function NotesInner() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     if (idFromUrl) {
@@ -218,6 +227,7 @@ function NotesInner() {
   };
 
   const patchNoteNow = async (id: string, patch: { title?: string; body?: string; tags?: string[] }) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const response = await apiFetch(`/api/notes/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
       method: "PATCH",
@@ -228,11 +238,13 @@ function NotesInner() {
       body: JSON.stringify(patch),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to save note");
     }
   };
 
   const queueSaveNote = (id: string, patch: { title?: string; body?: string; tags?: string[] }) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     const existing = saveTimers.current[id];
     if (existing) clearTimeout(existing);
     saveTimers.current[id] = setTimeout(() => {
@@ -241,6 +253,7 @@ function NotesInner() {
   };
 
   const createNote = async (title: string, tag: string, excerpt: string) => {
+    if (blockReadOnlyMutation(isDemoMode)) return null;
     if (!workspaceId) return null;
     const response = await apiFetch("/api/notes", {
       method: "POST",
@@ -257,6 +270,7 @@ function NotesInner() {
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return null;
       setError("Failed to create note");
       return null;
     }
@@ -267,6 +281,7 @@ function NotesInner() {
   };
 
   const deleteNote = async (id: string) => {
+    if (blockReadOnlyMutation(isDemoMode)) return false;
     if (!workspaceId) return false;
     const snapshot = notes;
     setNotes((current) => current.filter((note) => note.id !== id));
@@ -276,6 +291,7 @@ function NotesInner() {
     });
     if (!response.ok) {
       setNotes(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return false;
       setError("Failed to delete note");
       return false;
     }
@@ -283,6 +299,7 @@ function NotesInner() {
   };
 
   const createTaskFromNote = async (title: string, noteId?: string, projectId?: string | null) => {
+    if (blockReadOnlyMutation(isDemoMode)) return null;
     if (!workspaceId) return null;
     const response = await apiFetch("/api/work-items", {
       method: "POST",
@@ -299,7 +316,10 @@ function NotesInner() {
         noteIds: noteId ? [noteId] : undefined,
       }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      handleDemoReadOnlyResponse(response);
+      return null;
+    }
     const payload = (await response.json()) as { workItem: ApiWorkItem };
     const next = toUiWorkItem(payload.workItem, currentUserId);
     setWorkItems((current) => [next, ...current]);
@@ -469,11 +489,12 @@ function NotesInner() {
             <>
               <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-border/40 bg-card/40 px-3 py-2 md:px-5 text-[12px]">
                 <span className="rounded border bg-muted/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Editing
+                  {isDemoMode ? "Read only" : "Editing"}
                 </span>
                 <label className="group flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 hover:border-ring focus-within:border-ring">
                   <Hash className="h-3 w-3 text-muted-foreground" />
                   <input
+                    readOnly={isDemoMode}
                     value={sel.tag}
                     onChange={(e) => {
                       const tag = e.target.value;
@@ -555,6 +576,7 @@ function NotesInner() {
                     <span>Unchecked lines become real Tasks linked back to this note.</span>
                   </div>
                 <MarkdownEditor
+                  readOnly={isDemoMode}
                   key={sel.id}
                   markdown={`# ${sel.title}\n\n${sel.excerpt}`}
                   onChange={(md) => {
@@ -581,6 +603,7 @@ function NotesInner() {
         </div>
 
         <TaskDrawer
+          readOnly={isDemoMode}
           item={selectedTask}
           onClose={() => setSelectedTaskId(null)}
           workspaceId={workspaceId}

@@ -12,6 +12,7 @@ import {
   FileText,
   Settings,
   LayoutGrid,
+  Network,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -41,6 +42,7 @@ const APP_COMMAND_ROUTES = {
   notes: "/app/notes",
   calendar: "/app/calendar",
   settings: "/app/settings",
+  connections: "/app/connections",
   tasksBoard: "/app/tasks?view=board",
 } as const;
 
@@ -66,7 +68,8 @@ export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boo
       { label: "Go to Projects", to: scopedRoute(APP_COMMAND_ROUTES.projects, basePath), icon: FolderKanban, group: "Navigate", search: "projects" },
       { label: "Go to Notes", to: scopedRoute(APP_COMMAND_ROUTES.notes, basePath), icon: FileText, group: "Navigate", search: "notes" },
       { label: "Go to Calendar", to: scopedRoute(APP_COMMAND_ROUTES.calendar, basePath), icon: Calendar, group: "Navigate", search: "calendar" },
-      ...(basePath === "/app" ? [{ label: "Go to Settings", to: APP_COMMAND_ROUTES.settings, icon: Settings, group: "Navigate", search: "settings" }] : []),
+      { label: "Go to Connections", to: scopedRoute(APP_COMMAND_ROUTES.connections, basePath), icon: Network, group: "Navigate", search: "connections relationships dependencies" },
+      { label: "Go to Settings", to: scopedRoute(APP_COMMAND_ROUTES.settings, basePath), icon: Settings, group: "Navigate", search: "settings" },
       { label: "Open Tasks board", to: scopedRoute(APP_COMMAND_ROUTES.tasksBoard, basePath), icon: LayoutGrid, group: "Tasks", search: "board kanban tasks" },
     ];
 

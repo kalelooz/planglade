@@ -89,6 +89,17 @@ test("Home task previews use the same individual row surface as task lists", asy
   assert.doesNotMatch(list, /divide-y/)
 })
 
+test("Home uses one workspace canvas with transparent grouped rows", async () => {
+  const source = await readProjectFile("src/app/app/page.tsx")
+
+  assert.doesNotMatch(source, /bg-white|bg-card/)
+  assert.match(source, /app-workspace-canvas/)
+  assert.match(source, /flow-row-flat/)
+  assert.match(source, /flow-empty flow-empty-inline/)
+  assert.match(source, /lg:border-l lg:border-border/)
+  assert.doesNotMatch(source, /animate-fade-in|transition-all/)
+})
+
 test("PriorityIndicator is non-wrapping and avoids clipping-prone positioning", async () => {
   const source = await readProjectFile("src/components/lovable/priority-indicator.tsx")
 

@@ -22,6 +22,8 @@ import {
   toUiWorkItem,
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
+import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 const order: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const sortOptions = ["Due", "Priority", "Created"] as const;
@@ -71,7 +73,7 @@ function matchesTaskFilter(item: WorkItem, filter: TaskFilter, today: Date, curr
   return true;
 }
 
-function WorkItemsInner() {
+function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
   const params = useSearchParams();
   const projectFilter = params.get("project");
   const taskFilter = params.get("task");
@@ -80,15 +82,24 @@ function WorkItemsInner() {
   const activeFilter = isTaskFilter(urlFilter) ? urlFilter : "all";
   const focusParam = params.get("focus");
   const drawerFocus = focusParam === "comments" || focusParam === "history" ? focusParam : undefined;
-  const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
+  const storedActiveProjectId = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
+  const isDemoMode = basePath === "/demo";
+  const demoData = isDemoMode ? getDemoFixtures() : null;
+  const activeProjectSetting = isDemoMode && !demoData?.apiProjects.some((project) => project.id === storedActiveProjectId)
+    ? null
+    : storedActiveProjectId;
 
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
-  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
+  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>(() => demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : []);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData
+    ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations)
+    : []);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
 
   const [openCols, setOpenCols] = useState<Record<Status, boolean>>({
@@ -105,8 +116,8 @@ function WorkItemsInner() {
   const [now, setNow] = useState(() => new Date());
 
   const scopedProjectId = projectFilter ?? activeProjectSetting;
-  const boardHref = scopedProjectId ? `/app/tasks?view=board&project=${encodeURIComponent(scopedProjectId)}` : "/app/tasks?view=board";
-  const listHref = scopedProjectId ? `/app/tasks?project=${encodeURIComponent(scopedProjectId)}` : "/app/tasks";
+  const boardHref = scopedProjectId ? `${basePath}/tasks?view=board&project=${encodeURIComponent(scopedProjectId)}` : `${basePath}/tasks?view=board`;
+  const listHref = scopedProjectId ? `${basePath}/tasks?project=${encodeURIComponent(scopedProjectId)}` : `${basePath}/tasks`;
   const selectedId = taskFilter ?? manualSelectedId;
 
   useEffect(() => {
@@ -121,6 +132,7 @@ function WorkItemsInner() {
   }, [activeProjectSetting, projectFilter, updateSettings]);
 
   useEffect(() => {
+    if (isDemoMode) return;
     let active = true;
 
     async function load() {
@@ -166,9 +178,10 @@ function WorkItemsInner() {
     return () => {
       active = false;
     };
-  }, [updateSettings]);
+  }, [isDemoMode, updateSettings]);
 
   const createAndFocus = async (status?: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const targetProjectId = scopedProjectId ?? projects[0]?.id ?? null;
     if (!targetProjectId) {
@@ -191,6 +204,7 @@ function WorkItemsInner() {
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to create task");
       return;
     }
@@ -204,6 +218,7 @@ function WorkItemsInner() {
   };
 
   const patchTaskStatus = async (id: string, nextStatus: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const snapshot = workItems;
     const completedAt = nextStatus === "Done" ? new Date().toISOString() : null;
@@ -222,11 +237,13 @@ function WorkItemsInner() {
     });
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to update task");
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const snapshot = workItems;
     setWorkItems((current) => current.filter((item) => item.id !== id));
@@ -238,6 +255,7 @@ function WorkItemsInner() {
     });
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to delete task");
     }
   };
@@ -326,7 +344,8 @@ function WorkItemsInner() {
     >
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6">
+          <div className="mx-auto w-full max-w-6xl overflow-x-hidden py-4 sm:px-4 sm:py-6">
+            <div className="app-workspace-canvas overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
             {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading tasks...</div>}
             <div className="mb-5 px-1">
@@ -337,10 +356,10 @@ function WorkItemsInner() {
               <div className="lov-segment-group flex-shrink-0">
                 {filters.map((filter) => {
                   const href = scopedProjectId
-                    ? `/app/tasks?filter=${filter}&project=${encodeURIComponent(scopedProjectId)}`
+                    ? `${basePath}/tasks?filter=${filter}&project=${encodeURIComponent(scopedProjectId)}`
                     : filter === "all"
-                      ? "/app/tasks"
-                      : `/app/tasks?filter=${filter}`;
+                      ? `${basePath}/tasks`
+                      : `${basePath}/tasks?filter=${filter}`;
                   const active = activeFilter === filter;
                   return (
                     <Link
@@ -355,11 +374,20 @@ function WorkItemsInner() {
                 })}
               </div>
             </div>
+            <div data-task-column-header className="hidden grid-cols-[auto_minmax(22rem,1fr)_96px_minmax(7rem,9rem)_112px_32px] items-center gap-x-3 border-y border-border bg-muted/35 px-3 py-2 text-[11px] font-medium text-muted-foreground sm:grid">
+              <span aria-hidden="true" />
+              <span>Task</span>
+              <span>Priority</span>
+              <span>Assignee</span>
+              <span>Due</span>
+              <span className="sr-only">Actions</span>
+            </div>
+            <div className="border-x border-border">
             {grouped.map(({ status, items }) => (
-              <section key={status} className="mb-10 last:mb-0">
+              <section key={status}>
                 <button
                   onClick={() => setOpenCols((o) => ({ ...o, [status]: !o[status] }))}
-                  className="mb-2 flex w-full items-center gap-2 px-1 text-left text-[12px] font-medium hover:text-foreground"
+                  className="app-group-header hover:bg-muted/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950"
                 >
                   {openCols[status] ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                   <StatusIcon s={status} />
@@ -367,11 +395,11 @@ function WorkItemsInner() {
                   <span className="text-[11px] font-normal text-muted-foreground">{items.length}</span>
                 </button>
                 {openCols[status] && (
-                  <div className="space-y-1.5">
+                  <div>
                     {items.length === 0 ? (
                       <EmptyStatus
                         status={status}
-                        onAdd={() => {
+                        onAdd={isDemoMode ? undefined : () => {
                           void createAndFocus(status);
                         }}
                       />
@@ -397,6 +425,7 @@ function WorkItemsInner() {
                 )}
               </section>
             ))}
+            </div>
             {sorted.length === 0 && (
               <div className="mt-2 flow-empty py-10">
                 <p className="text-[14px] font-medium text-foreground">No tasks match this view.</p>
@@ -425,10 +454,12 @@ function WorkItemsInner() {
               </div>
             )}
             <div className="h-24" />
+            </div>
           </div>
         </div>
 
         <TaskDrawer
+          readOnly={isDemoMode}
           item={selected}
           focusTitle={focusNew}
           onTitleFocused={() => setFocusNew(false)}
@@ -456,12 +487,12 @@ function WorkItemsInner() {
   );
 }
 
-function EmptyStatus({ status, onAdd }: { status: string; onAdd: () => void }) {
+function EmptyStatus({ status, onAdd }: { status: string; onAdd?: () => void }) {
   return (
-    <div className="flow-empty py-5">
+    <div className="flow-empty flow-empty-inline">
       <p className="text-[13px] font-medium text-foreground">No tasks in {status} yet.</p>
       <p className="mt-1 max-w-sm text-[12px] text-muted-foreground">Add one when you know the next step, or leave it for now.</p>
-      <div className="mt-3 flex items-center justify-center">
+      {onAdd ? <div className="mt-3 flex items-center">
         <button
           onClick={onAdd}
           className="lov-btn lov-btn-ghost h-7 px-2 text-[11px]"
@@ -469,15 +500,15 @@ function EmptyStatus({ status, onAdd }: { status: string; onAdd: () => void }) {
           <Plus className="h-3 w-3" />
           Quick add to {status}
         </button>
-      </div>
+      </div> : null}
     </div>
   );
 }
 
-export default function WorkItemsPage() {
+export default function WorkItemsPage({ basePath = "/app" }: { basePath?: "/app" | "/demo" }) {
   return (
     <Suspense fallback={null}>
-      <WorkItemsInner />
+      <WorkItemsInner basePath={basePath} />
     </Suspense>
   );
 }

@@ -1,9 +1,10 @@
 import { firebaseAuth, FIREBASE_ID_TOKEN_STORAGE_KEY } from "@/lib/firebase-client"
 import { getPublicConfiguredAuthMode } from "@/lib/auth-config"
 import type { PriorityDisplayStyle } from "@/lib/appearance-defaults"
-import { demoSession, getDemoApiResponse } from "@/lib/demo-data"
+import { DEMO_MODE_MESSAGE, demoSession, getDemoApiResponse } from "@/lib/demo-data"
 
 export const DEMO_MODE_HEADER = "x-planglade-demo-mode"
+export const DEMO_READ_ONLY_HEADER = "x-planglade-demo-read-only"
 
 function isDemoMode() {
   return typeof window !== "undefined" && window.location.pathname.startsWith("/demo")
@@ -62,9 +63,16 @@ export async function buildApiAuthHeaders(initHeaders?: HeadersInit): Promise<He
 
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const demoMode = isDemoMode()
-  if (demoMode && (!init.method || ["GET", "HEAD"].includes(init.method.toUpperCase()))) {
+  const method = init.method?.toUpperCase() ?? "GET"
+  if (demoMode && ["GET", "HEAD"].includes(method)) {
     const response = getDemoApiResponse(input)
     if (response) return response
+  }
+  if (demoMode) {
+    return Response.json(
+      { error: DEMO_MODE_MESSAGE },
+      { status: 403, headers: { [DEMO_READ_ONLY_HEADER]: "true" } },
+    )
   }
 
   const headers = await buildApiAuthHeaders(init.headers)

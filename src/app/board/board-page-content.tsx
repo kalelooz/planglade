@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical, LayoutGrid, List,
 } from "lucide-react";
@@ -60,6 +60,8 @@ import {
 } from "@/lib/server-ui-mappers";
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
+import { getDemoFixtures } from "@/lib/demo-data";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
 
 const cols: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const columnIds = new Set(cols as string[]);
@@ -128,20 +130,24 @@ function reorderLocalWorkItems(
 }
 
 export function BoardPageContent() {
+  const pathname = usePathname() ?? "";
+  const isDemoMode = pathname.startsWith("/demo");
+  const demoData = isDemoMode ? getDemoFixtures() : null;
   const params = useSearchParams();
   const routeProjectId = params.get("project");
   const activeProjectId = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
-  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>([]);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(isDemoMode ? "demo-workspace" : null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(isDemoMode ? "demo-user" : null);
+  const [workItems, setWorkItems] = useState<WorkItem[]>(() => demoData ? applyWorkItemDependencyRelations(demoData.apiTasks.map((item) => toUiWorkItem(item, "demo-user")), demoData.demoRelations) : []);
+  const [projects, setProjects] = useState<Array<ReturnType<typeof toUiProject>>>(() => demoData ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user")) : []);
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>(() => isDemoMode ? [{ id: "demo-user", name: "Demo User" }] : []);
   const [notes, setNotes] = useState<Array<{ id: string; title: string; tag: string; updated: string; excerpt: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
   const [error, setError] = useState<string | null>(null);
   const scopedProjectId = routeProjectId ?? activeProjectId;
-  const listHref = scopedProjectId ? `/app/tasks?project=${encodeURIComponent(scopedProjectId)}` : "/app/tasks";
+  const routePrefix = isDemoMode ? "/demo" : "/app";
+  const listHref = scopedProjectId ? `${routePrefix}/tasks?project=${encodeURIComponent(scopedProjectId)}` : `${routePrefix}/tasks`;
   const activeProject = scopedProjectId ? projects.find((p) => p.id === scopedProjectId) ?? null : null;
   const scopedWorkItems = useMemo(
     () => (scopedProjectId ? workItems.filter((w) => w.project === scopedProjectId) : workItems),
@@ -151,6 +157,18 @@ export function BoardPageContent() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusNew, setFocusNew] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const openDrawer = (id: string) => setSelectedId(id);
+  const closeDrawer = () => {
+    const triggerId = selectedId;
+    setSelectedId(null);
+    setFocusNew(false);
+    if (triggerId) {
+      window.requestAnimationFrame(() => {
+        document.querySelector<HTMLButtonElement>(`[data-task-open="${globalThis.CSS.escape(triggerId)}"]`)?.focus();
+      });
+    }
+  };
 
   const selected = selectedId ? scopedWorkItems.find((w) => w.id === selectedId) ?? null : null;
   const activeDragItem = activeDragId ? scopedWorkItems.find((w) => w.id === activeDragId) ?? null : null;
@@ -166,6 +184,7 @@ export function BoardPageContent() {
   };
 
   useEffect(() => {
+    if (isDemoMode) return;
     if (routeProjectId && routeProjectId !== activeProjectId) {
       updateSettings({ activeProjectId: routeProjectId });
     }
@@ -239,9 +258,10 @@ export function BoardPageContent() {
     return () => {
       active = false;
     };
-  }, [updateSettings]);
+  }, [isDemoMode, updateSettings]);
 
-  const patchTaskStatus = async (id: string, status: Status) => {
+  const patchTaskStatus = async (id: string, status: Status, snapshot?: WorkItem[]) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const response = await apiFetch(
       `/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
@@ -255,11 +275,14 @@ export function BoardPageContent() {
       }
     );
     if (!response.ok) {
+      if (snapshot) setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to move task");
     }
   };
 
   const createAndFocus = async (status: Status) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const targetProjectId = scopedProjectId ?? projects[0]?.id ?? null;
     if (!targetProjectId) {
@@ -279,6 +302,7 @@ export function BoardPageContent() {
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to create task");
       return;
     }
@@ -292,6 +316,7 @@ export function BoardPageContent() {
   };
 
   const handleDelete = async (item: WorkItem) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     if (!workspaceId) return;
     const snapshot = workItems;
     setWorkItems((current) => current.filter((workItem) => workItem.id !== item.id));
@@ -304,6 +329,7 @@ export function BoardPageContent() {
     );
     if (!response.ok) {
       setWorkItems(snapshot);
+      if (handleDemoReadOnlyResponse(response)) return;
       setError("Failed to delete task");
       return;
     }
@@ -316,10 +342,12 @@ export function BoardPageContent() {
   };
 
   const onDragStart = (e: DragStartEvent) => {
+    if (blockReadOnlyMutation(isDemoMode)) return;
     setActiveDragId(String(e.active.id));
   };
 
   const onDragEnd = (e: DragEndEvent) => {
+    if (blockReadOnlyMutation(isDemoMode)) { setActiveDragId(null); return; }
     setActiveDragId(null);
     const activeId = String(e.active.id);
     if (!e.over) return;
@@ -336,7 +364,7 @@ export function BoardPageContent() {
       if (moved.status === targetStatus && list[list.length - 1]?.id === activeId) return;
       setWorkItems((current) => reorderLocalWorkItems(current, activeId, targetStatus, null, scopedProjectId));
       if (moved.status !== targetStatus) {
-        void patchTaskStatus(activeId, targetStatus);
+        void patchTaskStatus(activeId, targetStatus, workItems);
         toast.success("Task moved", { description: `Moved to ${targetStatus}` });
       }
       return;
@@ -350,7 +378,7 @@ export function BoardPageContent() {
       // Fallback: if we're over the column shell but not a concrete card, append in target status.
       setWorkItems((current) => reorderLocalWorkItems(current, activeId, targetStatus, null, scopedProjectId));
       if (moved.status !== targetStatus) {
-        void patchTaskStatus(activeId, targetStatus);
+        void patchTaskStatus(activeId, targetStatus, workItems);
         toast.success("Task moved", { description: `Moved to ${targetStatus}` });
       }
       return;
@@ -371,7 +399,7 @@ export function BoardPageContent() {
     }
 
     if (moved.status !== targetStatus) {
-      void patchTaskStatus(activeId, targetStatus);
+      void patchTaskStatus(activeId, targetStatus, workItems);
       toast.success("Task moved", { description: `Moved to ${targetStatus}` });
     }
   };
@@ -409,7 +437,7 @@ export function BoardPageContent() {
         </Toolbar>
       }
     >
-      <div className="grid h-full min-h-0 w-full grid-cols-[minmax(0,1fr)_auto]">
+      <div className="relative flex h-full min-h-0 min-w-0 w-full overflow-hidden" data-board-workspace="true">
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <DndContext
             sensors={sensors}
@@ -418,10 +446,8 @@ export function BoardPageContent() {
             onDragEnd={onDragEnd}
             onDragCancel={() => setActiveDragId(null)}
           >
-            <div className="h-full max-w-full overflow-x-auto overflow-y-hidden">
-              <div className={`grid h-full gap-3 p-4 ${
-                selected ? "grid-cols-[repeat(5,minmax(128px,1fr))]" : "grid-cols-[repeat(5,minmax(220px,1fr))]"
-              }`}>
+            <div className="h-full max-w-full overflow-x-auto overflow-y-hidden" data-board-scroll-region="true">
+              <div className="grid h-full min-w-[960px] grid-cols-[repeat(5,minmax(0,1fr))] gap-3 p-4 xl:min-w-0" data-board-grid="true">
                 {cols.map((col) => {
                   const items = scopedWorkItems.filter((w) => w.status === col);
                   return (
@@ -430,15 +456,18 @@ export function BoardPageContent() {
                       status={col}
                       items={items}
                       selectedId={selectedId}
-                      onSelect={(id) => setSelectedId(id)}
+                      onSelect={openDrawer}
                       onAdd={() => { void createAndFocus(col); }}
                       onMove={(id, s) => {
+                        if (blockReadOnlyMutation(isDemoMode)) return;
+                        const snapshot = workItems;
                         setWorkItems((current) => current.map((workItem) => (workItem.id === id ? { ...workItem, status: s } : workItem)));
-                        void patchTaskStatus(id, s);
+                        void patchTaskStatus(id, s, snapshot);
                       }}
                       onDelete={(item) => { void handleDelete(item); }}
                       members={members}
                       allItems={workItems}
+                      readOnly={isDemoMode}
                     />
                   );
                 })}
@@ -451,10 +480,12 @@ export function BoardPageContent() {
         </div>
 
         <TaskDrawer
+          readOnly={isDemoMode}
+          presentation="board"
           item={selected}
           focusTitle={focusNew}
           onTitleFocused={() => setFocusNew(false)}
-          onClose={() => { setSelectedId(null); setFocusNew(false); }}
+          onClose={closeDrawer}
           workspaceId={workspaceId}
           currentUserId={currentUserId}
           membersOverride={members}
@@ -485,6 +516,7 @@ function Column({
   onDelete,
   members,
   allItems,
+  readOnly,
 }: {
   status: Status;
   items: WorkItem[];
@@ -495,10 +527,11 @@ function Column({
   onDelete: (item: WorkItem) => void;
   members: Array<{ id: string; name: string }>;
   allItems: WorkItem[];
+  readOnly: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div className="flex min-w-0 flex-col">
+    <div className="flex min-w-0 flex-col" data-board-column={status}>
       <div className="mb-2 flex items-center gap-2 px-1 text-[12px] font-medium">
         <StatusIcon s={status} />
         <span>{status}</span>
@@ -522,6 +555,7 @@ function Column({
               onDelete={() => onDelete(w)}
               members={members}
               allItems={allItems}
+              readOnly={readOnly}
             />
           ))}
         </SortableContext>
@@ -547,6 +581,7 @@ function Card({
   onDelete,
   members,
   allItems,
+  readOnly,
 }: {
   item: WorkItem;
   selected: boolean;
@@ -555,6 +590,7 @@ function Card({
   onDelete: () => void;
   members: Array<{ id: string; name: string }>;
   allItems: WorkItem[];
+  readOnly: boolean;
 }) {
   const {
     attributes,
@@ -564,7 +600,7 @@ function Card({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ id: item.id, disabled: readOnly });
   const m = members.find((member) => member.id === item.assignee) ?? { id: "unassigned", name: "Unassigned" };
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -580,29 +616,34 @@ function Card({
   return (
     <div
       ref={setNodeRef}
+      data-task-card="true"
+      data-task-id={item.id}
+      data-task-status={item.status}
       style={style}
-      className={`group relative rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
+      className={`group relative min-w-0 overflow-hidden rounded-md border bg-card p-3 text-[12px] transition-shadow ${selected ? "border-primary/40 ring-1 ring-primary/30" : "hover:border-foreground/20 hover:shadow-sm"}`}
     >
       {/* Row 1: controls plus canonical metadata order */}
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex min-w-0 items-center gap-2 overflow-hidden">
         <button
           ref={setActivatorNodeRef}
           {...listeners}
           {...attributes}
-          title="Drag task"
+          onPointerDown={() => { if (readOnly) blockReadOnlyMutation(true); }}
+          onClick={() => { if (readOnly) blockReadOnlyMutation(true); }}
+          title={readOnly ? "Demo mode - changes are disabled." : "Drag task"}
           aria-label={`Drag ${item.title}`}
           className="lov-icon-btn h-7 w-7 shrink-0 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
-        {item.parentId && <Chip>Subtask</Chip>}
+        {item.parentId && <span className="shrink-0"><Chip>Subtask</Chip></span>}
         <PriorityIndicator priority={item.priority} />
         <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
           <Avatar id={m.id} name={m.name} size={18} />
           <span className="truncate">{m.name}</span>
         </div>
-        {item.label && <Chip>{item.label}</Chip>}
-        <span className="ml-auto text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
+        {item.label && <span className="min-w-0 overflow-hidden [&_.flow-meta-pill]:max-w-full [&_.flow-meta-pill]:overflow-hidden [&_.flow-meta-pill]:text-ellipsis"><Chip>{item.label}</Chip></span>}
+        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{formatDueLabel(item.due)}</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -642,9 +683,10 @@ function Card({
       <button
         type="button"
         onClick={onSelect}
-        className="mb-2.5 block w-full rounded text-left text-[13.5px] font-medium leading-[1.4] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
+        data-task-open={item.id}
+        className="mb-2.5 block w-full min-w-0 overflow-hidden rounded text-left text-[13.5px] font-medium leading-[1.4] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="flex min-w-0 items-center gap-1.5">
           {item.parentId && <span className="shrink-0 text-muted-foreground">↳</span>}
           <span className="truncate">{item.title}</span>
         </span>

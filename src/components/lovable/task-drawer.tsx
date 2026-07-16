@@ -15,6 +15,8 @@ import { type ApiWorkItem, toApiWorkPriority, toApiWorkStatus, toIsoDateTime, to
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getParentTask, subtaskProgress } from "@/lib/work-item-hierarchy";
 import { TaskCompletionToggle } from "./task-completion-toggle";
+import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
+import { cn } from "@/lib/utils";
 
 const STATUSES: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
@@ -63,6 +65,8 @@ type DrawerHistoryEvent = {
 };
 export function TaskDrawer({
   item,
+  readOnly = false,
+  presentation = "inline",
   onClose,
   focusTitle,
   initialFocusSection,
@@ -79,6 +83,8 @@ export function TaskDrawer({
   onSelectItem,
 }: {
   item: WorkItem | null;
+  readOnly?: boolean;
+  presentation?: "inline" | "board";
   onClose: () => void;
   focusTitle?: boolean;
   initialFocusSection?: "comments" | "history";
@@ -99,6 +105,8 @@ export function TaskDrawer({
       {item && (
         <DrawerContent
           item={item}
+          readOnly={readOnly}
+          presentation={presentation}
           onClose={onClose}
           focusTitle={!!focusTitle}
           initialFocusSection={initialFocusSection}
@@ -121,6 +129,8 @@ export function TaskDrawer({
 
 type DrawerContentProps = {
   item: WorkItem;
+  readOnly: boolean;
+  presentation: "inline" | "board";
   onClose: () => void;
   focusTitle: boolean;
   initialFocusSection?: "comments" | "history";
@@ -139,6 +149,8 @@ type DrawerContentProps = {
 
 function DrawerContent({
   item,
+  readOnly,
+  presentation,
   onClose,
   focusTitle,
   initialFocusSection,
@@ -180,6 +192,7 @@ function DrawerContent({
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const historySectionRef = useRef<HTMLDivElement>(null);
@@ -233,6 +246,7 @@ function DrawerContent({
   };
 
   const patchServer = async (uiPatch: Partial<WorkItem>, apiPatch: Record<string, unknown>) => {
+    if (blockReadOnlyMutation(readOnly)) return false;
     const previous = item;
     applyLocalPatch(uiPatch);
     if (!workspaceId) return true;
@@ -251,6 +265,7 @@ function DrawerContent({
 
     if (!response.ok) {
       restoreItem(previous);
+      handleDemoReadOnlyResponse(response);
       return false;
     }
     return true;
@@ -330,6 +345,7 @@ function DrawerContent({
   }, [serverMode, workspaceId, item.id, currentUserId]);
 
   const resolveLabelId = async (name: string) => {
+    if (blockReadOnlyMutation(readOnly)) return undefined;
     if (!workspaceId) return undefined;
     const trimmed = name.trim();
     if (!trimmed) return undefined;
@@ -341,7 +357,10 @@ function DrawerContent({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ workspaceId, name: trimmed }),
     });
-    if (!response.ok) return undefined;
+    if (!response.ok) {
+      handleDemoReadOnlyResponse(response);
+      return undefined;
+    }
     const payload = (await response.json()) as { label: { id: string; name: string } };
     setKnownLabels((current) => ({ ...current, [payload.label.name.toLowerCase()]: payload.label.id }));
     return payload.label.id;
@@ -354,6 +373,7 @@ function DrawerContent({
   };
 
   const postComment = async () => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!serverMode || !workspaceId || !commentDraft.trim() || postingComment) return;
     setPostingComment(true);
     try {
@@ -368,7 +388,10 @@ function DrawerContent({
           body: JSON.stringify({ body: commentDraft.trim() }),
         }
       );
-      if (!response.ok) return;
+      if (!response.ok) {
+        handleDemoReadOnlyResponse(response);
+        return;
+      }
 
       const payload = (await response.json()) as { comment: DrawerComment };
       setComments((current) => [...current, payload.comment]);
@@ -391,6 +414,7 @@ function DrawerContent({
   };
 
   const linkNote = (noteId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (linkedNoteIds.includes(noteId)) return;
     const nextNoteIds = [...linkedNoteIds, noteId];
     if (!serverMode) {
@@ -402,6 +426,7 @@ function DrawerContent({
   };
 
   const unlinkNote = (noteId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     const nextNoteIds = linkedNoteIds.filter((id) => id !== noteId);
     if (!serverMode) {
       applyLocalPatch({ noteIds: nextNoteIds });
@@ -422,6 +447,7 @@ function DrawerContent({
   };
 
   const addBlocker = async (blockerId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!workspaceId || !serverMode || !onItemsReplaced) return;
     const response = await apiFetch("/api/work-item-relations", {
       method: "POST",
@@ -439,10 +465,13 @@ function DrawerContent({
     if (response.ok) {
       setDependencyPickerOpen(false);
       await refreshDependencies();
+    } else {
+      handleDemoReadOnlyResponse(response);
     }
   };
 
   const removeBlocker = async (relationId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!workspaceId || !serverMode || !onItemsReplaced) return;
     const response = await apiFetch(
       `/api/work-item-relations/${encodeURIComponent(relationId)}?workspaceId=${encodeURIComponent(workspaceId)}`,
@@ -452,6 +481,7 @@ function DrawerContent({
       }
     );
     if (response.ok) await refreshDependencies();
+    else handleDemoReadOnlyResponse(response);
   };
 
   useEffect(() => {
@@ -461,6 +491,10 @@ function DrawerContent({
       onTitleFocused?.();
     }
   }, [focusTitle, item.id, onTitleFocused]);
+
+  useEffect(() => {
+    if (!focusTitle && !initialFocusSection) closeRef.current?.focus();
+  }, [focusTitle, initialFocusSection, item.id]);
 
   useEffect(() => {
     if (!serverMode || !initialFocusSection) return;
@@ -579,6 +613,7 @@ function DrawerContent({
   };
 
   const onAddChecklistItem = () => {
+    if (blockReadOnlyMutation(readOnly)) return;
     const text = newChecklistText.trim();
     if (!text) return;
     const nextItem = {
@@ -599,6 +634,7 @@ function DrawerContent({
   };
 
   const onToggleChecklistItem = (checklistItemId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!serverMode) {
       toggleChecklistItem(item.id, checklistItemId);
       return;
@@ -610,6 +646,7 @@ function DrawerContent({
   };
 
   const onRemoveChecklistItem = (checklistItemId: string) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!serverMode) {
       removeChecklistItem(item.id, checklistItemId);
       return;
@@ -619,6 +656,7 @@ function DrawerContent({
   };
 
   const createSubtask = async () => {
+    if (blockReadOnlyMutation(readOnly)) return;
     const title = newSubtaskTitle.trim();
     if (!title || !workspaceId || !serverMode || !onItemsReplaced) return;
     setSubtaskError(null);
@@ -641,6 +679,7 @@ function DrawerContent({
       }),
     });
     if (!response.ok) {
+      if (handleDemoReadOnlyResponse(response)) return;
       const payload = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
       setSubtaskError(payload?.error ?? payload?.message ?? "Could not add subtask.");
       return;
@@ -652,6 +691,7 @@ function DrawerContent({
   };
 
   const setSubtaskDone = async (subtask: WorkItem, done: boolean) => {
+    if (blockReadOnlyMutation(readOnly)) return;
     if (!workspaceId || !serverMode || !onItemsReplaced) return;
     const nextStatus: Status = done ? "Done" : "To Do";
     const snapshot = drawerItems;
@@ -670,33 +710,52 @@ function DrawerContent({
         }),
       }
     );
-    if (!response.ok) onItemsReplaced(snapshot);
+    if (!response.ok) {
+      onItemsReplaced(snapshot);
+      handleDemoReadOnlyResponse(response);
+    }
   };
 
-  const panelInitial = { opacity: 1, width: INLINE_DRAWER_WIDTH };
-  const panelAnimate = { opacity: 1, width: INLINE_DRAWER_WIDTH };
-  const panelExit = { opacity: 1, width: INLINE_DRAWER_WIDTH };
+  const panelInitial = presentation === "board" ? { opacity: 1 } : { opacity: 1, width: INLINE_DRAWER_WIDTH };
+  const panelAnimate = presentation === "board" ? { opacity: 1 } : { opacity: 1, width: INLINE_DRAWER_WIDTH };
+  const panelExit = presentation === "board" ? { opacity: 1 } : { opacity: 1, width: INLINE_DRAWER_WIDTH };
 
   return (
     <>
+      {presentation === "board" && (
+        <div
+          className="drawer-board-backdrop"
+          aria-hidden="true"
+          onClick={onClose}
+          data-board-drawer-backdrop="true"
+        />
+      )}
       <motion.aside
         key="inline-drawer"
         initial={panelInitial}
         animate={panelAnimate}
         exit={panelExit}
         transition={{ duration: 0, ease: "easeOut" }}
-        className="drawer-inline flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l bg-background"
+        role={presentation === "board" ? "dialog" : "complementary"}
+        aria-label="Task details"
+        data-board-drawer={presentation === "board" ? "true" : undefined}
+        className={cn(
+          "drawer-inline flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l bg-background",
+          presentation === "board" && "drawer-board",
+        )}
       >
       <div className="flex h-10 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3 text-[12px]">
           <span className="font-medium text-muted-foreground">Task</span>
-          <StatusSelect value={item.status} onChange={(s) => { void onStatusChange(s); }} />
+          <StatusSelect readOnly={readOnly} value={item.status} onChange={(s) => { void onStatusChange(s); }} />
         </div>
-        <button type="button" onClick={onClose} title="Close" aria-label="Close task drawer" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
+        <button ref={closeRef} type="button" onClick={onClose} title="Close" aria-label="Close task drawer" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
+        {readOnly && <p role="status" className="mb-3 rounded border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">Demo mode - changes are disabled.</p>}
         <input
+          readOnly={readOnly}
           ref={titleRef}
           value={titleDraft}
           onChange={(e) => setTitleDraft(e.target.value)}
@@ -725,6 +784,7 @@ function DrawerContent({
           </div>
         )}
         <textarea
+          readOnly={readOnly}
           value={descriptionDraft}
           onChange={(e) => setDescriptionDraft(e.target.value)}
           onBlur={() => { void onDescriptionCommit(); }}
@@ -736,17 +796,18 @@ function DrawerContent({
         <dl className="mt-4 grid grid-cols-[72px_1fr] gap-y-2 text-[12px]">
           <dt className="pt-0.5 text-muted-foreground">Priority</dt>
           <dd>
-            <PrioritySelect value={item.priority} onChange={(p) => { void onPriorityChange(p); }} />
+            <PrioritySelect readOnly={readOnly} value={item.priority} onChange={(p) => { void onPriorityChange(p); }} />
           </dd>
 
           <dt className="pt-0.5 text-muted-foreground">Assignee</dt>
           <dd>
-            <AssigneeSelect members={members} value={item.assignee} onChange={(id) => { void onAssigneeChange(id); }} />
+            <AssigneeSelect readOnly={readOnly} members={members} value={item.assignee} onChange={(id) => { void onAssigneeChange(id); }} />
           </dd>
 
           <dt className="pt-0.5 text-muted-foreground">Label</dt>
           <dd>
             <input
+              readOnly={readOnly}
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
               onBlur={() => {
@@ -759,6 +820,8 @@ function DrawerContent({
           <dt className="pt-0.5 text-muted-foreground">Due</dt>
           <dd>
             <DateField
+              readOnly={readOnly}
+              onClick={() => { blockReadOnlyMutation(readOnly); }}
               value={dueValue}
               onChange={(value) => {
                 void onDueChange(value);
@@ -770,6 +833,8 @@ function DrawerContent({
           <dt className="pt-0.5 text-muted-foreground">Start</dt>
           <dd>
             <DateField
+              readOnly={readOnly}
+              onClick={() => { blockReadOnlyMutation(readOnly); }}
               value={startValue}
               onChange={(value) => {
                 void onStartChange(value);
@@ -783,6 +848,7 @@ function DrawerContent({
             <select
               value={item.project}
               onChange={(e) => {
+                if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = item.project; return; }
                 void onProjectChange(e.target.value);
               }}
               className="h-7 rounded border bg-card px-2 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
@@ -880,6 +946,7 @@ function DrawerContent({
             <li className="flex items-center gap-2 px-1 py-1">
               <Plus className="h-3.5 w-3.5 text-muted-foreground" />
               <input
+                readOnly={readOnly}
                 value={newSubtaskTitle}
                 onChange={(event) => setNewSubtaskTitle(event.target.value)}
                 onKeyDown={(event) => {
@@ -924,6 +991,7 @@ function DrawerContent({
             <li className="flex items-center gap-2.5 px-1 py-0.5">
               <Plus className="h-3.5 w-3.5 text-muted-foreground" />
               <input
+                readOnly={readOnly}
                 value={newChecklistText}
                 onChange={(e) => setNewChecklistText(e.target.value)}
                 onKeyDown={(e) => {
@@ -1019,6 +1087,7 @@ function DrawerContent({
 
             <div className="mb-4">
               <textarea
+                readOnly={readOnly}
                 ref={commentRef}
                 value={commentDraft}
                 onChange={(event) => setCommentDraft(event.target.value)}
@@ -1142,13 +1211,16 @@ const CompactSection = forwardRef<HTMLDivElement, { title: string; count?: numbe
   }
 );
 
-function StatusSelect({ value, onChange }: { value: Status; onChange: (s: Status) => void }) {
+function StatusSelect({ value, onChange, readOnly }: { value: Status; onChange: (s: Status) => void; readOnly: boolean }) {
   return (
     <label className="flex items-center gap-1.5">
       <StatusIcon s={value} />
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as Status)}
+        onChange={(e) => {
+          if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = value; return; }
+          onChange(e.target.value as Status);
+        }}
         className="rounded bg-transparent text-[12px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
         {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -1157,7 +1229,7 @@ function StatusSelect({ value, onChange }: { value: Status; onChange: (s: Status
   );
 }
 
-function AssigneeSelect({ members, value, onChange }: { members: { id: string; name: string }[]; value: string; onChange: (id: string) => void }) {
+function AssigneeSelect({ members, value, onChange, readOnly }: { members: { id: string; name: string }[]; value: string; onChange: (id: string) => void; readOnly: boolean }) {
   const fallback = members[0] ?? { id: "unassigned", name: "Unassigned" };
   const current = members.find((member) => member.id === value) ?? fallback;
   const options = members.length > 0 ? members : [fallback];
@@ -1166,7 +1238,10 @@ function AssigneeSelect({ members, value, onChange }: { members: { id: string; n
       <Avatar id={current.id} name={current.name} />
       <select
         value={members.some((member) => member.id === value) ? value : current.id}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = current.id; return; }
+          onChange(e.target.value);
+        }}
         className="rounded bg-transparent text-[12px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
         {options.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -1175,13 +1250,16 @@ function AssigneeSelect({ members, value, onChange }: { members: { id: string; n
   );
 }
 
-function PrioritySelect({ value, onChange }: { value: Priority; onChange: (p: Priority) => void }) {
+function PrioritySelect({ value, onChange, readOnly }: { value: Priority; onChange: (p: Priority) => void; readOnly: boolean }) {
   return (
     <span className="flex items-center gap-1.5">
       <PriorityIndicator priority={value} />
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as Priority)}
+        onChange={(e) => {
+          if (blockReadOnlyMutation(readOnly)) { e.currentTarget.value = value; return; }
+          onChange(e.target.value as Priority);
+        }}
         className="rounded bg-transparent text-[12px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
       >
         {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}

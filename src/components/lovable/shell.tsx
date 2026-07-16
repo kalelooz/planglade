@@ -5,7 +5,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText,
   Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, Bell, ListTodo,
-  LogOut,
+  LogOut, Network, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -17,7 +17,15 @@ import { Avatar } from "./icons";
 import { ProjectIcon } from "./project-icon";
 import { useAuth } from "@/components/lovable/auth-context";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
-import { DEMO_MODE_MESSAGE } from "@/lib/demo-data";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DEMO_MODE_MESSAGE, getDemoFixtures } from "@/lib/demo-data";
 
 const STORAGE_KEY = "fb.sidebarOpen";
 const PROJECTS_STORAGE_KEY = "fb.sidebarProjectsOpen";
@@ -29,6 +37,7 @@ const APP_ROUTES = {
   notes: "/app/notes",
   calendar: "/app/calendar",
   settings: "/app/settings",
+  connections: "/app/connections",
 } as const;
 
 type AppShellProps = {
@@ -53,6 +62,8 @@ type SessionIdentity = {
   name: string;
   email: string;
   authMode: string;
+  workspaceName: string;
+  workspaceRole: string;
 };
 
 export function AppShell(props: AppShellProps) {
@@ -74,8 +85,12 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const path = usePathname() ?? "/";
   const isDemoMode = path.startsWith("/demo");
   const routePrefix = isDemoMode ? "/demo" : "/app";
-  const projects = useStore((s) => s.projects);
+  const storedProjects = useStore((s) => s.projects);
   const setProjects = useStore((s) => s.setProjects);
+  const demoData = isDemoMode ? getDemoFixtures() : null;
+  const projects = demoData
+    ? demoData.apiProjects.map((project) => toUiProject(project, "demo-user"))
+    : storedProjects;
   const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
   const projectPathMatch = path.match(/^\/(?:app|demo)\/projects\/([^/]+)$/);
@@ -86,8 +101,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) ?? null : null;
 
   // Server-backed sidebar counts
-  const [inboxCount, setInboxCount] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
+  const [inboxCount, setInboxCount] = useState(() => demoData?.counts.inboxCount ?? 0);
+  const [todayCount, setTodayCount] = useState(() => demoData?.counts.todayCount ?? 0);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickValue, setQuickValue] = useState("");
@@ -96,8 +111,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(null);
-  const [sessionIdentity, setSessionIdentity] = useState<SessionIdentity | null>(null);
+  const [notificationScope, setNotificationScope] = useState<{ workspaceId: string; userId: string } | null>(() => demoData ? { workspaceId: "demo-workspace", userId: "demo-user" } : null);
+  const [sessionIdentity, setSessionIdentity] = useState<SessionIdentity | null>(() => demoData ? {
+    name: "Demo User",
+    email: "demo@local.invalid",
+    authMode: "dev-session-scaffold",
+    workspaceName: "PlanGlade Demo",
+    workspaceRole: "OWNER",
+  } : null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
 
@@ -129,6 +150,19 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const projectScopeRef = useRef<HTMLDivElement>(null);
   const quickCaptureRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileNavCloseRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mobileNavCloseRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      mobileNavTriggerRef.current?.focus();
+    };
+  }, [mobileNavOpen]);
 
   // Fetch sidebar counts from server on mount + poll every 15 seconds
   useEffect(() => {
@@ -165,7 +199,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const navAfterProjects: NavItem[] = [
     { to: `${routePrefix}/notes`, label: "Notes", icon: FileText },
     { to: `${routePrefix}/calendar`, label: "Calendar", icon: Calendar },
+    { to: `${routePrefix}/connections`, label: "Connections", icon: Network },
+    { to: `${routePrefix}/settings`, label: "Settings", icon: Settings },
   ];
+  const mobileNavAfterProjects = navAfterProjects.filter((item) => item.label !== "Settings");
+  const mobileNavSettings = navAfterProjects.filter((item) => item.label === "Settings");
 
   // Flat list used for the collapsed icon rail
   const navMain: NavItem[] = [
@@ -243,6 +281,8 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           name: session.user.name ?? session.user.email,
           email: session.user.email,
           authMode: session.authMode ?? "dev-session-scaffold",
+          workspaceName: session.workspace.name,
+          workspaceRole: session.members?.find((member) => member.id === session.user.id)?.role ?? "MEMBER",
         });
         const projectsResponse = await apiFetch(`/api/projects?workspaceId=${encodeURIComponent(session.workspace.id)}`, {
           cache: "no-store",
@@ -324,7 +364,9 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
   }, [projectScopeOpen, quickOpen, notificationsOpen]);
 
   const isActive = (to: string) => to === routePrefix ? path === routePrefix : path.startsWith(to);
@@ -357,7 +399,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const shouldShowSignOut = (sessionIdentity?.authMode ?? clientAuthMode) !== "dev-session-scaffold" && clientAuthMode !== "dev";
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
       <a
         href="#app-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[120] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow"
@@ -412,6 +454,29 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </div>
 
+        <div className={sidebarOpen ? "border-b p-2" : "border-b p-1"}>
+          <WorkspaceControl
+            collapsed={false}
+            hidden={!sidebarOpen}
+            routePrefix={routePrefix}
+            identity={sessionIdentity}
+            displayName={displayName}
+            displayAvatarId={displayAvatarId}
+            showSignOut={shouldShowSignOut}
+            onSignOut={() => { void signOut("/login"); }}
+          />
+          <WorkspaceControl
+            collapsed={true}
+            hidden={sidebarOpen}
+            routePrefix={routePrefix}
+            identity={sessionIdentity}
+            displayName={displayName}
+            displayAvatarId={displayAvatarId}
+            showSignOut={shouldShowSignOut}
+            onSignOut={() => { void signOut("/login"); }}
+          />
+        </div>
+
         <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-2" : "px-1"}`}>
           {sidebarOpen ? (
             <>
@@ -447,31 +512,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </nav>
 
-        <div className={`border-t ${sidebarOpen ? "p-3" : "flex flex-col items-center gap-2 py-2"}`}>
-          {sidebarOpen ? (
-            <div className="flex flex-col gap-1.5 w-full">
-              {!isDemoMode && (
-                <Link href={APP_ROUTES.settings} className={`lov-nav-item gap-2 px-2 py-1 text-[13px] ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
-                  <Settings className="h-3.5 w-3.5" />
-                  <span>Settings</span>
-                </Link>
-              )}
-            </div>
-          ) : (
-            <>
-              {!isDemoMode && (
-                <Link href={APP_ROUTES.settings} title="Settings" className={`lov-nav-item h-8 w-8 justify-center ${isActive(APP_ROUTES.settings) ? "lov-nav-item-active" : ""}`}>
-                  <Settings className="h-4 w-4" />
-                </Link>
-              )}
-            </>
-          )}
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
-          <button onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
+          <button ref={mobileNavTriggerRef} onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px]">
@@ -662,23 +707,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <Avatar id={displayAvatarId} name={displayName} size={26} />
-            <span className="hidden max-w-28 truncate text-[12px] font-medium text-foreground">{displayName}</span>
-            {shouldShowSignOut && (
-              <button
-                type="button"
-                onClick={() => {
-                  void signOut("/login");
-                }}
-                className="lov-icon-btn"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+          <div title={displayName}><Avatar id={displayAvatarId} name={displayName} size={24} /></div>
         </header>
 
         {isDemoMode && (
@@ -708,19 +737,19 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       </div>
 
       {mobileNavOpen && (
-        <div className="fixed inset-0 z-[90] md:hidden">
-          <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl">
+        <div className="fixed inset-0 z-[90] md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+          <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl" data-mobile-navigation-drawer="true">
             <div className="flex h-12 items-center justify-between border-b px-3">
               <Link href={routePrefix} onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2">
                 <PlanGladeMark />
                 <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
               </Link>
-              <button onClick={() => setMobileNavOpen(false)} className="lov-icon-btn h-[44px] w-[44px]" aria-label="Close navigation">
+              <button ref={mobileNavCloseRef} onClick={() => setMobileNavOpen(false)} className="lov-icon-btn h-[44px] w-[44px]" aria-label="Close navigation">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto px-2 py-3 [&_a]:min-h-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
+            <nav className="flex flex-1 flex-col overflow-y-auto px-2 py-3 [&_a]:min-h-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               <ProjectsNavItem
                 href={`${routePrefix}/projects`}
@@ -745,26 +774,90 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                   })}
                 </div>
               )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
-            </nav>
-            {!isDemoMode && (
-              <div className="border-t p-3">
-                <button
-                  type="button"
-                  onClick={() => { setMobileNavOpen(false); router.push(APP_ROUTES.settings); }}
-                  className="lov-nav-item min-h-[44px] w-full gap-2 px-2 py-1 text-[13px]"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  <span>Settings</span>
-                </button>
+              <SidebarSection items={mobileNavAfterProjects} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
+              <div className="mt-auto border-t pt-2">
+                <SidebarSection items={mobileNavSettings} isActive={isActive} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
               </div>
-            )}
+            </nav>
+            <div className="border-t p-2">
+              <WorkspaceControl
+                collapsed={false}
+                routePrefix={routePrefix}
+                identity={sessionIdentity}
+                displayName={displayName}
+                displayAvatarId={displayAvatarId}
+                showSignOut={shouldShowSignOut}
+                onNavigate={() => setMobileNavOpen(false)}
+                onSignOut={() => { setMobileNavOpen(false); void signOut("/login"); }}
+              />
+            </div>
           </div>
         </div>
       )}
 
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} basePath={routePrefix} />
     </div>
+  );
+}
+
+function WorkspaceControl({
+  collapsed,
+  hidden = false,
+  routePrefix,
+  identity,
+  displayName,
+  displayAvatarId,
+  showSignOut,
+  onNavigate,
+  onSignOut,
+}: {
+  collapsed: boolean;
+  hidden?: boolean;
+  routePrefix: "/app" | "/demo";
+  identity: SessionIdentity | null;
+  displayName: string;
+  displayAvatarId: string;
+  showSignOut: boolean;
+  onNavigate?: () => void;
+  onSignOut: () => void;
+}) {
+  const workspaceName = identity?.workspaceName ?? "Current workspace";
+  const workspaceRole = identity?.workspaceRole ?? "Workspace";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          data-workspace-control="true"
+          aria-label={`Current workspace: ${workspaceName}`}
+          title={collapsed ? `Current workspace: ${workspaceName}` : undefined}
+          className={`${hidden ? "hidden" : "flex"} ${collapsed ? "lov-icon-btn h-9 w-full" : "w-full items-center gap-2 rounded-md border bg-background px-2 py-2 text-left hover:bg-muted/60"}`}
+        >
+          {collapsed ? <Building2 className="h-4 w-4" /> : <Avatar id={displayAvatarId} name={displayName} size={24} />}
+          {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-[12px] font-semibold">{workspaceName}</span><span className="block truncate text-[10px] text-muted-foreground">{workspaceRole}</span></span>}
+          {!collapsed && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={collapsed ? "start" : "center"} side={collapsed ? "right" : "bottom"} className="w-72">
+        <DropdownMenuLabel asChild>
+          <div className="py-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Current workspace</div>
+            <div className="mt-1 truncate text-sm font-semibold">{workspaceName}</div>
+            <div className="mt-2 truncate text-xs text-muted-foreground">{displayName}</div>
+            <div className="truncate text-xs text-muted-foreground">{identity?.email}</div>
+            <div className="mt-1 text-xs font-medium">Role: {workspaceRole}</div>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={`${routePrefix}/settings`} onClick={onNavigate}>
+            <Settings className="h-3.5 w-3.5" />
+            <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        {showSignOut && <DropdownMenuItem variant="destructive" onSelect={onSignOut}><LogOut className="h-3.5 w-3.5" /><span>Sign out</span></DropdownMenuItem>}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

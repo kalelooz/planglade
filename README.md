@@ -60,6 +60,7 @@ Not ready yet:
 - Project notes and context.
 - Notes with Markdown editing and task extraction.
 - Calendar over task due dates.
+- Connections (read-only) for task dependencies and parent/child relationships.
 - Settings for workspace preferences, JSON export, and guarded import.
 
 ## Roadmap
@@ -74,6 +75,7 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 - Projects and Project Home
 - Notes and project context
 - Calendar over due dates
+- Connections relationship view
 - Settings
 - JSON export and guarded import
 - Early self-host docs
@@ -82,7 +84,7 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 **Next**
 
 - Timeline planning view
-- Task dependencies
+- Dependency workflow polish
 - Recurring tasks
 - Stronger self-host path
 - Security hardening
@@ -95,7 +97,7 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 - Admin/team features
 - AI assistance only after the core app is trustworthy
 
-Routes for deferred surfaces (Timeline, Team, Activity, Connections) may exist in the codebase but are gated and redirect to the app home. They are not part of the public MVP product face.
+Routes for deferred surfaces (Timeline, Team, Activity) may exist in the codebase but are gated and redirect to the app home. They are not part of the public MVP product face.
 
 ## Screenshots
 
