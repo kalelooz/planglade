@@ -105,7 +105,7 @@ test("Settings layout stacks the section rail on narrow screens", async () => {
   const source = await readSettingsSource()
 
   assert.match(source, /flex h-full min-w-0 flex-col overflow-y-auto md:flex-row/)
-  assert.match(source, /shrink-0 border-b bg-sidebar\/40 p-3 md:w-56 md:border-r md:border-b-0/)
+  assert.match(source, /shrink-0 border-b bg-sidebar\/40 p-4 md:m-4 md:mr-0 md:w-60 md:rounded-xl md:border md:border-b/)
   assert.match(source, /flex gap-1 overflow-x-auto md:block md:space-y-1 md:overflow-visible/)
   assert.match(source, /grid grid-cols-1 gap-3 border-b pb-5 sm:grid-cols-\[180px_1fr\] sm:gap-6/)
 })

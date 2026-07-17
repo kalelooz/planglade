@@ -93,7 +93,7 @@ test("demo shell header avoids mobile breadcrumb and badge crowding", async () =
     readProjectFile("src/components/lovable/page.tsx"),
   ])
 
-  assert.match(shell, /className="relative z-40 flex h-auto min-h-12/)
+  assert.match(shell, /className="self-hosted-header relative z-40 flex h-auto min-h-12/)
   assert.match(shell, /className="flex min-w-0 flex-1 items-center gap-2/)
   assert.match(shell, /hidden shrink-0 rounded-full border bg-muted px-2 py-0\.5 text-\[10px\] text-muted-foreground sm:inline-flex/)
   assert.match(page, /index < items\.length - 2 \? "hidden sm:contents" : "contents"/)

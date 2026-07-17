@@ -134,7 +134,7 @@ test("Settings priority style picker stays compact and connected to the preview"
   assert.doesNotMatch(settingsPage, /min-h-24|min-h-32/)
   assert.doesNotMatch(settingsPage, /h-20|h-24|min-h-\[96px\]|min-h-\[120px\]/)
   assert.doesNotMatch(settingsPage, /xl:grid-cols-4/)
-  assert.doesNotMatch(settingsPage, /rounded-xl|rounded-2xl/)
+  assert.doesNotMatch(priorityBlock, /rounded-xl|rounded-2xl/)
   assert.doesNotMatch(settingsPage, /ring-2 ring-zinc-900|border-2 border-zinc-900/)
   assert.doesNotMatch(priorityBlock, /overflow-x-auto|whitespace-nowrap/)
   assert.doesNotMatch(priorityBlock, /flex-col items-start rounded-md border bg-card px-3 py-3/)
