@@ -24,6 +24,12 @@ PlanGlade is focused on:
 
 The product direction is intentionally narrow. Self-host is available now. Cloud is coming soon, and the public demo is live in read-only mode. AI-first positioning and enterprise reporting are not part of the current public claim.
 
+## Early Public Feedback
+
+PlanGlade is open for early public feedback as a free, open-source, self-hosted workspace for solo users and small workspaces. Hosted cloud is not available yet, and the [public demo](https://planglade.com/demo) is read-only.
+
+Explore the demo, follow the [self-hosting guide](./docs/SELF_HOSTING.md), and share your experience in the [early public feedback issue](https://github.com/kalelooz/planglade/issues/65). Use the existing bug and feature-request forms for focused follow-ups. Suspected vulnerabilities must be reported privately through the path in [SECURITY.md](./SECURITY.md), not in a public issue.
+
 ## Current Status
 
 Current honest status:
