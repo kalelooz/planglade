@@ -25,17 +25,25 @@ test("LOGIN-POLISH-001: login is a split auth and onboarding surface", async () 
   assert.match(loginSource, /Open source, self-hostable, and built to stay honest\./)
 })
 
-test("LOGIN-POLISH-001: login keeps auth controls and avoids unsupported claims", async () => {
-  const loginSource = await readProjectFile("src/components/lovable/login-page.tsx")
+test("LOGIN-POLISH-001: login keeps configured auth controls and avoids unsupported claims", async () => {
+  const [loginSource, loginRoute] = await Promise.all([
+    readProjectFile("src/components/lovable/login-page.tsx"),
+    readProjectFile("src/app/login/page.tsx"),
+  ])
 
   assert.match(loginSource, /Continue with Google/)
   assert.match(loginSource, /Continue to workspace/)
   assert.match(loginSource, /googleSignInAvailable \? \(/)
   assert.match(loginSource, /handleGoogleSignIn/)
   assert.match(loginSource, /signInWithGoogle/)
+  assert.match(loginSource, /nextAuthSignIn\("credentials"/)
+  assert.match(loginSource, /Email or password is incorrect\./)
+  assert.match(loginSource, /Use a recovery code/)
+  assert.match(loginSource, /safeInternalPath\(searchParams\.get\("next"\)\)/)
+  assert.match(loginRoute, /getProviderCapabilities\(\)\.localCredentials/)
   assert.doesNotMatch(loginSource, /FlowBoard/)
   assert.doesNotMatch(loginSource, /A calm clearing for your projects\./)
-  assert.doesNotMatch(loginSource, /Sign in with email/i)
+  assert.doesNotMatch(loginSource, /send password-reset email/i)
   assert.doesNotMatch(loginSource, /coming soon/i)
   assert.doesNotMatch(loginSource, /production auth/i)
   assert.doesNotMatch(loginSource, /Terms/)

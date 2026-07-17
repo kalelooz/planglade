@@ -25,7 +25,7 @@ test("SELF-HOST-AUTH-UI-SETUP-001: setup route and one-time recovery screen exis
   assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB/i)
 })
 
-test("SELF-HOST-AUTH-UI-SETUP-001: login only adds conditional setup discovery", async () => {
+test("SELF-HOST-AUTH-UI-SETUP-001: login keeps setup discovery separate from server-gated local credentials", async () => {
   const [loginPage, loginRoute, authContext] = await Promise.all([
     readProjectFile("src/components/lovable/login-page.tsx"),
     readProjectFile("src/app/login/page.tsx"),
@@ -36,7 +36,8 @@ test("SELF-HOST-AUTH-UI-SETUP-001: login only adds conditional setup discovery",
   assert.match(loginPage, /status === "available"/)
   assert.match(loginPage, /Object\.keys\(payload\)\.length === 1/)
   assert.doesNotMatch(loginPage, /Continue with email|signInWithCredentials/)
-  assert.doesNotMatch(loginRoute, /localCredentials/)
+  assert.match(loginPage, /nextAuthSignIn\("credentials"/)
+  assert.match(loginRoute, /getProviderCapabilities\(\)\.localCredentials/)
   assert.doesNotMatch(authContext, /signInWithCredentials/)
 })
 
