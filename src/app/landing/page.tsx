@@ -529,7 +529,7 @@ export default function LandingPage() {
                   Run it on your own machine.
                 </h2>
                 <p className="mt-3 text-[14px] leading-6 text-zinc-600">
-                  Self-hosting is a technical setup using Node.js 20+ with
+                  Self-hosting is a technical setup using Node.js 22.5+ with
                   SQLite. The current path is an early self-host baseline with
                   Docker and local setup notes in the public repo.
                 </p>
