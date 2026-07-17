@@ -389,13 +389,13 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
     >
       <div className="kimi-tasks flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl overflow-x-hidden py-4 sm:px-4 sm:py-6">
-            <div className="app-workspace-canvas overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
+          <div className="mx-auto w-full max-w-[920px] overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8">
+            <div className="overflow-hidden">
             {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading tasks...</div>}
-            <div className="mb-5 px-1">
-              <h1 className="text-[15px] font-semibold tracking-tight">Tasks</h1>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">All tasks in {project?.name ?? "this workspace"}.</p>
+            <div className="mb-5">
+              <h1 className="text-[22px] font-semibold tracking-tight">Tasks</h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">All tasks in {project?.name ?? "this workspace"}.</p>
             </div>
             <div className="mb-5 flex items-center gap-1.5 overflow-x-auto text-[12px]">
               <div className="lov-segment-group flex-shrink-0">
@@ -419,7 +419,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
                 })}
               </div>
             </div>
-            <div data-task-column-header className="hidden grid-cols-[auto_minmax(22rem,1fr)_96px_minmax(7rem,9rem)_112px_32px] items-center gap-x-3 border-y border-border bg-muted/35 px-3 py-2 text-[11px] font-medium text-muted-foreground sm:grid">
+            <div data-task-column-header className="hidden grid-cols-[auto_minmax(22rem,1fr)_96px_minmax(7rem,9rem)_112px_32px] items-center gap-x-3 border-y border-border/60 px-3 py-2 text-[11px] font-medium text-muted-foreground sm:grid">
               <span aria-hidden="true" />
               <span>Task</span>
               <span>Priority</span>
@@ -427,7 +427,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
               <span>Due</span>
               <span className="sr-only">Actions</span>
             </div>
-            <div className="border-x border-border">
+            <div>
             {grouped.map(({ status, items }) => (
               <section key={status}>
                 <button

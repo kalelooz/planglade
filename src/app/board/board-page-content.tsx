@@ -457,7 +457,7 @@ export function BoardPageContent() {
             onDragCancel={() => setActiveDragId(null)}
           >
             <div className="h-full max-w-full overflow-x-auto overflow-y-hidden" data-board-scroll-region="true">
-              <div className="grid h-full min-w-[960px] grid-cols-[repeat(5,minmax(0,1fr))] gap-3 p-4 xl:min-w-0" data-board-grid="true">
+              <div className="flex h-full min-w-max items-start gap-3 px-4 pb-3 sm:px-6" data-board-grid="true">
                 {cols.map((col) => {
                   const items = scopedWorkItems.filter((w) => w.status === col);
                   return (
@@ -541,7 +541,7 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div className="flex min-w-0 flex-col" data-board-column={status}>
+    <div className="flex w-[248px] shrink-0 flex-col" data-board-column={status}>
       <div className="mb-2 flex items-center gap-2 px-1 text-[12px] font-medium">
         <StatusIcon s={status} />
         <span>{status}</span>
@@ -552,7 +552,7 @@ function Column({
       </div>
       <div
         ref={setNodeRef}
-        className={`flex flex-1 flex-col gap-2 overflow-y-auto rounded-md border p-2 transition-colors ${isOver ? "border-primary/40 bg-primary/5" : "bg-sidebar/40"}`}
+        className={`flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto rounded-md px-1 pb-2 transition-colors ${isOver ? "bg-accent/50" : ""}`}
       >
         <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((w) => (
@@ -573,7 +573,7 @@ function Column({
           <button
             type="button"
             onClick={onAdd}
-            className="rounded border border-dashed px-2 py-6 text-center text-[11px] text-muted-foreground hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
+            className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[11px] text-muted-foreground hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
           >
             {isOver ? "Drop here" : `Add to ${status}`}
           </button>
