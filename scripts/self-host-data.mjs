@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto"
 import { constants as fsConstants, createReadStream } from "node:fs"
 import {
   chmod,
+  chown,
   copyFile,
   lstat,
   mkdir,
@@ -177,6 +178,17 @@ async function copyPrivateFile(source, destination) {
   await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 })
   await copyFile(source, destination, fsConstants.COPYFILE_EXCL)
   await chmod(destination, 0o600)
+}
+
+async function applyOwnership(target, ownership) {
+  if (!ownership) return
+  const info = await lstat(target)
+  if (info.isDirectory()) {
+    for (const entry of await readdir(target)) {
+      await applyOwnership(path.join(target, entry), ownership)
+    }
+  }
+  await chown(target, ownership.uid, ownership.gid)
 }
 
 async function sqliteMetadata(databasePath) {
@@ -479,6 +491,13 @@ export async function restoreBackupBundle(input, options = {}) {
   const destinationAttachmentsBefore = attachmentsKind === "directory"
     ? await walkFiles(dataPaths.attachmentsPath)
     : null
+  const preserveOwnership = typeof process.getuid === "function" && process.getuid() === 0
+  const databaseOwnership = preserveOwnership
+    ? destinationDatabaseBefore ?? await lstat(databaseParent)
+    : null
+  const attachmentsOwnership = preserveOwnership
+    ? await lstat(attachmentsKind === "directory" ? dataPaths.attachmentsPath : attachmentsParent)
+    : null
 
   const id = randomUUID()
   const databaseStage = path.join(databaseParent, `.planglade-restore-${id}.db`)
@@ -499,6 +518,7 @@ export async function restoreBackupBundle(input, options = {}) {
   try {
     if (attachmentsKind === "missing") {
       await mkdir(dataPaths.attachmentsPath, { mode: 0o700 })
+      await applyOwnership(dataPaths.attachmentsPath, attachmentsOwnership)
       attachmentsRootCreated = true
     }
     await copyPrivateFile(path.join(bundlePath, DATABASE_FILE), databaseStage)
@@ -515,6 +535,8 @@ export async function restoreBackupBundle(input, options = {}) {
     if (JSON.stringify(stagedSqlite) !== JSON.stringify(manifest.database.sqlite)) {
       fail("Staged SQLite format does not match the backup manifest.")
     }
+    await applyOwnership(databaseStage, databaseOwnership)
+    await applyOwnership(attachmentsStage, attachmentsOwnership)
     await rejectSqliteSidecars(dataPaths.databasePath)
     if (
       destinationDatabaseBefore &&

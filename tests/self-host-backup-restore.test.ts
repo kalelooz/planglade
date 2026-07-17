@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { execFile } from "node:child_process"
 import { watch } from "node:fs"
-import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { chown, cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { DatabaseSync } from "node:sqlite"
@@ -169,6 +169,60 @@ test("SELF-HOST-UPGRADE-RESTORE-001: restore creates a missing attachment root",
     assert.equal((await lstat(targetAttachments)).isDirectory(), true)
     assert.equal(await readFile(path.join(targetAttachments, "attachment.txt"), "utf8"), "source attachment")
     assert.deepEqual(await restoreArtifactNames(targetAttachments), [])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("SELF-HOST-UPGRADE-RESTORE-001: root restore preserves destination ownership and private modes", {
+  skip: typeof process.getuid !== "function" || process.getuid() !== 0
+    ? "POSIX root ownership is not available."
+    : false,
+}, async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "planglade-backup-ownership-"))
+  const sourceDatabase = path.join(root, "source.db")
+  const sourceAttachments = path.join(root, "source-attachments")
+  const bundle = path.join(root, "bundle-v1")
+  const targetDatabase = path.join(root, "target.db")
+  const targetAttachments = path.join(root, "target-attachments")
+  const intendedUid = 65_534
+  const intendedGid = 65_534
+
+  try {
+    createDatabase(sourceDatabase, "source-value")
+    await mkdir(path.join(sourceAttachments, "workspace", "nested"), { recursive: true })
+    await writeFile(path.join(sourceAttachments, "workspace", "nested", "attachment.txt"), "replacement")
+    await runCli("backup:create", [bundle], selfHostEnv(sourceDatabase, sourceAttachments))
+
+    createDatabase(targetDatabase, "target-value")
+    await mkdir(targetAttachments)
+    await chown(targetDatabase, intendedUid, intendedGid)
+    await chown(targetAttachments, intendedUid, intendedGid)
+
+    await runCli(
+      "backup:restore",
+      [bundle, "--confirm-replace"],
+      selfHostEnv(targetDatabase, targetAttachments),
+    )
+
+    for (const filePath of [
+      targetDatabase,
+      path.join(targetAttachments, "workspace", "nested", "attachment.txt"),
+    ]) {
+      const info = await lstat(filePath)
+      assert.equal(info.uid, intendedUid)
+      assert.equal(info.gid, intendedGid)
+      assert.equal(info.mode & 0o777, 0o600)
+    }
+    for (const directoryPath of [
+      path.join(targetAttachments, "workspace"),
+      path.join(targetAttachments, "workspace", "nested"),
+    ]) {
+      const info = await lstat(directoryPath)
+      assert.equal(info.uid, intendedUid)
+      assert.equal(info.gid, intendedGid)
+      assert.equal(info.mode & 0o777, 0o700)
+    }
   } finally {
     await rm(root, { recursive: true, force: true })
   }
