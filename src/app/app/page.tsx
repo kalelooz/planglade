@@ -386,19 +386,19 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
     <AppShell title={<span className="font-medium">Home</span>}>
       <div className="kimi-home flex h-full">
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-7xl py-4 sm:px-5 sm:py-6 lg:px-8">
-            <div className="app-workspace-canvas space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          <div className="mx-auto w-full max-w-[880px] px-4 py-6 sm:px-6 sm:py-8">
+            <div className="space-y-8">
               {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10.5px] text-red-700">{error}</div>}
 
               <div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
-                    <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{greeting}, {firstName}</h1>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{todayLabel}</p>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{greeting}, {firstName}.</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{todayLabel}</p>
                   </div>
                   {loading ? <span className="font-mono text-[10px] text-zinc-400">Loading home data...</span> : null}
                 </div>
-                <nav aria-label="Today overview" className="mt-4 grid grid-cols-3 border-y border-border text-[11px]">
+                <nav aria-label="Today overview" className="grid grid-cols-3 border-y border-border/60 text-[11px]">
                   <Link href={taskHref("today")} className="flex min-h-11 items-center gap-2 px-3 hover:bg-[var(--color-hover)]">
                     <span className="text-base font-semibold text-foreground">{buckets.today.length}</span>
                     <span className="text-muted-foreground">due today</span>
@@ -414,8 +414,8 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                 </nav>
               </div>
 
-              <main className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-                <div className="min-w-0 space-y-7 lg:col-span-7">
+              <main className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-[1fr_280px]">
+                <div className="min-w-0 space-y-8">
                   <section>
                     <SectionHeader
                       title="Today’s tasks"
@@ -497,7 +497,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                   </section>
                 </div>
 
-                <aside className="min-w-0 space-y-7 lg:col-span-5 lg:border-l lg:border-border lg:pl-8">
+                <aside className="min-w-0 space-y-8">
                   <section>
                     <SectionHeader title="Projects" count={projectMetrics.length} icon={<Folder className="h-3.5 w-3.5" />} />
                     {projectMetrics.length === 0 ? (

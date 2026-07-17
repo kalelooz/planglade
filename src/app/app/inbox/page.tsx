@@ -344,17 +344,17 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
     >
       <div className="kimi-inbox flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+          <div className="mx-auto w-full max-w-[880px] px-4 py-6 sm:px-6 sm:py-8">
             {error && <div className="mb-3 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading inbox data...</div>}
-            <div className="mb-5 px-1">
-              <h1 className="text-[15px] font-semibold tracking-tight">Inbox</h1>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Capture loose thoughts, then convert the useful ones to tasks.
+            <div className="mb-5">
+              <h1 className="text-[22px] font-semibold tracking-tight">Inbox</h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Capture first. Organize when you&apos;re ready.
               </p>
             </div>
 
-            <div data-inbox-surface="quick-capture" className="mb-5 rounded-lg border border-border/70 bg-surface/60">
+            <div data-inbox-surface="quick-capture" className="mb-4 rounded-lg border border-border bg-card shadow-[0_1px_2px_hsl(240_8%_10%/0.04)]">
               <div className="flex w-full items-center gap-3 px-3 py-2.5 transition-colors focus-within:bg-hover/60 hover:bg-hover/60">
                 <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <input
@@ -365,7 +365,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                       void createCapture(captureValue.trim());
                     }
                   }}
-                  placeholder="Capture a thought, task, or idea."
+                  placeholder="What&apos;s on your mind?"
                   aria-label="Quick Capture"
                   className="h-7 min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
@@ -374,7 +374,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
               </div>
             </div>
 
-            <section data-inbox-surface="pending-captures" className="min-w-0 rounded-lg border border-border/70 bg-surface/40">
+            <section data-inbox-surface="pending-captures" className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
               <div className="flex w-full flex-wrap items-center gap-3 border-b border-border/60 px-3 py-2 text-left">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Pending captures</span>
