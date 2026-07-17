@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "packageManager": "npm@11.6.2",
   "scripts": {
     "dev": "next dev -p 3000",
@@ -23,6 +26,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:check:local-auth-emails": "node scripts/preflight-local-auth-emails.mjs",
+    "auth:create-recovery-link": "node scripts/create-local-recovery-link.mjs",
+    "backup:create": "node scripts/self-host-data.mjs backup",
+    "backup:restore": "node scripts/self-host-data.mjs restore",
     "db:check:attachment-storage-keys": "node scripts/check-attachment-storage-key-duplicates.mjs",
     "db:reset": "prisma migrate reset"
   },

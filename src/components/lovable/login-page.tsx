@@ -3,8 +3,10 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { signIn as nextAuthSignIn } from "next-auth/react"
 import { ArrowLeft, ArrowRight, CheckSquare, Database, Inbox, ListTodo, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/lovable/auth-context"
 import { buildSessionAuthHeaders } from "@/lib/server-session-client"
 
@@ -35,23 +37,55 @@ function GoogleLogo({ className }: { className?: string }) {
   )
 }
 
+function safeInternalPath(value: string | null) {
+  if (!value?.startsWith("/") || value.startsWith("//")) return "/app"
+  try {
+    const base = new URL("https://planglade.invalid")
+    const target = new URL(value, base)
+    return target.origin === base.origin
+      ? `${target.pathname}${target.search}${target.hash}`
+      : "/app"
+  } catch {
+    return "/app"
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Login Page
 // ---------------------------------------------------------------------------
 
-export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: boolean }) {
+export function LoginPage({
+  googleSignInAvailable,
+  localCredentialsAvailable,
+}: {
+  googleSignInAvailable: boolean
+  localCredentialsAvailable: boolean
+}) {
   const { user, signInWithGoogle, loading, authMode } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [signingIn, setSigningIn] = React.useState(false)
+  const [credentialsSigningIn, setCredentialsSigningIn] = React.useState(false)
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
   const [signInError, setSignInError] = React.useState<string | null>(null)
   const [inviteNotice, setInviteNotice] = React.useState<string | null>(null)
   const [inviteAccepting, setInviteAccepting] = React.useState(false)
   const [setupAvailable, setSetupAvailable] = React.useState(false)
-  const nextPath = searchParams.get("next") || "/app"
+  const nextPath = safeInternalPath(searchParams.get("next"))
   const inviteToken = searchParams.get("inviteToken")
   const autoAccept = searchParams.get("autoAccept") === "1"
   const usesDevSession = authMode === "dev"
+  const callbackPath =
+    authMode === "nextauth" && inviteToken
+      ? `/login?inviteToken=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(nextPath)}&autoAccept=1`
+      : nextPath
+
+  React.useEffect(() => {
+    const clearPassword = () => setPassword("")
+    window.addEventListener("pagehide", clearPassword)
+    return () => window.removeEventListener("pagehide", clearPassword)
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
@@ -120,10 +154,6 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
     setSigningIn(true)
     setSignInError(null)
     try {
-      const callbackPath =
-        authMode === "nextauth" && inviteToken
-          ? `/login?inviteToken=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(nextPath)}&autoAccept=1`
-          : nextPath
       await signInWithGoogle(callbackPath)
       if (authMode !== "nextauth") {
         if (!inviteToken) {
@@ -134,6 +164,35 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
       setSignInError(toFriendlySignInError(error))
     } finally {
       setSigningIn(false)
+    }
+  }
+
+  const handleCredentialSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setCredentialsSigningIn(true)
+    setSignInError(null)
+    try {
+      const result = await nextAuthSignIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: callbackPath,
+      })
+      if (!result?.ok || result.error) {
+        setSignInError("Email or password is incorrect.")
+        return
+      }
+      const target = new URL(result.url ?? callbackPath, window.location.origin)
+      window.location.assign(
+        target.origin === window.location.origin
+          ? `${target.pathname}${target.search}${target.hash}`
+          : callbackPath,
+      )
+    } catch {
+      setSignInError("Email or password is incorrect.")
+    } finally {
+      setPassword("")
+      setCredentialsSigningIn(false)
     }
   }
 
@@ -219,12 +278,54 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
               </div>
 
               <div className="mt-8">
+                {localCredentialsAvailable && (
+                  <form className="grid gap-3" onSubmit={handleCredentialSignIn} noValidate>
+                    <label className="text-sm font-medium text-zinc-900" htmlFor="login-email">Email</label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      autoComplete="email"
+                      maxLength={320}
+                      required
+                    />
+                    <label className="text-sm font-medium text-zinc-900" htmlFor="login-password">Password</label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete="current-password"
+                      required
+                    />
+                    <Button
+                      type="submit"
+                      className="mt-1 h-11 w-full bg-zinc-950 text-sm font-medium text-white hover:bg-zinc-800"
+                      disabled={credentialsSigningIn || signingIn || loading}
+                    >
+                      {credentialsSigningIn ? (
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      ) : null}
+                      {credentialsSigningIn ? "Signing in..." : "Sign in"}
+                    </Button>
+                  </form>
+                )}
+
+                {localCredentialsAvailable && googleSignInAvailable && (
+                  <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                    <span className="h-px flex-1 bg-zinc-200" />
+                    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">or</span>
+                    <span className="h-px flex-1 bg-zinc-200" />
+                  </div>
+                )}
+
                 {googleSignInAvailable ? (
                   <Button
                     variant="outline"
                     className="relative h-11 w-full gap-3 border-zinc-300 bg-white text-sm font-medium text-zinc-900 hover:bg-zinc-50"
                     onClick={handleGoogleSignIn}
-                    disabled={signingIn || loading}
+                    disabled={signingIn || credentialsSigningIn || loading}
                   >
                     {signingIn ? (
                       <Loader2 className="size-5 animate-spin motion-reduce:animate-none" />
@@ -233,7 +334,7 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                     )}
                     {signingIn ? "Signing in..." : "Continue with Google"}
                   </Button>
-                ) : usesDevSession ? (
+                ) : !localCredentialsAvailable && usesDevSession ? (
                   <Button
                     className="h-11 w-full gap-2 bg-zinc-950 text-sm font-medium text-white hover:bg-zinc-800"
                     onClick={handleGoogleSignIn}
@@ -242,11 +343,11 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                     Continue to workspace
                     <ArrowRight className="size-4" />
                   </Button>
-                ) : (
+                ) : !localCredentialsAvailable ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                     Sign-in is not configured for this environment.
                   </div>
-                )}
+                ) : null}
                 {signInError && (
                   <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                     {signInError}
@@ -257,19 +358,31 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                     {inviteAccepting
                       ? "Accepting invite..."
                       : inviteNotice ??
-                        (googleSignInAvailable
+                        (googleSignInAvailable || localCredentialsAvailable
                           ? "Sign in to accept your workspace invite."
-                          : "This invite needs a configured Google sign-in provider.")}
+                          : "This invite needs a configured sign-in provider.")}
                   </p>
                 )}
 
                 <p className="mt-5 text-xs leading-5 text-zinc-500">
-                  {googleSignInAvailable
-                    ? "Use your Google account to continue. Your projects stay scoped to your workspace."
+                  {localCredentialsAvailable && googleSignInAvailable
+                    ? "Use your local owner credentials or Google account. Your projects stay scoped to your workspace."
+                    : localCredentialsAvailable
+                      ? "Use your local owner credentials. Password recovery uses a saved code or a host-issued one-time link—not email."
+                      : googleSignInAvailable
+                        ? "Use your Google account to continue. Your projects stay scoped to your workspace."
                     : usesDevSession
                       ? "Local development uses the existing dev workspace session. No email or password login is enabled here."
                       : "Ask the workspace owner to configure Google sign-in before continuing."}
                 </p>
+                {localCredentialsAvailable && (
+                  <Link
+                    href="/recover"
+                    className="mt-3 inline-flex text-xs font-medium text-zinc-600 underline underline-offset-4 outline-none hover:text-zinc-950 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
+                  >
+                    Use a recovery code
+                  </Link>
+                )}
                 {setupAvailable && (
                   <Link
                     href="/setup"

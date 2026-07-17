@@ -11,6 +11,7 @@ import { TaskCompletionToggle } from "@/components/lovable/task-completion-toggl
 import { useStore, type PriorityDisplayStyle } from "@/lib/store";
 import { AvatarPicker } from "@/components/lovable/avatar-picker";
 import { SaveIndicator } from "@/components/lovable/save-indicator";
+import { LocalCredentialSettings } from "@/components/lovable/local-credential-settings";
 import { apiFetch, getServerSession } from "@/lib/server-session-client";
 import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } from "@/lib/notification-preferences";
 import {
@@ -26,7 +27,7 @@ const sectionDescriptions: Record<Section, string> = {
   General: "Manage your PlanGlade Workspace label and notification preferences.",
   Appearance: "Choose how PlanGlade looks on this device.",
   Data: "Export backups and safely merge a previewed PlanGlade workspace file.",
-  Account: "Manage your local profile details.",
+  Account: "Manage your local profile and owner sign-in.",
 };
 
 type WorkspaceSnapshot = {
@@ -1072,6 +1073,11 @@ export default function SettingsPage() {
                   className="lov-input"
                 />
               </Field>
+              {currentWorkspaceRole === "OWNER" && (
+                <Field label="Local sign-in" hint="Enroll or recover a password for this existing owner account.">
+                  <LocalCredentialSettings />
+                </Field>
+              )}
             </div>
           )}
         </div>

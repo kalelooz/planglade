@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 
 import { LoginPage } from "@/components/lovable/login-page"
+import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
 import { readPlanGladeEnv, readPublicPlanGladeEnv } from "@/lib/env-config"
 
 function LoginPageFallback() {
@@ -29,10 +30,15 @@ export default function PlanGladeLoginRoute() {
   const googleSignInAvailable =
     (authMode === "firebase" && hasFirebaseGoogleConfig()) ||
     (authMode === "nextauth" && hasNextAuthGoogleConfig())
+  const localCredentialsAvailable =
+    authMode === "nextauth" && getProviderCapabilities().localCredentials
 
   return (
     <Suspense fallback={<LoginPageFallback />}>
-      <LoginPage googleSignInAvailable={googleSignInAvailable} />
+      <LoginPage
+        googleSignInAvailable={googleSignInAvailable}
+        localCredentialsAvailable={localCredentialsAvailable}
+      />
     </Suspense>
   )
 }

@@ -47,6 +47,9 @@ ENV NODE_ENV=production \
   PORT=3000
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/create-local-recovery-link.mjs ./scripts/create-local-recovery-link.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/self-host-data.mjs ./scripts/self-host-data.mjs
 RUN mkdir -p /app/db /app/storage/local-attachments \
   && chown -R nextjs:nodejs /app/db /app/storage
 

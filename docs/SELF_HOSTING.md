@@ -1,33 +1,34 @@
 # PlanGlade Self-Hosting
 
-Last updated: 2026-07-01
+Last updated: 2026-07-17
 
-PlanGlade has an early Docker self-host baseline and remains in early self-hosting status. It is not production-ready or production-hardened. The Docker setup gives maintainers a repeatable build, migration, and startup path; it does not provide HTTPS, a reverse proxy, monitoring, automated backups, or security operations.
+PlanGlade has an early Docker self-host baseline and remains in early self-hosting status. It is not production-ready or production-hardened. The Docker path provides a repeatable standalone build, SQLite migrations, local credentials, local attachment storage, and checked backup/restore commands. It does not provide HTTPS, a reverse proxy, automated backups, monitoring, or security operations.
 
-The existing local/developer self-host path remains documented below.
+The local/developer self-host path remains supported below.
 
-## What The Docker Baseline Uses
+## Verified Public Standalone Architecture
 
-- One standalone Next.js app container.
-- One short-lived migration container that runs `prisma migrate deploy` before the app starts.
-- SQLite in a persistent Docker volume.
-- NextAuth with a configured GitHub or Google OAuth provider.
-- Local file attachment storage in a persistent Docker volume.
-- `/api/health` as the container health check.
+- Node.js 22.5 or newer; the Docker image currently uses Node 22 Alpine.
+- One non-root standalone Next.js app container.
+- One short-lived migration container running `prisma migrate deploy` before app startup.
+- SQLite at `/app/db/planglade.db` in the `planglade_data` volume.
+- Local attachments at `/app/storage/local-attachments` in the `planglade_attachments` volume.
+- NextAuth with supported local credentials; GitHub or Google OAuth is optional.
+- `/api/health` returning only `{"status":"ok"}`, `{"status":"degraded"}`, or `{"status":"error"}`.
 
-PostgreSQL is not included. The tracked Prisma schema uses SQLite, so changing database providers would be a separate migration project, not a Docker configuration change.
+The tracked schema is SQLite-only. PostgreSQL is not included. Changing database providers is a separate migration project, not an environment switch.
 
 ## Before You Start
 
 You need:
 
 - Docker Engine or Docker Desktop with Docker Compose.
-- A GitHub or Google OAuth application for sign-in.
-- A terminal and a text editor.
+- A terminal and text editor.
+- Strong random values for `NEXTAUTH_SECRET` and the one-time `PLANGLADE_SETUP_TOKEN`.
 
-You do **not** need a Firebase project. The Docker default stores attachments on a local Docker volume and uses NextAuth for sign-in.
+You do **not** need a Firebase project. You also do not need an OAuth application when local credentials are enabled. OAuth can be added later as an optional sign-in method.
 
-Do not expose PlanGlade publicly during initial setup. First configure real secrets, verify sign-in and storage, add HTTPS through a reverse proxy, and establish tested backups.
+Do not expose PlanGlade publicly during setup. Configure real secrets, create and verify the first OWNER, add HTTPS through a reverse proxy, and establish tested off-machine backups first.
 
 ## First Run With Docker Compose
 
@@ -43,23 +44,28 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-2. Open `.env` and replace every Docker placeholder. The Docker default quick start needs only:
+2. Edit `.env` and replace every active placeholder.
 
-- `NEXTAUTH_URL`: `http://localhost:3000` for a local check, or your final HTTPS URL.
-- `NEXTAUTH_SECRET`: a long random value. Generate one with `openssl rand -base64 32`.
-- Either `GITHUB_ID` and `GITHUB_SECRET`, or `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+The no-OAuth public standalone path requires:
 
-No Firebase values are required. The Docker Compose file sets `PLANGLADE_STORAGE_PROVIDER=local`, stores attachments in the `planglade_attachments` volume at `/app/storage/local-attachments`, and signs attachment URLs with `NEXTAUTH_SECRET` (or `PLANGLADE_STORAGE_SIGNING_SECRET` if you set it).
+```env
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="replace-with-a-long-random-value"
+PLANGLADE_LOCAL_AUTH_ENABLED="true"
+PLANGLADE_SETUP_TOKEN="replace-with-a-separate-one-time-random-value"
+```
 
-Never commit `.env`. Values beginning with `NEXT_PUBLIC_` are visible in the browser; do not put secrets in them.
+Compose sets `PLANGLADE_AUTH_MODE=nextauth`, `NEXT_PUBLIC_PLANGLADE_AUTH_MODE=nextauth`, `PLANGLADE_STORAGE_PROVIDER=local`, the SQLite path, and the local attachment path. No Firebase values are required.
 
-For GitHub OAuth, use this callback URL for a local check:
+GitHub and Google OAuth are optional. If enabled, add the corresponding provider ID/secret and use a callback such as:
 
 ```text
 http://localhost:3000/api/auth/callback/github
 ```
 
-3. Validate and build the configuration.
+Never commit `.env`. Values beginning with `NEXT_PUBLIC_` are visible in the browser; never put secrets there.
+
+3. Validate and build.
 
 ```bash
 docker compose config
@@ -72,59 +78,73 @@ docker compose build
 docker compose up -d
 ```
 
-Compose first runs the `migrate` service with `prisma migrate deploy`. The app starts only after migrations succeed.
+Compose runs `prisma migrate deploy`; the app starts only after the migration service exits successfully.
 
-5. Check the containers and health endpoint.
+5. Check status.
 
 ```bash
 docker compose ps -a
 curl http://localhost:3000/api/health
 ```
 
-The `migrate` container should show `Exited (0)`, the `app` container should become healthy, and the health response should report `"status":"ok"`.
+The migration container should show `Exited (0)` and the app should become healthy. The endpoint deliberately returns status only. It does not expose configuration details, paths, provider names, or secrets.
 
-6. Open `http://localhost:3000` and test sign-in, creating a task, and uploading/downloading an attachment before wider use.
+6. Open `http://localhost:3000/setup`, enter `PLANGLADE_SETUP_TOKEN`, and create the first OWNER, local password, and workspace.
 
-## Database And Migrations
+Setup can complete only once. It creates exactly one initial OWNER and workspace, then shows ten permanent recovery codes one time. Each code works once and remains valid until used or replaced. Save them offline before continuing.
 
-Docker stores SQLite at `/app/db/planglade.db` in the `planglade_data` named volume. `docker compose down` keeps that volume. `docker compose down -v` deletes it and is destructive.
+7. Remove `PLANGLADE_SETUP_TOKEN` from `.env`, then recreate the app container so the token is no longer present:
 
-Docker uses the checked-in Prisma migration history:
+```bash
+docker compose up -d --force-recreate app
+```
+
+8. Sign in, create a task, and upload/download an attachment before wider use.
+
+## Sign-In And Recovery
+
+Local credentials are a supported no-OAuth path when `PLANGLADE_LOCAL_AUTH_ENABLED="true"`. OAuth-created OWNER accounts can enroll a local password later from **Settings > Account > Local sign-in** without creating another user or workspace.
+
+Normal recovery uses one saved permanent recovery code at `/recover`. A successful password reset consumes the supplied code, invalidates existing sessions, rotates all recovery codes, and shows the replacements once.
+
+If the OWNER has no saved code, a host administrator can create a 15-minute one-time link for an existing current OWNER:
+
+```bash
+docker compose run --rm --no-deps app npm run auth:create-recovery-link -- owner@example.com
+```
+
+The standard Compose runner contains this command and mounts the live SQLite volume. It does not create a new user or workspace. The secret appears only in the URL fragment (`/recover#...`), so browsers do not send it in HTTP request URLs. The one-off container is removed by `--rm`; do not redirect or paste the printed link into shared logs, tickets, or chat.
+
+PlanGlade does not send password-reset email. If the host link expires, create a new one.
+
+## Data, Migrations, And Storage
+
+Docker's exact persistent paths are:
+
+- Database: `/app/db/planglade.db` in `planglade_planglade_data` with the default Compose project name.
+- Attachments: `/app/storage/local-attachments` in `planglade_planglade_attachments`.
+
+`docker compose down` keeps both volumes. `docker compose down -v` deletes both and is destructive.
+
+Normal startup runs checked-in migrations. For troubleshooting only:
 
 ```bash
 docker compose run --rm migrate
 ```
 
-Normal `docker compose up -d` already runs this step. Run it directly only for troubleshooting. Do not use `prisma migrate dev`, `prisma db push`, or `prisma migrate reset` against Docker self-host data.
+Never use `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, or `npm run db:reset` against self-host data. Attachment reads and writes remain confined to the configured local directory and use short-lived signed URLs.
 
-The existing local development path remains SQLite with `npm run db:push`; it is separate from the Docker migration path.
+## Backup, Restore, And Upgrade
 
-## Local Attachment Storage (Docker Default)
+The standard runner includes `npm run backup:create` and `npm run backup:restore`. One versioned directory bundle contains SQLite, attachments, a manifest, and SHA-256 checksums. Follow [BACKUP_RESTORE.md](./BACKUP_RESTORE.md) for the exact Docker and local commands.
 
-The Docker default stores attachments as files inside the `planglade_attachments` Docker volume, mounted at `/app/storage/local-attachments`. Attachment upload and download are workspace-scoped and served through short-lived HMAC-signed URLs. The storage layer rejects path traversal (`..`, absolute paths) and confines all reads and writes to the configured volume path.
+Safe Docker upgrade sequence:
 
-Back up this volume alongside the SQLite volume. See `docs/BACKUP_RESTORE.md`.
-
-## Stop, Restart, And Update
-
-Stop while keeping data:
-
-```bash
-docker compose down
-```
-
-Restart:
-
-```bash
-docker compose up -d
-```
-
-Update safely:
-
-1. Back up the SQLite volume and the local attachment volume.
-2. Pull the new code.
-3. Review release notes and environment changes.
-4. Rebuild and start:
+1. Read the release notes and `.env.example` changes.
+2. Stop the app and create a new checked bundle using the command in `docs/BACKUP_RESTORE.md`.
+3. Copy that bundle to encrypted off-machine storage.
+4. Pull or check out the intended release.
+5. Run:
 
 ```bash
 docker compose build
@@ -133,56 +153,60 @@ docker compose ps -a
 curl http://localhost:3000/api/health
 ```
 
-To roll back, stop the new containers, check out the previous known-good commit, restore a compatible backup if migrations changed the database, rebuild, and start again.
+6. Sign in and verify a known workspace, task, note, setting, and attachment.
 
-## Backup And Restore
-
-Back up before every upgrade. Docker persists both the SQLite database volume and the local attachment volume by default.
-
-Follow `docs/BACKUP_RESTORE.md`. Test restores on a disposable copy before relying on a backup procedure.
+To roll back after a schema-changing upgrade, stop the new stack, check out and rebuild the previous known-good version, restore its compatible pre-upgrade bundle, then start and verify. Do not run a destructive reset to hide a migration failure.
 
 ## Troubleshooting
 
 ### Docker is unavailable
 
-If Docker reports that it cannot connect to the daemon, start Docker Desktop or the Docker service, then run `docker version` again.
+Start Docker Desktop or the Docker service, then confirm `docker version` and `docker compose version` work.
 
 ### Port 3000 is already used
 
-Set another host port in `.env`, for example `PLANGLADE_PORT="3001"`, then open `http://localhost:3001`. Keep `NEXTAUTH_URL` and the OAuth callback URL aligned with that port.
+Set `PLANGLADE_PORT="3001"` and set `NEXTAUTH_URL` to the matching public URL. Keep optional OAuth callback URLs aligned.
 
 ### Migration failed
-
-Run:
 
 ```bash
 docker compose logs migrate
 ```
 
-Do not reset the volume to hide a migration error. Back up the data and investigate the failed migration.
+Keep the volumes and backup intact. Do not reset or delete them.
 
 ### App is unhealthy
-
-Run:
 
 ```bash
 docker compose logs --tail=100 app
 curl http://localhost:3000/api/health
 ```
 
-A `degraded` health response lists configuration errors without returning secret values. Check auth/provider variables and storage settings.
+`degraded` is intentionally status-only. Inspect container logs and validate `.env`; the endpoint will not return diagnostic configuration or secrets.
 
-### Sign-in fails
+### Local sign-in or setup fails
 
-Confirm `NEXTAUTH_URL`, the OAuth callback URL, provider ID/secret, and HTTPS scheme all match. Docker defaults to NextAuth; dev auth is intentionally disabled in production mode.
+Confirm `PLANGLADE_LOCAL_AUTH_ENABLED="true"`, `NEXTAUTH_URL`, and `NEXTAUTH_SECRET`. Initial setup also needs the exact `PLANGLADE_SETUP_TOKEN` and an empty setup state. After setup completes, use `/login`; setup cannot create a second OWNER.
+
+### OAuth sign-in fails
+
+If optional OAuth is enabled, confirm its provider ID/secret, `NEXTAUTH_URL`, callback URL, and HTTPS scheme all match.
+
+### Recovery link fails
+
+Host links expire after 15 minutes and work once. Create a new link for the existing OWNER. Do not move the fragment secret into a query string.
+
+### Backup is refused
+
+Keep the app stopped. Use a new absent output directory. Confirm the standard local storage provider and exact data paths are active. Preserve any `.planglade-restore-*` or `.planglade-rollback-*` artifact for investigation.
 
 ### Attachment actions fail
 
-With the default local storage provider, confirm the `planglade_attachments` volume is healthy and writable, and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is set and stable across restarts. Changing the signing secret invalidates any in-flight signed URLs but does not delete files.
+Confirm the attachment volume is writable and `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is stable. Rotating the signing secret invalidates in-flight signed URLs but does not delete files.
 
 ## Local Development Without Docker
 
-The existing developer path remains supported:
+Local development requires Node.js 22.5 or newer and npm:
 
 ```bash
 npm install
@@ -192,7 +216,7 @@ npm run db:push
 npm run dev
 ```
 
-Use these local-only values:
+Use the documented local paths:
 
 ```env
 DATABASE_URL="file:../db/custom.db"
@@ -203,24 +227,20 @@ PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
 PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
 ```
 
-Open `http://localhost:3000`.
+Dev auth is for local development only, never public exposure.
 
 ## Public Exposure Checklist
 
-Before public exposure:
-
-- Replace every placeholder and use strong unique secrets.
-- Use a real NextAuth OAuth provider; never use dev auth.
+- Replace every placeholder with strong unique values and remove the setup token after first use.
 - Put an HTTPS reverse proxy in front of the app.
-- Restrict firewall access and keep Docker/SQLite volumes off shared or untrusted storage.
-- Back up SQLite and local attachment volumes off-machine.
-- Test a full restore.
-- Add logging, monitoring, rate limiting, update procedures, and an incident plan.
+- Restrict firewall access and protect Docker/SQLite volumes from untrusted users.
+- Keep encrypted off-machine backups and test a full restore.
+- Add logging, monitoring, update procedures, and an incident plan.
+- Keep Node, the container base image, PlanGlade, and dependencies patched.
 
 ## Known Limitations
 
 - Not production-ready or production-hardened.
-- SQLite is suitable for this early baseline, not a substitute for a reviewed multi-user database architecture.
-- No PostgreSQL support or migration runbook.
-- No bundled HTTPS, reverse proxy, automated backup, restore drill, monitoring, or alerting.
-- Docker uses NextAuth plus local file storage by default.
+- SQLite is the only tracked database provider.
+- No bundled HTTPS, reverse proxy, scheduled backup, restore drill, monitoring, or alerting.
+- Public standalone defaults to NextAuth, supported local credentials, and local file storage; OAuth is optional.
