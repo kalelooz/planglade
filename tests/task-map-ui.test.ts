@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises"
 import test from "node:test"
 
 test("Tasks exposes Map only outside demo and keeps it as a Tasks view", async () => {
-  const tasksSource = await readFile("src/app/app/tasks/page.tsx", "utf8")
+  const [tasksSource, paletteSource] = await Promise.all([
+    readFile("src/app/app/tasks/page.tsx", "utf8"),
+    readFile("src/components/lovable/command-palette.tsx", "utf8"),
+  ])
   const boardSource = await readFile("src/app/board/board-page-content.tsx", "utf8")
 
   assert.match(tasksSource, /viewParam === "map" && !isDemoMode/)
@@ -12,6 +15,8 @@ test("Tasks exposes Map only outside demo and keeps it as a Tasks view", async (
   assert.match(boardSource, /!isDemoMode/)
   assert.match(boardSource, /\/app\/tasks\?view=map/)
   assert.doesNotMatch(tasksSource, /\/demo\/tasks\?view=map/)
+  assert.match(paletteSource, /basePath === "\/app"/)
+  assert.match(paletteSource, /Open Tasks Map/)
 })
 
 test("Map UI exposes persistence, conflict, fallback, and read-only task truth states", async () => {

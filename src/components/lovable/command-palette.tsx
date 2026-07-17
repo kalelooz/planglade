@@ -13,6 +13,7 @@ import {
   Settings,
   LayoutGrid,
   Network,
+  Waypoints,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -45,6 +46,7 @@ const APP_COMMAND_ROUTES = {
   settings: "/app/settings",
   connections: "/app/connections",
   tasksBoard: "/app/tasks?view=board",
+  tasksMap: "/app/tasks?view=map",
 } as const;
 
 function commandValue(group: string, to: string, label: string, search: string) {
@@ -80,6 +82,15 @@ export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boo
 
     return [
       ...staticCommands,
+      ...(basePath === "/app" ? [
+        {
+          label: "Open Tasks Map",
+          to: APP_COMMAND_ROUTES.tasksMap,
+          icon: Waypoints,
+          group: "Tasks",
+          search: "map task layout relationships dependencies",
+        },
+      ] : []),
       ...projects.map((project) => ({
         label: project.name,
         to: `${basePath}/projects/${encodeURIComponent(project.id)}`,
