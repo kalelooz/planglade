@@ -110,7 +110,7 @@ export function toUiWorkItem(item: ApiWorkItem, _currentUserId: string | null): 
     label: item.labels[0]?.label.name ?? "Task",
     start: dateOnly(item.startDate),
     due: dateOnly(item.dueDate),
-    project: item.projectId ?? "general",
+    project: item.projectId ?? "",
     parentId: item.parentId ?? undefined,
     description: item.description ?? undefined,
     noteIds,

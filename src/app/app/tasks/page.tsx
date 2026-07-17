@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronRight, ChevronDown, Plus, Search, LayoutGrid, List } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Search, LayoutGrid, List, Waypoints } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
 import { ProjectViewTitle, Toolbar } from "@/components/lovable/page";
 import { StatusIcon } from "@/components/lovable/icons";
@@ -24,6 +25,11 @@ import {
 import { applyWorkItemDependencyRelations, type WorkItemDependencyRelation } from "@/lib/work-item-dependencies";
 import { getDemoFixtures } from "@/lib/demo-data";
 import { blockReadOnlyMutation, handleDemoReadOnlyResponse } from "@/lib/demo-readonly";
+
+const TaskMap = dynamic(
+  () => import("@/components/tasks/task-map").then((module) => module.TaskMap),
+  { ssr: false },
+);
 
 const order: Status[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const sortOptions = ["Due", "Priority", "Created"] as const;
@@ -118,6 +124,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
   const scopedProjectId = projectFilter ?? activeProjectSetting;
   const boardHref = scopedProjectId ? `${basePath}/tasks?view=board&project=${encodeURIComponent(scopedProjectId)}` : `${basePath}/tasks?view=board`;
   const listHref = scopedProjectId ? `${basePath}/tasks?project=${encodeURIComponent(scopedProjectId)}` : `${basePath}/tasks`;
+  const mapHref = scopedProjectId ? `/app/tasks?view=map&project=${encodeURIComponent(scopedProjectId)}` : "/app/tasks?view=map";
   const selectedId = taskFilter ?? manualSelectedId;
 
   useEffect(() => {
@@ -296,6 +303,28 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
     return <BoardPageContent />;
   }
 
+  if (viewParam === "map" && !isDemoMode) {
+    if (!workspaceId) {
+      return (
+        <AppShell title={<ProjectViewTitle view="Map" />}>
+          <div className="flex h-full items-center justify-center text-[12px] text-muted-foreground">
+            Loading Map…
+          </div>
+        </AppShell>
+      );
+    }
+    return (
+      <TaskMap
+        workspaceId={workspaceId}
+        projects={projects}
+        workItems={workItems}
+        projectId={projectFilter}
+        loading={loading}
+        error={error}
+      />
+    );
+  }
+
   return (
     <AppShell
       title={<ProjectViewTitle projectName={project?.name} view="Tasks" />}
@@ -313,6 +342,12 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
               <LayoutGrid className="h-3.5 w-3.5" />
               <span>Board</span>
             </Link>
+            {!isDemoMode ? (
+              <Link href={mapHref} className="lov-segment">
+                <Waypoints className="h-3.5 w-3.5" />
+                <span>Map</span>
+              </Link>
+            ) : null}
           </div>
           {activeFilter !== "all" && (
             <Link href={listHref} className="h-7 rounded px-2 py-1 text-[12px] text-muted-foreground hover:bg-[var(--color-hover)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1">
