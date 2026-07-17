@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { parseDateValue, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+    const throttle = await consumeWorkspaceThrottle("import", actorUserId, workspaceId)
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const summary = await db.$transaction(async (tx) => {
       if (mode === "replace") {

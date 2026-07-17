@@ -4,3 +4,4 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  PLANGLADE_NETLIFY_DEMO_READ_ONLY = "true"
