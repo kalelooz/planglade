@@ -47,10 +47,38 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
   const [signInError, setSignInError] = React.useState<string | null>(null)
   const [inviteNotice, setInviteNotice] = React.useState<string | null>(null)
   const [inviteAccepting, setInviteAccepting] = React.useState(false)
+  const [setupAvailable, setSetupAvailable] = React.useState(false)
   const nextPath = searchParams.get("next") || "/app"
   const inviteToken = searchParams.get("inviteToken")
   const autoAccept = searchParams.get("autoAccept") === "1"
   const usesDevSession = authMode === "dev"
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    void fetch("/api/auth/setup", { cache: "no-store", credentials: "same-origin" })
+      .then(async (response) => {
+        if (!response.ok) return null
+        return (await response.json()) as { status?: unknown }
+      })
+      .then((payload) => {
+        if (!cancelled) {
+          setSetupAvailable(
+            payload !== null &&
+            typeof payload === "object" &&
+            Object.keys(payload).length === 1 &&
+            payload.status === "available"
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSetupAvailable(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const toFriendlySignInError = (error: unknown) => {
     const code =
@@ -242,6 +270,14 @@ export function LoginPage({ googleSignInAvailable }: { googleSignInAvailable: bo
                       ? "Local development uses the existing dev workspace session. No email or password login is enabled here."
                       : "Ask the workspace owner to configure Google sign-in before continuing."}
                 </p>
+                {setupAvailable && (
+                  <Link
+                    href="/setup"
+                    className="mt-3 inline-flex text-xs font-medium text-zinc-600 underline underline-offset-4 outline-none hover:text-zinc-950 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
+                  >
+                    Set up this self-hosted installation
+                  </Link>
+                )}
               </div>
             </div>
 

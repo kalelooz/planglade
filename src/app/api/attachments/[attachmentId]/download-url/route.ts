@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { badRequest, forbidden, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
@@ -45,6 +46,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       "MEMBER"
     )
     if (!access.ok) return access.response
+    const throttle = await consumeWorkspaceThrottle(
+      "attachment-download-url",
+      access.actor.userId,
+      query.data.workspaceId,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const attachment = await db.attachment.findUnique({
       where: { id: attachmentId },

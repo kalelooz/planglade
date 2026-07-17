@@ -26,46 +26,11 @@ export async function GET() {
     const isReady = isAuthReady && isStorageReady && isDatabaseReady
 
     return NextResponse.json(
-      {
-        status: isReady ? "ok" : "degraded",
-        service: "flowboard-api",
-        time: new Date().toISOString(),
-        checks: {
-          auth: {
-            ready: isAuthReady,
-            mode: authConfig.mode,
-            publicMode: authConfig.publicMode,
-            providersConfigured: authProvidersConfigured,
-            providers: providerCapabilities,
-            errors:
-              authConfig.mode === "nextauth" && !authProvidersConfigured
-                ? [
-                    ...authConfig.errors,
-                    "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider.",
-                  ]
-                : authConfig.errors,
-          },
-          storage: {
-            ready: isStorageReady,
-            provider: storageConfig.provider,
-            errors: storageConfig.errors,
-          },
-          database: {
-            ready: isDatabaseReady,
-          },
-        },
-      },
+      { status: isReady ? "ok" : "degraded" },
       { status: isReady ? 200 : 503 }
     )
   } catch (error) {
     console.error("Health check failed", error)
-    return NextResponse.json(
-      {
-        status: "error",
-        service: "flowboard-api",
-        time: new Date().toISOString(),
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({ status: "error" }, { status: 500 })
   }
 }

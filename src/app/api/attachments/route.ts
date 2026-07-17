@@ -10,6 +10,7 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import {
   MAX_ATTACHMENT_BYTES,
@@ -186,6 +187,12 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+    const throttle = await consumeWorkspaceThrottle(
+      "attachment-finalize",
+      actorUserId,
+      parsed.data.workspaceId,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const target = await validateAttachmentTarget(
       parsed.data.workspaceId,
