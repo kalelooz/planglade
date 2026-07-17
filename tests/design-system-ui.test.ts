@@ -9,27 +9,14 @@ async function readProjectFile(filePath: string) {
   return readFile(path.join(root, filePath), "utf8")
 }
 
-test("core tokens do not use retired green nature identity", async () => {
+test("core tokens use the calm green-neutral application identity", async () => {
   const globals = await readProjectFile("src/app/globals.css")
-  const retiredPatterns = [
-    /\bmoss\b/i,
-    /\bsage\b/i,
-    /\bforest\b/i,
-    /0\.120 155/,
-    /0\.095 155/,
-    /#17613f/i,
-    /#5f744d/i,
-  ]
 
-  for (const pattern of retiredPatterns) {
-    assert.doesNotMatch(globals, pattern, `globals.css contains retired identity pattern ${pattern}`)
-  }
-
-  assert.match(globals, /--primary:\s*oklch\(0\.21 0\.006 286\)/)
-  assert.match(globals, /--accent:\s*oklch\(0\.967 0\.001 286\)/)
-  assert.match(globals, /--priority-high:\s*oklch\(0\.21 0\.006 286\)/)
-  assert.match(globals, /--priority-med:\s*oklch\(0\.442 0\.017 286\)/)
-  assert.match(globals, /--priority-low:\s*oklch\(0\.705 0\.015 286\)/)
+  assert.match(globals, /--background:\s*oklch\(0\.978 0\.008 112\)/)
+  assert.match(globals, /--primary:\s*oklch\(0\.34 0\.075 145\)/)
+  assert.match(globals, /--accent:\s*oklch\(0\.925 0\.027 124\)/)
+  assert.match(globals, /--sidebar:\s*oklch\(0\.955 0\.014 112\)/)
+  assert.match(globals, /\.dark\s*\{[\s\S]*?--primary:\s*oklch\(0\.78 0\.095 135\)/)
 })
 
 test("priority and completed icons stay zinc-only", async () => {

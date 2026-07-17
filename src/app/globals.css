@@ -666,6 +666,114 @@ html[data-density="comfortable"] {
   }
 }
 
+/* Authenticated PlanGlade: a compact, calm desk for daily planning. */
+.self-hosted-shell {
+  background:
+    radial-gradient(circle at top right, color-mix(in oklch, var(--color-primary) 6%, transparent), transparent 30rem),
+    var(--color-background);
+}
+.self-hosted-shell .self-hosted-sidebar {
+  background: color-mix(in oklch, var(--color-sidebar) 92%, var(--color-surface));
+  border-color: color-mix(in oklch, var(--color-primary) 13%, var(--color-border));
+}
+.self-hosted-shell .self-hosted-sidebar > :first-child {
+  min-height: 3.5rem;
+}
+.self-hosted-shell .self-hosted-header {
+  min-height: 3.5rem;
+  background: color-mix(in oklch, var(--color-background) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border-color: color-mix(in oklch, var(--color-primary) 10%, var(--color-border));
+}
+.self-hosted-shell .lov-nav-item {
+  min-height: 2.125rem;
+  border-radius: 0.5rem;
+}
+.self-hosted-shell .lov-nav-item-active {
+  border-color: transparent;
+  background: color-mix(in oklch, var(--color-primary) 13%, var(--color-card));
+  box-shadow: inset 2px 0 0 var(--color-primary);
+}
+.self-hosted-shell .lov-nav-item-active:hover {
+  border-color: transparent;
+}
+.self-hosted-shell .app-workspace-canvas {
+  border-color: color-mix(in oklch, var(--color-primary) 11%, var(--color-border));
+  background: color-mix(in oklch, var(--color-surface) 94%, var(--color-card));
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--color-foreground) 3%, transparent), 0 12px 32px color-mix(in oklch, var(--color-foreground) 3%, transparent);
+}
+.self-hosted-shell .flow-header,
+.self-hosted-shell .flow-action-bar {
+  background: color-mix(in oklch, var(--color-surface) 88%, var(--color-card));
+}
+.self-hosted-shell .flow-row {
+  border-radius: 0.625rem;
+  border-color: color-mix(in oklch, var(--color-primary) 9%, var(--color-border));
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--color-foreground) 3%, transparent);
+}
+.self-hosted-shell .flow-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px color-mix(in oklch, var(--color-foreground) 5%, transparent);
+}
+.self-hosted-shell .flow-row-flat {
+  border-radius: 0;
+  transform: none;
+  box-shadow: none;
+}
+.self-hosted-shell .flow-row-flat:hover {
+  transform: none;
+}
+.self-hosted-shell .flow-empty {
+  border-style: dashed;
+  background: color-mix(in oklch, var(--color-card) 70%, transparent);
+}
+.self-hosted-shell .app-section-header {
+  min-height: 2.5rem;
+  padding-inline: 0;
+}
+.self-hosted-shell .app-group-header {
+  background: color-mix(in oklch, var(--color-primary) 4%, var(--color-surface));
+}
+.self-hosted-shell .lov-btn,
+.self-hosted-shell .lov-input,
+.self-hosted-shell select,
+.self-hosted-shell input:not([type="checkbox"]):not([type="radio"]),
+.self-hosted-shell textarea {
+  border-color: color-mix(in oklch, var(--color-primary) 12%, var(--color-border));
+}
+.self-hosted-shell .lov-btn-primary {
+  background: var(--color-primary);
+}
+.self-hosted-shell .lov-btn-primary:hover {
+  background: color-mix(in oklch, var(--color-primary) 88%, black);
+}
+.self-hosted-shell .drawer-inline {
+  background: color-mix(in oklch, var(--color-card) 96%, var(--color-surface));
+  box-shadow: -12px 0 28px color-mix(in oklch, var(--color-foreground) 8%, transparent);
+}
+.self-hosted-shell .command-palette {
+  border-color: color-mix(in oklch, var(--color-primary) 18%, var(--color-border));
+  box-shadow: 0 24px 60px color-mix(in oklch, var(--color-foreground) 20%, transparent);
+}
+.self-hosted-shell .self-hosted-mobile-nav {
+  box-shadow: 18px 0 48px color-mix(in oklch, var(--color-foreground) 16%, transparent);
+}
+.dark .self-hosted-shell .app-workspace-canvas,
+.dark .self-hosted-shell .flow-header,
+.dark .self-hosted-shell .flow-action-bar {
+  box-shadow: none;
+}
+@media (max-width: 767px) {
+  .self-hosted-shell .self-hosted-header {
+    min-height: 3.75rem;
+  }
+  .self-hosted-shell .app-workspace-canvas {
+    border-inline: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -793,4 +901,145 @@ html[data-density="comfortable"] {
 
 .dark .self-host-aside {
   background: oklch(0.16 0.03 145);
+}
+
+/* Kimi-authenticated workspace composition. Route hooks live on the real shell,
+   so public landing and demo rendering keep their existing presentation. */
+.self-hosted-shell .authenticated-page {
+  background: color-mix(in oklch, var(--color-background) 96%, var(--color-primary));
+}
+.self-hosted-shell .authenticated-page-inner {
+  animation: app-surface-in 160ms ease-out;
+}
+.self-hosted-shell .self-hosted-sidebar nav::before {
+  display: block;
+  margin: 0 0.5rem 0.45rem;
+  color: var(--color-muted-foreground);
+  content: "Workspace";
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.self-hosted-shell .self-hosted-sidebar[data-collapsed="true"] nav::before {
+  display: none;
+}
+.self-hosted-shell .self-hosted-header {
+  padding-inline: 1.25rem;
+}
+.self-hosted-shell .self-hosted-header > * {
+  min-width: 0;
+}
+.self-hosted-shell .self-hosted-header > button,
+.self-hosted-shell .self-hosted-header > [title] {
+  flex-shrink: 0;
+}
+.self-hosted-shell .kimi-home .app-workspace-canvas,
+.self-hosted-shell .kimi-projects > div > div,
+.self-hosted-shell .kimi-project-detail > div > div {
+  border: 1px solid color-mix(in oklch, var(--color-primary) 11%, var(--color-border));
+  border-radius: 0.875rem;
+  background: color-mix(in oklch, var(--color-card) 97%, var(--color-primary));
+}
+.self-hosted-shell .kimi-inbox > div > div,
+.self-hosted-shell .kimi-tasks > div > div {
+  padding-top: 2rem;
+}
+.self-hosted-shell .kimi-notes > aside,
+.self-hosted-shell .kimi-settings > aside {
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--color-foreground) 4%, transparent);
+}
+.self-hosted-shell .kimi-notes > section,
+.self-hosted-shell .kimi-notes > main,
+.self-hosted-shell .kimi-notes > div:last-child {
+  margin: 1rem;
+  min-width: 0;
+  width: 0;
+  flex: 1 1 0%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  background: var(--color-card);
+}
+.self-hosted-shell .kimi-notes .note-tiptap,
+.self-hosted-shell .kimi-notes .note-editor-content,
+.self-hosted-shell .kimi-notes .tiptap {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.self-hosted-shell .kimi-board {
+  padding: 1rem;
+  background: color-mix(in oklch, var(--color-background) 94%, var(--color-primary));
+}
+.self-hosted-shell .kimi-board [data-board-column] {
+  border-radius: 0.75rem;
+}
+.self-hosted-shell .kimi-calendar,
+.self-hosted-shell .kimi-connections {
+  margin: 1rem;
+  width: calc(100% - 2rem);
+  height: calc(100% - 2rem);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  background: var(--color-card);
+}
+.self-hosted-shell .kimi-settings > main,
+.self-hosted-shell .kimi-settings > section,
+.self-hosted-shell .kimi-settings > div:last-child {
+  margin: 1rem;
+}
+.self-hosted-shell .drawer-inline {
+  border-top-left-radius: 1rem;
+  border-bottom-left-radius: 1rem;
+}
+.self-hosted-shell .task-drawer-header {
+  background: color-mix(in oklch, var(--color-card) 94%, var(--color-primary));
+}
+.self-hosted-shell .task-drawer-properties dt {
+  align-self: center;
+  font-weight: 600;
+}
+.self-hosted-shell .command-palette [cmdk-group-heading] {
+  padding-top: 0.75rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+@keyframes app-surface-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 767px) {
+  .self-hosted-shell .self-hosted-header { padding-inline: 0.5rem; }
+  .self-hosted-shell .flow-action-bar {
+    flex-wrap: nowrap;
+    max-width: 100vw;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-inline: 0.75rem;
+    scrollbar-width: none;
+  }
+  .self-hosted-shell .flow-action-bar::-webkit-scrollbar { display: none; }
+  .self-hosted-shell .flow-action-bar > * { flex: 0 0 auto; min-width: 0; }
+  .self-hosted-shell .flow-action-bar select { max-width: 8.5rem; }
+  .self-hosted-shell .kimi-board { padding: 0.75rem; }
+  .self-hosted-shell .kimi-calendar,
+  .self-hosted-shell .kimi-connections { margin: 0; width: 100%; height: 100%; border: 0; border-radius: 0; }
+  .self-hosted-shell .kimi-notes > section,
+  .self-hosted-shell .kimi-notes > main,
+  .self-hosted-shell .kimi-notes > div:last-child { margin: 0; width: 100%; border-inline: 0; border-radius: 0; }
+  .self-hosted-shell [data-task-map-mobile-fallback] {
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 1rem 0.75rem;
+  }
+  .self-hosted-shell [data-task-map-mobile-fallback] > div { min-width: 0; max-width: 100%; }
+  .self-hosted-shell [data-task-map-mobile-fallback] p { overflow-wrap: anywhere; }
+  .self-hosted-shell .drawer-inline { border-radius: 1rem 1rem 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .self-hosted-shell .authenticated-page-inner { animation: none; }
 }

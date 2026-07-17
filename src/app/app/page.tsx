@@ -384,9 +384,9 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
 
   return (
     <AppShell title={<span className="font-medium">Home</span>}>
-      <div className="flex h-full">
+      <div className="kimi-home flex h-full">
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl py-4 sm:px-4 sm:py-5 lg:px-6">
+          <div className="mx-auto w-full max-w-7xl py-4 sm:px-5 sm:py-6 lg:px-8">
             <div className="app-workspace-canvas space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
               {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10.5px] text-red-700">{error}</div>}
 

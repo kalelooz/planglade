@@ -513,7 +513,7 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
     };
     return (
       <AppShell title={<TitleCrumbs items={["Projects", selectedProject.name, sectionLabel]} />}>
-        <div className="flex h-full min-h-0">
+        <div className="kimi-project-detail flex h-full min-h-0">
           <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
             <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6">
             {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
@@ -865,7 +865,7 @@ function ProjectsInner({ projectId, basePath = "/app" }: { projectId?: string; b
 
   return (
     <AppShell title={<span className="font-medium">Projects</span>}>
-      <div className="h-full overflow-y-scroll [scrollbar-gutter:stable]">
+      <div className="kimi-projects h-full overflow-y-scroll [scrollbar-gutter:stable]">
         <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-8">
           {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
           {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading projects...</div>}

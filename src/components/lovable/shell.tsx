@@ -399,7 +399,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
   const shouldShowSignOut = (sessionIdentity?.authMode ?? clientAuthMode) !== "dev-session-scaffold" && clientAuthMode !== "dev";
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
+    <div className={`app-shell flex h-dvh w-full overflow-hidden bg-background text-foreground ${isDemoMode ? "" : "self-hosted-shell"}`} data-app-route={path}>
       <a
         href="#app-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[120] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow"
@@ -409,7 +409,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       <aside
         suppressHydrationWarning
         data-collapsed={!sidebarOpen}
-        className={`hidden shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-60" : "w-12"}`}
+        className={`self-hosted-sidebar hidden shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-[228px]" : "w-14"}`}
       >
         <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
           {sidebarOpen ? (
@@ -477,7 +477,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           />
         </div>
 
-        <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-2" : "px-1"}`}>
+        <nav aria-label="Workspace navigation" className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-3" : "px-1.5"}`}>
           {sidebarOpen ? (
             <>
               <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} />
@@ -515,7 +515,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
+        <header className="self-hosted-header relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
           <button ref={mobileNavTriggerRef} onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -733,13 +733,15 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
         {toolbar}
 
-        <main id="app-main" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
+        <main id="app-main" className="authenticated-page min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="authenticated-page-inner h-full min-h-0">{children}</div>
+        </main>
       </div>
 
       {mobileNavOpen && (
         <div className="fixed inset-0 z-[90] md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="absolute inset-0 bg-foreground/20" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl" data-mobile-navigation-drawer="true">
+          <div className="self-hosted-mobile-nav absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col border-r bg-sidebar shadow-xl" data-mobile-navigation-drawer="true">
             <div className="flex h-12 items-center justify-between border-b px-3">
               <Link href={routePrefix} onClick={() => setMobileNavOpen(false)} className="flex min-w-0 items-center gap-2">
                 <PlanGladeMark />

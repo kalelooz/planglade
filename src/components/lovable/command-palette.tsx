@@ -138,7 +138,7 @@ export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boo
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
-          className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/20 pt-[15vh]"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/25 px-4 pt-[12vh] backdrop-blur-[2px]"
           onClick={onClose}
           onKeyDown={(event) => {
             if (event.key === "Escape") onClose();
@@ -149,11 +149,11 @@ export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boo
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -8 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="w-[560px] max-w-[92vw] overflow-hidden rounded-md border bg-popover shadow-2xl"
+            className="command-palette w-[620px] max-w-full overflow-hidden rounded-2xl border bg-popover shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <Command loop className="rounded-none">
-              <CommandInput autoFocus placeholder="Type a command or search." className="text-sm" />
+              <CommandInput autoFocus placeholder="Search pages, projects, and actions…" className="h-14 text-sm" />
               <CommandList className="max-h-80 scroll-py-2 overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
                 <CommandEmpty className="px-3 py-6 text-center text-xs text-muted-foreground">No results</CommandEmpty>
                 {Object.entries(groups).map(([group, items]) => (

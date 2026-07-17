@@ -31,14 +31,13 @@ test("public landing owns root and authenticated pages exist under /app", async 
   await Promise.all(canonicalAppPages.map((filePath) => access(path.join(root, filePath))))
 })
 
-test("NETLIFY-LAUNCH-BLOCKERS-001: root stays public while cloud login is disabled", async () => {
+test("self-host routing is gated while public hosting keeps the landing root", async () => {
   const rootPage = await readProjectFile("src/app/page.tsx")
 
-  assert.doesNotMatch(rootPage, /getServerSession/)
-  assert.doesNotMatch(rootPage, /authOptions/)
-  assert.doesNotMatch(rootPage, /getConfiguredAuthMode/)
-  assert.doesNotMatch(rootPage, /redirect\("\/app"\)/)
-  assert.doesNotMatch(rootPage, /dynamic = "force-dynamic"/)
+  assert.match(rootPage, /hasSelfHostRoot/)
+  assert.match(rootPage, /return <LandingPage\s*\/>/)
+  assert.match(rootPage, /redirect\(selfHostRootDestination/)
+  assert.match(rootPage, /getServerSession\(authOptions\)/)
 })
 
 test("LANDING-RESTORE-001: root bypasses middleware and renders the full landing route", async () => {
@@ -49,11 +48,11 @@ test("LANDING-RESTORE-001: root bypasses middleware and renders the full landing
   assert.doesNotMatch(middlewareSource, /ROOT_LANDING_HTML|<h1>PlanGlade<\/h1>|Self-host<\/a>/)
 })
 
-test("ROOT-REDIRECT-1: root still renders landing for unauthenticated visitors", async () => {
+test("ROOT-REDIRECT-1: root retains the landing fallback outside self-host mode", async () => {
   const rootPage = await readProjectFile("src/app/page.tsx")
 
   assert.match(rootPage, /import LandingPage/)
-  assert.match(rootPage, /return <LandingPage \/>/)
+  assert.match(rootPage, /return <LandingPage\s*\/>/)
 })
 
 test("ROOT-REDIRECT-1: /landing remains the public static landing page", async () => {

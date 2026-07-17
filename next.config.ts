@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: false,
+  allowedDevOrigins: process.env.NODE_ENV === "development" ? ["127.0.0.1"] : undefined,
   env: {
     PLANGLADE_BUILD_DEMO_READ_ONLY:
       process.env.PLANGLADE_NETLIFY_DEMO_READ_ONLY?.trim().toLowerCase() === "true"

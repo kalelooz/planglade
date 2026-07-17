@@ -675,8 +675,8 @@ export default function SettingsPage() {
 
   return (
     <AppShell title={<span className="font-medium">Settings</span>}>
-      <div className="flex h-full min-w-0 flex-col overflow-y-auto md:flex-row">
-        <aside className="shrink-0 border-b bg-sidebar/40 p-3 md:w-56 md:border-r md:border-b-0">
+      <div className="kimi-settings flex h-full min-w-0 flex-col overflow-y-auto md:flex-row">
+        <aside className="shrink-0 border-b bg-sidebar/40 p-4 md:m-4 md:mr-0 md:w-60 md:rounded-xl md:border md:border-b">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace</div>
           <div className="flex gap-1 overflow-x-auto md:block md:space-y-1 md:overflow-visible">
             {sections.map((x) => (

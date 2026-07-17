@@ -820,7 +820,7 @@ function GraphPageContent() {
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0 flex-col overflow-x-hidden">
+      <div className="kimi-connections flex h-full min-h-0 flex-col overflow-x-hidden">
         <header className="shrink-0 border-b bg-background px-4 py-4">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Workspace graph</div>
           <div className="mt-1 flex flex-wrap items-end justify-between gap-3">

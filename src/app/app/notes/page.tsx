@@ -392,8 +392,8 @@ function NotesInner() {
 
   return (
     <AppShell title={<span className="font-medium">Notes</span>}>
-      <div className="flex h-full flex-col bg-background md:flex-row">
-        <aside className="m-0 flex max-h-[40vh] w-full shrink-0 flex-col rounded-none border-b bg-card md:ml-4 md:mb-4 md:mt-4 md:max-h-none md:w-72 md:rounded-md md:border md:border-b-0">
+      <div className="kimi-notes flex h-full flex-col bg-background md:flex-row">
+        <aside className="m-0 flex max-h-[40vh] w-full shrink-0 flex-col rounded-none border-b bg-card md:m-4 md:mr-0 md:max-h-none md:w-80 md:rounded-xl md:border md:border-b">
           <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2">
             <Search className="h-3 w-3 text-muted-foreground" />
             <input

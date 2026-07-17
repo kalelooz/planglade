@@ -10,6 +10,7 @@ import { ProjectViewTitle, Toolbar } from "@/components/lovable/page";
 import { StatusIcon } from "@/components/lovable/icons";
 import { WorkItemRow } from "@/components/lovable/work-item-row";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
+import { Button } from "@/components/ui/button";
 import { BoardPageContent } from "@/app/board/board-page-content";
 import { useStore } from "@/lib/store";
 import { getDatePart, isSameLocalDate, parseLocalDate } from "@/lib/dates";
@@ -307,8 +308,17 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
     if (!workspaceId) {
       return (
         <AppShell title={<ProjectViewTitle view="Map" />}>
-          <div className="flex h-full items-center justify-center text-[12px] text-muted-foreground">
-            Loading Map…
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="flow-empty max-w-md rounded-xl border border-dashed bg-card px-6 py-8 text-center">
+              <Waypoints className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-3 text-[13px] font-semibold text-foreground">
+                {error ? "Map could not be opened" : "Loading Map"}
+              </p>
+              <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+                {error ?? "Loading your workspace and saved layout."}
+              </p>
+              {error ? <Button className="mt-4" size="sm" variant="outline" onClick={() => window.location.reload()}>Try again</Button> : null}
+            </div>
           </div>
         </AppShell>
       );
@@ -377,7 +387,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0">
+      <div className="kimi-tasks flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
           <div className="mx-auto w-full max-w-6xl overflow-x-hidden py-4 sm:px-4 sm:py-6">
             <div className="app-workspace-canvas overflow-hidden px-4 py-5 sm:px-6 sm:py-6">

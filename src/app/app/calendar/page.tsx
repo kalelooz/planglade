@@ -923,7 +923,7 @@ function CalendarPageContent({ basePath }: { basePath: "/app" | "/demo" }) {
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0 w-full">
+      <div className="kimi-calendar flex h-full min-h-0 w-full">
         {error && <div className="absolute left-6 right-6 top-3 z-40 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div>}
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
           {loading && <div className="px-4 py-2 text-[12px] text-muted-foreground">Loading calendar data...</div>}

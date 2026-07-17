@@ -342,9 +342,9 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0">
+      <div className="kimi-inbox flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-5xl px-4 py-6 xl:px-6">
+          <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
             {error && <div className="mb-3 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading inbox data...</div>}
             <div className="mb-5 px-1">

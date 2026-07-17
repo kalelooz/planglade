@@ -672,7 +672,7 @@ export function TaskMap({
         </Toolbar>
       }
     >
-      <div className="relative h-full min-h-0 bg-background" data-task-map>
+      <div className="relative h-full min-h-0 w-full min-w-0 overflow-hidden bg-background" data-task-map>
         {!canvasSupported ? (
           <MobileMapFallback
             items={model.items}
@@ -721,7 +721,7 @@ export function TaskMap({
             onlyRenderVisibleElements={model.totalMatching > TASK_MAP_VISIBLE_TARGET}
             colorMode={resolvedTheme === "dark" ? "dark" : "light"}
             ariaLabelConfig={ariaLabelConfig}
-            className="bg-background"
+            className="h-full w-full bg-background"
           >
             <Background gap={24} size={1} color="var(--border)" />
             <Controls showInteractive={false} position="bottom-left" />

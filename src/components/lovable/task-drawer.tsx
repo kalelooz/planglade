@@ -744,7 +744,7 @@ function DrawerContent({
           presentation === "board" && "drawer-board",
         )}
       >
-      <div className="flex h-10 items-center justify-between border-b px-4">
+      <div className="task-drawer-header flex h-14 items-center justify-between border-b px-5">
         <div className="flex items-center gap-3 text-[12px]">
           <span className="font-medium text-muted-foreground">Task</span>
           <StatusSelect readOnly={readOnly} value={item.status} onChange={(s) => { void onStatusChange(s); }} />
@@ -752,7 +752,7 @@ function DrawerContent({
         <button ref={closeRef} type="button" onClick={onClose} title="Close" aria-label="Close task drawer" className="lov-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="task-drawer-body flex-1 overflow-y-auto px-5 py-5">
         {readOnly && <p role="status" className="mb-3 rounded border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">Demo mode - changes are disabled.</p>}
         <input
           readOnly={readOnly}
@@ -761,7 +761,7 @@ function DrawerContent({
           onChange={(e) => setTitleDraft(e.target.value)}
           onBlur={() => { void onTitleCommit(); }}
           placeholder="Task title"
-          className="mb-2 w-full rounded bg-transparent text-[16px] font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
+          className="mb-3 w-full rounded bg-transparent text-[20px] font-semibold leading-7 tracking-[-0.02em] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
         {item.parentId && !parentTask && (
           <div className="mb-2 inline-flex rounded border bg-muted/45 px-2 py-1 text-[11px] text-muted-foreground">
@@ -793,7 +793,7 @@ function DrawerContent({
           className="mb-2 min-h-14 w-full resize-y rounded-md border border-border bg-sidebar/60 px-2 py-1.5 text-[12px] leading-relaxed text-foreground/90 outline-none transition placeholder:text-muted-foreground/75 hover:border-foreground/25 hover:bg-card focus:bg-background focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
         />
 
-        <dl className="mt-4 grid grid-cols-[72px_1fr] gap-y-2 text-[12px]">
+        <dl className="task-drawer-properties mt-5 grid grid-cols-[88px_1fr] gap-y-3 rounded-xl border bg-muted/20 p-4 text-[12px]">
           <dt className="pt-0.5 text-muted-foreground">Priority</dt>
           <dd>
             <PrioritySelect readOnly={readOnly} value={item.priority} onChange={(p) => { void onPriorityChange(p); }} />
