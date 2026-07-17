@@ -4,3 +4,7 @@ export function selfHostRootDestination(eligibility: Eligibility, authenticated:
   if (eligibility !== "complete") return "/setup"
   return authenticated ? "/app" : "/login"
 }
+
+export function hasSelfHostRoot(localAuthEnabled: string | undefined, setupToken: string | undefined) {
+  return localAuthEnabled === "true" || Boolean(setupToken)
+}
