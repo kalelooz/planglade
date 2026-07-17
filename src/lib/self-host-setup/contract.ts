@@ -120,3 +120,40 @@ export async function parseSetupCompletionRequest(request: Request): Promise<
 
   return { ok: true, data: { email, name, password: parsed.data.password, workspaceName } }
 }
+
+function validLocalPassword(value: unknown): value is string {
+  if (typeof value !== "string") return false
+  const length = [...value].length
+  return length >= 15 && length <= 128
+}
+
+export async function parseLocalCredentialEnrollmentRequest(
+  request: Request,
+): Promise<ParseResult<{ password: string }>> {
+  const parsed = await readJsonObject(request, 2048)
+  if (!parsed.ok) return parsed
+  if (
+    Object.keys(parsed.data).some((key) => key !== "password") ||
+    !validLocalPassword(parsed.data.password)
+  ) {
+    return { ok: false, error: invalidRequest() }
+  }
+  return { ok: true, data: { password: parsed.data.password } }
+}
+
+export async function parseLocalCredentialRecoveryRequest(
+  request: Request,
+): Promise<ParseResult<{ secret: string; password: string }>> {
+  const parsed = await readJsonObject(request, 4096)
+  if (!parsed.ok) return parsed
+  if (
+    Object.keys(parsed.data).some((key) => key !== "secret" && key !== "password") ||
+    typeof parsed.data.secret !== "string" ||
+    parsed.data.secret.length < 1 ||
+    parsed.data.secret.length > 128 ||
+    !validLocalPassword(parsed.data.password)
+  ) {
+    return { ok: false, error: invalidRequest() }
+  }
+  return { ok: true, data: { secret: parsed.data.secret, password: parsed.data.password } }
+}

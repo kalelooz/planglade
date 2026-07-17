@@ -33,6 +33,18 @@ export const SETUP_POLICY = {
   blockMs: 15 * 60 * 1000,
 } satisfies ThrottlePolicy
 
+export const RECOVERY_ACCOUNT_POLICY = {
+  limit: 5,
+  windowMs: 15 * 60 * 1000,
+  blockMs: 15 * 60 * 1000,
+} satisfies ThrottlePolicy
+
+export const RECOVERY_GLOBAL_POLICY = {
+  limit: 60,
+  windowMs: 60 * 1000,
+  blockMs: 30 * 1000,
+} satisfies ThrottlePolicy
+
 export const WORKSPACE_OPERATION_POLICIES = {
   "invite-create": { limit: 50, windowMs: 60 * 60 * 1000, blockMs: 60 * 60 * 1000 },
   "invite-test-send": { limit: 5, windowMs: 60 * 60 * 1000, blockMs: 60 * 60 * 1000 },
@@ -180,6 +192,33 @@ export function consumeSetupThrottle(
       scope: "SETUP",
       subject: operation === "claim" ? [operation] : [operation, claimant!],
       policy: SETUP_POLICY,
+      now,
+    },
+    client,
+  )
+}
+
+export async function consumeRecoveryThrottle(
+  operation: "enroll" | "reset",
+  subject: string,
+  client?: PrismaClient,
+  now?: Date,
+) {
+  const global = await consumeThrottle(
+    {
+      scope: "RECOVERY",
+      subject: [operation, "global"],
+      policy: RECOVERY_GLOBAL_POLICY,
+      now,
+    },
+    client,
+  )
+  if (!global.allowed) return global
+  return consumeThrottle(
+    {
+      scope: "RECOVERY",
+      subject: [operation, subject],
+      policy: RECOVERY_ACCOUNT_POLICY,
       now,
     },
     client,

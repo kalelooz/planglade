@@ -75,6 +75,7 @@ test("AUTH-ABUSE-CONTROLS-001: limiter persists allowance, blocking, expiry, iso
   const { PrismaClient } = await import("@prisma/client")
   const {
     consumeSetupThrottle,
+    consumeRecoveryThrottle,
     consumeLoginThrottle,
     consumeThrottle,
     deriveThrottleSubjectKey,
@@ -201,6 +202,20 @@ test("AUTH-ABUSE-CONTROLS-001: limiter persists allowance, blocking, expiry, iso
       await consumeLoginThrottle("person@example.com", secondClient, start),
       { allowed: false, retryAfterSeconds: 900 },
     )
+    for (const expected of Array(5).fill({ allowed: true })) {
+      assert.deepEqual(
+        await consumeRecoveryThrottle("reset", "opaque-recovery-subject", firstClient, start),
+        expected,
+      )
+    }
+    assert.deepEqual(
+      await consumeRecoveryThrottle("reset", "opaque-recovery-subject", secondClient, start),
+      { allowed: false, retryAfterSeconds: 900 },
+    )
+    assert.deepEqual(
+      await consumeRecoveryThrottle("reset", "isolated-recovery-subject", secondClient, start),
+      { allowed: true },
+    )
     const { postNextAuthRequest } = await import("../src/app/api/auth/[...nextauth]/route")
     let downstreamCalled = false
     const loginResponse = await postNextAuthRequest(
@@ -252,6 +267,7 @@ test("AUTH-ABUSE-CONTROLS-001: sensitive routes use trusted subjects without for
     "src/app/api/auth/[...nextauth]/route.ts",
     "src/app/api/auth/setup/claim/route.ts",
     "src/app/api/auth/setup/complete/route.ts",
+    "src/app/api/auth/recovery/route.ts",
     "src/app/api/workspace/invitations/route.ts",
     "src/app/api/workspace/invitations/test-send/route.ts",
     "src/app/api/workspace/import-preview/route.ts",
@@ -268,8 +284,8 @@ test("AUTH-ABUSE-CONTROLS-001: sensitive routes use trusted subjects without for
   assert.match(files[1], /callback\/credentials[\s\S]*throttleLogin[\s\S]*nextHandler\(request, context\)/)
   assert.match(files[2], /const throttle = await consumeSetupThrottle\("claim"\)[\s\S]*authorizeSetupToken/)
   assert.match(files[3], /const throttle = await consumeSetupThrottle\("complete", claimant\)[\s\S]*const result = await complete/)
-  for (const source of files.slice(4, 13)) {
+  assert.match(files[4], /consumeRecoveryThrottle/)
+  for (const source of files.slice(5, 14)) {
     assert.match(source, /consume(?:Workspace|SignedUpload)Throttle/)
   }
-  await assert.rejects(readdir("src/app/api/auth/recovery"), /ENOENT/)
 })
