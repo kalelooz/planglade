@@ -5,7 +5,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText,
   Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, Bell, ListTodo,
-  LogOut, Network, Building2,
+  LogOut, Network, Building2, Sprout,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -409,118 +409,35 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       <aside
         suppressHydrationWarning
         data-collapsed={!sidebarOpen}
-        className={`self-hosted-sidebar hidden shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-[228px]" : "w-14"}`}
+        className={`self-hosted-sidebar hidden h-dvh shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-[228px]" : "w-[60px]"}`}
       >
-        <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
-          {sidebarOpen ? (
-            <>
-              <Link href={routePrefix} title="PlanGlade home" className="flex min-w-0 items-center gap-2">
-                <PlanGladeMark />
-                <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
-              </Link>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                title="Collapse sidebar"
-                className="lov-icon-btn h-6 w-6"
-              >
-                <PanelLeft className="h-3.5 w-3.5" />
-              </button>
-            </>
-          ) : (
-            <div
-              onMouseEnter={() => setLogoHover(true)}
-              onMouseLeave={() => setLogoHover(false)}
-              className="flex h-7 w-7 items-center justify-center"
-            >
-              {logoHover ? (
-                <button
-                  onClick={() => { setSidebarOpen(true); setLogoHover(false); }}
-                  title="Expand sidebar"
-                  className="lov-icon-btn h-7 w-7"
-                >
-                  <PanelLeft className="h-4 w-4 rotate-180" />
-                </button>
-              ) : (
-                <Link
-                  href={routePrefix}
-                  title="PlanGlade home"
-                  aria-label="PlanGlade home"
-                  className="flex h-7 w-7 items-center justify-center"
-                >
-                  <PlanGladeMark />
-                </Link>
-              )}
-            </div>
-          )}
+        <div className={`flex h-14 shrink-0 items-center gap-2 px-3 ${sidebarOpen ? "" : "justify-center px-0"}`}>
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"><Sprout className="h-4 w-4" /></span>
+          {sidebarOpen && <div className="min-w-0 leading-tight"><div className="truncate text-[13px] font-semibold">{sessionIdentity?.workspaceName ?? "PlanGlade"}</div><div className="truncate text-[10.5px] text-muted-foreground">PlanGlade workspace</div></div>}
         </div>
 
-        <div className={sidebarOpen ? "border-b p-2" : "border-b p-1"}>
-          <WorkspaceControl
-            collapsed={false}
-            hidden={!sidebarOpen}
-            routePrefix={routePrefix}
-            identity={sessionIdentity}
-            displayName={displayName}
-            displayAvatarId={displayAvatarId}
-            showSignOut={shouldShowSignOut}
-            onSignOut={() => { void signOut("/login"); }}
-          />
-          <WorkspaceControl
-            collapsed={true}
-            hidden={sidebarOpen}
-            routePrefix={routePrefix}
-            identity={sessionIdentity}
-            displayName={displayName}
-            displayAvatarId={displayAvatarId}
-            showSignOut={shouldShowSignOut}
-            onSignOut={() => { void signOut("/login"); }}
-          />
+        <div className="px-2 pb-1">
+          <button onClick={() => setQuickOpen(true)} className={`lov-btn h-9 w-full gap-2 bg-card shadow-xs ${sidebarOpen ? "justify-start px-2.5" : "justify-center px-0"}`} aria-label="Quick capture"><Plus className="h-4 w-4" />{sidebarOpen && <span>Quick capture</span>}</button>
+          <button onClick={() => setCmdOpen(true)} className={`mt-1.5 flex h-8 w-full items-center gap-2 rounded-md text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${sidebarOpen ? "px-2.5" : "justify-center px-0"}`} aria-label="Search and commands"><Search className="h-4 w-4" />{sidebarOpen && <><span>Search</span><kbd className="ml-auto rounded border bg-background px-1 text-[10px]">Ctrl K</kbd></>}</button>
+          {quickOpen && <div className="mt-2 rounded-md border bg-popover p-2 shadow-lg"><input autoFocus value={quickValue} onChange={(e) => setQuickValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void submitQuick(); if (e.key === "Escape") setQuickOpen(false); }} placeholder="Capture something - organize it later" className="h-8 w-full bg-transparent px-1 text-[13px] outline-none" /></div>}
         </div>
 
-        <nav aria-label="Workspace navigation" className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-3" : "px-1.5"}`}>
-          {sidebarOpen ? (
-            <>
-              <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} />
-              <ProjectsNavItem
-                href={`${routePrefix}/projects`}
-                active={isActive(`${routePrefix}/projects`)}
-                open={projectsOpen}
-                onToggle={() => setProjectsOpen((v) => !v)}
-                onCreate={createProject}
-                demoDisabled={isDemoMode}
-              />
-              {projectsOpen && (
-                <div className="mt-0.5 mb-1 space-y-px pl-5">
-                  {projects.map((p) => {
-                    const active = (selectedRouteProjectId ?? activeProjectId) === p.id;
-                    return (
-                      <Link key={p.id} href={`${routePrefix}/projects/${encodeURIComponent(p.id)}`} onClick={() => updateSettings({ activeProjectId: p.id })}
-                        className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
-                        <ProjectIcon name={p.icon} accent={p.accent} size={13} />
-                        <span className="truncate">{p.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} />
-            </>
-          ) : (
-            <>
-              <SidebarSection items={navMain} isActive={isActive} collapsed={true} />
-            </>
-          )}
+        <nav aria-label="Workspace navigation" className="flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
+          <SidebarSection items={navMain} isActive={isActive} collapsed={!sidebarOpen} />
         </nav>
-
+        <div className={`border-t p-2 ${sidebarOpen ? "flex items-center justify-between" : "flex flex-col items-center gap-1"}`}>
+          <Link href={`${routePrefix}/settings`} className={`flex h-8 min-w-0 items-center gap-2 rounded-md text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground ${sidebarOpen ? "px-2" : "w-8 justify-center"}`}><Avatar id={displayAvatarId} name={displayName} size={18} />{sidebarOpen && <span className="truncate">{displayName} · Local</span>}</Link>
+          <button onClick={() => setSidebarOpen((open) => !open)} className="lov-icon-btn h-8 w-8" aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}><PanelLeft className={`h-4 w-4 ${sidebarOpen ? "" : "rotate-180"}`} /></button>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="self-hosted-header relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
+        <header className="self-hosted-header fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur-sm md:hidden">
           <button ref={mobileNavTriggerRef} onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px]">
-            {title ?? <span className="font-medium">PlanGlade</span>}
+            <span className="truncate text-[14px] font-semibold">{sessionIdentity?.workspaceName ?? "PlanGlade"}</span>
             {isDemoMode && <span className="hidden shrink-0 rounded-full border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground sm:inline-flex">{DEMO_MODE_MESSAGE}</span>}
           </div>
           <div className="hidden flex-1 sm:block" />
@@ -616,10 +533,11 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
                 </div>
               )}
           </div>
-          <button onClick={() => setCmdOpen(true)} className="lov-icon-btn h-[44px] w-[44px] sm:hidden">
-            <Command className="h-4 w-4" />
+          <button onClick={() => setCmdOpen(true)} className="lov-icon-btn h-[44px] w-[44px] sm:hidden" aria-label="Search">
+            <Search className="h-5 w-5" />
           </button>
-          <div ref={notificationsRef} className="relative">
+          <button onClick={() => setQuickOpen(true)} className="lov-icon-btn h-[44px] w-[44px] bg-primary text-primary-foreground sm:hidden" aria-label="Quick capture"><Plus className="h-5 w-5" /></button>
+          <div ref={notificationsRef} className="relative hidden md:block">
             <button
               onClick={() => {
                 setProjectScopeOpen(false);
@@ -707,7 +625,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
               </div>
             )}
           </div>
-          <div title={displayName}><Avatar id={displayAvatarId} name={displayName} size={24} /></div>
+          <div className="hidden md:block" title={displayName}><Avatar id={displayAvatarId} name={displayName} size={24} /></div>
         </header>
 
         {isDemoMode && (
@@ -733,7 +651,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
 
         {toolbar}
 
-        <main id="app-main" className="authenticated-page min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <main id="app-main" className="authenticated-page min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-14 md:pt-0">
           <div className="authenticated-page-inner h-full min-h-0">{children}</div>
         </main>
       </div>
