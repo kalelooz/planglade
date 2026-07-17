@@ -1,83 +1,63 @@
 # PlanGlade Backup And Restore
 
-Last updated: 2026-07-01
+Last updated: 2026-07-17
 
-PlanGlade backup and restore is early and manual. There are no automated backups, hosted snapshots, retention policies, or monitored restore drills in this repo.
+PlanGlade includes a manual, local backup/restore command for the public SQLite and local-attachment self-host path. It is not a complete production backup system: scheduling, encryption, off-machine transfer, retention, monitoring, and restore drills remain operator responsibilities.
 
-## Docker Data To Back Up
+## What A Bundle Contains
 
-The Docker default keeps all data in two Docker volumes:
+One versioned directory bundle contains:
 
-- SQLite database: `/app/db/planglade.db` in the `planglade_planglade_data` Docker volume.
-- Local attachments: `/app/storage/local-attachments` in the `planglade_planglade_attachments` Docker volume.
+- `database.sqlite`: the SQLite database.
+- `attachments/`: every local attachment and metadata sidecar.
+- `manifest.json`: bundle format/version, SQLite format metadata, file sizes, and SHA-256 checksums.
 
-Keep both backups from the same time window so attachments stay aligned with their database records. Store `.env` securely outside git, but do not place it in an ordinary unencrypted backup.
+The command rejects links and special files. Restore rejects incompatible manifests, unsafe or path-traversal entries, missing or unlisted files, checksum mismatches, invalid SQLite headers/versions, and failed SQLite integrity checks before replacing live data. Restore copies both replacements into staging paths. If installation fails, it automatically rolls both destinations back to the original database and attachment directory.
 
-## Docker SQLite Backup
+The bundle is a directory, not a compressed archive. Copy the whole directory without changing its contents. Store it encrypted and off-machine.
 
-Create a local `backups` folder, then stop the app so the SQLite copy is consistent:
+## Docker Data Locations
+
+The standard Compose app service mounts both persistent sources used by the command:
+
+- SQLite: `/app/db/planglade.db` in `planglade_planglade_data`.
+- Attachments: `/app/storage/local-attachments` in `planglade_planglade_attachments`.
+
+If your Compose project name differs, confirm volume names with `docker volume ls`. Do not guess or edit volume contents manually.
+
+## Create A Docker Backup
+
+Use the current standard app image. Stop the app first so SQLite and attachments cannot change while they are copied. The output directory must not already exist.
+
+Linux or macOS:
 
 ```bash
 mkdir -p backups
 docker compose stop app
-```
-
-Copy the database from the named volume on Linux or macOS:
-
-```bash
-docker run --rm -v planglade_planglade_data:/data:ro -v "$(pwd)/backups:/backup" alpine cp /data/planglade.db /backup/planglade-2026-07-01.db
+docker compose run --rm --no-deps --user root -v "$PWD/backups:/backups" app npm run backup:create -- /backups/planglade-2026-07-17T120000Z
+docker compose start app
 ```
 
 Windows PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force backups
-docker run --rm -v planglade_planglade_data:/data:ro -v "${PWD}\backups:/backup" alpine cp /data/planglade.db /backup/planglade-2026-07-01.db
-```
-
-Start the app again:
-
-```bash
-docker compose up -d
-```
-
-Confirm the backup file exists and has a non-zero size. Copy it to encrypted off-machine storage.
-
-If the volume name differs, find it with `docker volume ls` rather than guessing.
-
-## Docker Local Attachment Backup
-
-With the default local storage provider, attachments live in the `planglade_planglade_attachments` volume. Back it up alongside the SQLite backup, while the app is stopped:
-
-```bash
 docker compose stop app
+docker compose run --rm --no-deps --user root -v "${PWD}\backups:/backups" app npm run backup:create -- /backups/planglade-2026-07-17T120000Z
+docker compose start app
 ```
 
-Linux or macOS:
+Choose a new timestamped directory name for every run. `--user root` is limited to this one-off offline operator container so it can write the host bind mount; the normal app still runs as the non-root `nextjs` user.
 
-```bash
-docker run --rm -v planglade_planglade_attachments:/data:ro -v "$(pwd)/backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
-```
+The command refuses an existing output, an ambiguous data path, a non-local storage provider, links/special files, and active SQLite journal/WAL sidecars. If it reports that data changed, keep the app stopped and retry. It prints status only, never environment secrets or file contents.
 
-Windows PowerShell:
+After creation, copy the entire bundle directory to encrypted off-machine storage. Do not store `.env` in the bundle.
 
-```powershell
-docker run --rm -v planglade_planglade_attachments:/data:ro -v "${PWD}\backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
-```
+## Restore A Docker Backup
 
-Start the app again:
+Restore replaces the current database and attachment tree together. First create a separate backup of the current data. Run the app version that created the bundle, or a version documented as bundle-compatible.
 
-```bash
-docker compose up -d
-```
-
-Confirm the tar archive exists and has a non-zero size. Copy it to encrypted off-machine storage.
-
-## Docker SQLite Restore
-
-Restoring replaces current data. Back up the current volume first.
-
-Stop the stack:
+Stop and remove the app container without deleting volumes:
 
 ```bash
 docker compose down
@@ -86,30 +66,16 @@ docker compose down
 Linux or macOS:
 
 ```bash
-docker run --rm -v planglade_planglade_data:/data -v "$(pwd)/backups:/backup:ro" alpine cp /backup/planglade-2026-07-01.db /data/planglade.db
+docker compose run --rm --no-deps --user root -v "$PWD/backups:/backups:ro" app npm run backup:restore -- /backups/planglade-2026-07-17T120000Z --confirm-replace
 ```
 
 Windows PowerShell:
 
 ```powershell
-docker run --rm -v planglade_planglade_data:/data -v "${PWD}\backups:/backup:ro" alpine cp /backup/planglade-2026-07-01.db /data/planglade.db
+docker compose run --rm --no-deps --user root -v "${PWD}\backups:/backups:ro" app npm run backup:restore -- /backups/planglade-2026-07-17T120000Z --confirm-replace
 ```
 
-## Docker Local Attachment Restore
-
-Restore the attachment volume from the same backup window as the SQLite restore, while the stack is stopped:
-
-Linux or macOS:
-
-```bash
-docker run --rm -v planglade_planglade_attachments:/data -v "$(pwd)/backups:/backup:ro" alpine sh -c "rm -rf /data/* /data/.* 2>/dev/null; tar -C /data -xf /backup/local-attachments-2026-07-01.tar"
-```
-
-Windows PowerShell:
-
-```powershell
-docker run --rm -v planglade_planglade_attachments:/data -v "${PWD}\backups:/backup:ro" alpine sh -c "rm -rf /data/* /data/.* 2>/dev/null; tar -C /data -xf /backup/local-attachments-2026-07-01.tar"
-```
+The exact `--confirm-replace` flag is mandatory. Bundle validation finishes before destination staging or replacement. Do not delete `.planglade-restore-*` or `.planglade-rollback-*` artifacts if a crash or rollback warning leaves one behind; preserve them and investigate before retrying.
 
 Start and verify:
 
@@ -119,49 +85,50 @@ docker compose ps -a
 curl http://localhost:3000/api/health
 ```
 
-Check sign-in and several known projects, tasks, notes, attachments, and settings. A healthy endpoint alone does not prove the data restored correctly.
+The health endpoint is status-only. A `{"status":"ok"}` response proves basic auth, storage, and database readiness; it does not prove restored records are correct. Sign in and inspect known projects, tasks, notes, settings, and several attachment downloads.
+
+## Local Node Backup And Restore
+
+The local CLI requires Node.js 22.5 or newer because it uses the Node standard SQLite module. Stop the local app, and ensure `.env` explicitly contains the SQLite and attachment paths:
+
+```env
+DATABASE_URL="file:../db/custom.db"
+PLANGLADE_STORAGE_PROVIDER="local"
+PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
+```
+
+Create a new bundle:
+
+```bash
+mkdir -p backups
+npm run backup:create -- backups/planglade-2026-07-17T120000Z
+```
+
+Restore it only after stopping the app and backing up current data:
+
+```bash
+npm run backup:restore -- backups/planglade-2026-07-17T120000Z --confirm-replace
+```
+
+Relative `DATABASE_URL` paths follow Prisma's schema-directory convention; the example resolves to `db/custom.db`. The attachment example resolves from the repository root to `storage/local-attachments`.
 
 ## Test Restores
 
-Test restores regularly on a disposable Docker volume or separate machine:
+Test restores regularly on disposable volumes or a separate machine:
 
-1. Restore copies of the SQLite database and the local attachment volume.
-2. Start the same PlanGlade version that created the backup.
-3. Check `/api/health`.
+1. Copy a complete bundle into the test environment.
+2. Restore it with the same PlanGlade version that created it.
+3. Start the stack and check `/api/health`.
 4. Sign in and inspect known projects, tasks, notes, settings, and attachments.
-5. Record the result and time required.
+5. Record the result and recovery time.
 
-A backup that has never been restored is unverified.
+A backup that has never been restored is unverified. Workspace JSON export/import remains useful for portability, but it is not a full backup because it does not replace the SQLite database and attachment tree.
 
-## Local Development Backup
-
-The non-Docker local path still uses SQLite plus local attachments. Stop the app, then copy both:
-
-```bash
-cp db/custom.db backups/custom-2026-07-01.db
-cp -R storage/local-attachments backups/local-attachments-2026-07-01
-```
-
-Windows PowerShell:
-
-```powershell
-Copy-Item db\custom.db backups\custom-2026-07-01.db
-Copy-Item storage\local-attachments backups\local-attachments-2026-07-01 -Recurse
-```
-
-Restore both from the same backup window while the app is stopped.
-
-## Workspace Export / Import
-
-Settings includes workspace JSON export/import. It is useful for portability, but it is not a complete production backup because it does not replace database and attachment backups.
-
-## Not Production-Ready Yet
-
-Still needed before calling backups production-ready:
+## Still Operator-Managed
 
 - Automated scheduled backups.
-- Encrypted off-machine storage.
-- Retention and deletion policies.
+- Encryption and off-machine transfer.
+- Retention and secure deletion.
 - Automated restore tests.
 - Monitoring and alerts for failed backups.
-- A reviewed disaster-recovery target and runbook.
+- Recovery-time and recovery-point objectives.

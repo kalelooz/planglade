@@ -45,6 +45,8 @@ test("SELFHOST-DOCS-001: required environment variables are documented", async (
     "PLANGLADE_STORAGE_SIGNING_SECRET",
     "NEXTAUTH_URL",
     "NEXTAUTH_SECRET",
+    "PLANGLADE_LOCAL_AUTH_ENABLED",
+    "PLANGLADE_SETUP_TOKEN",
   ]) {
     assert.match(selfHosting, new RegExp(key))
     assert.match(envExample, new RegExp(key))
@@ -125,6 +127,125 @@ test("SELFHOST-DOCS-001: backup docs exist and are linked honestly", async () =>
   assert.match(backup, /Automated scheduled backups/i)
 })
 
+test("SELF-HOST-DOCS-001: standalone setup supports local credentials without OAuth", async () => {
+  const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const readme = await readProjectFile("README.md")
+  const envExample = await readProjectFile(".env.example")
+  const activeEnv = envExample
+    .split("\n")
+    .filter((line) => line.trim() && !line.trimStart().startsWith("#"))
+    .join("\n")
+
+  assert.match(selfHosting, /do not need an OAuth application/i)
+  assert.match(selfHosting, /supported no-OAuth path/i)
+  assert.match(selfHosting, /\/setup/)
+  assert.match(selfHosting, /exactly one initial OWNER and workspace/i)
+  assert.match(selfHosting, /ten permanent recovery codes/i)
+  assert.match(readme, /no OAuth or Firebase project required/i)
+  assert.match(envExample, /PLANGLADE_LOCAL_AUTH_ENABLED="true"/)
+  assert.match(envExample, /PLANGLADE_SETUP_TOKEN=/)
+  assert.doesNotMatch(activeEnv, /^(GITHUB_ID|GITHUB_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET)=/m)
+})
+
+test("SELF-HOST-DOCS-001: recovery guidance keeps the one-time grant out of request URLs", async () => {
+  const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const dockerfile = await readProjectFile("Dockerfile")
+  const packageJson = JSON.parse(await readProjectFile("package.json")) as {
+    scripts: Record<string, string>
+  }
+
+  assert.equal(
+    packageJson.scripts["auth:create-recovery-link"],
+    "node scripts/create-local-recovery-link.mjs"
+  )
+  assert.match(dockerfile, /scripts\/create-local-recovery-link\.mjs/)
+  assert.match(selfHosting, /15-minute one-time link/i)
+  assert.match(
+    selfHosting,
+    /docker compose run --rm --no-deps app npm run auth:create-recovery-link -- owner@example\.com/
+  )
+  assert.match(selfHosting, /secret appears only in the URL fragment \(`\/recover#/i)
+  assert.doesNotMatch(selfHosting, /\/recover\?(token|code|secret|grant)=/i)
+  assert.match(selfHosting, /do not redirect or paste the printed link into shared logs/i)
+})
+
+test("SELF-HOST-UPGRADE-RESTORE-001: documented Docker data commands exist in the standard runner", async () => {
+  const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
+  const migrations = await readProjectFile("docs/PRODUCTION_MIGRATIONS.md")
+  const dockerfile = await readProjectFile("Dockerfile")
+  const compose = await readProjectFile("docker-compose.yml")
+  const packageJson = JSON.parse(await readProjectFile("package.json")) as {
+    scripts: Record<string, string>
+  }
+
+  assert.equal(packageJson.scripts["backup:create"], "node scripts/self-host-data.mjs backup")
+  assert.equal(packageJson.scripts["backup:restore"], "node scripts/self-host-data.mjs restore")
+  assert.match(dockerfile, /COPY .*\/app\/package\.json \.\/package\.json/)
+  assert.match(dockerfile, /scripts\/self-host-data\.mjs/)
+  assert.match(compose, /planglade_data:\/app\/db/)
+  assert.match(compose, /planglade_attachments:\/app\/storage\/local-attachments/)
+
+  for (const guide of [backup, migrations]) {
+    assert.match(guide, /docker compose stop app/)
+    assert.match(
+      guide,
+      /docker compose run --rm --no-deps --user root -v "\$PWD\/backups:\/backups" app npm run backup:create -- \/backups\/planglade-/
+    )
+  }
+
+  assert.match(backup, /docker compose down/)
+  assert.match(
+    backup,
+    /docker compose run --rm --no-deps --user root -v "\$PWD\/backups:\/backups:ro" app npm run backup:restore -- \/backups\/planglade-[^\n]* --confirm-replace/
+  )
+  assert.ok(
+    backup.includes(
+      'docker compose run --rm --no-deps --user root -v "${PWD}\\backups:/backups" app npm run backup:create -- /backups/planglade-'
+    )
+  )
+  assert.ok(
+    backup.includes(
+      'docker compose run --rm --no-deps --user root -v "${PWD}\\backups:/backups:ro" app npm run backup:restore -- /backups/planglade-'
+    )
+  )
+  assert.match(migrations, /--confirm-replace/)
+})
+
+test("SELF-HOST-UPGRADE-RESTORE-001: backup and restore guarantees are documented", async () => {
+  const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
+  const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const readme = await readProjectFile("README.md")
+
+  assert.match(backup, /versioned directory bundle/i)
+  assert.match(backup, /manifest\.json/)
+  assert.match(backup, /SHA-256/i)
+  assert.match(backup, /path[- ]traversal/i)
+  assert.match(backup, /rolls both destinations back/i)
+  assert.match(backup, /--confirm-replace/)
+  assert.match(selfHosting, /Node\.js 22\.5 or newer/)
+  assert.match(readme, /Node 22\.5\+/)
+  assert.doesNotMatch(`${selfHosting}\n${readme}`, /Node(?:\.js)? 20(?:\+|\b)/i)
+})
+
+test("SELF-HOST-DOCS-001: health guidance describes the status-only contract", async () => {
+  const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
+  const healthRoute = await readProjectFile("src/app/api/health/route.ts")
+
+  for (const status of ["ok", "degraded", "error"]) {
+    assert.match(selfHosting, new RegExp(`\\{\"status\":\"${status}\"\\}`))
+    assert.match(healthRoute, new RegExp(`\"${status}\"`))
+  }
+  assert.match(selfHosting, /endpoint deliberately returns status only/i)
+  assert.match(backup, /health endpoint is status-only/i)
+})
+
+test("SELF-HOST-DOCS-001: public README omits deferred private surfaces", async () => {
+  const readme = await readProjectFile("README.md")
+
+  assert.doesNotMatch(readme, /\bConnections\b|\/map\b/i)
+})
+
 // ---------------------------------------------------------------------------
 // FIREBASE-SAAS-BOUNDARY-001 guards.
 // Firebase is SaaS-only and must not be documented as a public self-host option.
@@ -165,7 +286,7 @@ test("FIREBASE-SAAS-BOUNDARY-001: self-host docs do not include Firebase setup",
 
   const firstRun = selfHosting.slice(
     selfHosting.indexOf("## First Run With Docker Compose"),
-    selfHosting.indexOf("## Database And Migrations")
+    selfHosting.indexOf("## Data, Migrations, And Storage")
   )
   assert.match(firstRun, /No Firebase values are required/i)
 

@@ -60,7 +60,6 @@ Not ready yet:
 - Project notes and context.
 - Notes with Markdown editing and task extraction.
 - Calendar over task due dates.
-- Connections (read-only) for task dependencies and parent/child relationships.
 - Settings for workspace preferences, JSON export, and guarded import.
 
 ## Roadmap
@@ -75,7 +74,6 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 - Projects and Project Home
 - Notes and project context
 - Calendar over due dates
-- Connections relationship view
 - Settings
 - JSON export and guarded import
 - Early self-host docs
@@ -134,7 +132,7 @@ Due dates shown from the same task source.
 | UI | React 19, shadcn/ui, Radix primitives |
 | Styling | Tailwind CSS v4, CSS custom properties |
 | Database | Prisma with SQLite in the current tracked schema |
-| Auth | Local dev session and NextAuth mode |
+| Auth | Local dev session or NextAuth with local credentials and optional OAuth |
 | Icons | Lucide React |
 | Tables | TanStack Table |
 | Drag and drop | dnd-kit |
@@ -143,11 +141,10 @@ Due dates shown from the same task source.
 
 ## Requirements
 
-- Node.js 20.9 or newer.
-- npm 10 or newer.
+- Docker Engine/Desktop with Compose for the primary standalone path; or Node.js 22.5+ and npm for local use.
 - A local `.env` file based on `.env.example`.
 
-Why Node 20.9+: the repo uses Next.js 16, and current Next.js 16 requires Node.js 20.9+.
+Node 22.5+ is required because the checked backup/restore command uses Node's standard SQLite module. The Docker image uses Node 22 Alpine.
 
 ## Local Development Setup
 
@@ -208,10 +205,13 @@ Important local/dev variables:
 - `PLANGLADE_STORAGE_PROVIDER`: use `local` for local file storage.
 - `PLANGLADE_LOCAL_STORAGE_DIR`: local attachment folder.
 - `PLANGLADE_STORAGE_SIGNING_SECRET`: signing secret for local attachment URLs.
+- `PLANGLADE_LOCAL_AUTH_ENABLED`: enables supported local credentials in NextAuth mode.
+- `PLANGLADE_SETUP_TOKEN`: one-time authorization for creating the first OWNER and workspace.
 
 Production-style variables depend on the auth and storage path:
 
-- NextAuth provider mode: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and provider credentials such as Google or GitHub.
+- Public standalone NextAuth: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and `PLANGLADE_LOCAL_AUTH_ENABLED=true` for the no-OAuth path.
+- Optional OAuth: provider credentials such as Google or GitHub.
 - Email invites: `PLANGLADE_EMAIL_PROVIDER`, `PLANGLADE_EMAIL_FROM`, and `RESEND_API_KEY` if Resend delivery is enabled.
 - Invite expiry job: `PLANGLADE_MAINTENANCE_TOKEN`.
 
@@ -231,18 +231,19 @@ Use `npm run db:push` for local development setup.
 
 ## Self-Hosting Status
 
-PlanGlade has an early local/developer path and an early Docker self-host baseline. It is not production-ready or production-hardened.
+PlanGlade has a supported local/developer path and an early Docker self-host baseline. It is not production-ready or production-hardened.
 
 Current honest status:
 
 - Local development with SQLite and local file storage is documented above.
 - Docker Compose builds the standalone app, persists SQLite in a named volume, and applies checked-in Prisma migrations before startup.
-- Docker uses NextAuth for sign-in and stores attachments in a local Docker volume by default.
-- `/api/health` reports basic auth/storage readiness.
-- Basic manual backup/restore notes exist in `docs/BACKUP_RESTORE.md`.
+- Docker uses NextAuth with supported local credentials and local attachment storage by default; OAuth is optional.
+- First-run `/setup` creates exactly one initial OWNER and workspace, then displays ten permanent one-time recovery codes.
+- `/api/health` returns status only for basic auth/storage/database readiness.
+- `npm run backup:create` and `npm run backup:restore` manage one checked SQLite-plus-attachment bundle.
 - PostgreSQL, bundled HTTPS/reverse proxy, automated backups, monitoring, and public-internet hardening are not included.
 
-Quick Docker start after replacing every placeholder in `.env`:
+Quick Docker start after replacing every active placeholder in `.env` (no OAuth or Firebase project required):
 
 ```bash
 cp .env.example .env
@@ -251,6 +252,8 @@ docker compose build
 docker compose up -d
 curl http://localhost:3000/api/health
 ```
+
+Then open `/setup`, use `PLANGLADE_SETUP_TOKEN`, create the first OWNER, save the permanent recovery codes, and remove the setup token from `.env`.
 
 Do not expose the placeholder configuration publicly. See the full guide for required secrets, auth/storage setup, migrations, updates, HTTPS, backups, and restore testing.
 
@@ -267,6 +270,9 @@ npm run db:push
 npm run db:migrate:status
 npm run db:migrate:deploy
 npm run db:check:attachment-storage-keys
+npm run backup:create -- backups/planglade-2026-07-17T120000Z
+npm run backup:restore -- backups/planglade-2026-07-17T120000Z --confirm-replace
+npm run auth:create-recovery-link -- owner@example.com
 npx prisma validate
 npm test
 npm run lint
@@ -290,8 +296,8 @@ The repo is early public software and not production-hardened. Keep contribution
 
 ## Documentation Map
 
-- `docs/SELF_HOSTING.md`: local and early Docker self-host setup, limitations, and safety notes.
+- `docs/SELF_HOSTING.md`: local and Docker standalone setup, first OWNER, recovery, upgrades, limitations, and safety notes.
 - `docs/NETLIFY_PREVIEW.md`: repeatable Netlify preview build settings and required dashboard env vars.
 - `docs/PRODUCTION_MIGRATIONS.md`: safe migration checks, production database evidence, and operator runbook.
-- `docs/BACKUP_RESTORE.md`: manual Docker/local SQLite and attachment backup/restore notes.
+- `docs/BACKUP_RESTORE.md`: checked Docker/local SQLite-plus-attachment bundle backup and restore.
 - `docs/QUALITY-GATES.md`: validation expectations for repo work.
