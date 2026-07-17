@@ -6,6 +6,15 @@ import { getStorageConfigErrors } from "@/lib/storage"
 
 export async function GET() {
   try {
+    const isDemoReadOnlyDeployment = (
+      process.env.PLANGLADE_DEMO_READ_ONLY ??
+      process.env.FLOWBOARD_DEMO_READ_ONLY ??
+      process.env.PLANGLADE_BUILD_DEMO_READ_ONLY
+    )?.trim().toLowerCase() === "true"
+    if (isDemoReadOnlyDeployment) {
+      return NextResponse.json({ status: "ok" })
+    }
+
     const authConfig = getAuthConfigErrors()
     const { capabilities: providerCapabilities } = getProviderCapabilityResult()
     const authProvidersConfigured = providerCapabilities.anyConfigured

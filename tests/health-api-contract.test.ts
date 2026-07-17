@@ -49,6 +49,9 @@ const originalEnv = {
   GITHUB_SECRET: process.env.GITHUB_SECRET,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  PLANGLADE_DEMO_READ_ONLY: process.env.PLANGLADE_DEMO_READ_ONLY,
+  FLOWBOARD_DEMO_READ_ONLY: process.env.FLOWBOARD_DEMO_READ_ONLY,
+  PLANGLADE_BUILD_DEMO_READ_ONLY: process.env.PLANGLADE_BUILD_DEMO_READ_ONLY,
 }
 
 function restoreEnv() {
@@ -73,6 +76,9 @@ function setContractEnv(nodeEnv: "development" | "production", authMode = "dev")
   delete process.env.GITHUB_SECRET
   delete process.env.GOOGLE_CLIENT_ID
   delete process.env.GOOGLE_CLIENT_SECRET
+  delete process.env.PLANGLADE_DEMO_READ_ONLY
+  delete process.env.FLOWBOARD_DEMO_READ_ONLY
+  delete process.env.PLANGLADE_BUILD_DEMO_READ_ONLY
 }
 
 async function withRestoredState(fn: () => Promise<void>) {
@@ -96,6 +102,20 @@ test("health returns JSON success when required configuration is ready", async (
     const response = await getHealth()
     assert.equal(response.status, 200)
     assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
+    assert.deepEqual(await response.json(), { status: "ok" })
+  })
+})
+
+test("health reports success for the fixture-only read-only demo", async () => {
+  await withRestoredState(async () => {
+    setContractEnv("production", "nextauth")
+    process.env.PLANGLADE_BUILD_DEMO_READ_ONLY = "true"
+    db.$queryRawUnsafe = (async () => {
+      throw new Error("the fixture-only demo must not require the app database")
+    }) as typeof db.$queryRawUnsafe
+
+    const response = await getHealth()
+    assert.equal(response.status, 200)
     assert.deepEqual(await response.json(), { status: "ok" })
   })
 })

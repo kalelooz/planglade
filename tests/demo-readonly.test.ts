@@ -112,6 +112,17 @@ test("DEMO-NAV-001: direct demo Settings is a safe read-only page", async () => 
   assert.doesNotMatch(route, /apiFetch|guidedImport|workspace.*change/i)
 })
 
+test("NETLIFY-LAUNCH-BLOCKERS-001: public demo auth pages skip setup discovery", async () => {
+  const [login, setup] = await Promise.all([
+    readProjectFile("src/components/lovable/login-page.tsx"),
+    readProjectFile("src/app/setup/page.tsx"),
+  ])
+
+  assert.match(login, /PLANGLADE_BUILD_DEMO_READ_ONLY === "true"\) return/)
+  assert.match(setup, /demoReadOnlyDeployment \? "unavailable" : "checking"/)
+  assert.match(setup, /if \(!demoReadOnlyDeployment\) void discover\(\)/)
+})
+
 test("DEMO-NAV-001: demo project mutation controls are disabled and cannot reach mutation handlers", async () => {
   const source = await readProjectFile("src/app/app/projects/projects-page-content.tsx")
   const controlsStart = source.indexOf('<div className="grid w-full grid-cols-2')
