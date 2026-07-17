@@ -88,6 +88,8 @@ export function LoginPage({
   }, [])
 
   React.useEffect(() => {
+    if (process.env.PLANGLADE_BUILD_DEMO_READ_ONLY === "true") return
+
     let cancelled = false
 
     void fetch("/api/auth/setup", { cache: "no-store", credentials: "same-origin" })

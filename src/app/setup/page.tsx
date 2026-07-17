@@ -15,6 +15,7 @@ type OwnerErrors = Partial<Record<OwnerField, string>>
 
 const csrfCookieName = "planglade-setup-csrf"
 const recoveryCodePattern = /^[0-9a-f]{4}(?:-[0-9a-f]{4}){7}$/
+const demoReadOnlyDeployment = process.env.PLANGLADE_BUILD_DEMO_READ_ONLY === "true"
 
 function readCsrfCookie() {
   const prefix = `${csrfCookieName}=`
@@ -78,7 +79,9 @@ export default function SetupPage() {
   const recoveryRef = React.useRef<HTMLDivElement>(null)
   const activeRequestRef = React.useRef<AbortController | null>(null)
   const mountedRef = React.useRef(true)
-  const [screen, setScreen] = React.useState<SetupScreen>("checking")
+  const [screen, setScreen] = React.useState<SetupScreen>(
+    demoReadOnlyDeployment ? "unavailable" : "checking",
+  )
   const [setupToken, setSetupToken] = React.useState("")
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
@@ -137,7 +140,9 @@ export default function SetupPage() {
     }
   }, [beginRequest])
 
-  React.useEffect(() => { void discover() }, [discover])
+  React.useEffect(() => {
+    if (!demoReadOnlyDeployment) void discover()
+  }, [discover])
   React.useEffect(() => { if (screen !== "checking") headingRef.current?.focus() }, [screen])
   React.useEffect(() => {
     mountedRef.current = true
