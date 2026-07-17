@@ -154,7 +154,7 @@ test("POST /workspace/import-preview returns counts including Project Docs and a
       })
     )
     const payload = (await response.json()) as {
-      counts?: { projects?: number; tasks?: number; notes?: number; projectDocs?: number; archivedProjectDocs?: number }
+      counts?: { projects?: number; tasks?: number; notes?: number; projectDocs?: number; mapLayouts?: number; archivedProjectDocs?: number }
       warnings?: Array<{ code: string; count?: number }>
       writes?: boolean
     }
@@ -165,6 +165,7 @@ test("POST /workspace/import-preview returns counts including Project Docs and a
       tasks: 1,
       notes: 1,
       projectDocs: 1,
+      mapLayouts: 0,
       settings: 1,
       archivedProjectDocs: 1,
     })

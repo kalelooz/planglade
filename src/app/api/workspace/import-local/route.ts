@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { randomUUID } from "node:crypto"
 
-import { parseDateValue, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { badRequest, parseDateValue, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, importLocalWorkspaceSchema)
   if (!parsed.ok) return parsed.response
 
-  const { workspaceId, mode, projects, workItems, notes, projectDocs } = parsed.data
+  const { workspaceId, mode, projects, workItems, notes, projectDocs, mapLayouts } = parsed.data
 
   try {
     const access = await requireWorkspaceRole(
@@ -70,12 +71,16 @@ export async function POST(request: NextRequest) {
       "ADMIN"
     )
     if (!access.ok) return access.response
+    if (mapLayouts.some((layout) => layout.schemaVersion !== 1)) {
+      return badRequest("Unsupported Map schema version")
+    }
     const actorUserId = access.actor.userId
     const throttle = await consumeWorkspaceThrottle("import", actorUserId, workspaceId)
     if (!throttle.allowed) return tooManyRequests(throttle)
 
     const summary = await db.$transaction(async (tx) => {
       if (mode === "replace") {
+        await tx.mapScope.deleteMany({ where: { workspaceId } })
         await tx.workItem.deleteMany({ where: { workspaceId } })
         await tx.note.deleteMany({
           where: buildNoteAccessWhere(workspaceId, actorUserId),
@@ -85,6 +90,8 @@ export async function POST(request: NextRequest) {
       }
 
       const projectMap = new Map<string, string>()
+      const workItemMap = new Map<string, string>()
+      const pendingParents: Array<{ workItemId: string; sourceParentId: string }> = []
       const workspaceMembers = await tx.workspaceMember.findMany({
         where: { workspaceId },
         select: { userId: true },
@@ -98,6 +105,9 @@ export async function POST(request: NextRequest) {
       let createdProjectDocs = 0
       let skippedProjectDocs = 0
       let unlinkedProjectDocs = 0
+      let importedMapLayouts = 0
+      let skippedMapLayouts = 0
+      let skippedMapPlacements = 0
 
       for (const project of projects) {
         const slug = slugify(project.name || project.id || "project")
@@ -132,17 +142,18 @@ export async function POST(request: NextRequest) {
         const duplicate = await tx.workItem.findFirst({
           where: {
             workspaceId,
-            projectId: projectId ?? undefined,
+            projectId,
             title: item.title,
           },
           select: { id: true },
         })
         if (duplicate) {
+          workItemMap.set(item.id, duplicate.id)
           skippedWorkItems += 1
           continue
         }
 
-        await tx.workItem.create({
+        const created = await tx.workItem.create({
           data: {
             workspaceId,
             projectId: projectId ?? undefined,
@@ -157,8 +168,22 @@ export async function POST(request: NextRequest) {
             createdById: actorUserId,
             assigneeId: item.assignee && memberUserIds.has(item.assignee) ? item.assignee : undefined,
           },
+          select: { id: true },
         })
+        workItemMap.set(item.id, created.id)
+        if (item.parentId) {
+          pendingParents.push({ workItemId: created.id, sourceParentId: item.parentId })
+        }
         createdWorkItems += 1
+      }
+
+      for (const pending of pendingParents) {
+        const parentId = workItemMap.get(pending.sourceParentId)
+        if (!parentId || parentId === pending.workItemId) continue
+        await tx.workItem.update({
+          where: { id: pending.workItemId },
+          data: { parentId },
+        })
       }
 
       for (const note of notes) {
@@ -224,6 +249,121 @@ export async function POST(request: NextRequest) {
         createdProjectDocs += 1
       }
 
+      for (const layout of mapLayouts) {
+        const scopedProjectId =
+          layout.scopeType === "PROJECT" && layout.projectId
+            ? projectMap.get(layout.projectId)
+            : null
+        if (layout.scopeType === "PROJECT" && !scopedProjectId) {
+          skippedMapLayouts += 1
+          continue
+        }
+
+        const scopeKey = scopedProjectId ? `project:${scopedProjectId}` : "workspace"
+        const existingScope = await tx.mapScope.findUnique({
+          where: { workspaceId_scopeKey: { workspaceId, scopeKey } },
+          select: { id: true, revision: true },
+        })
+        const revision = existingScope
+          ? Math.max(existingScope.revision + 1, layout.revision)
+          : layout.revision
+        const scope = await tx.mapScope.upsert({
+          where: { workspaceId_scopeKey: { workspaceId, scopeKey } },
+          update: { revision, schemaVersion: 1 },
+          create: {
+            workspaceId,
+            scopeType: layout.scopeType,
+            projectId: scopedProjectId,
+            scopeKey,
+            schemaVersion: 1,
+            revision,
+          },
+          select: { id: true },
+        })
+
+        const highestSection = await tx.mapSection.aggregate({
+          where: { mapScopeId: scope.id },
+          _max: { sortOrder: true },
+        })
+        const sectionOffset = (highestSection._max.sortOrder ?? -1) + 1
+        const sectionMap = new Map<string, string>()
+        for (const section of layout.sections) {
+          const id = randomUUID()
+          await tx.mapSection.create({
+            data: {
+              id,
+              mapScopeId: scope.id,
+              name: section.name,
+              sortOrder: sectionOffset + section.sortOrder,
+              x: section.x,
+              y: section.y,
+              width: section.width,
+              height: section.height,
+              color: section.color,
+            },
+          })
+          sectionMap.set(section.id, id)
+        }
+
+        for (const placement of layout.projectPlacements) {
+          const projectId = placement.projectId
+            ? projectMap.get(placement.projectId)
+            : null
+          if (
+            (placement.projectId && !projectId) ||
+            (scopedProjectId && projectId !== scopedProjectId)
+          ) {
+            skippedMapPlacements += 1
+            continue
+          }
+          const containerKey = projectId ? `project:${projectId}` : "no-project"
+          await tx.mapProjectPlacement.upsert({
+            where: {
+              mapScopeId_containerKey: {
+                mapScopeId: scope.id,
+                containerKey,
+              },
+            },
+            update: { x: placement.x, y: placement.y },
+            create: {
+              mapScopeId: scope.id,
+              containerKey,
+              projectId,
+              x: placement.x,
+              y: placement.y,
+            },
+          })
+        }
+
+        for (const placement of layout.taskPlacements) {
+          const workItemId = workItemMap.get(placement.workItemId)
+          if (!workItemId) {
+            skippedMapPlacements += 1
+            continue
+          }
+          const sectionId = placement.sectionId
+            ? sectionMap.get(placement.sectionId) ?? null
+            : null
+          await tx.mapTaskPlacement.upsert({
+            where: {
+              mapScopeId_workItemId: {
+                mapScopeId: scope.id,
+                workItemId,
+              },
+            },
+            update: { x: placement.x, y: placement.y, sectionId },
+            create: {
+              mapScopeId: scope.id,
+              workItemId,
+              x: placement.x,
+              y: placement.y,
+              sectionId,
+            },
+          })
+        }
+        importedMapLayouts += 1
+      }
+
       return {
         workspaceId,
         mode,
@@ -232,14 +372,17 @@ export async function POST(request: NextRequest) {
           workItems: createdWorkItems,
           notes: createdNotes,
           projectDocs: createdProjectDocs,
+          mapLayouts: importedMapLayouts,
         },
         skipped: {
           workItems: skippedWorkItems,
           notes: skippedNotes,
           projectDocs: skippedProjectDocs,
+          mapLayouts: skippedMapLayouts,
         },
         warnings: {
           projectDocsMissingProjects: unlinkedProjectDocs,
+          mapPlacementsMissingEntities: skippedMapPlacements,
         },
       }
     })

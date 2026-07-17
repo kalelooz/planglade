@@ -19,12 +19,23 @@ async function sha256(filePath: string) {
   return createHash("sha256").update(await readFile(filePath)).digest("hex")
 }
 
-function createDatabase(databasePath: string, value: string) {
+function createDatabase(databasePath: string, value: string, mapRevision = 1) {
   const database = new DatabaseSync(databasePath)
   try {
     database.exec("CREATE TABLE Example (value TEXT NOT NULL)")
     database.prepare("INSERT INTO Example (value) VALUES (?)").run(value)
+    database.exec("CREATE TABLE MapScope (revision INTEGER NOT NULL)")
+    database.prepare("INSERT INTO MapScope (revision) VALUES (?)").run(mapRevision)
     database.exec("PRAGMA user_version = 7")
+  } finally {
+    database.close()
+  }
+}
+
+function readMapRevision(databasePath: string) {
+  const database = new DatabaseSync(databasePath, { readOnly: true })
+  try {
+    return (database.prepare("SELECT revision FROM MapScope").get() as { revision: number }).revision
   } finally {
     database.close()
   }
@@ -93,7 +104,7 @@ test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle
   const targetAttachments = path.join(root, "target-attachments")
 
   try {
-    createDatabase(sourceDatabase, "source-value")
+    createDatabase(sourceDatabase, "source-value", 7)
     await mkdir(path.join(sourceAttachments, "workspace-1"), { recursive: true })
     await writeFile(path.join(sourceAttachments, "workspace-1", "attachment.bin"), Buffer.from([0, 1, 2, 255]))
     await writeFile(
@@ -114,7 +125,7 @@ test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle
       /destination already exists/i,
     )
 
-    createDatabase(targetDatabase, "target-value")
+    createDatabase(targetDatabase, "target-value", 2)
     await mkdir(targetAttachments)
     await writeFile(path.join(targetAttachments, "keep.txt"), "keep")
     const targetAttachmentsBefore = await lstat(targetAttachments)
@@ -123,6 +134,7 @@ test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle
       /confirm-replace/i,
     )
     assert.equal(readDatabaseValue(targetDatabase), "target-value")
+    assert.equal(readMapRevision(targetDatabase), 2)
     assert.equal(await readFile(path.join(targetAttachments, "keep.txt"), "utf8"), "keep")
 
     const restored = await runCli(
@@ -132,6 +144,7 @@ test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle
     )
     assert.match(restored.stdout, /database and attachments restored/i)
     assert.equal(readDatabaseValue(targetDatabase), "source-value")
+    assert.equal(readMapRevision(targetDatabase), 7)
     const targetAttachmentsAfter = await lstat(targetAttachments)
     assert.equal(targetAttachmentsAfter.dev, targetAttachmentsBefore.dev)
     assert.equal(targetAttachmentsAfter.ino, targetAttachmentsBefore.ino)

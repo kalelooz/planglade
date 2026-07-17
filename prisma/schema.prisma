@@ -115,50 +115,56 @@ enum AuthThrottleScope {
   WORKSPACE_OPERATION
 }
 
+enum MapScopeType {
+  WORKSPACE
+  PROJECT
+}
+
 model User {
-  id                String            @id @default(cuid())
-  email             String            @unique
-  normalizedEmail   String?           @unique
-  authVersion       Int               @default(0)
-  name              String?
-  image             String?
-  locale            String?
-  timezone          String?
-  memberships       WorkspaceMember[]
-  ownedWorkspaces   Workspace[]       @relation("WorkspaceOwner")
-  createdProjects   Project[]         @relation("ProjectCreator")
-  createdWorkItems  WorkItem[]        @relation("WorkItemCreator")
-  assignedWorkItems WorkItem[]        @relation("WorkItemAssignee")
-  createdNotes      Note[]            @relation("NoteCreator")
-  updatedNotes      Note[]            @relation("NoteUpdater")
-  createdProjectDocs ProjectDoc[]      @relation("ProjectDocCreator")
-  updatedProjectDocs ProjectDoc[]      @relation("ProjectDocUpdater")
-  comments          Comment[]
-  attachments       Attachment[]
-  createdViews      SavedView[]       @relation("ViewCreator")
-  activityEvents    ActivityEvent[]   @relation("ActivityActor")
-  notifications     Notification[]    @relation("NotificationRecipient")
-  actedNotifications Notification[]   @relation("NotificationActor")
-  settings          UserSettings[]
-  invitesSent       WorkspaceInvite[] @relation("InviteSender")
-  updatedInvitePolicies WorkspaceInvitePolicy[] @relation("InvitePolicyUpdater")
-  localCredential   LocalCredential?
-  localRecoveryCodes LocalRecoveryCode[]
-  completedSelfHostSetups SelfHostSetup[] @relation("SelfHostSetupCompleter")
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                      String                  @id @default(cuid())
+  email                   String                  @unique
+  normalizedEmail         String?                 @unique
+  authVersion             Int                     @default(0)
+  name                    String?
+  image                   String?
+  locale                  String?
+  timezone                String?
+  memberships             WorkspaceMember[]
+  ownedWorkspaces         Workspace[]             @relation("WorkspaceOwner")
+  createdProjects         Project[]               @relation("ProjectCreator")
+  createdWorkItems        WorkItem[]              @relation("WorkItemCreator")
+  assignedWorkItems       WorkItem[]              @relation("WorkItemAssignee")
+  createdNotes            Note[]                  @relation("NoteCreator")
+  updatedNotes            Note[]                  @relation("NoteUpdater")
+  createdProjectDocs      ProjectDoc[]            @relation("ProjectDocCreator")
+  updatedProjectDocs      ProjectDoc[]            @relation("ProjectDocUpdater")
+  comments                Comment[]
+  attachments             Attachment[]
+  createdViews            SavedView[]             @relation("ViewCreator")
+  activityEvents          ActivityEvent[]         @relation("ActivityActor")
+  notifications           Notification[]          @relation("NotificationRecipient")
+  actedNotifications      Notification[]          @relation("NotificationActor")
+  settings                UserSettings[]
+  invitesSent             WorkspaceInvite[]       @relation("InviteSender")
+  updatedInvitePolicies   WorkspaceInvitePolicy[] @relation("InvitePolicyUpdater")
+  localCredential         LocalCredential?
+  localRecoveryCodes      LocalRecoveryCode[]
+  completedSelfHostSetups SelfHostSetup[]         @relation("SelfHostSetupCompleter")
+  mapPreferences          MapPreference[]
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
 }
 
 model LocalCredential {
-  id                String   @id @default(cuid())
-  userId            String   @unique
+  id                String    @id @default(cuid())
+  userId            String    @unique
   passwordHash      String
   disabledAt        DateTime?
-  passwordCreatedAt DateTime @default(now())
-  passwordChangedAt DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordCreatedAt DateTime  @default(now())
+  passwordChangedAt DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LocalRecoveryCode {
@@ -202,29 +208,30 @@ model AuthThrottle {
 }
 
 model Workspace {
-  id            String            @id @default(cuid())
-  slug          String            @unique
-  name          String
-  taskPriorityDisplayStyle String  @default("badge")
-  ownerId       String
-  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  memberships   WorkspaceMember[]
-  projects      Project[]
-  workItems     WorkItem[]
-  labels        Label[]
-  notes         Note[]
-  projectDocs   ProjectDoc[]
-  views         SavedView[]
-  activities    ActivityEvent[]
-  notifications Notification[]
-  settings      UserSettings[]
-  invites       WorkspaceInvite[]
-  invitePolicy  WorkspaceInvitePolicy?
-  comments      Comment[]
-  attachments   Attachment[]
-  workItemRelations WorkItemRelation[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id                       String                 @id @default(cuid())
+  slug                     String                 @unique
+  name                     String
+  taskPriorityDisplayStyle String                 @default("badge")
+  ownerId                  String
+  owner                    User                   @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  memberships              WorkspaceMember[]
+  projects                 Project[]
+  workItems                WorkItem[]
+  labels                   Label[]
+  notes                    Note[]
+  projectDocs              ProjectDoc[]
+  views                    SavedView[]
+  activities               ActivityEvent[]
+  notifications            Notification[]
+  settings                 UserSettings[]
+  invites                  WorkspaceInvite[]
+  invitePolicy             WorkspaceInvitePolicy?
+  comments                 Comment[]
+  attachments              Attachment[]
+  workItemRelations        WorkItemRelation[]
+  mapScopes                MapScope[]
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
 }
 
 model WorkspaceMember {
@@ -241,64 +248,68 @@ model WorkspaceMember {
 }
 
 model Project {
-  id           String        @id @default(cuid())
-  workspaceId  String
-  name         String
-  slug         String
-  description  String?
-  status       ProjectStatus @default(ACTIVE)
-  mode         ProjectMode   @default(STANDARD)
-  featureFlags Json?
-  color        String?
-  startDate    DateTime?
-  dueDate      DateTime?
-  archivedAt   DateTime?
-  createdById  String
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy    User          @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  workItems    WorkItem[]
-  notes        Note[]
-  projectDocs  ProjectDoc[]
-  views        SavedView[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                      String                @id @default(cuid())
+  workspaceId             String
+  name                    String
+  slug                    String
+  description             String?
+  status                  ProjectStatus         @default(ACTIVE)
+  mode                    ProjectMode           @default(STANDARD)
+  featureFlags            Json?
+  color                   String?
+  startDate               DateTime?
+  dueDate                 DateTime?
+  archivedAt              DateTime?
+  createdById             String
+  workspace               Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy               User                  @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  workItems               WorkItem[]
+  notes                   Note[]
+  projectDocs             ProjectDoc[]
+  views                   SavedView[]
+  mapScope                MapScope?             @relation("ScopedProjectMap")
+  mapContainerPlacements  MapProjectPlacement[] @relation("MapProjectContainer")
+  collapsedMapPreferences MapCollapsedProject[] @relation("CollapsedMapProject")
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, status])
 }
 
 model WorkItem {
-  id               String               @id @default(cuid())
-  workspaceId      String
-  projectId        String?
-  title            String
-  description      String?
-  checklist        Json?
-  noteIds          Json?
-  status           WorkItemStatus       @default(BACKLOG)
-  priority         WorkItemPriority     @default(MEDIUM)
-  startDate        DateTime?
-  dueDate          DateTime?
-  completedAt      DateTime?
-  sortOrder        Int                  @default(0)
-  position         Float                @default(0)
-  createdById      String
-  assigneeId       String?
-  parentId         String?
-  workspace        Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project          Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  createdBy        User                 @relation("WorkItemCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  assignee         User?                @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  parent           WorkItem?            @relation("WorkItemParent", fields: [parentId], references: [id], onDelete: SetNull)
-  children         WorkItem[]           @relation("WorkItemParent")
-  labels           WorkItemLabel[]
-  comments         Comment[]
-  attachments      Attachment[]
-  sourceRelations  WorkItemRelation[]   @relation("RelationSource")
-  targetRelations  WorkItemRelation[]   @relation("RelationTarget")
+  id              String             @id @default(cuid())
+  workspaceId     String
+  projectId       String?
+  title           String
+  description     String?
+  checklist       Json?
+  noteIds         Json?
+  status          WorkItemStatus     @default(BACKLOG)
+  priority        WorkItemPriority   @default(MEDIUM)
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  sortOrder       Int                @default(0)
+  position        Float              @default(0)
+  createdById     String
+  assigneeId      String?
+  parentId        String?
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project         Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy       User               @relation("WorkItemCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignee        User?              @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  parent          WorkItem?          @relation("WorkItemParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children        WorkItem[]         @relation("WorkItemParent")
+  labels          WorkItemLabel[]
+  comments        Comment[]
+  attachments     Attachment[]
+  sourceRelations WorkItemRelation[] @relation("RelationSource")
+  targetRelations WorkItemRelation[] @relation("RelationTarget")
+  mapPlacements   MapTaskPlacement[]
   notifications   Notification[]
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   @@index([workspaceId, status])
   @@index([projectId, status])
@@ -306,14 +317,14 @@ model WorkItem {
 }
 
 model Label {
-  id          String        @id @default(cuid())
+  id          String          @id @default(cuid())
   workspaceId String
   name        String
   color       String?
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workItems   WorkItemLabel[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@unique([workspaceId, name])
 }
@@ -329,23 +340,23 @@ model WorkItemLabel {
 }
 
 model Note {
-  id            String         @id @default(cuid())
-  workspaceId   String
-  projectId     String?
-  title         String
-  body          String?
-  visibility    NoteVisibility @default(PRIVATE)
-  pinned        Boolean        @default(false)
-  tags          Json?
-  createdById   String
-  updatedById   String
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  createdBy     User           @relation("NoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy     User           @relation("NoteUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
-  attachments   Attachment[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          String         @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  title       String
+  body        String?
+  visibility  NoteVisibility @default(PRIVATE)
+  pinned      Boolean        @default(false)
+  tags        Json?
+  createdById String
+  updatedById String
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy   User           @relation("NoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User           @relation("NoteUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@index([workspaceId, pinned])
   @@index([projectId])
@@ -373,7 +384,7 @@ model ProjectDoc {
 }
 
 model SavedView {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
   projectId   String?
   createdById String
@@ -383,7 +394,7 @@ model SavedView {
   orderBy     String?
   filters     Json?
   display     Json?
-  isDefault   Boolean  @default(false)
+  isDefault   Boolean   @default(false)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdBy   User      @relation("ViewCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -395,17 +406,17 @@ model SavedView {
 }
 
 model UserSettings {
-  id          String   @id @default(cuid())
-  workspaceId String
-  userId      String
-  theme       String?
-  density     String?
-  accent      String?
+  id            String    @id @default(cuid())
+  workspaceId   String
+  userId        String
+  theme         String?
+  density       String?
+  accent        String?
   notifications Json?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([workspaceId, userId])
 }
@@ -427,23 +438,23 @@ model ActivityEvent {
 }
 
 model Notification {
-  id           String           @id @default(cuid())
-  workspaceId  String
-  userId       String
-  actorId      String?
-  workItemId   String?
-  type         NotificationType
-  title        String
-  body         String
-  sourceKey    String?
-  isRead       Boolean          @default(false)
-  readAt       DateTime?
-  workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user         User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
-  actor        User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
-  workItem     WorkItem?        @relation(fields: [workItemId], references: [id], onDelete: Cascade)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id          String           @id @default(cuid())
+  workspaceId String
+  userId      String
+  actorId     String?
+  workItemId  String?
+  type        NotificationType
+  title       String
+  body        String
+  sourceKey   String?
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  workItem    WorkItem?        @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@unique([workspaceId, userId, sourceKey])
   @@index([workspaceId, userId, createdAt])
@@ -466,20 +477,20 @@ model Comment {
 }
 
 model Attachment {
-  id          String    @id @default(cuid())
-  workspaceId String
-  workItemId  String?
-  noteId      String?
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workItemId   String?
+  noteId       String?
   uploadedById String
-  name        String
-  storageKey  String
-  mimeType    String?
-  sizeBytes   Int?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workItem    WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Cascade)
-  note        Note?     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  uploadedBy  User      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
-  createdAt   DateTime  @default(now())
+  name         String
+  storageKey   String
+  mimeType     String?
+  sizeBytes    Int?
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workItem     WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  note         Note?     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
 
   @@unique([storageKey])
   @@index([workItemId])
@@ -502,48 +513,159 @@ model WorkItemRelation {
 }
 
 model WorkspaceInvite {
-  id             String       @id @default(cuid())
-  workspaceId    String
-  email          String
-  role           WorkspaceRole @default(MEMBER)
-  customMessage  String?
-  messageSubject String?
-  messageBody    String?
-  templateKey    String?
-  lastDeliveryProvider String?
+  id                    String        @id @default(cuid())
+  workspaceId           String
+  email                 String
+  role                  WorkspaceRole @default(MEMBER)
+  customMessage         String?
+  messageSubject        String?
+  messageBody           String?
+  templateKey           String?
+  lastDeliveryProvider  String?
   lastDeliveryMessageId String?
-  lastDeliveryError String?
-  lastDeliveredAt DateTime?
-  token          String       @unique
-  status         InviteStatus @default(PENDING)
-  expiresAt      DateTime
-  invitedById    String
-  acceptedById   String?
-  workspace      Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  invitedBy      User         @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Restrict)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  lastDeliveryError     String?
+  lastDeliveredAt       DateTime?
+  token                 String        @unique
+  status                InviteStatus  @default(PENDING)
+  expiresAt             DateTime
+  invitedById           String
+  acceptedById          String?
+  workspace             Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy             User          @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@index([workspaceId, email])
 }
 
 model WorkspaceInvitePolicy {
-  id                  String        @id @default(cuid())
-  workspaceId         String        @unique
-  allowExternalDomains Boolean      @default(true)
-  allowedDomains      Json?
-  blockedDomains      Json?
-  minimumInviterRole  WorkspaceRole @default(ADMIN)
-  defaultInviteRole   WorkspaceRole @default(MEMBER)
-  inviteExpiryDays    Int           @default(7)
+  id                   String        @id @default(cuid())
+  workspaceId          String        @unique
+  allowExternalDomains Boolean       @default(true)
+  allowedDomains       Json?
+  blockedDomains       Json?
+  minimumInviterRole   WorkspaceRole @default(ADMIN)
+  defaultInviteRole    WorkspaceRole @default(MEMBER)
+  inviteExpiryDays     Int           @default(7)
   emailSubjectTemplate String?
-  emailBodyTemplate   String?
-  templateCatalog     Json?
-  updatedById         String?
-  workspace           Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  updatedBy           User?         @relation("InvitePolicyUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  emailBodyTemplate    String?
+  templateCatalog      Json?
+  updatedById          String?
+  workspace            Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  updatedBy            User?         @relation("InvitePolicyUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([minimumInviterRole])
+}
+
+model MapScope {
+  id                String                @id @default(cuid())
+  workspaceId       String
+  scopeType         MapScopeType
+  projectId         String?               @unique
+  scopeKey          String
+  schemaVersion     Int                   @default(1)
+  revision          Int                   @default(0)
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project           Project?              @relation("ScopedProjectMap", fields: [projectId], references: [id], onDelete: Cascade)
+  taskPlacements    MapTaskPlacement[]
+  projectPlacements MapProjectPlacement[]
+  sections          MapSection[]
+  preferences       MapPreference[]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([workspaceId, scopeKey])
+  @@index([workspaceId, scopeType])
+}
+
+model MapTaskPlacement {
+  mapScopeId String
+  workItemId String
+  sectionId  String?
+  x          Float
+  y          Float
+  mapScope   MapScope    @relation(fields: [mapScopeId], references: [id], onDelete: Cascade)
+  workItem   WorkItem    @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  section    MapSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  updatedAt  DateTime    @updatedAt
+
+  @@id([mapScopeId, workItemId])
+  @@index([workItemId])
+  @@index([sectionId])
+}
+
+model MapProjectPlacement {
+  mapScopeId   String
+  containerKey String
+  projectId    String?
+  x            Float
+  y            Float
+  mapScope     MapScope @relation(fields: [mapScopeId], references: [id], onDelete: Cascade)
+  project      Project? @relation("MapProjectContainer", fields: [projectId], references: [id], onDelete: Cascade)
+  updatedAt    DateTime @updatedAt
+
+  @@id([mapScopeId, containerKey])
+  @@index([projectId])
+}
+
+model MapSection {
+  id                   String                @id @default(cuid())
+  mapScopeId           String
+  name                 String
+  sortOrder            Int
+  x                    Float
+  y                    Float
+  width                Float
+  height               Float
+  color                String?
+  mapScope             MapScope              @relation(fields: [mapScopeId], references: [id], onDelete: Cascade)
+  taskPlacements       MapTaskPlacement[]
+  collapsedPreferences MapCollapsedSection[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@unique([mapScopeId, sortOrder])
+  @@index([mapScopeId])
+}
+
+model MapPreference {
+  id                String                @id @default(cuid())
+  mapScopeId        String
+  userId            String
+  viewportX         Float                 @default(0)
+  viewportY         Float                 @default(0)
+  viewportZoom      Float                 @default(1)
+  statusFilter      String                @default("open")
+  trayOpen          Boolean               @default(false)
+  mapScope          MapScope              @relation(fields: [mapScopeId], references: [id], onDelete: Cascade)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collapsedProjects MapCollapsedProject[]
+  collapsedSections MapCollapsedSection[]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([mapScopeId, userId])
+  @@index([userId])
+}
+
+model MapCollapsedProject {
+  preferenceId String
+  projectId    String
+  preference   MapPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+  project      Project       @relation("CollapsedMapProject", fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([preferenceId, projectId])
+  @@index([projectId])
+}
+
+model MapCollapsedSection {
+  preferenceId String
+  sectionId    String
+  preference   MapPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+  section      MapSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@id([preferenceId, sectionId])
+  @@index([sectionId])
 }

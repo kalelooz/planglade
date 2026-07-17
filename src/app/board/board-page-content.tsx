@@ -3,7 +3,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical, LayoutGrid, List,
+  Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical, LayoutGrid, List, Waypoints,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -148,6 +148,7 @@ export function BoardPageContent() {
   const scopedProjectId = routeProjectId ?? activeProjectId;
   const routePrefix = isDemoMode ? "/demo" : "/app";
   const listHref = scopedProjectId ? `${routePrefix}/tasks?project=${encodeURIComponent(scopedProjectId)}` : `${routePrefix}/tasks`;
+  const mapHref = scopedProjectId ? `/app/tasks?view=map&project=${encodeURIComponent(scopedProjectId)}` : "/app/tasks?view=map";
   const activeProject = scopedProjectId ? projects.find((p) => p.id === scopedProjectId) ?? null : null;
   const scopedWorkItems = useMemo(
     () => (scopedProjectId ? workItems.filter((w) => w.project === scopedProjectId) : workItems),
@@ -421,6 +422,15 @@ export function BoardPageContent() {
               <LayoutGrid className="h-3.5 w-3.5" />
               <span>Board</span>
             </span>
+            {!isDemoMode ? (
+              <Link
+                href={mapHref}
+                className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-1"
+              >
+                <Waypoints className="h-3.5 w-3.5" />
+                <span>Map</span>
+              </Link>
+            ) : null}
           </div>
           {error && <span className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] text-red-700">{error}</span>}
           {loading && <span className="text-[12px] text-muted-foreground">Loading board...</span>}

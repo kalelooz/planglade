@@ -398,6 +398,7 @@ const localWorkItemSchema = z.object({
   due: z.string().optional(),
   start: z.string().optional(),
   project: z.string().optional(),
+  parentId: z.string().optional(),
   description: z.string().optional(),
   noteIds: z.array(z.string().min(1)).optional(),
   checklist: z
@@ -428,6 +429,49 @@ const localProjectDocSchema = z.object({
   archivedAt: z.string().datetime().optional(),
 })
 
+const localMapLayoutSchema = z.object({
+  schemaVersion: z.number().int().positive(),
+  scopeType: z.enum(["WORKSPACE", "PROJECT"]),
+  projectId: z.string().min(1).optional(),
+  revision: z.number().int().nonnegative(),
+  taskPlacements: z
+    .array(
+      z.object({
+        workItemId: z.string().min(1),
+        sectionId: z.string().min(1).nullable().optional(),
+        x: z.number().finite(),
+        y: z.number().finite(),
+      }),
+    )
+    .max(500)
+    .default([]),
+  projectPlacements: z
+    .array(
+      z.object({
+        projectId: z.string().min(1).nullable(),
+        x: z.number().finite(),
+        y: z.number().finite(),
+      }),
+    )
+    .max(500)
+    .default([]),
+  sections: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().trim().min(1).max(80),
+        sortOrder: z.number().int().nonnegative(),
+        x: z.number().finite(),
+        y: z.number().finite(),
+        width: z.number().finite().positive(),
+        height: z.number().finite().positive(),
+        color: z.string().max(40).nullable().optional(),
+      }),
+    )
+    .max(100)
+    .default([]),
+})
+
 export const importLocalWorkspaceSchema = z.object({
   workspaceId: z.string().min(1),
   mode: z.enum(["append", "replace"]).default("append"),
@@ -435,6 +479,7 @@ export const importLocalWorkspaceSchema = z.object({
   workItems: z.array(localWorkItemSchema).default([]),
   notes: z.array(localNoteSchema).default([]),
   projectDocs: z.array(localProjectDocSchema).default([]),
+  mapLayouts: z.array(localMapLayoutSchema).default([]),
 })
 
 export const importPreviewWorkspaceSnapshotSchema = z.object({
@@ -463,6 +508,7 @@ export const importPreviewWorkspaceSnapshotSchema = z.object({
     workItems: z.array(localWorkItemSchema).default([]),
     notes: z.array(localNoteSchema).default([]),
     projectDocs: z.array(localProjectDocSchema).default([]),
+    mapLayouts: z.array(localMapLayoutSchema).default([]),
   }),
   counts: z
     .object({
@@ -470,6 +516,7 @@ export const importPreviewWorkspaceSnapshotSchema = z.object({
       workItems: z.number().int().nonnegative().optional(),
       notes: z.number().int().nonnegative().optional(),
       projectDocs: z.number().int().nonnegative().optional(),
+      mapLayouts: z.number().int().nonnegative().optional(),
     })
     .optional(),
 })
