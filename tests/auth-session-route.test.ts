@@ -35,6 +35,7 @@ const originalEnv = {
   NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  PLANGLADE_LOCAL_AUTH_ENABLED: process.env.PLANGLADE_LOCAL_AUTH_ENABLED,
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
   FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
   NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -108,6 +109,7 @@ test("GET /auth/session reports nextauth provider misconfiguration", async () =>
     setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "nextauth")
     setEnv("NEXTAUTH_SECRET", "test-secret")
     setEnv("NEXTAUTH_URL", "http://localhost:3000")
+    setEnv("PLANGLADE_LOCAL_AUTH_ENABLED", "false")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
     const payload = (await response.json()) as { error?: string }
@@ -127,6 +129,7 @@ test("GET /auth/session hides nextauth provider setup details in production", as
     setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "nextauth")
     setEnv("NEXTAUTH_SECRET", "test-secret")
     setEnv("NEXTAUTH_URL", "https://planglade.example")
+    setEnv("PLANGLADE_LOCAL_AUTH_ENABLED", "false")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
     const payload = (await response.json()) as { error?: string }

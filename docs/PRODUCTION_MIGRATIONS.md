@@ -11,7 +11,7 @@ The public repository confirms one persistent standalone application database:
 - The `migrate` service runs checked-in migrations with `prisma migrate deploy` before the app starts.
 - Local attachments are separate files at `/app/storage/local-attachments` in `planglade_planglade_attachments` and must be backed up with the database.
 
-The Netlify preview/public-site configuration uses ephemeral SQLite under `/tmp` and is not a persistent production database. Do not add `prisma migrate deploy` to a Netlify build unless that architecture changes to a reviewed persistent database.
+The Netlify preview/public-site configuration uses ephemeral SQLite at `file:/tmp/planglade.db` and is not a persistent production database. Do not add `prisma migrate deploy` to the Netlify build command unless that architecture changes to a reviewed persistent database.
 
 Never print or paste `DATABASE_URL`, authentication secrets, storage signing secrets, recovery tokens, or `.env` contents into migration logs or tickets.
 
@@ -25,6 +25,8 @@ docker compose up -d
 ```
 
 Compose starts the app only after `migrate` exits successfully. `docker compose run --rm migrate` is for troubleshooting, not a second normal migration step.
+
+For a reviewed persistent non-Docker deployment, the equivalent checked-in command is `npm run db:migrate:deploy`. Do not run it against the Netlify preview database or as a second step after the Compose migrator.
 
 Never run these against persistent self-host data:
 
@@ -71,7 +73,7 @@ npm run db:check:attachment-storage-keys
 npm run db:migrate:status
 ```
 
-These commands do not print `DATABASE_URL` or storage keys. Stop if a preflight fails; do not use a reset as remediation.
+This preflight does not print `DATABASE_URL` or storage keys. Stop if it fails; do not use a reset as remediation.
 
 ## Apply And Verify
 
@@ -90,6 +92,8 @@ The health endpoint returns status only. `{"status":"ok"}` confirms basic readin
 ## Rollback And Recovery
 
 Application rollback alone may be unsafe after a schema change. The reliable rollback is the previous known-good app version plus its compatible pre-upgrade bundle.
+
+If verification fails, stop writes and restore from the backup before reopening the previous application version.
 
 1. Stop the new stack without deleting volumes:
 

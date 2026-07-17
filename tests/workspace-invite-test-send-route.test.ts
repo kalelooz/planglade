@@ -6,6 +6,8 @@ import { db } from "../src/lib/db"
 import { POST as sendTestInviteEmail } from "../src/app/api/workspace/invitations/test-send/route"
 
 const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalEmailProvider = process.env.PLANGLADE_EMAIL_PROVIDER
+const originalLegacyEmailProvider = process.env.FLOWBOARD_EMAIL_PROVIDER
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalMemberFindUnique = db.workspaceMember.findUnique
 const originalUserFindUnique = db.user.findUnique
@@ -15,6 +17,7 @@ const originalQueryRaw = db.$queryRaw
 
 async function runWithMocks(fn: () => Promise<void>) {
   process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_EMAIL_PROVIDER = "console"
   process.env.FLOWBOARD_EMAIL_PROVIDER = "console"
   ;(db.authThrottle as typeof db.authThrottle).deleteMany = (async () => ({ count: 0 })) as typeof db.authThrottle.deleteMany
   ;(db as unknown as { $queryRaw: unknown }).$queryRaw = (async () => [{ blockedUntil: null }]) as typeof db.$queryRaw
@@ -22,6 +25,10 @@ async function runWithMocks(fn: () => Promise<void>) {
     await fn()
   } finally {
     process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    if (originalEmailProvider === undefined) delete process.env.PLANGLADE_EMAIL_PROVIDER
+    else process.env.PLANGLADE_EMAIL_PROVIDER = originalEmailProvider
+    if (originalLegacyEmailProvider === undefined) delete process.env.FLOWBOARD_EMAIL_PROVIDER
+    else process.env.FLOWBOARD_EMAIL_PROVIDER = originalLegacyEmailProvider
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalMemberFindUnique
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique

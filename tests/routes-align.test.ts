@@ -126,7 +126,7 @@ test("primary navigation and auth defaults use canonical app routes", async () =
   assert.match(shell, /label: "Connections"/)
   assert.match(commandPalette, /Go to Connections|\/app\/connections/)
 
-  assert.match(login, /searchParams\.get\("next"\) \|\| "\/app"/)
+  assert.match(login, /const nextPath = safeInternalPath\(searchParams\.get\("next"\)\)/)
   assert.match(onboarding, /searchParams\.get\("next"\) \|\| "\/app"/)
   assert.match(authContext, /callbackUrl: nextPath \?\? "\/app"/)
 })
