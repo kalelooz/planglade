@@ -10,6 +10,7 @@ import {
   readdir,
   rename,
   rm,
+  rmdir,
   writeFile,
 } from "node:fs/promises"
 import path from "node:path"
@@ -132,7 +133,7 @@ function validateRelativePath(value) {
   return value
 }
 
-async function walkFiles(root) {
+async function walkFiles(root, ignoredTopLevelNames = new Set()) {
   await requireDirectory(root, "Directory")
   const files = []
 
@@ -140,6 +141,7 @@ async function walkFiles(root) {
     const entries = await readdir(current, { withFileTypes: true })
     entries.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
     for (const entry of entries) {
+      if (parts.length === 0 && ignoredTopLevelNames.has(entry.name)) continue
       if (entry.name.includes("\\") || entry.name.includes("\0")) {
         fail("Directory contains an unsupported filename.")
       }
@@ -366,6 +368,7 @@ export async function createBackupBundle(input, options = {}) {
   await requireFile(dataPaths.databasePath, "Live SQLite database")
   await requireDirectory(dataPaths.attachmentsPath, "Live attachment directory")
   await rejectSqliteSidecars(dataPaths.databasePath)
+  await rejectRestoreArtifacts(dataPaths.attachmentsPath)
 
   const sourceDatabaseBefore = await lstat(dataPaths.databasePath)
   const sourceAttachmentsBefore = await walkFiles(dataPaths.attachmentsPath)
@@ -465,12 +468,13 @@ export async function restoreBackupBundle(input, options = {}) {
   await rejectSqliteSidecars(dataPaths.databasePath)
 
   const databaseKind = await kind(dataPaths.databasePath)
-  if (!['missing', 'file'].includes(databaseKind)) fail("Restore database destination is ambiguous.")
+  if (!["missing", "file"].includes(databaseKind)) fail("Restore database destination is ambiguous.")
   const attachmentsKind = await kind(dataPaths.attachmentsPath)
-  if (!['missing', 'directory'].includes(attachmentsKind)) fail("Restore attachment destination is ambiguous.")
+  if (!["missing", "directory"].includes(attachmentsKind)) fail("Restore attachment destination is ambiguous.")
   const databaseParent = path.dirname(dataPaths.databasePath)
   const attachmentsParent = path.dirname(dataPaths.attachmentsPath)
   await rejectRestoreArtifacts(databaseParent, attachmentsParent)
+  if (attachmentsKind === "directory") await rejectRestoreArtifacts(dataPaths.attachmentsPath)
   const destinationDatabaseBefore = databaseKind === "file" ? await lstat(dataPaths.databasePath) : null
   const destinationAttachmentsBefore = attachmentsKind === "directory"
     ? await walkFiles(dataPaths.attachmentsPath)
@@ -478,15 +482,25 @@ export async function restoreBackupBundle(input, options = {}) {
 
   const id = randomUUID()
   const databaseStage = path.join(databaseParent, `.planglade-restore-${id}.db`)
-  const attachmentsStage = path.join(attachmentsParent, `.planglade-restore-${id}-attachments`)
   const databaseRollback = path.join(databaseParent, `.planglade-rollback-${id}.db`)
-  const attachmentsRollback = path.join(attachmentsParent, `.planglade-rollback-${id}-attachments`)
+  const attachmentsStageName = `.planglade-restore-${id}-attachments`
+  const attachmentsRollbackName = `.planglade-rollback-${id}-attachments`
+  const attachmentsStage = path.join(dataPaths.attachmentsPath, attachmentsStageName)
+  const attachmentsRollback = path.join(dataPaths.attachmentsPath, attachmentsRollbackName)
+  const restoreInternals = new Set([attachmentsStageName, attachmentsRollbackName])
+  const movedAttachmentNames = []
+  const installedAttachmentNames = []
+  let attachmentsRootCreated = false
+  let attachmentsRollbackCreated = false
   let databaseMoved = false
-  let attachmentsMoved = false
   let databaseInstalled = false
-  let attachmentsInstalled = false
+  let restoreCompleted = false
 
   try {
+    if (attachmentsKind === "missing") {
+      await mkdir(dataPaths.attachmentsPath, { mode: 0o700 })
+      attachmentsRootCreated = true
+    }
     await copyPrivateFile(path.join(bundlePath, DATABASE_FILE), databaseStage)
     await mkdir(attachmentsStage, { mode: 0o700 })
     for (const entry of manifest.attachments) {
@@ -510,7 +524,10 @@ export async function restoreBackupBundle(input, options = {}) {
     }
     if (
       destinationAttachmentsBefore &&
-      !sameDirectorySnapshot(destinationAttachmentsBefore, await walkFiles(dataPaths.attachmentsPath))
+      !sameDirectorySnapshot(
+        destinationAttachmentsBefore,
+        await walkFiles(dataPaths.attachmentsPath, restoreInternals),
+      )
     ) {
       fail("Restore attachment destination changed while replacements were staged.")
     }
@@ -520,18 +537,40 @@ export async function restoreBackupBundle(input, options = {}) {
         await rename(dataPaths.databasePath, databaseRollback)
         databaseMoved = true
       }
-      if (attachmentsKind === "directory") {
-        await rename(dataPaths.attachmentsPath, attachmentsRollback)
-        attachmentsMoved = true
+      await mkdir(attachmentsRollback, { mode: 0o700 })
+      attachmentsRollbackCreated = true
+      const liveAttachmentNames = (await readdir(dataPaths.attachmentsPath))
+        .filter((name) => !restoreInternals.has(name))
+        .sort()
+      for (const name of liveAttachmentNames) {
+        await rename(
+          path.join(dataPaths.attachmentsPath, name),
+          path.join(attachmentsRollback, name),
+        )
+        movedAttachmentNames.push(name)
       }
       await rename(databaseStage, dataPaths.databasePath)
       databaseInstalled = true
-      await rename(attachmentsStage, dataPaths.attachmentsPath)
-      attachmentsInstalled = true
+      const stagedAttachmentNames = (await readdir(attachmentsStage)).sort()
+      for (const name of stagedAttachmentNames) {
+        await rename(
+          path.join(attachmentsStage, name),
+          path.join(dataPaths.attachmentsPath, name),
+        )
+        installedAttachmentNames.push(name)
+      }
     } catch {
       try {
-        if (attachmentsInstalled) await rm(dataPaths.attachmentsPath, { recursive: true, force: true })
-        if (attachmentsMoved) await rename(attachmentsRollback, dataPaths.attachmentsPath)
+        for (const name of installedAttachmentNames.reverse()) {
+          await rm(path.join(dataPaths.attachmentsPath, name), { recursive: true, force: true })
+        }
+        for (const name of movedAttachmentNames.reverse()) {
+          await rename(
+            path.join(attachmentsRollback, name),
+            path.join(dataPaths.attachmentsPath, name),
+          )
+        }
+        if (attachmentsRollbackCreated) await rmdir(attachmentsRollback)
         if (databaseInstalled) await rm(dataPaths.databasePath, { force: true })
         if (databaseMoved) await rename(databaseRollback, dataPaths.databasePath)
       } catch {
@@ -542,10 +581,18 @@ export async function restoreBackupBundle(input, options = {}) {
 
     await rm(databaseRollback, { force: true })
     await rm(attachmentsRollback, { recursive: true, force: true })
+    restoreCompleted = true
     return manifest
   } finally {
     await rm(databaseStage, { force: true })
     await rm(attachmentsStage, { recursive: true, force: true })
+    if (attachmentsRootCreated && !restoreCompleted) {
+      try {
+        await rmdir(dataPaths.attachmentsPath)
+      } catch (error) {
+        if (error?.code !== "ENOTEMPTY") throw error
+      }
+    }
   }
 }
 

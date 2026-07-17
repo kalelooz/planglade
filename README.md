@@ -74,6 +74,7 @@ For more detail, see [ROADMAP.md](./ROADMAP.md).
 - Projects and Project Home
 - Notes and project context
 - Calendar over due dates
+- Connections relationship view
 - Settings
 - JSON export and guarded import
 - Early self-host docs

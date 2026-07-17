@@ -1,7 +1,8 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { execFile } from "node:child_process"
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { watch } from "node:fs"
+import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { DatabaseSync } from "node:sqlite"
@@ -77,6 +78,12 @@ async function cloneBundle(source: string, parent: string, name: string) {
   return destination
 }
 
+async function restoreArtifactNames(root: string) {
+  return (await readdir(root))
+    .filter((name) => name.startsWith(".planglade-restore-") || name.startsWith(".planglade-rollback-"))
+    .sort()
+}
+
 test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "planglade-backup-roundtrip-"))
   const sourceDatabase = path.join(root, "source.db")
@@ -110,6 +117,7 @@ test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle
     createDatabase(targetDatabase, "target-value")
     await mkdir(targetAttachments)
     await writeFile(path.join(targetAttachments, "keep.txt"), "keep")
+    const targetAttachmentsBefore = await lstat(targetAttachments)
     await expectFailure(
       runCli("backup:restore", [bundle], selfHostEnv(targetDatabase, targetAttachments)),
       /confirm-replace/i,
@@ -124,11 +132,117 @@ test("SELF-HOST-UPGRADE-RESTORE-001: CLI creates and restores one checked bundle
     )
     assert.match(restored.stdout, /database and attachments restored/i)
     assert.equal(readDatabaseValue(targetDatabase), "source-value")
+    const targetAttachmentsAfter = await lstat(targetAttachments)
+    assert.equal(targetAttachmentsAfter.dev, targetAttachmentsBefore.dev)
+    assert.equal(targetAttachmentsAfter.ino, targetAttachmentsBefore.ino)
+    assert.deepEqual(await restoreArtifactNames(targetAttachments), [])
     assert.deepEqual(
       await readFile(path.join(targetAttachments, "workspace-1", "attachment.bin")),
       Buffer.from([0, 1, 2, 255]),
     )
   } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("SELF-HOST-UPGRADE-RESTORE-001: restore creates a missing attachment root", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "planglade-backup-missing-root-"))
+  const sourceDatabase = path.join(root, "source.db")
+  const sourceAttachments = path.join(root, "source-attachments")
+  const bundle = path.join(root, "bundle-v1")
+  const targetDatabase = path.join(root, "target.db")
+  const targetAttachments = path.join(root, "target-attachments")
+
+  try {
+    createDatabase(sourceDatabase, "source-value")
+    await mkdir(sourceAttachments)
+    await writeFile(path.join(sourceAttachments, "attachment.txt"), "source attachment")
+    await runCli("backup:create", [bundle], selfHostEnv(sourceDatabase, sourceAttachments))
+    createDatabase(targetDatabase, "target-value")
+
+    await runCli(
+      "backup:restore",
+      [bundle, "--confirm-replace"],
+      selfHostEnv(targetDatabase, targetAttachments),
+    )
+
+    assert.equal((await lstat(targetAttachments)).isDirectory(), true)
+    assert.equal(await readFile(path.join(targetAttachments, "attachment.txt"), "utf8"), "source attachment")
+    assert.deepEqual(await restoreArtifactNames(targetAttachments), [])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("SELF-HOST-UPGRADE-RESTORE-001: in-place attachment failure restores original entries", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "planglade-backup-in-place-rollback-"))
+  const sourceDatabase = path.join(root, "source.db")
+  const sourceAttachments = path.join(root, "source-attachments")
+  const bundle = path.join(root, "bundle-v1")
+  const targetDatabase = path.join(root, "target.db")
+  const targetAttachments = path.join(root, "target-attachments")
+  const collision = path.join(targetAttachments, "00-new")
+  let watcher: ReturnType<typeof watch> | undefined
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    createDatabase(sourceDatabase, "source-value")
+    await mkdir(path.join(sourceAttachments, "00-new"), { recursive: true })
+    await writeFile(path.join(sourceAttachments, "00-new", "attachment.txt"), "replacement")
+    await runCli("backup:create", [bundle], selfHostEnv(sourceDatabase, sourceAttachments))
+
+    createDatabase(targetDatabase, "original-target")
+    await mkdir(targetAttachments)
+    await Promise.all(
+      Array.from({ length: 500 }, (_, index) =>
+        writeFile(path.join(targetAttachments, `old-${String(index).padStart(4, "0")}.txt`), "original"),
+      ),
+    )
+    const targetAttachmentsBefore = await lstat(targetAttachments)
+
+    let injectionStarted = false
+    let resolveInjected: (() => void) | undefined
+    let rejectInjected: ((error: unknown) => void) | undefined
+    const injected = new Promise<void>((resolve, reject) => {
+      resolveInjected = resolve
+      rejectInjected = reject
+    })
+    watcher = watch(targetAttachments, (_event, filename) => {
+      if (injectionStarted || filename?.toString() !== "old-0000.txt") return
+      injectionStarted = true
+      void mkdir(collision)
+        .then(() => writeFile(path.join(collision, "blocker.txt"), "concurrent entry"))
+        .then(() => resolveInjected?.())
+        .catch((error) => rejectInjected?.(error))
+    })
+
+    const restoreFailure = expectFailure(
+      runCli(
+        "backup:restore",
+        [bundle, "--confirm-replace"],
+        selfHostEnv(targetDatabase, targetAttachments),
+      ),
+      /original database and attachments were restored/i,
+    )
+    timeout = setTimeout(
+      () => rejectInjected?.(new Error("Restore rollback collision was not injected.")),
+      10_000,
+    )
+    await Promise.all([restoreFailure, injected])
+    clearTimeout(timeout)
+    timeout = undefined
+
+    assert.equal(readDatabaseValue(targetDatabase), "original-target")
+    assert.equal(await readFile(path.join(targetAttachments, "old-0000.txt"), "utf8"), "original")
+    assert.equal(await readFile(path.join(collision, "blocker.txt"), "utf8"), "concurrent entry")
+    const targetAttachmentsAfter = await lstat(targetAttachments)
+    assert.equal(targetAttachmentsAfter.dev, targetAttachmentsBefore.dev)
+    assert.equal(targetAttachmentsAfter.ino, targetAttachmentsBefore.ino)
+    assert.deepEqual(await restoreArtifactNames(targetAttachments), [])
+    assert.deepEqual(await restoreArtifactNames(root), [])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+    watcher?.close()
     await rm(root, { recursive: true, force: true })
   }
 })
@@ -209,9 +323,21 @@ test("SELF-HOST-UPGRADE-RESTORE-001: corruption, incompatible versions, and trav
       /file format version is unsupported/i,
     )
 
+    const unresolvedArtifact = path.join(targetAttachments, ".planglade-restore-collision")
+    await mkdir(unresolvedArtifact)
+    await expectFailure(
+      runCli(
+        "backup:restore",
+        [originalBundle, "--confirm-replace"],
+        selfHostEnv(targetDatabase, targetAttachments),
+      ),
+      /unresolved staging or rollback artifact/i,
+    )
+
     assert.equal(await sha256(targetDatabase), targetDatabaseHash)
     assert.equal(readDatabaseValue(targetDatabase), "original-target")
     assert.equal(await readFile(path.join(targetAttachments, "keep.txt"), "utf8"), "original-attachment")
+    assert.equal((await lstat(unresolvedArtifact)).isDirectory(), true)
     await assert.rejects(readFile(path.join(root, "outside.txt")), /ENOENT/)
   } finally {
     await rm(root, { recursive: true, force: true })

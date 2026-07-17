@@ -240,10 +240,11 @@ test("SELF-HOST-DOCS-001: health guidance describes the status-only contract", a
   assert.match(backup, /health endpoint is status-only/i)
 })
 
-test("SELF-HOST-DOCS-001: public README omits deferred private surfaces", async () => {
+test("SELF-HOST-DOCS-001: public README keeps the broad Connections view without Map", async () => {
   const readme = await readProjectFile("README.md")
 
-  assert.doesNotMatch(readme, /\bConnections\b|\/map\b/i)
+  assert.match(readme, /Connections relationship view/)
+  assert.doesNotMatch(readme, /\/map\b/i)
 })
 
 // ---------------------------------------------------------------------------
