@@ -33,11 +33,11 @@ function exactSetupStatus(value: unknown, status: "available" | "unavailable") {
 
 function SetupFrame({ children }: { children: React.ReactNode }) {
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 text-zinc-950">
+    <main className="self-host-page relative min-h-screen overflow-x-hidden">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(161,161,170,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(161,161,170,0.12)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_78%)]" />
       <div className="relative mx-auto flex min-h-screen w-full max-w-xl items-center px-[max(1rem,env(safe-area-inset-left))] py-[max(1.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-10">
-        <section className="w-full min-w-0 rounded-2xl border border-zinc-200 bg-white p-6 shadow-[0_24px_80px_rgba(24,24,27,0.12)] sm:p-10">
-          <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-4" aria-label="PlanGlade landing page">
+        <section className="self-host-surface w-full min-w-0 rounded-2xl p-6 sm:p-10">
+          <Link href="/setup" className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-4" aria-label="PlanGlade setup">
             <span className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50"><CheckSquare className="size-4" aria-hidden="true" /></span>
             PlanGlade
           </Link>

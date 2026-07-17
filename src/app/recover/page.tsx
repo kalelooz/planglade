@@ -90,12 +90,12 @@ export default function RecoveryPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 px-4 py-8 text-zinc-950 sm:py-12">
+    <main className="self-host-page relative min-h-screen overflow-x-hidden px-4 py-8 sm:py-12">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(161,161,170,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(161,161,170,0.12)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_78%)]"
       />
-      <div className="relative mx-auto w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-[0_24px_80px_rgba(24,24,27,0.10)] sm:p-10">
+      <div className="self-host-surface relative mx-auto w-full max-w-xl rounded-2xl p-6 sm:p-10">
         <Link
           href="/login"
           className="inline-flex w-fit items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-4"

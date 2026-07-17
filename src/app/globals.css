@@ -774,3 +774,23 @@ html[data-density="comfortable"] {
 }
 .note-tiptap .tiptap th { background: var(--color-muted); font-weight: 600; }
 .note-tiptap .tiptap .selectedCell { background: color-mix(in oklch, var(--color-primary) 8%, transparent); }
+
+.self-host-page {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.self-host-surface {
+  border: 1px solid color-mix(in oklch, var(--color-primary) 14%, var(--color-border));
+  background: var(--color-card);
+  box-shadow: 0 20px 60px color-mix(in oklch, var(--color-primary) 9%, transparent), 0 1px 2px color-mix(in oklch, var(--color-foreground) 5%, transparent);
+}
+
+.self-host-aside {
+  border-color: color-mix(in oklch, var(--color-primary) 40%, var(--color-border));
+  background: oklch(0.27 0.06 145);
+}
+
+.dark .self-host-aside {
+  background: oklch(0.16 0.03 145);
+}

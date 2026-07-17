@@ -246,14 +246,14 @@ export function LoginPage({
   }, [authMode, autoAccept, inviteToken, nextPath, router, user])
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 text-zinc-950">
+    <main className="self-host-page relative min-h-screen overflow-x-hidden">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(161,161,170,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(161,161,170,0.12)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_78%)]"
       />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <div className="grid w-full min-w-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(24,24,27,0.12)] lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+        <div className="self-host-surface grid w-full min-w-0 overflow-hidden rounded-2xl lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
           <section className="flex min-w-0 flex-col p-6 sm:p-10 lg:min-h-[650px] lg:p-12">
             <Link
               href="/landing"
@@ -407,7 +407,7 @@ export function LoginPage({
 
           <aside
             aria-labelledby="onboarding-title"
-            className="relative min-w-0 overflow-hidden border-t border-zinc-200 bg-zinc-950 p-6 text-white sm:p-10 lg:min-h-[650px] lg:border-l lg:border-t-0 lg:p-12"
+            className="self-host-aside relative min-w-0 overflow-hidden border-t p-6 text-white sm:p-10 lg:min-h-[650px] lg:border-l lg:border-t-0 lg:p-12"
           >
             <div
               aria-hidden="true"
