@@ -14,6 +14,7 @@ const originalWorkItemFindMany = db.workItem.findMany
 const originalNoteFindMany = db.note.findMany
 const originalLabelFindMany = db.label.findMany
 const originalProjectDocFindMany = db.projectDoc.findMany
+const originalMapScopeFindMany = db.mapScope.findMany
 const originalUserSettingsFindUnique = db.userSettings.findUnique
 const originalTransaction = db.$transaction
 const originalThrottleDeleteMany = db.authThrottle.deleteMany
@@ -25,6 +26,7 @@ async function runWithMocks(fn: () => Promise<void>) {
   process.env.FLOWBOARD_AUTH_MODE = "dev"
   ;(db.authThrottle as typeof db.authThrottle).deleteMany = (async () => ({ count: 0 })) as typeof db.authThrottle.deleteMany
   ;(db as unknown as { $queryRaw: unknown }).$queryRaw = (async () => [{ blockedUntil: null }]) as typeof db.$queryRaw
+  ;(db.mapScope as typeof db.mapScope).findMany = ((async () => []) as unknown) as typeof db.mapScope.findMany
   try {
     await fn()
   } finally {
@@ -36,6 +38,7 @@ async function runWithMocks(fn: () => Promise<void>) {
     ;(db.note as typeof db.note).findMany = originalNoteFindMany
     ;(db.label as typeof db.label).findMany = originalLabelFindMany
     ;(db.projectDoc as typeof db.projectDoc).findMany = originalProjectDocFindMany
+    ;(db.mapScope as typeof db.mapScope).findMany = originalMapScopeFindMany
     ;(db.userSettings as typeof db.userSettings).findUnique = originalUserSettingsFindUnique
     ;(db as unknown as { $transaction: unknown }).$transaction = originalTransaction
     ;(db.authThrottle as typeof db.authThrottle).deleteMany = originalThrottleDeleteMany
@@ -66,6 +69,7 @@ function mockEmptyWorkspaceExport() {
   ;(db.note as typeof db.note).findMany = ((async () => []) as unknown) as typeof db.note.findMany
   ;(db.label as typeof db.label).findMany = ((async () => []) as unknown) as typeof db.label.findMany
   ;(db.projectDoc as typeof db.projectDoc).findMany = ((async () => []) as unknown) as typeof db.projectDoc.findMany
+  ;(db.mapScope as typeof db.mapScope).findMany = ((async () => []) as unknown) as typeof db.mapScope.findMany
   ;(db.userSettings as typeof db.userSettings).findUnique = ((async () => null) as unknown) as typeof db.userSettings.findUnique
 }
 
