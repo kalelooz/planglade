@@ -22,10 +22,6 @@ export const workspaceSlugSchema = z
   .max(50)
   .regex(/^[a-z0-9-]+$/)
 
-export const workspaceBootstrapQuerySchema = z.object({
-  workspaceSlug: workspaceSlugSchema.optional(),
-})
-
 export const workspaceQuerySchema = z.object({
   workspaceId: z.string().min(1),
 })

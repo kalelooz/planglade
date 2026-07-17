@@ -9,6 +9,7 @@ export const errors = {
   unavailable: [409, "SETUP_UNAVAILABLE", "Setup is not available."],
   conflict: [409, "SETUP_CONFLICT", "Setup could not be completed."],
   expired: [410, "SETUP_CLAIM_EXPIRED", "The setup claim has expired."],
+  throttled: [429, "TOO_MANY_REQUESTS", "Too many requests. Please try again later."],
   failed: [500, "SETUP_FAILED", "Setup could not be completed."],
   temporary: [503, "SETUP_TEMPORARILY_UNAVAILABLE", "Setup is temporarily unavailable."],
 } as const
@@ -25,6 +26,12 @@ export function setupError(error: readonly [number, string, string]) {
     { error: { code: error[1], message: error[2] }, requestId: randomUUID() },
     { status: error[0], headers: setupHeaders },
   )
+}
+
+export function setupTooManyRequests(retryAfterSeconds: number) {
+  const response = setupError(errors.throttled)
+  response.headers.set("Retry-After", String(retryAfterSeconds))
+  return response
 }
 
 export function methodNotAllowed(allow: string) {

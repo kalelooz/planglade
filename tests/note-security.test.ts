@@ -20,6 +20,8 @@ const originalProjectFindMany = db.project.findMany
 const originalWorkItemFindMany = db.workItem.findMany
 const originalLabelFindMany = db.label.findMany
 const originalTransaction = db.$transaction
+const originalThrottleDeleteMany = db.authThrottle.deleteMany
+const originalQueryRaw = db.$queryRaw
 
 async function runWithMocks(fn: () => Promise<void>) {
   process.env.FLOWBOARD_AUTH_MODE = "dev"
@@ -31,6 +33,8 @@ async function runWithMocks(fn: () => Promise<void>) {
     userId: "member-b",
     role: "MEMBER",
   })) as unknown) as typeof db.workspaceMember.findUnique
+  ;(db.authThrottle as typeof db.authThrottle).deleteMany = (async () => ({ count: 0 })) as typeof db.authThrottle.deleteMany
+  ;(db as unknown as { $queryRaw: unknown }).$queryRaw = (async () => [{ blockedUntil: null }]) as typeof db.$queryRaw
 
   try {
     await fn()
@@ -45,6 +49,8 @@ async function runWithMocks(fn: () => Promise<void>) {
     ;(db.workItem as typeof db.workItem).findMany = originalWorkItemFindMany
     ;(db.label as typeof db.label).findMany = originalLabelFindMany
     ;(db as typeof db).$transaction = originalTransaction
+    ;(db.authThrottle as typeof db.authThrottle).deleteMany = originalThrottleDeleteMany
+    ;(db as unknown as { $queryRaw: unknown }).$queryRaw = originalQueryRaw
   }
 }
 

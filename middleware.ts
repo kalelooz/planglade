@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { DEMO_MODE_MESSAGE } from "@/lib/demo-data"
 import { getProviderCapabilityResult } from "@/lib/auth-provider-capabilities"
 
-const DEMO_HEADER = "x-planglade-demo-mode"
+const DEMO_READ_ONLY_HEADER = "x-planglade-demo-read-only"
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
 
 function readPlanGladeEnv(name: string) {
@@ -18,6 +18,14 @@ function isPublicOnlyProductionApp() {
   )
 }
 
+function isDemoReadOnlyDeployment() {
+  return (
+    process.env.PLANGLADE_DEMO_READ_ONLY ??
+    process.env.FLOWBOARD_DEMO_READ_ONLY ??
+    process.env.PLANGLADE_BUILD_DEMO_READ_ONLY
+  )?.trim().toLowerCase() === "true"
+}
+
 export function middleware(request: NextRequest) {
   if (
     request.nextUrl.pathname.startsWith("/app") &&
@@ -29,9 +37,12 @@ export function middleware(request: NextRequest) {
   if (
     request.nextUrl.pathname.startsWith("/api") &&
     !SAFE_METHODS.has(request.method.toUpperCase()) &&
-    request.headers.get(DEMO_HEADER)?.toLowerCase() === "true"
+    isDemoReadOnlyDeployment()
   ) {
-    return NextResponse.json({ error: DEMO_MODE_MESSAGE }, { status: 403 })
+    return NextResponse.json(
+      { error: DEMO_MODE_MESSAGE },
+      { status: 403, headers: { [DEMO_READ_ONLY_HEADER]: "true" } },
+    )
   }
 
   return undefined

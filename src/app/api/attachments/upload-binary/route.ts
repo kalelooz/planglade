@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
 import { badRequest, serverError } from "@/lib/api-utils"
+import { consumeSignedUploadThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { MAX_ATTACHMENT_BYTES, isAllowedAttachmentMimeType } from "@/lib/contracts"
 import {
   getConfiguredStorageProvider,
@@ -92,6 +93,8 @@ export async function PUT(request: NextRequest) {
     if (!isValid) {
       return NextResponse.json({ error: "Upload URL is invalid or expired" }, { status: 401 })
     }
+    const throttle = await consumeSignedUploadThrottle(parsed.data.storageKey)
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const contentType = request.headers.get("content-type")?.trim()
     if (!contentType || contentType !== parsed.data.mimeType) {

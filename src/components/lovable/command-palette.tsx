@@ -24,6 +24,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { getDemoFixtures } from "@/lib/demo-data";
 
 type PaletteCommand = {
   label: string;
@@ -56,9 +57,13 @@ function scopedRoute(path: string, basePath: "/app" | "/demo") {
 
 export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boolean; onClose: () => void; basePath?: "/app" | "/demo" }) {
   const router = useRouter();
-  const projects = useStore((s) => s.projects);
-  const workItems = useStore((s) => s.workItems);
-  const notes = useStore((s) => s.notes);
+  const storedProjects = useStore((s) => s.projects);
+  const storedWorkItems = useStore((s) => s.workItems);
+  const storedNotes = useStore((s) => s.notes);
+  const demoData = useMemo(() => basePath === "/demo" ? getDemoFixtures() : null, [basePath]);
+  const projects = demoData?.projects ?? storedProjects;
+  const workItems = demoData?.tasks ?? storedWorkItems;
+  const notes = demoData?.notes ?? storedNotes;
 
   const commands = useMemo<PaletteCommand[]>(() => {
     const staticCommands = [
@@ -87,14 +92,14 @@ export function CommandPalette({ open, onClose, basePath = "/app" }: { open: boo
         to: `${basePath}/tasks?task=${encodeURIComponent(item.id)}`,
         icon: ListTodo,
         group: "Tasks",
-        search: `${item.id} ${item.title} ${item.label} ${item.status}`,
+        search: `${item.id} ${item.title} ${"label" in item ? item.label : item.details} ${item.status}`,
       })),
       ...notes.map((note) => ({
         label: note.title.trim() || "No title",
         to: `${basePath}/notes?id=${encodeURIComponent(note.id)}`,
         icon: FileText,
         group: "Notes",
-        search: `${note.title} ${note.tag} ${note.excerpt}`,
+        search: `${note.title} ${"tag" in note ? `${note.tag} ${note.excerpt}` : `${note.projectId ?? ""} ${note.body}`}`,
       })),
     ].map((command) => ({
       ...command,

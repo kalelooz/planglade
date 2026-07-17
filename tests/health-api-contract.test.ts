@@ -94,11 +94,9 @@ test("health returns JSON success when required configuration is ready", async (
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as { status?: string }
-
     assert.equal(response.status, 200)
     assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
-    assert.equal(payload.status, "ok")
+    assert.deepEqual(await response.json(), { status: "ok" })
   })
 })
 
@@ -108,11 +106,9 @@ test("health returns JSON 503 when required configuration is unavailable", async
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as { status?: string }
-
     assert.equal(response.status, 503)
     assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
-    assert.equal(payload.status, "degraded")
+    assert.deepEqual(await response.json(), { status: "degraded" })
   })
 })
 
@@ -125,19 +121,8 @@ test("health treats explicit local credentials as an available NextAuth provider
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as {
-      status?: string
-      checks?: { auth?: { ready?: boolean; providers?: Record<string, boolean> } }
-    }
-
     assert.equal(response.status, 200)
-    assert.equal(payload.status, "ok")
-    assert.deepEqual(payload.checks?.auth?.providers, {
-      localCredentials: true,
-      google: false,
-      github: false,
-      anyConfigured: true,
-    })
+    assert.deepEqual(await response.json(), { status: "ok" })
   })
 })
 
@@ -151,12 +136,8 @@ test("health degrades safely for invalid local authentication configuration", as
 
     const response = await getHealth()
     const body = await response.text()
-    const payload = JSON.parse(body) as { status?: string; checks?: { auth?: { ready?: boolean; errors?: string[] } } }
-
     assert.equal(response.status, 503)
-    assert.equal(payload.status, "degraded")
-    assert.equal(payload.checks?.auth?.ready, false)
-    assert.match(payload.checks?.auth?.errors?.join(" ") ?? "", /Invalid PLANGLADE_LOCAL_AUTH_ENABLED/)
+    assert.deepEqual(JSON.parse(body), { status: "degraded" })
     assert.doesNotMatch(body, /PLANGLADE_LOCAL_AUTH_ENABLED=invalid|secret=|stack/i)
   })
 })
@@ -177,6 +158,7 @@ test("health returns safe JSON 503 when the database is unavailable", async () =
 
       assert.equal(response.status, 503)
       assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
+      assert.deepEqual(JSON.parse(body), { status: "degraded" })
       assert.doesNotMatch(body, /secret=|internal\/path|database-url|stack/i)
       assert.equal(logged.length, 1)
     } finally {
@@ -206,6 +188,7 @@ test("health unexpected failures return safe JSON without internal details", asy
 
       assert.equal(response.status, 500)
       assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
+      assert.deepEqual(JSON.parse(body), { status: "error" })
       assert.doesNotMatch(body, /secret=|internal\/path|database-url|stack/i)
       assert.equal(logged.length, 1)
     } finally {

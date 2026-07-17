@@ -6,6 +6,7 @@ import {
   resolveRequestActorUserId,
   serverError,
 } from "@/lib/api-utils"
+import { consumeWorkspaceThrottle, tooManyRequests } from "@/lib/auth-throttle"
 import { resolvePriorityDisplayStyle, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
@@ -27,6 +28,12 @@ export async function GET(request: NextRequest) {
       "MEMBER"
     )
     if (!access.ok) return access.response
+    const throttle = await consumeWorkspaceThrottle(
+      "export",
+      access.actor.userId,
+      query.data.workspaceId,
+    )
+    if (!throttle.allowed) return tooManyRequests(throttle)
 
     const [workspace, projects, workItems, notes, labels, projectDocs] = await Promise.all([
       db.workspace.findUnique({

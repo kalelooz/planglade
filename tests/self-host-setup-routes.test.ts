@@ -172,6 +172,8 @@ test("the three setup routes complete once and never replay recovery codes", asy
     assert.match(retry.headers.get("set-cookie") ?? "", /planglade-setup-claim=;.*Max-Age=0/i)
   } finally {
     await setupService.disconnectSetupDatabaseForTests()
+    const { db } = await import("../src/lib/db")
+    await db.$disconnect()
     for (const key of ["PLANGLADE_LOCAL_AUTH_ENABLED", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "PLANGLADE_SETUP_TOKEN", "DATABASE_URL"]) delete process.env[key]
     await isolated.cleanup()
   }
