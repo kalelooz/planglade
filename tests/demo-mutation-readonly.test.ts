@@ -6,15 +6,24 @@ async function source(path: string) {
   return readFile(path, "utf8");
 }
 
-test("demo write requests stop before fetch while server defense remains", async () => {
-  const [client, apiGuard] = await Promise.all([
+test("demo write requests stop before fetch while server configuration owns the defense", async () => {
+  const [client, apiGuard, nextConfig, netlifyConfig] = await Promise.all([
     source("src/lib/server-session-client.ts"),
     source("middleware.ts"),
+    source("next.config.ts"),
+    source("netlify.toml"),
   ]);
 
   assert.match(client, /if \(demoMode\) \{[\s\S]*?status: 403[\s\S]*?DEMO_READ_ONLY_HEADER/);
-  assert.match(client, /headers\.set\(DEMO_MODE_HEADER, "true"\)/);
-  assert.match(apiGuard, /x-planglade-demo-mode|DEMO_MODE_HEADER|demo/i);
+  assert.doesNotMatch(client, /DEMO_MODE_HEADER|x-planglade-demo-mode/);
+  assert.match(apiGuard, /process\.env\.PLANGLADE_DEMO_READ_ONLY/);
+  assert.match(apiGuard, /process\.env\.PLANGLADE_BUILD_DEMO_READ_ONLY/);
+  assert.doesNotMatch(apiGuard, /request\.headers\.get\([^)]*demo/i);
+  assert.match(netlifyConfig, /PLANGLADE_NETLIFY_DEMO_READ_ONLY\s*=\s*"true"/);
+  assert.match(
+    nextConfig,
+    /PLANGLADE_BUILD_DEMO_READ_ONLY:[\s\S]*?process\.env\.PLANGLADE_NETLIFY_DEMO_READ_ONLY/,
+  );
 });
 
 test("shared demo surfaces guard mutations before optimistic state", async () => {

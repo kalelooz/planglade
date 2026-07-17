@@ -1,5 +1,6 @@
 import { request as httpRequest } from "node:http"
 import { createServer as createHttpsServer } from "node:https"
+import { existsSync } from "node:fs"
 import { mkdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
@@ -42,10 +43,17 @@ function createCertificate() {
 await mkdir(runtimeDir, { recursive: true })
 createCertificate()
 
-const app = spawn(process.execPath, [".next/standalone/server.js"], {
+const standaloneServer = ".next/standalone/server.js"
+const app = spawn(
+  process.execPath,
+  existsSync(standaloneServer)
+    ? [standaloneServer]
+    : ["node_modules/next/dist/bin/next", "start", "-H", host, "-p", String(appPort)],
+  {
   env: { ...process.env, HOSTNAME: host, PORT: String(appPort) },
   stdio: "inherit",
-})
+  }
+)
 
 const proxy = createHttpsServer(
   { key: await readFile(keyPath), cert: await readFile(certificatePath) },

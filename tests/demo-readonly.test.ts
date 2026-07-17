@@ -17,6 +17,9 @@ const originalEnv = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   PLANGLADE_LOCAL_AUTH_ENABLED: process.env.PLANGLADE_LOCAL_AUTH_ENABLED,
+  PLANGLADE_DEMO_READ_ONLY: process.env.PLANGLADE_DEMO_READ_ONLY,
+  FLOWBOARD_DEMO_READ_ONLY: process.env.FLOWBOARD_DEMO_READ_ONLY,
+  PLANGLADE_BUILD_DEMO_READ_ONLY: process.env.PLANGLADE_BUILD_DEMO_READ_ONLY,
 }
 
 async function readProjectFile(filePath: string) {
@@ -47,7 +50,8 @@ test("DEMO-READONLY-001: /demo is public, fixture-backed, and read-only", async 
     assert.match(client, new RegExp(realSurface))
   }
   assert.doesNotMatch(client, /function DemoShell|function ProjectsView|function TasksView|function NotesView|function CalendarView/)
-  assert.match(sessionClient, /DEMO_MODE_HEADER/)
+  assert.match(sessionClient, /DEMO_READ_ONLY_HEADER/)
+  assert.doesNotMatch(sessionClient, /DEMO_MODE_HEADER|x-planglade-demo-mode/)
   assert.match(sessionClient, /getDemoApiResponse/)
   assert.match(shell, /isDemoMode/)
   assert.match(shell, /DEMO_MODE_MESSAGE/)
@@ -207,15 +211,68 @@ test("DEMO-READONLY-001: demo fixtures cover broad non-tech-only projects", asyn
   assert.doesNotMatch(fixtures, /profanity|edgy|private|password|secret|token/i)
 })
 
-test("DEMO-READONLY-001: demo-marked API mutations are blocked server-side", async () => {
-  const request = new NextRequest("http://localhost/api/work-items", {
-    method: "POST",
-    headers: { "x-planglade-demo-mode": "true" },
-  })
+test("DEMO-SERVER-BOUNDARY-001: trusted server configuration blocks unsafe API methods", async () => {
+  try {
+    process.env.PLANGLADE_DEMO_READ_ONLY = "true"
+    delete process.env.FLOWBOARD_DEMO_READ_ONLY
 
-  const response = middleware(request)
-  assert.equal(response?.status, 403)
-  assert.deepEqual(await response?.json(), { error: demoMessage })
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      const response = middleware(new NextRequest("http://localhost/api/work-items", { method }))
+      assert.equal(response?.status, 403, `${method} must be rejected`)
+      assert.equal(response?.headers.get("x-planglade-demo-read-only"), "true")
+      assert.deepEqual(await response?.json(), { error: demoMessage })
+    }
+  } finally {
+    restoreEnv()
+  }
+})
+
+test("DEMO-SERVER-BOUNDARY-001: trusted demo configuration preserves safe API methods", () => {
+  try {
+    process.env.PLANGLADE_DEMO_READ_ONLY = "true"
+    delete process.env.FLOWBOARD_DEMO_READ_ONLY
+
+    for (const method of ["GET", "HEAD", "OPTIONS"]) {
+      assert.equal(
+        middleware(new NextRequest("http://localhost/api/work-items", { method })),
+        undefined,
+        `${method} must remain available`,
+      )
+    }
+  } finally {
+    restoreEnv()
+  }
+})
+
+test("DEMO-SERVER-BOUNDARY-001: compiled Netlify demo configuration blocks API writes", async () => {
+  try {
+    delete process.env.PLANGLADE_DEMO_READ_ONLY
+    delete process.env.FLOWBOARD_DEMO_READ_ONLY
+    process.env.PLANGLADE_BUILD_DEMO_READ_ONLY = "true"
+
+    const response = middleware(
+      new NextRequest("http://localhost/api/work-items", { method: "POST" }),
+    )
+    assert.equal(response?.status, 403)
+    assert.deepEqual(await response?.json(), { error: demoMessage })
+  } finally {
+    restoreEnv()
+  }
+})
+
+test("DEMO-SERVER-BOUNDARY-001: client headers cannot activate demo protection", () => {
+  try {
+    delete process.env.PLANGLADE_DEMO_READ_ONLY
+    delete process.env.FLOWBOARD_DEMO_READ_ONLY
+
+    const request = new NextRequest("http://localhost/api/work-items", {
+      method: "POST",
+      headers: { "x-planglade-demo-mode": "true" },
+    })
+    assert.equal(middleware(request), undefined)
+  } finally {
+    restoreEnv()
+  }
 })
 
 test("DEMO-FULL-ROUTE-SMOKE-001: Netlify Prisma client includes the function runtime engine", async () => {

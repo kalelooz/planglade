@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
 import { parseSetupClaimRequest } from "@/lib/self-host-setup/contract"
-import { errors, methodNotAllowed, setupError, setupHeaders } from "@/lib/self-host-setup/response"
+import { errors, methodNotAllowed, setupError, setupHeaders, setupTooManyRequests } from "@/lib/self-host-setup/response"
 import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
+import { consumeSetupThrottle } from "@/lib/auth-throttle"
 import { claimSetup } from "@/lib/self-host-setup/service"
 import { authorizeSetupToken, canonicalOrigin, CLAIM_COOKIE, CLAIM_PATH, cookieOptions, createCsrfToken, CSRF_COOKIE, CSRF_PATH, readCookie, sha256Base64url, validateCsrfToken, validateSetupRequest } from "@/lib/self-host-setup/security"
 
@@ -16,6 +17,12 @@ export async function POST(request: Request) {
   const csrf = readCookie(request, CSRF_COOKIE)
   if (!nextAuthSecret || !validateCsrfToken(csrf, request.headers.get("x-planglade-csrf"), "claim", nextAuthSecret)) {
     return setupError(errors.forbidden)
+  }
+  try {
+    const throttle = await consumeSetupThrottle("claim")
+    if (!throttle.allowed) return setupTooManyRequests(throttle.retryAfterSeconds)
+  } catch {
+    return setupError(errors.temporary)
   }
   if (!authorizeSetupToken(parsed.data.setupToken, process.env.PLANGLADE_SETUP_TOKEN)) return setupError(errors.auth)
   const claim = await claimSetup()

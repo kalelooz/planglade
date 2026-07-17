@@ -28,6 +28,8 @@ const originalWorkItemFindUnique = db.workItem.findUnique
 const originalAttachmentFindFirst = db.attachment.findFirst
 const originalAttachmentCreate = db.attachment.create
 const originalTransaction = db.$transaction
+const originalThrottleDeleteMany = db.authThrottle.deleteMany
+const originalQueryRaw = db.$queryRaw
 
 function restoreEnv() {
   for (const [key, value] of Object.entries(originalEnv)) {
@@ -40,6 +42,8 @@ function restoreEnv() {
   ;(db.attachment as typeof db.attachment).findFirst = originalAttachmentFindFirst
   ;(db.attachment as typeof db.attachment).create = originalAttachmentCreate
   ;(db as typeof db).$transaction = originalTransaction
+  ;(db.authThrottle as typeof db.authThrottle).deleteMany = originalThrottleDeleteMany
+  ;(db as unknown as { $queryRaw: unknown }).$queryRaw = originalQueryRaw
 }
 
 async function withLocalStorage(fn: (root: string) => Promise<void>) {
@@ -47,6 +51,8 @@ async function withLocalStorage(fn: (root: string) => Promise<void>) {
   process.env.PLANGLADE_STORAGE_PROVIDER = "local"
   process.env.PLANGLADE_LOCAL_STORAGE_DIR = root
   process.env.PLANGLADE_STORAGE_SIGNING_SECRET = "attachment-security-test-secret"
+  ;(db.authThrottle as typeof db.authThrottle).deleteMany = (async () => ({ count: 0 })) as typeof db.authThrottle.deleteMany
+  ;(db as unknown as { $queryRaw: unknown }).$queryRaw = (async () => [{ blockedUntil: null }]) as typeof db.$queryRaw
   try {
     await fn(root)
   } finally {
@@ -226,6 +232,8 @@ test("attachment storage keys are unique in the data model", async () => {
 
 test("attachment finalization rejects reuse of an already finalized storage key", async () => {
   process.env.FLOWBOARD_AUTH_MODE = "dev"
+  ;(db.authThrottle as typeof db.authThrottle).deleteMany = (async () => ({ count: 0 })) as typeof db.authThrottle.deleteMany
+  ;(db as unknown as { $queryRaw: unknown }).$queryRaw = (async () => [{ blockedUntil: null }]) as typeof db.$queryRaw
   try {
     ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
       id: "ws-1",

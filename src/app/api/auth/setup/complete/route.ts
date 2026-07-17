@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
 import { parseSetupCompletionRequest } from "@/lib/self-host-setup/contract"
-import { errors, methodNotAllowed, setupError, setupHeaders } from "@/lib/self-host-setup/response"
+import { errors, methodNotAllowed, setupError, setupHeaders, setupTooManyRequests } from "@/lib/self-host-setup/response"
 import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
+import { consumeSetupThrottle } from "@/lib/auth-throttle"
 import { completeSetup } from "@/lib/self-host-setup/service"
 import { canonicalOrigin, CLAIM_COOKIE, CLAIM_PATH, cookieOptions, CSRF_COOKIE, CSRF_PATH, readCookie, sha256Base64url, validateCsrfToken, validateSetupRequest } from "@/lib/self-host-setup/security"
 
@@ -25,6 +26,12 @@ export async function completeSetupRequest(
   const csrf = readCookie(request, CSRF_COOKIE)
   if (!claimant || !validateCsrfToken(csrf, request.headers.get("x-planglade-csrf"), "complete", claimant, sha256Base64url(claimant))) {
     return clearSetupCookies(setupError(errors.auth))
+  }
+  try {
+    const throttle = await consumeSetupThrottle("complete", claimant)
+    if (!throttle.allowed) return setupTooManyRequests(throttle.retryAfterSeconds)
+  } catch {
+    return setupError(errors.temporary)
   }
   const result = await complete(parsed.data, claimant)
   if (result.ok) {
