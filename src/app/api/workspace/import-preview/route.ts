@@ -35,6 +35,7 @@ function addCountWarning(warnings: PreviewWarning[], code: string, message: stri
 function buildRelationshipWarnings(snapshot: ImportPreviewWorkspaceSnapshotInput) {
   const warnings: PreviewWarning[] = []
   const importedProjectIds = new Set(snapshot.data.projects.map((project) => project.id))
+  const importedWorkItemIds = new Set(snapshot.data.workItems.map((item) => item.id))
   const importedNoteIds = new Set(snapshot.data.notes.map((note) => note.id))
 
   const workItemsMissingProjects = snapshot.data.workItems.filter(
@@ -49,6 +50,32 @@ function buildRelationshipWarnings(snapshot: ImportPreviewWorkspaceSnapshotInput
   const archivedProjectDocs = snapshot.data.projectDocs.filter(
     (doc) => doc.status === "ARCHIVED" || Boolean(doc.archivedAt)
   ).length
+  const unsupportedMapLayouts = snapshot.data.mapLayouts.filter(
+    (layout) => layout.schemaVersion !== 1,
+  ).length
+  const mapLayoutsMissingProjects = snapshot.data.mapLayouts.filter(
+    (layout) =>
+      layout.scopeType === "PROJECT" &&
+      (!layout.projectId || !importedProjectIds.has(layout.projectId)),
+  ).length
+  const mapPlacementsMissingTasks = snapshot.data.mapLayouts.reduce(
+    (count, layout) =>
+      count +
+      layout.taskPlacements.filter(
+        (placement) => !importedWorkItemIds.has(placement.workItemId),
+      ).length,
+    0,
+  )
+  const mapPlacementsMissingProjects = snapshot.data.mapLayouts.reduce(
+    (count, layout) =>
+      count +
+      layout.projectPlacements.filter(
+        (placement) =>
+          placement.projectId !== null &&
+          !importedProjectIds.has(placement.projectId),
+      ).length,
+    0,
+  )
 
   addCountWarning(
     warnings,
@@ -74,6 +101,30 @@ function buildRelationshipWarnings(snapshot: ImportPreviewWorkspaceSnapshotInput
     "Archived Project Docs are included in this import file.",
     archivedProjectDocs
   )
+  addCountWarning(
+    warnings,
+    "unsupported_map_schema",
+    "Some Map layouts use an unsupported schema version and cannot be imported.",
+    unsupportedMapLayouts,
+  )
+  addCountWarning(
+    warnings,
+    "map_layouts_missing_projects",
+    "Some project Maps reference projects that are not in this import file.",
+    mapLayoutsMissingProjects,
+  )
+  addCountWarning(
+    warnings,
+    "map_placements_missing_tasks",
+    "Some Map placements reference tasks that are not in this import file.",
+    mapPlacementsMissingTasks,
+  )
+  addCountWarning(
+    warnings,
+    "map_placements_missing_projects",
+    "Some Map placements reference projects that are not in this import file.",
+    mapPlacementsMissingProjects,
+  )
 
   return {
     warnings,
@@ -82,6 +133,10 @@ function buildRelationshipWarnings(snapshot: ImportPreviewWorkspaceSnapshotInput
       projectDocsMissingProjects,
       workItemsMissingNotes,
       archivedProjectDocs,
+      unsupportedMapLayouts,
+      mapLayoutsMissingProjects,
+      mapPlacementsMissingTasks,
+      mapPlacementsMissingProjects,
     },
   }
 }
@@ -204,6 +259,7 @@ export async function POST(request: NextRequest) {
         tasks: snapshot.data.workItems.length,
         notes: snapshot.data.notes.length,
         projectDocs: snapshot.data.projectDocs.length,
+        mapLayouts: snapshot.data.mapLayouts.length,
         settings: snapshot.settings ? 1 : 0,
         archivedProjectDocs: relationCounts.archivedProjectDocs,
       },
@@ -211,6 +267,9 @@ export async function POST(request: NextRequest) {
         tasksMissingProjects: relationCounts.workItemsMissingProjects,
         projectDocsMissingProjects: relationCounts.projectDocsMissingProjects,
         tasksMissingNotes: relationCounts.workItemsMissingNotes,
+        mapLayoutsMissingProjects: relationCounts.mapLayoutsMissingProjects,
+        mapPlacementsMissingTasks: relationCounts.mapPlacementsMissingTasks,
+        mapPlacementsMissingProjects: relationCounts.mapPlacementsMissingProjects,
       },
       duplicateCandidates,
       warnings,

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     )
     if (!throttle.allowed) return tooManyRequests(throttle)
 
-    const [workspace, projects, workItems, notes, labels, projectDocs] = await Promise.all([
+    const [workspace, projects, workItems, notes, labels, projectDocs, mapScopes] = await Promise.all([
       db.workspace.findUnique({
         where: { id: query.data.workspaceId },
         select: {
@@ -141,6 +141,37 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
         },
         orderBy: [{ createdAt: "asc" }],
+      }),
+      db.mapScope.findMany({
+        where: { workspaceId: query.data.workspaceId },
+        select: {
+          scopeType: true,
+          projectId: true,
+          schemaVersion: true,
+          revision: true,
+          taskPlacements: {
+            select: { workItemId: true, sectionId: true, x: true, y: true },
+            orderBy: { workItemId: "asc" },
+          },
+          projectPlacements: {
+            select: { projectId: true, x: true, y: true },
+            orderBy: { containerKey: "asc" },
+          },
+          sections: {
+            select: {
+              id: true,
+              name: true,
+              sortOrder: true,
+              x: true,
+              y: true,
+              width: true,
+              height: true,
+              color: true,
+            },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: [{ scopeType: "asc" }, { projectId: "asc" }],
       }),
     ])
 
@@ -248,6 +279,15 @@ export async function GET(request: NextRequest) {
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
     }))
+    const serializedMapLayouts = mapScopes.map((scope) => ({
+      schemaVersion: scope.schemaVersion,
+      scopeType: scope.scopeType,
+      projectId: scope.projectId ?? undefined,
+      revision: scope.revision,
+      taskPlacements: scope.taskPlacements,
+      projectPlacements: scope.projectPlacements,
+      sections: scope.sections,
+    }))
     const tasks = serializedWorkItems.filter((item) => item.status !== "BACKLOG")
     const inboxItems = serializedWorkItems.filter((item) => item.status === "BACKLOG")
 
@@ -282,6 +322,7 @@ export async function GET(request: NextRequest) {
           due: item.dueDate,
           start: item.startDate,
           project: item.projectId,
+          parentId: item.parentId ?? undefined,
           description: item.description ?? undefined,
           noteIds: item.noteIds,
           checklist: item.checklist,
@@ -301,6 +342,7 @@ export async function GET(request: NextRequest) {
           status: doc.status,
           archivedAt: doc.archivedAt,
         })),
+        mapLayouts: serializedMapLayouts,
       },
       counts: {
         projects: serializedProjects.length,
@@ -312,6 +354,7 @@ export async function GET(request: NextRequest) {
         taskLabels: serializedTaskLabels.length,
         legacyDocs: serializedLegacyDocs.length,
         projectDocs: serializedLegacyDocs.length,
+        mapLayouts: serializedMapLayouts.length,
       },
     })
     response.headers.set("Cache-Control", "no-store")
