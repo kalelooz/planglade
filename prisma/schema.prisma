@@ -112,6 +112,7 @@ enum AuthThrottleScope {
   LOGIN_GLOBAL
   SETUP
   RECOVERY
+  WORKSPACE_OPERATION
 }
 
 model User {

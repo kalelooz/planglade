@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: false,
+  env: {
+    PLANGLADE_BUILD_DEMO_READ_ONLY:
+      process.env.PLANGLADE_NETLIFY_DEMO_READ_ONLY?.trim().toLowerCase() === "true"
+        ? "true"
+        : "false",
+  },
   async headers() {
     const contentSecurityPolicy = buildContentSecurityPolicy({
       nodeEnv: process.env.NODE_ENV,
@@ -64,6 +70,14 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+        ],
+      },
+      {
+        source: "/setup",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Referrer-Policy", value: "no-referrer" },
         ],
       },
     ]
