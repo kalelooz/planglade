@@ -4,16 +4,16 @@ import { useMemo, type ComponentType } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
-  Inbox,
-  Home,
-  ListTodo,
-  FolderKanban,
+  Tray as Inbox,
+  House as Home,
+  ListChecks as ListTodo,
+  Kanban as FolderKanban,
   Calendar,
   FileText,
-  Settings,
-  LayoutGrid,
-  Network,
-} from "lucide-react";
+  Gear as Settings,
+  SquaresFour as LayoutGrid,
+  ShareNetwork as Network,
+} from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import {
   Command,

@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
 import {
-  AlertCircle,
+  Info as AlertCircle,
   Bell,
-  CalendarDays,
+  Calendar as CalendarDays,
   FileText,
-  FolderKanban,
-  Home,
-  Inbox,
-  ListTodo,
-  PanelLeft,
+  Kanban as FolderKanban,
+  House as Home,
+  Tray as Inbox,
+  ListChecks as ListTodo,
+  Sidebar as PanelLeft,
   Plus,
-  Search,
-  Settings,
-} from "lucide-react";
+  MagnifyingGlass as Search,
+  Gear as Settings,
+} from "@phosphor-icons/react/ssr";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
 
 const SHOWCASE_NAV = [

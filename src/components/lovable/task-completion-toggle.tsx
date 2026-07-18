@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check } from "@phosphor-icons/react";
 
 export function TaskCompletionToggle({
   checked,
@@ -33,7 +33,7 @@ export function TaskCompletionToggle({
           checked ? "border-zinc-900 bg-zinc-900" : "border-zinc-300 bg-white hover:border-zinc-500"
         }`}
       >
-        {checked ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+        {checked ? <Check className="h-2.5 w-2.5" weight="bold" /> : null}
       </span>
     </button>
   );

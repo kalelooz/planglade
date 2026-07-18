@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CalendarDays, Check, ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { Calendar as CalendarDays, Check, CaretDown as ChevronDown, Plus, Trash as Trash2, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/lovable/shell";

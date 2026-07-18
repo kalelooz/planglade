@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarDays } from "lucide-react";
+import { Calendar as CalendarDays } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { Chip } from "@/components/lovable/page";

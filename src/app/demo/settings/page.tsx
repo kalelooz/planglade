@@ -1,6 +1,6 @@
 "use client"
 
-import { Monitor, Moon, Sun } from "lucide-react"
+import { Monitor, Moon, Sun } from "@phosphor-icons/react"
 
 import { AppShell } from "@/components/lovable/shell"
 import { DEMO_MODE_MESSAGE, demoSession } from "@/lib/demo-data"

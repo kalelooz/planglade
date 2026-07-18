@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertCircle, CalendarDays, FileText, Folder, Inbox } from "lucide-react";
+import { Info as AlertCircle, Calendar as CalendarDays, FileText, Folder, Tray as Inbox } from "@phosphor-icons/react";
 
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";

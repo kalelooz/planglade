@@ -1,15 +1,15 @@
 "use client";
 import {
-  Box, Folder, FolderOpen, Briefcase, Code2, Layout, Palette,
-  Smartphone, Globe, Database, Server, Rocket, Target, Star, Heart,
-  Zap, Sparkles, Package, ShoppingBag, Lightbulb, Megaphone, Camera,
-  Music, Film, Book, BookOpen, GraduationCap, FlaskConical, Wrench,
-  Hammer, Compass, Map, Plane, Car, Coffee, Cpu, Cloud, Lock,
-  Layers, type LucideIcon,
-} from "lucide-react";
+  Cube as Box, Folder, FolderOpen, Briefcase, Code as Code2, Layout, Palette,
+  DeviceMobile as Smartphone, Globe, Database, Database as Server, Rocket, Target, Star, Heart,
+  Lightning as Zap, Sparkle as Sparkles, Package, Bag as ShoppingBag, Lightbulb, Megaphone, Camera,
+  MusicNote as Music, FilmStrip as Film, Book, BookOpen, GraduationCap, Flask as FlaskConical, Wrench,
+  Hammer, Compass, MapTrifold as Map, Airplane as Plane, Car, Coffee, Cpu, Cloud, Lock,
+  Stack as Layers, type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 
 // Curated icon set for projects — keep it tight on purpose so the picker stays scannable.
-export const PROJECT_ICONS: Record<string, LucideIcon> = {
+export const PROJECT_ICONS: Record<string, PhosphorIcon> = {
   Folder, FolderOpen, Box, Package, Briefcase, Layers,
   Code2, Database, Server, Cpu, Cloud, Lock,
   Layout, Palette, Smartphone, Globe,
@@ -38,7 +38,6 @@ export function ProjectIcon({
     <Icon
       className={`shrink-0 ${className}`}
       style={{ color: accent, width: size, height: size }}
-      strokeWidth={2}
     />
   );
 }
@@ -68,7 +67,6 @@ export function IconPicker({
             <Icon
               className="h-3.5 w-3.5"
               style={{ color: selected ? accent : undefined }}
-              strokeWidth={2}
             />
           </button>
         );

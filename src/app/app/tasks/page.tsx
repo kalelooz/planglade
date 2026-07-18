@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronRight, ChevronDown, Plus, Search, LayoutGrid, List } from "lucide-react";
+import { CaretRight as ChevronRight, CaretDown as ChevronDown, Plus, MagnifyingGlass as Search, SquaresFour as LayoutGrid, ListBullets as List } from "@phosphor-icons/react";
 import { AppShell } from "@/components/lovable/shell";
 import { ProjectViewTitle, Toolbar } from "@/components/lovable/page";
 import { StatusIcon } from "@/components/lovable/icons";

@@ -1,7 +1,7 @@
 "use client";
 import { forwardRef, useState, useRef, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Link2, Plus, Trash2, FileText, MessageSquare, Send, History } from "lucide-react";
+import { X, Link as Link2, Plus, Trash as Trash2, FileText, ChatCircle as MessageSquare, PaperPlaneTilt as Send, ClockCounterClockwise as History } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { WorkItem, Status, Priority } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";

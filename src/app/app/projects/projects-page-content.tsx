@@ -3,7 +3,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileText, ListTodo, Plus, X, FolderPlus, Pencil, Trash2 } from "lucide-react";
+import { Warning as AlertTriangle, CalendarDots as CalendarClock, CheckCircle as CheckCircle2, FileText, ListChecks as ListTodo, Plus, X, FolderPlus, Pencil, Trash as Trash2 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";

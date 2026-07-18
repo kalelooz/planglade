@@ -1,6 +1,6 @@
 "use client";
 import type { CSSProperties } from "react";
-import { ArrowUp, ArrowRight, ArrowDown, Circle, CircleDashed, CircleDot, CircleCheck, Eye, Octagon, Triangle } from "lucide-react";
+import { ArrowUp, ArrowRight, ArrowDown, Circle, CircleDashed, DotOutline as CircleDot, CheckCircle as CircleCheck, Eye, Octagon, Triangle } from "@phosphor-icons/react";
 import BoringAvatar from "boring-avatars";
 import type { Priority, Status } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
@@ -61,17 +61,17 @@ export function PriorityIcon({ p, className = "", style }: { p: Priority; classN
 
   if (effective === "shapes") {
     if (p === "High") {
-      return <Octagon style={{ color: PRIORITY_COLOR.High, fill: "oklch(0.21 0.006 286)" }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={1.7} aria-label="High priority" />;
+      return <Octagon style={{ color: PRIORITY_COLOR.High }} className={`h-3.5 w-3.5 ${className}`} aria-label="High priority" />;
     }
     if (p === "Medium") {
-      return <Triangle style={{ color: PRIORITY_COLOR.Medium, fill: "oklch(0.442 0.017 286)" }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={1.7} aria-label="Medium priority" />;
+      return <Triangle style={{ color: PRIORITY_COLOR.Medium }} className={`h-3.5 w-3.5 ${className}`} aria-label="Medium priority" />;
     }
-    return <Circle style={{ color: PRIORITY_COLOR.Low, fill: "oklch(0.87 0.006 286)" }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={1.7} aria-label="Low priority" />;
+    return <Circle style={{ color: PRIORITY_COLOR.Low }} className={`h-3.5 w-3.5 ${className}`} aria-label="Low priority" />;
   }
 
   // arrows (default)
   const Icon = ARROW_ICON[p];
-  return <Icon style={{ color: PRIORITY_COLOR[p] }} className={`h-3.5 w-3.5 ${className}`} strokeWidth={2.8} aria-label={`${p} priority`} />;
+  return <Icon style={{ color: PRIORITY_COLOR[p] }} className={`h-3.5 w-3.5 ${className}`} aria-label={`${p} priority`} />;
 }
 
 export function StatusIcon({ s, className = "" }: { s: Status; className?: string }) {

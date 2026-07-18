@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import BoringAvatar from "boring-avatars";
-import { Shuffle, RotateCcw } from "lucide-react";
+import { Shuffle, ArrowCounterClockwise as RotateCcw } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import type { BoringAvatarVariant } from "@/lib/mock-data";
 

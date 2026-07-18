@@ -3,8 +3,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  Plus, MoreHorizontal, Trash2, ArrowRight, GripVertical, LayoutGrid, List,
-} from "lucide-react";
+  Plus, DotsThree as MoreHorizontal, Trash as Trash2, ArrowRight, DotsSixVertical as GripVertical, SquaresFour as LayoutGrid, ListBullets as List,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import {
   DndContext,

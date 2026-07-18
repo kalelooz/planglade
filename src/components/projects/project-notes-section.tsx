@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { FileText, Plus, Save, Trash2 } from "lucide-react"
+import { FileText, Plus, FloppyDisk as Save, Trash as Trash2 } from "@phosphor-icons/react"
 import { toast } from "sonner"
 
 import { apiFetch } from "@/lib/server-session-client"

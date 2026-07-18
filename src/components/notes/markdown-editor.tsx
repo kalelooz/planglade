@@ -3,25 +3,25 @@
 import type { Editor } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import {
-  Bold,
+  TextB as Bold,
   Check,
   Code,
-  Code2,
-  Italic,
-  Link2,
-  List,
-  ListChecks,
-  ListOrdered,
+  CodeBlock as Code2,
+  TextItalic as Italic,
+  Link as Link2,
+  ListBullets as List,
+  Checks as ListChecks,
+  ListNumbers as ListOrdered,
   Minus,
-  Quote,
-  Redo2,
-  Strikethrough,
-  Table2,
-  Trash2,
-  Underline,
-  Undo2,
-  Unlink,
-} from "lucide-react";
+  Quotes as Quote,
+  ArrowClockwise as Redo2,
+  TextStrikethrough as Strikethrough,
+  Table as Table2,
+  Trash as Trash2,
+  TextUnderline as Underline,
+  ArrowCounterClockwise as Undo2,
+  LinkBreak as Unlink,
+} from "@phosphor-icons/react";
 import { forwardRef, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

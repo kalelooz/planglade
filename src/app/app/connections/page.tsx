@@ -6,22 +6,22 @@ import { useSearchParams } from "next/navigation";
 import {
   Calendar,
   CheckSquare,
-  CircleDot,
-  ClipboardList,
+  DotOutline as CircleDot,
+  ClipboardText as ClipboardList,
   Flag,
-  FolderKanban,
+  Kanban as FolderKanban,
   Hash,
-  Maximize2,
+  ArrowsOut as Maximize2,
   Minus,
-  Network,
+  ShareNetwork as Network,
   Plus,
-  RotateCcw,
-  Search,
-  StickyNote,
+  ArrowCounterClockwise as RotateCcw,
+  MagnifyingGlass as Search,
+  Note as StickyNote,
   Tag,
   User,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 import { AppShell } from "@/components/lovable/shell";
 import { Avatar, PriorityIcon } from "@/components/lovable/icons";

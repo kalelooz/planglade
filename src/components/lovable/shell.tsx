@@ -3,10 +3,10 @@ import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
-  Home, Inbox, FolderKanban, Calendar, FileText,
-  Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, Bell, ListTodo,
-  LogOut, Network, Building2,
-} from "lucide-react";
+  House as Home, Tray as Inbox, Kanban as FolderKanban, Calendar, FileText,
+  Gear as Settings, MagnifyingGlass as Search, Plus, Sidebar as PanelLeft, Command, X, CaretRight as ChevronRight, CaretDown as ChevronDown, Bell, ListChecks as ListTodo,
+  SignOut as LogOut, ShareNetwork as Network, Buildings as Building2,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 

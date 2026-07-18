@@ -1,6 +1,6 @@
 "use client";
 import { Suspense, useEffect, useState, useMemo, type CSSProperties, type MouseEvent } from "react";
-import { CalendarClock, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDots as CalendarClock, CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus } from "@phosphor-icons/react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/lovable/shell";
 import { Chip, Toolbar } from "@/components/lovable/page";

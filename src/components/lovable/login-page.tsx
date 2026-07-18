@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, ArrowRight, CheckSquare, Database, Inbox, ListTodo, Loader2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckSquare, Database, Tray as Inbox, ListChecks as ListTodo, CircleNotch as Loader2 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/lovable/auth-context"
 import { buildSessionAuthHeaders } from "@/lib/server-session-client"

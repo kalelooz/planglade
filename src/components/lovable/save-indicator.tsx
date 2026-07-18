@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, CircleNotch as Loader2 } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 
 /**

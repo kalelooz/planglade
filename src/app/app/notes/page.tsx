@@ -3,8 +3,8 @@ import { useState, useMemo, Suspense, useEffect, useRef, type ReactNode } from "
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  Plus, Search, Hash, Link2, Trash2, CheckSquare, Pencil, FileText, ChevronRight,
-} from "lucide-react";
+  Plus, MagnifyingGlass as Search, Hash, Link as Link2, Trash as Trash2, CheckSquare, Pencil, FileText, CaretRight as ChevronRight,
+} from "@phosphor-icons/react";
 import { AppShell } from "@/components/lovable/shell";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { Chip } from "@/components/lovable/page";

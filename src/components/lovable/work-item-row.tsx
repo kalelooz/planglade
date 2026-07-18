@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Trash2, ArrowRight } from "lucide-react";
+import { DotsThree as MoreHorizontal, Trash as Trash2, ArrowRight } from "@phosphor-icons/react";
 import type { WorkItem, Status } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
 import { formatDueLabel, getDatePart, localDateKey } from "@/lib/dates";

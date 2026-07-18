@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowRight, ArrowUp, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import type { Priority } from "@/lib/mock-data";
 import { DEFAULT_PRIORITY_DISPLAY_STYLE, type PriorityDisplayStyle } from "@/lib/appearance-defaults";
 import { useStore } from "@/lib/store";
@@ -41,7 +41,7 @@ const ARROW_TONE: Record<Priority, string> = {
   Low: "text-sky-600 dark:text-sky-300",
 };
 
-const ARROW_ICON: Record<Priority, LucideIcon> = {
+const ARROW_ICON: Record<Priority, PhosphorIcon> = {
   High: ArrowUp,
   Medium: ArrowRight,
   Low: ArrowDown,

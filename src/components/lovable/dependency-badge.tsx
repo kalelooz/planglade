@@ -1,4 +1,4 @@
-import { GitBranch } from "lucide-react"
+import { GitBranch } from "@phosphor-icons/react/ssr"
 
 import { Chip } from "@/components/lovable/page"
 import type { WorkItem } from "@/lib/mock-data"

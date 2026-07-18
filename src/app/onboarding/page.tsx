@@ -3,7 +3,7 @@
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowRight, CheckSquare, Loader2 } from "lucide-react"
+import { ArrowRight, CheckSquare, CircleNotch as Loader2 } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
 import { buildSessionAuthHeaders } from "@/lib/server-session-client"

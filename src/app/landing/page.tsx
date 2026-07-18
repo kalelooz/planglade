@@ -4,13 +4,13 @@ import type { ReactNode } from "react";
 import {
   ArrowRight,
   BookOpen,
-  CalendarDays,
-  FolderKanban,
-  Github,
-  Inbox,
-  ListTodo,
-  Menu,
-} from "lucide-react";
+  Calendar as CalendarDays,
+  Kanban as FolderKanban,
+  GithubLogo as Github,
+  Tray as Inbox,
+  ListChecks as ListTodo,
+  List as Menu,
+} from "@phosphor-icons/react/ssr";
 import { PlanGladeMark } from "@/components/brand/plan-glade-mark";
 import { ProductShowcase as LandingProductShowcase } from "./product-showcase";
 
