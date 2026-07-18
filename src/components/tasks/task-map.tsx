@@ -40,6 +40,7 @@ import {
 import { useTheme } from "next-themes"
 
 import { AppShell } from "@/components/lovable/shell"
+import { PageWidth } from "@/components/lovable/page-width"
 import { StatusIcon } from "@/components/lovable/icons"
 import { ProjectViewTitle, Toolbar } from "@/components/lovable/page"
 import { Button } from "@/components/ui/button"
@@ -672,7 +673,7 @@ export function TaskMap({
         </Toolbar>
       }
     >
-      <div className="relative h-full min-h-0 bg-background" data-task-map>
+      <PageWidth mode="canvas" className="relative h-full min-h-0 bg-background" data-task-map>
         {!canvasSupported ? (
           <MobileMapFallback
             items={model.items}
@@ -787,7 +788,7 @@ export function TaskMap({
             ) : null}
           </ReactFlow>
         )}
-      </div>
+      </PageWidth>
     </AppShell>
   )
 }

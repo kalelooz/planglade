@@ -5,6 +5,7 @@ import { CalendarDays, Check, ChevronDown, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { ProjectViewTitle, Toolbar } from "@/components/lovable/page";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { DependencyBadge } from "@/components/lovable/dependency-badge";
@@ -344,7 +345,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
     >
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-5xl px-4 py-6 xl:px-6">
+          <PageWidth mode="standard" className="px-4 py-6 xl:px-6">
             {error && <div className="mb-3 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading inbox data...</div>}
             <div className="mb-5 px-1">
@@ -542,7 +543,7 @@ export default function InboxPage({ basePath = "/app" }: { basePath?: "/app" | "
                 </div>
               </div>
             )}
-          </div>
+          </PageWidth>
         </div>
         <TaskDrawer
           readOnly={isDemoMode}

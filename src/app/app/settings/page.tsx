@@ -5,6 +5,7 @@ import Papa from "papaparse";
 import { toast } from "sonner";
 import type { WorkItem, Status, Priority } from "@/lib/mock-data";
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { Avatar } from "@/components/lovable/icons";
 import { PriorityIndicator } from "@/components/lovable/priority-indicator";
 import { TaskCompletionToggle } from "@/components/lovable/task-completion-toggle";
@@ -686,7 +687,7 @@ export default function SettingsPage() {
           </div>
         </aside>
 
-        <div className="mx-auto w-full min-w-0 max-w-2xl px-4 py-6 sm:px-6 md:px-8 md:py-8">
+        <PageWidth mode="reading" className="min-w-0 px-4 py-6 sm:px-6 md:px-8 md:py-8">
           <div className="flex items-baseline justify-between gap-3">
             <h1 className="text-[19px] font-semibold tracking-tight">{section}</h1>
             <SaveIndicator />
@@ -1080,7 +1081,7 @@ export default function SettingsPage() {
               )}
             </div>
           )}
-        </div>
+        </PageWidth>
       </div>
       {resetConfirmOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center">

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { Avatar, PriorityIcon } from "@/components/lovable/icons";
 import { Chip, ProjectViewTitle, Toolbar } from "@/components/lovable/page";
 import { type Priority, type Status, type WorkItem, type Member, type Project } from "@/lib/mock-data";
@@ -820,7 +821,7 @@ function GraphPageContent() {
         </Toolbar>
       }
     >
-      <div className="flex h-full min-h-0 flex-col overflow-x-hidden">
+      <PageWidth mode="canvas" className="flex h-full min-h-0 flex-col overflow-x-hidden">
         <header className="shrink-0 border-b bg-background px-4 py-4">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Workspace graph</div>
           <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
@@ -1249,7 +1250,7 @@ function GraphPageContent() {
           </div>
         </aside>
         </div>
-      </div>
+      </PageWidth>
     </AppShell>
   );
 }

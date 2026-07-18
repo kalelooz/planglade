@@ -29,6 +29,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { ProjectViewTitle, Toolbar, Chip } from "@/components/lovable/page";
 import { Avatar, StatusIcon } from "@/components/lovable/icons";
 import { PriorityIndicator } from "@/components/lovable/priority-indicator";
@@ -447,7 +448,7 @@ export function BoardPageContent() {
         </Toolbar>
       }
     >
-      <div className="relative flex h-full min-h-0 min-w-0 w-full overflow-hidden" data-board-workspace="true">
+      <PageWidth mode="canvas" className="relative flex h-full min-h-0 min-w-0 overflow-hidden" data-board-workspace="true">
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <DndContext
             sensors={sensors}
@@ -511,7 +512,7 @@ export function BoardPageContent() {
             setWorkItems((current) => current.map((workItem) => (workItem.id === next.id ? next : workItem)));
           }}
         />
-      </div>
+      </PageWidth>
     </AppShell>
   );
 }

@@ -20,7 +20,7 @@ test("Tasks list avoids horizontal scrolling in the row surface", async () => {
   const tasksPage = await readFile(tasksPagePath, "utf8")
   const row = await readFile(workItemRowPath, "utf8")
 
-  assert.match(tasksPage, /max-w-6xl overflow-x-hidden/)
+  assert.match(tasksPage, /<PageWidth mode="standard" className="overflow-x-hidden/)
   assert.doesNotMatch(row, /overflow-x-auto|overflow-scroll|whitespace-nowrap/)
 })
 

@@ -83,7 +83,7 @@ test("project overview is a description and focus view, not the full task regist
   assert.match(overviewSource, /focusDeckItems\.map/)
   assert.match(overviewSource, /remainingTasks/)
   assert.match(overviewSource, /blockedItems\.length/)
-  assert.match(source, /max-w-6xl overflow-x-hidden px-4 py-6/)
+  assert.match(source, /<PageWidth mode="wide" className="overflow-x-hidden px-4 py-6">/)
   assert.doesNotMatch(overviewSource, /openPreviewItems\.map/)
   assert.doesNotMatch(overviewSource, /<ProjectTasksSection/)
   assert.doesNotMatch(overviewSource, /<ProjectTaskRow/)

@@ -6,6 +6,7 @@ import {
   Plus, Search, Hash, Link2, Trash2, CheckSquare, Pencil, FileText, ChevronRight,
 } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { Chip } from "@/components/lovable/page";
 import { MarkdownEditor } from "@/components/notes/markdown-editor";
@@ -569,7 +570,7 @@ function NotesInner() {
                 </div>
               </div>
 
-              <div className="mx-auto w-full min-w-0 max-w-full flex-1 overflow-y-auto px-4 py-6 md:max-w-3xl md:px-8">
+              <PageWidth mode="reading" className="min-w-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
                 <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-card/60 px-3 py-2 text-[12px] text-muted-foreground">
                     <CheckSquare className="h-3.5 w-3.5 text-primary" />
                     <span className="font-medium text-foreground">Manual task extraction</span>
@@ -590,7 +591,7 @@ function NotesInner() {
                   }}
                   placeholder="# Untitled note"
                 />
-              </div>
+              </PageWidth>
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center px-8">

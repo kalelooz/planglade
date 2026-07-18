@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, CalendarDays, FileText, Folder, Inbox } from "lucide-react";
 
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
 import { DependencyBadge } from "@/components/lovable/dependency-badge";
 import { Avatar } from "@/components/lovable/icons";
@@ -386,7 +387,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
     <AppShell title={<span className="font-medium">Home</span>}>
       <div className="flex h-full">
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl py-4 sm:px-4 sm:py-5 lg:px-6">
+          <PageWidth mode="standard" className="py-4 sm:px-4 sm:py-5 lg:px-6">
             <div className="app-workspace-canvas space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
               {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10.5px] text-red-700">{error}</div>}
 
@@ -591,7 +592,7 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
                 </aside>
               </main>
             </div>
-          </div>
+          </PageWidth>
         </div>
         <TaskDrawer
           item={selectedTask}

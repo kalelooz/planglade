@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { ChevronRight, ChevronDown, Plus, Search, LayoutGrid, List, Waypoints } from "lucide-react";
 import { AppShell } from "@/components/lovable/shell";
+import { PageWidth } from "@/components/lovable/page-width";
 import { ProjectViewTitle, Toolbar } from "@/components/lovable/page";
 import { StatusIcon } from "@/components/lovable/icons";
 import { WorkItemRow } from "@/components/lovable/work-item-row";
@@ -379,7 +380,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
     >
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-scroll [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl overflow-x-hidden py-4 sm:px-4 sm:py-6">
+          <PageWidth mode="standard" className="overflow-x-hidden py-4 sm:px-4 sm:py-6">
             <div className="app-workspace-canvas overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
             {error && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
             {loading && <div className="mb-3 text-[12px] text-muted-foreground">Loading tasks...</div>}
@@ -490,7 +491,7 @@ function WorkItemsInner({ basePath }: { basePath: "/app" | "/demo" }) {
             )}
             <div className="h-24" />
             </div>
-          </div>
+          </PageWidth>
         </div>
 
         <TaskDrawer
