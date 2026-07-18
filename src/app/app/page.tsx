@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertCircle, CalendarDays, FileText, Folder, Inbox } from "lucide-react";
+import { ArrowRight, CalendarDays, CircleSlash, FileText, Flag, Folder, Inbox } from "lucide-react";
 
 import { AppShell } from "@/components/lovable/shell";
 import { PageWidth } from "@/components/lovable/page-width";
 import { TaskDrawer } from "@/components/lovable/task-drawer";
-import { DependencyBadge } from "@/components/lovable/dependency-badge";
-import { Avatar } from "@/components/lovable/icons";
-import { PriorityIndicator } from "@/components/lovable/priority-indicator";
-import { Chip } from "@/components/lovable/page";
-import { FlowMetaPill } from "@/components/lovable/flow-ui";
 import { useStore } from "@/lib/store";
 import { type Project, type WorkItem } from "@/lib/mock-data";
 import { compareLocalDateStrings, formatDueLabel, getDatePart, localDateKey } from "@/lib/dates";
@@ -33,23 +28,6 @@ function projectHref(projectId: string, basePath: "/app" | "/demo", section?: "n
   return section ? `${base}?section=${section}` : base;
 }
 
-function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "danger" | "warning" | "success" }) {
-  const toneClass =
-    tone === "danger"
-      ? "border-red-200/80 bg-red-50/70 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
-      : tone === "warning"
-        ? "border-amber-200/80 bg-amber-50/70 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
-        : tone === "success"
-          ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-          : "border-border bg-muted/50 text-muted-foreground";
-
-  return (
-    <span className={`inline-flex h-5 shrink-0 items-center rounded-full border px-2 font-mono text-[10px] font-medium leading-none ${toneClass}`}>
-      {children}
-    </span>
-  );
-}
-
 function SectionHeader({
   title,
   count,
@@ -62,11 +40,11 @@ function SectionHeader({
   icon?: ReactNode;
 }) {
   return (
-    <div className="app-section-header">
+    <div className="mb-2 flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
         {icon ? <span className="text-muted-foreground">{icon}</span> : null}
-        <h2 className="truncate text-[12px] font-semibold text-foreground">{title}</h2>
-        {typeof count === "number" ? <Pill>{count}</Pill> : null}
+        <h2 className="truncate text-[13px] font-semibold tracking-tight text-foreground/90">{title}</h2>
+        {typeof count === "number" ? <span className="text-xs tabular-nums text-muted-foreground">{count}</span> : null}
       </div>
       {action}
     </div>
@@ -82,8 +60,6 @@ function EmptyRow({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-type HomeTaskRowMode = "default" | "attention" | "recent" | "next";
-
 function homeTaskTitle(item: WorkItem) {
   const title = item.title.trim();
   if (title && title.toLowerCase() !== "no title") return title;
@@ -91,39 +67,23 @@ function homeTaskTitle(item: WorkItem) {
   return description || "New task";
 }
 
-function isRealHomeAssignee(member: { id: string; name: string } | undefined) {
-  if (!member) return false;
-  const name = member.name.trim();
-  return !!name && member.id !== "unassigned" && name.toLowerCase() !== "unassigned";
-}
-
 function TaskRow({
   item,
   selected,
   onOpen,
-  allItems,
-  members,
-  danger = false,
-  mode = "default",
+  projects,
 }: {
   item: WorkItem;
   selected: boolean;
   onOpen: () => void;
-  allItems: WorkItem[];
-  members: Array<{ id: string; name: string }>;
-  danger?: boolean;
-  mode?: HomeTaskRowMode;
+  projects: Project[];
 }) {
   const completed = item.status === "Done";
-  const member = members.find((candidate) => candidate.id === item.assignee);
-  const assignedMember = isRealHomeAssignee(member) ? member : null;
-  const displayLabel = item.label?.trim();
   const displayTitle = homeTaskTitle(item);
+  const project = item.project ? projects.find((candidate) => candidate.id === item.project) ?? null : null;
   const dueLabel = item.due ? formatDueLabel(item.due) : null;
-  const showDate = !!dueLabel && mode !== "next";
-  const isNextMode = mode === "next";
-  const showAssignee = !!assignedMember && !isNextMode;
-  const showType = !!displayLabel && displayLabel.toLowerCase() !== "task" && !isNextMode;
+  const isBlocked = (item.blockerIds?.length ?? 0) > 0;
+  const priorityTone = item.priority === "High" ? "text-red-600" : item.priority === "Medium" ? "text-amber-600" : "text-sky-600";
 
   return (
     <button
@@ -131,45 +91,22 @@ function TaskRow({
       onClick={onOpen}
       title={displayTitle}
       data-home-task-preview-row
-      className={`flow-row flow-row-flat group grid w-full min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-3 py-2.5 text-left text-[13px] sm:grid-cols-[minmax(0,1fr)_auto] ${
-        selected ? "flow-row-selected text-foreground" : ""
+      className={`group grid w-full min-w-0 grid-cols-[18px_minmax(0,1fr)_auto_20px] items-start gap-x-3 px-2.5 py-2 text-left transition-colors hover:bg-[var(--color-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+        selected ? "bg-accent/80" : ""
       }`}
     >
-      <span
-        data-home-row-title
-        className="min-w-0 px-1 py-1"
-      >
-        <span
-          className={`block min-w-0 truncate ${
-            isNextMode ? "font-semibold tracking-tight" : "font-medium"
-          } ${completed ? "text-muted-foreground" : "text-foreground"}`}
-        >
-          {displayTitle}
-        </span>
+      <span aria-hidden="true" className={`mt-0.5 h-[18px] w-[18px] shrink-0 rounded-full border-[1.5px] ${completed ? "border-emerald-600 bg-emerald-600" : isBlocked ? "border-red-400/60" : "border-muted-foreground/40"}`} />
+      <span data-home-row-title className="min-w-0">
+        <span className={`block min-w-0 truncate text-[13.5px] font-medium leading-5 ${completed ? "text-muted-foreground line-through font-normal" : "text-foreground"}`}>{displayTitle}</span>
+        {(project || isBlocked) ? <span className="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] leading-4 text-muted-foreground">
+          {project ? <span className="min-w-0 truncate">{project.name}</span> : null}
+          {isBlocked ? <span className="inline-flex shrink-0 items-center gap-1 text-red-600"><CircleSlash className="h-3 w-3" />Blocked</span> : null}
+        </span> : null}
       </span>
-      <span
-        data-home-row-metadata
-        className={`flex min-w-0 items-center gap-x-2 gap-y-1 text-muted-foreground ${
-          isNextMode ? "flex-nowrap text-[10.5px] sm:col-start-auto sm:min-w-max sm:shrink-0 sm:justify-end sm:whitespace-nowrap" : "flex-wrap text-[12px] sm:col-start-auto sm:min-w-max sm:shrink-0 sm:flex-nowrap sm:justify-end sm:whitespace-nowrap"
-        }`}
-      >
-        <span data-home-row-priority-dependency className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
-          <DependencyBadge item={item} allItems={allItems} />
-          <PriorityIndicator priority={item.priority} />
-        </span>
-        {assignedMember && showAssignee ? (
-          <span className="inline-flex min-w-0 max-w-32 items-center gap-1 text-foreground/75">
-            <Avatar id={assignedMember.id} name={assignedMember.name} />
-            <span className="truncate">{assignedMember.name}</span>
-          </span>
-        ) : null}
-        {showType ? <span className="shrink-0 whitespace-nowrap"><Chip>{displayLabel}</Chip></span> : null}
-        {showDate ? (
-          <FlowMetaPill className={`shrink-0 whitespace-nowrap border-transparent bg-transparent ${danger ? "font-medium text-red-600 dark:text-red-300" : ""}`}>
-            {dueLabel}
-          </FlowMetaPill>
-        ) : null}
+      <span data-home-row-metadata className={`pt-0.5 text-xs whitespace-nowrap ${dueLabel?.includes("ago") || dueLabel === "Yesterday" ? "font-medium text-red-600" : "text-muted-foreground"}`}>
+        {dueLabel ? <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3 opacity-70" />{dueLabel}</span> : null}
       </span>
+      <Flag aria-label={`${item.priority} priority`} className={`mt-0.5 h-3.5 w-3.5 ${priorityTone} ${item.priority === "High" ? "fill-current" : ""}`} />
     </button>
   );
 }
@@ -178,35 +115,26 @@ function TaskList({
   items,
   selectedTaskId,
   onOpen,
-  allItems,
-  members,
+  projects,
   empty,
-  danger = false,
-  mode = "default",
 }: {
   items: WorkItem[];
   selectedTaskId: string | null;
   onOpen: (id: string) => void;
-  allItems: WorkItem[];
-  members: Array<{ id: string; name: string }>;
+  projects: Project[];
   empty: ReactNode;
-  danger?: boolean;
-  mode?: HomeTaskRowMode;
 }) {
   if (items.length === 0) return <>{empty}</>;
 
   return (
-    <div>
+    <div className="divide-y divide-border/60 border-y border-border/60">
       {items.map((item) => (
         <TaskRow
           key={item.id}
           item={item}
           selected={selectedTaskId === item.id}
           onOpen={() => onOpen(item.id)}
-          allItems={allItems}
-          members={members}
-          danger={danger}
-          mode={mode}
+          projects={projects}
         />
       ))}
     </div>
@@ -223,6 +151,37 @@ function ContextRow({ href, title, kind, meta }: { href: string; title: string; 
       <span className="font-mono text-[10px] text-muted-foreground/75">{kind}</span>
       <span className="font-mono text-[10px] text-muted-foreground">{meta}</span>
     </Link>
+  );
+}
+
+function HomeQuickCapture({ disabled }: { disabled: boolean }) {
+  const [title, setTitle] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = title.trim();
+    if (!value || disabled || submitting) return;
+
+    setSubmitting(true);
+    window.dispatchEvent(new CustomEvent("planglade:quick-capture", {
+      detail: {
+        title: value,
+        onComplete: (created: boolean) => {
+          if (created) setTitle("");
+          setSubmitting(false);
+        },
+      },
+    }));
+  }
+
+  return (
+    <form onSubmit={submit} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
+      <span aria-hidden="true" className="h-4 w-4 rounded-full border border-muted-foreground/40" />
+      <label className="sr-only" htmlFor="home-quick-capture">Capture a task</label>
+      <input id="home-quick-capture" value={title} onChange={(event) => setTitle(event.target.value)} disabled={disabled || submitting} placeholder={disabled ? "Quick capture is unavailable in the demo" : "Capture a task..."} className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed" />
+      <button type="submit" disabled={!title.trim() || disabled || submitting} className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Adding" : "Add"}</button>
+    </form>
   );
 }
 
@@ -387,181 +346,77 @@ export default function HomePage({ basePath = "/app" }: { basePath?: "/app" | "/
     <AppShell title={<span className="font-medium">Home</span>}>
       <div className="flex h-full">
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
-          <PageWidth mode="standard" className="py-4 sm:px-4 sm:py-5 lg:px-6">
-            <div className="app-workspace-canvas space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          <PageWidth mode="standard" className="px-3 py-6 sm:px-5 sm:py-8 lg:px-6 xl:px-8">
+            <div className="space-y-8">
               {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10.5px] text-red-700">{error}</div>}
 
-              <div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <header>
+                <div className="flex items-end justify-between gap-4">
                   <div className="min-w-0">
                     <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{greeting}, {firstName}</h1>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{todayLabel}</p>
+                    <p className="mt-1 text-[12px] text-muted-foreground">{todayLabel}</p>
                   </div>
-                  {loading ? <span className="font-mono text-[10px] text-zinc-400">Loading home data...</span> : null}
+                  {loading ? <span className="text-xs text-muted-foreground">Loading workspace…</span> : null}
                 </div>
-                <nav aria-label="Today overview" className="mt-4 grid grid-cols-3 border-y border-border text-[11px]">
-                  <Link href={taskHref("today")} className="flex min-h-11 items-center gap-2 px-3 hover:bg-[var(--color-hover)]">
-                    <span className="text-base font-semibold text-foreground">{buckets.today.length}</span>
-                    <span className="text-muted-foreground">due today</span>
-                  </Link>
-                  <Link href={taskHref("overdue")} className="flex min-h-11 items-center gap-2 border-x border-border px-3 hover:bg-[var(--color-hover)]">
-                    <span className={`text-base font-semibold ${buckets.overdue.length > 0 ? "text-red-600 dark:text-red-300" : "text-foreground"}`}>{buckets.overdue.length}</span>
-                    <span className="text-muted-foreground">overdue</span>
-                  </Link>
-                  <Link href={`${basePath}/inbox`} className="flex min-h-11 items-center gap-2 px-3 hover:bg-[var(--color-hover)]">
-                    <span className="text-base font-semibold text-foreground">{inboxCount}</span>
-                    <span className="text-muted-foreground">in inbox</span>
-                  </Link>
-                </nav>
-              </div>
+                <div className="mt-5"><HomeQuickCapture disabled={isDemoMode} /></div>
+              </header>
 
-              <main className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-                <div className="min-w-0 space-y-7 lg:col-span-7">
+              <main className="grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+                <div className="min-w-0 space-y-8">
                   <section>
                     <SectionHeader
-                      title="Today’s tasks"
-                      count={buckets.today.length}
-                      action={
-                        buckets.today.length > previewLimit ? (
-                          <Link href={taskHref("today")} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Show all</Link>
-                        ) : null
-                      }
+                      title="What needs your attention"
+                      count={buckets.overdue.length + buckets.today.length}
+                      action={<Link href={taskHref("today")} className="text-xs text-muted-foreground hover:text-foreground">View tasks</Link>}
                     />
                     <div className="border-t border-border">
                       <TaskList
-                        items={todayPreview}
+                        items={[...overduePreview, ...todayPreview].slice(0, previewLimit)}
                         selectedTaskId={selectedTaskId}
                         onOpen={setSelectedTaskId}
-                        allItems={workItems}
-                        members={members}
-                          mode="default"
-                          empty={
-                            <EmptyRow title="Nothing due today.">
-                            You&apos;re clear for today.
-                          </EmptyRow>
-                        }
+                        projects={projects}
+                        empty={<EmptyRow title="Nothing needs your attention.">You&apos;re clear for today.</EmptyRow>}
                       />
                     </div>
                   </section>
 
                   <section>
                     <SectionHeader
-                      title="Overdue tasks"
-                      count={buckets.overdue.length}
-                      icon={<AlertCircle className="h-3.5 w-3.5" />}
-                      action={
-                        buckets.overdue.length > previewLimit ? (
-                          <Link href={taskHref("overdue")} className="font-mono text-[10px] text-red-600 hover:text-red-700">Show all</Link>
-                        ) : null
-                      }
-                    />
-                    <div className="border-t border-border">
-                      <TaskList
-                        items={overduePreview}
-                        selectedTaskId={selectedTaskId}
-                        onOpen={setSelectedTaskId}
-                        allItems={workItems}
-                        members={members}
-                        danger
-                          mode="attention"
-                          empty={
-                          <EmptyRow title="No overdue tasks.">
-                            Nothing needs attention.
-                          </EmptyRow>
-                        }
-                      />
-                    </div>
-                  </section>
-
-                  <section>
-                    <SectionHeader
-                      title="Inbox"
-                      count={inboxBucket.length}
-                      icon={<Inbox className="h-3.5 w-3.5" />}
-                      action={<Link href={`${basePath}/inbox`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Open Inbox</Link>}
-                    />
-                    <div className="border-t border-border">
-                      <TaskList
-                        items={inboxPreview}
-                        selectedTaskId={selectedTaskId}
-                        onOpen={setSelectedTaskId}
-                        allItems={workItems}
-                        members={members}
-                          mode="recent"
-                          empty={
-                          <EmptyRow title="Inbox is clear.">
-                            New captures will appear here.
-                          </EmptyRow>
-                        }
-                      />
-                    </div>
-                  </section>
-                </div>
-
-                <aside className="min-w-0 space-y-7 lg:col-span-5 lg:border-l lg:border-border lg:pl-8">
-                  <section>
-                    <SectionHeader title="Projects" count={projectMetrics.length} icon={<Folder className="h-3.5 w-3.5" />} />
-                    {projectMetrics.length === 0 ? (
-                      <EmptyRow title="No active projects.">Create a project to group related work.</EmptyRow>
-                    ) : (
-                      <div className="border-t border-border">
-                        <div className="divide-y divide-border">
-                        {projectMetrics.map(({ project, openCount, overdueCount, next, progress }) => (
-                          <Link
-                            key={project.id}
-                            href={projectHref(project.id, basePath)}
-                            className="block px-3 py-2.5 transition-colors hover:bg-[var(--color-hover)]"
-                          >
-                            <div className="flex min-w-0 items-center justify-between gap-3">
-                              <span className="min-w-0 truncate text-xs font-medium text-foreground">{project.name}</span>
-                              <span
-                                className={`shrink-0 font-mono text-[10px] ${
-                                  overdueCount > 0 ? "text-red-600 dark:text-red-300" : project.status === "On Hold" ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground"
-                                }`}
-                              >
-                                {overdueCount > 0 ? `${overdueCount} overdue` : project.status === "On Hold" ? "On hold" : `${openCount} open`}
-                              </span>
-                            </div>
-                            <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className="h-full bg-foreground"
-                                style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-                              />
-                            </div>
-                            <div className="mt-2 flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-                              <span className="min-w-0 truncate">
-                                {next ? `Next / ${next.title}` : project.due ? `Due / ${formatDueLabel(project.due)}` : "No dated task"}
-                              </span>
-                              <span>{progress}%</span>
-                            </div>
-                          </Link>
-                        ))}
-                        </div>
-                      </div>
-                    )}
-                  </section>
-
-                  <section>
-                    <SectionHeader
-                      title="Upcoming tasks"
+                      title="Coming up this week"
                       count={buckets.upcoming.length}
-                      icon={<CalendarDays className="h-3.5 w-3.5" />}
-                      action={<Link href={`${basePath}/calendar`} className="font-mono text-[10px] text-zinc-500 hover:text-zinc-950">Calendar</Link>}
+                      action={<Link href={`${basePath}/calendar`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">Calendar <ArrowRight className="h-3 w-3" /></Link>}
                     />
                     <div className="border-t border-border">
                       <TaskList
                         items={upcomingPreview}
                         selectedTaskId={selectedTaskId}
                         onOpen={setSelectedTaskId}
-                        allItems={workItems}
-                        members={members}
-                          mode="next"
-                          empty={
-                          <EmptyRow title="No upcoming tasks.">
-                            Add due dates to plan ahead.
-                          </EmptyRow>
-                        }
+                        projects={projects}
+                        empty={<EmptyRow title="No upcoming tasks.">Add due dates to plan ahead.</EmptyRow>}
                       />
+                    </div>
+                  </section>
+
+                  <section>
+                    <SectionHeader
+                      title="Project focus"
+                      count={projectMetrics.length}
+                      action={<Link href={`${basePath}/projects`} className="text-xs text-muted-foreground hover:text-foreground">All projects</Link>}
+                    />
+                    {projectMetrics.length === 0 ? <EmptyRow title="No active projects.">Create a project to group related work.</EmptyRow> : <div className="divide-y divide-border/60 border-y border-border/60">{projectMetrics.map(({ project, openCount, overdueCount, next, progress }) => <Link key={project.id} href={projectHref(project.id, basePath)} className="block px-2.5 py-3 transition-colors hover:bg-[var(--color-hover)]"><div className="flex min-w-0 items-center justify-between gap-3"><span className="inline-flex min-w-0 items-center gap-2 text-[13px] font-medium text-foreground"><Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{project.name}</span></span><span className={overdueCount > 0 ? "text-xs font-medium text-red-600" : "text-xs text-muted-foreground"}>{overdueCount > 0 ? `${overdueCount} overdue` : `${openCount} open`}</span></div><div className="mt-2 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} /></div><p className="mt-2 truncate text-[11px] text-muted-foreground">{next ? `Next: ${homeTaskTitle(next)}` : project.due ? `Due ${formatDueLabel(project.due)}` : "No dated task"}</p></Link>)}</div>}
+                  </section>
+                </div>
+
+                <aside className="min-w-0 space-y-8">
+                  <section>
+                    <SectionHeader title="Inbox" count={inboxCount} icon={<Inbox className="h-3.5 w-3.5" />} action={<Link href={`${basePath}/inbox`} className="text-xs text-muted-foreground hover:text-foreground">Open inbox</Link>} />
+                    <TaskList items={inboxPreview} selectedTaskId={selectedTaskId} onOpen={setSelectedTaskId} projects={projects} empty={<EmptyRow title="Inbox is clear.">New captures will appear here.</EmptyRow>} />
+                  </section>
+
+                  <section>
+                    <div className="rounded-lg bg-muted/60 px-4 py-3.5">
+                      <p className="text-[12px] font-medium text-foreground">{buckets.overdue.length > 0 ? "A little focus will clear the way." : "A calm place for your work."}</p>
+                      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{buckets.overdue.length > 0 ? `${buckets.overdue.length} task${buckets.overdue.length === 1 ? "" : "s"} needs attention.` : "Keep the next small step visible."}</p>
                     </div>
                   </section>
 

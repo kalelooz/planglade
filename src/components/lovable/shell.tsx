@@ -1,11 +1,11 @@
 "use client";
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Home, Inbox, FolderKanban, Calendar, FileText,
   Settings, Search, Plus, PanelLeft, Command, X, ChevronRight, ChevronDown, Bell, ListTodo,
-  LogOut, Network, Building2,
+  LogOut, Network, Building2, Sun,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DEMO_MODE_MESSAGE, getDemoFixtures } from "@/lib/demo-data";
+import { useThemePreference } from "@/lib/theme-preference";
 
 const STORAGE_KEY = "fb.sidebarOpen";
 const PROJECTS_STORAGE_KEY = "fb.sidebarProjectsOpen";
@@ -93,6 +94,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     : storedProjects;
   const activeProjectSetting = useStore((s) => s.settings.activeProjectId);
   const updateSettings = useStore((s) => s.updateSettings);
+  const { theme, selectTheme } = useThemePreference();
   const projectPathMatch = path.match(/^\/(?:app|demo)\/projects\/([^/]+)$/);
   const pathProjectId = projectPathMatch ? decodeURIComponent(projectPathMatch[1]) : null;
   const selectedRouteProjectId = routeProjectId ?? pathProjectId;
@@ -126,6 +128,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     if (isDemoMode) return toast(DEMO_MODE_MESSAGE);
     router.push(`${APP_ROUTES.projects}?new=1`);
   };
+  const cycleTheme = () => selectTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
 
   const applyProjectScope = (id: string | null) => {
     updateSettings({ activeProjectId: id });
@@ -212,10 +215,13 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
     ...navAfterProjects,
   ];
 
-  const submitQuick = async () => {
-    if (isDemoMode) return toast(DEMO_MODE_MESSAGE);
-    const v = quickValue.trim();
-    if (!v || !notificationScope) { setQuickValue(""); setQuickOpen(false); return; }
+  const submitQuick = useCallback(async (value = quickValue) => {
+    if (isDemoMode) {
+      toast(DEMO_MODE_MESSAGE);
+      return false;
+    }
+    const v = value.trim();
+    if (!v || !notificationScope) { setQuickValue(""); setQuickOpen(false); return false; }
     setQuickValue("");
     setQuickOpen(false);
     try {
@@ -231,15 +237,27 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       });
       if (!response.ok) {
         toast.error("Failed to capture item");
-        return;
+        return false;
       }
       // Optimistically bump inbox count
       setInboxCount((c) => c + 1);
       toast.success("Captured to Inbox", { description: v });
+      return true;
     } catch {
-      toast.error("Network error — capture not saved");
+      toast.error("Network error - capture not saved");
+      return false;
     }
-  };
+  }, [isDemoMode, notificationScope, quickValue]);
+
+  useEffect(() => {
+    const capture = (event: Event) => {
+      const detail = (event as CustomEvent<{ title?: string; onComplete?: (created: boolean) => void }>).detail;
+      if (!detail?.title) return;
+      void submitQuick(detail.title).then((created) => detail.onComplete?.(created));
+    };
+    window.addEventListener("planglade:quick-capture", capture);
+    return () => window.removeEventListener("planglade:quick-capture", capture);
+  }, [submitQuick]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -409,23 +427,14 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
       <aside
         suppressHydrationWarning
         data-collapsed={!sidebarOpen}
-        className={`hidden shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-60" : "w-12"}`}
+        className={`hidden shrink-0 flex-col border-r bg-sidebar md:flex ${hydrated ? "transition-[width] duration-200 ease-out" : ""} ${sidebarOpen ? "w-[228px]" : "w-[60px]"}`}
       >
-        <div className={`flex h-12 shrink-0 items-center border-b ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
+        <div className={`flex h-14 shrink-0 items-center ${sidebarOpen ? "justify-between px-3" : "justify-center px-0"}`}>
           {sidebarOpen ? (
-            <>
-              <Link href={routePrefix} title="PlanGlade home" className="flex min-w-0 items-center gap-2">
-                <PlanGladeMark />
-                <span className="truncate text-[15px] font-semibold tracking-tight">PlanGlade</span>
-              </Link>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                title="Collapse sidebar"
-                className="lov-icon-btn h-6 w-6"
-              >
-                <PanelLeft className="h-3.5 w-3.5" />
-              </button>
-            </>
+            <Link href={routePrefix} title="PlanGlade home" className="flex min-w-0 items-center gap-2.5">
+              <PlanGladeMark />
+              <span className="truncate text-[14px] font-semibold tracking-tight">{sessionIdentity?.workspaceName ?? "PlanGlade"}</span>
+            </Link>
           ) : (
             <div
               onMouseEnter={() => setLogoHover(true)}
@@ -454,7 +463,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           )}
         </div>
 
-        <div className={sidebarOpen ? "border-b p-2" : "border-b p-1"}>
+        <div className={sidebarOpen ? "px-2 pb-2" : "px-1 pb-2"}>
           <WorkspaceControl
             collapsed={false}
             hidden={!sidebarOpen}
@@ -477,45 +486,33 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           />
         </div>
 
-        <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${sidebarOpen ? "px-2" : "px-1"}`}>
-          {sidebarOpen ? (
-            <>
-              <SidebarSection items={navBeforeProjects} isActive={isActive} collapsed={false} />
-              <ProjectsNavItem
-                href={`${routePrefix}/projects`}
-                active={isActive(`${routePrefix}/projects`)}
-                open={projectsOpen}
-                onToggle={() => setProjectsOpen((v) => !v)}
-                onCreate={createProject}
-                demoDisabled={isDemoMode}
-              />
-              {projectsOpen && (
-                <div className="mt-0.5 mb-1 space-y-px pl-5">
-                  {projects.map((p) => {
-                    const active = (selectedRouteProjectId ?? activeProjectId) === p.id;
-                    return (
-                      <Link key={p.id} href={`${routePrefix}/projects/${encodeURIComponent(p.id)}`} onClick={() => updateSettings({ activeProjectId: p.id })}
-                        className={`lov-nav-item group gap-2 px-2 py-1 text-[12.5px] ${active ? "lov-nav-item-active font-medium" : ""}`}>
-                        <ProjectIcon name={p.icon} accent={p.accent} size={13} />
-                        <span className="truncate">{p.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-              <SidebarSection items={navAfterProjects} isActive={isActive} collapsed={false} />
-            </>
-          ) : (
-            <>
-              <SidebarSection items={navMain} isActive={isActive} collapsed={true} />
-            </>
-          )}
+        <div className={sidebarOpen ? "px-2 pb-2" : "px-1 pb-2"}>
+          <div ref={quickCaptureRef} className="relative">
+            <button onClick={() => { if (isDemoMode) return toast(DEMO_MODE_MESSAGE); setQuickOpen((open) => !open); }} aria-disabled={isDemoMode} data-demo-disabled={isDemoMode ? "true" : undefined} className={`lov-btn w-full ${sidebarOpen ? "justify-start" : "justify-center"}`} title={isDemoMode ? DEMO_MODE_MESSAGE : "Quick capture"}>
+              <Plus className="h-3.5 w-3.5" />{sidebarOpen ? <span>Quick capture</span> : null}
+            </button>
+            {quickOpen && <div className="absolute left-0 top-9 z-[80] w-72 rounded-md border bg-popover p-2 shadow-lg"><input autoFocus value={quickValue} onChange={(event) => setQuickValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submitQuick(); if (event.key === "Escape") setQuickOpen(false); }} placeholder="Capture a task or idea..." className="h-8 w-full rounded border bg-card px-2 text-[13px] outline-none focus:border-ring" /><div className="mt-1.5 flex items-center justify-between px-1 text-[10px] text-muted-foreground"><span>Saves to Inbox</span><kbd className="rounded border bg-muted px-1 font-mono">Enter</kbd></div></div>}
+          </div>
+          <button onClick={() => setCmdOpen(true)} className={`lov-btn mt-1.5 w-full text-muted-foreground ${sidebarOpen ? "justify-start" : "justify-center"}`} title="Search or jump"><Search className="h-3.5 w-3.5" />{sidebarOpen ? <span>Search</span> : null}</button>
+        </div>
+
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-2 ${sidebarOpen ? "px-2" : "px-1"}`}>
+          <SidebarSection items={navMain} isActive={isActive} collapsed={!sidebarOpen} />
         </nav>
 
+        <div className={sidebarOpen ? "border-t p-2" : "border-t p-1"}>
+          <div ref={notificationsRef} className="relative">
+            <button onClick={() => setNotificationsOpen((open) => !open)} className={`lov-btn w-full text-muted-foreground ${sidebarOpen ? "justify-start" : "justify-center"}`} title="Notifications"><Bell className="h-3.5 w-3.5" />{sidebarOpen ? <span>Notifications</span> : null}{unreadCount > 0 ? <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{Math.min(unreadCount, 9)}</span> : null}</button>
+            {notificationsOpen ? <div className="absolute bottom-9 left-0 z-[85] w-80 rounded-md border bg-popover shadow-lg"><div className="flex items-center justify-between border-b px-3 py-2"><span className="text-xs font-medium">Notifications</span><button onClick={() => { setUnreadCount(0); setNotifications((current) => current.map((notification) => ({ ...notification, isUnread: false }))); void markNotificationsRead(); }} className="text-[11px] text-muted-foreground hover:text-foreground">Mark all read</button></div><div className="max-h-72 overflow-y-auto">{notificationsLoading ? <p className="px-3 py-3 text-xs text-muted-foreground">Loading notifications...</p> : notifications.length === 0 ? <p className="px-3 py-3 text-xs text-muted-foreground">No notifications.</p> : notifications.map((notification) => <button key={notification.id} type="button" onClick={() => { setNotificationsOpen(false); if (notification.isUnread) { setUnreadCount((current) => Math.max(0, current - 1)); void markNotificationsRead([notification.id]); } router.push(`${routePrefix}/tasks?filter=mine${notification.workItemId ? `&task=${encodeURIComponent(notification.workItemId)}` : ""}`); }} className="block w-full border-b px-3 py-2 text-left hover:bg-[var(--color-hover)]"><span className="block truncate text-xs font-medium">{notification.title}</span><span className="mt-0.5 block line-clamp-2 text-[11px] text-muted-foreground">{notification.body}</span></button>)}</div></div> : null}
+          </div>
+          <button onClick={cycleTheme} title={`Appearance: ${theme}`} className={`lov-btn w-full text-muted-foreground ${sidebarOpen ? "justify-start" : "justify-center"}`}><Sun className="h-3.5 w-3.5" />{sidebarOpen ? <span>Appearance</span> : null}</button>
+          <WorkspaceControl collapsed={!sidebarOpen} routePrefix={routePrefix} identity={sessionIdentity} displayName={displayName} displayAvatarId={displayAvatarId} showSignOut={shouldShowSignOut} onSignOut={() => { void signOut("/login"); }} />
+          <button onClick={() => setSidebarOpen((open) => !open)} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} className={`lov-btn mt-1.5 w-full text-muted-foreground ${sidebarOpen ? "justify-start" : "justify-center"}`}><PanelLeft className={`h-3.5 w-3.5 ${sidebarOpen ? "" : "rotate-180"}`} />{sidebarOpen ? <span>Collapse</span> : null}</button>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0">
+        <header className="relative z-40 flex h-auto min-h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 py-2 shadow-[0_1px_0_color-mix(in_oklch,var(--color-primary)_8%,transparent)] sm:gap-3 sm:px-4 sm:py-0 md:hidden">
           <button ref={mobileNavTriggerRef} onClick={() => setMobileNavOpen(true)} className="lov-icon-btn h-[44px] w-[44px] md:hidden" aria-label="Open navigation">
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -619,7 +616,7 @@ function AppShellLayout({ children, title, tabs, toolbar, routeProjectId }: AppS
           <button onClick={() => setCmdOpen(true)} className="lov-icon-btn h-[44px] w-[44px] sm:hidden">
             <Command className="h-4 w-4" />
           </button>
-          <div ref={notificationsRef} className="relative">
+          <div className="relative">
             <button
               onClick={() => {
                 setProjectScopeOpen(false);
