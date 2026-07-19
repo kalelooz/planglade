@@ -79,7 +79,7 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
   await expect(crossProjectRow.getByText("Freelance client website", { exact: true })).toBeVisible()
 
   // Workspace control shows the current workspace and role, never switching or creation.
-  await page.getByRole("button", { name: /^Current workspace/ }).click()
+  await page.locator('[data-workspace-control="true"]').first().click()
   const workspaceMenu = page.getByRole("menu")
   await expect(workspaceMenu.getByText("PlanGlade Demo", { exact: true })).toBeVisible()
   await expect(workspaceMenu.getByText("Role: OWNER", { exact: true })).toBeVisible()
