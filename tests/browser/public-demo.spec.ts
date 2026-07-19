@@ -31,9 +31,9 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
 
   await page.goto("/demo")
   await expect(page.getByRole("heading", { name: "Project focus", exact: true })).toBeVisible()
-  await expect(
-    page.getByRole("banner").getByText("Demo mode - changes are disabled.", { exact: true })
-  ).toBeVisible()
+  const quickCapture = page.getByPlaceholder("Quick capture is unavailable in the demo")
+  await expect(quickCapture).toBeVisible()
+  await expect(quickCapture).toBeDisabled()
 
   for (const [label, path] of [
     ["Inbox", "/demo/inbox"],
