@@ -18,10 +18,10 @@ test("PUBLIC-UI-AND-EXPORT-READINESS-002: public page labels stay direct", async
     readProjectFile("src/app/app/projects/projects-page-content.tsx"),
   ])
 
-  for (const label of ["Today’s tasks", "Overdue tasks", "Inbox", "Projects", "Upcoming tasks", "Recent notes"]) {
+  for (const label of ["What needs your attention", "Coming up this week", "Project focus", "Inbox", "Recent notes"]) {
     assert.match(home, new RegExp(`title=["']${label}["']`))
   }
-  assert.doesNotMatch(home, /Overview Dashboard|Recently Captured|Project Focus|Recent Context/)
+  assert.doesNotMatch(home, /Overview Dashboard|Recently Captured|Recent Context/)
   assert.match(tasks, /All tasks in \{project\?\.name \?\? "this workspace"\}\./)
   assert.doesNotMatch(tasks, /Use filters for focus|visual flow/)
   assert.doesNotMatch(project, /Project brief|Recent context|task registry/i)

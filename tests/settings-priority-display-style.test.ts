@@ -190,12 +190,11 @@ test("Appearance settings normalization preserves explicit priority choices", ()
   assert.equal(normalizeAppearanceSettings({ priorityDisplayStyle: "arrow" }).priorityDisplayStyle, "arrow")
 })
 
-test("PriorityIndicator is consumed by Tasks list, Board, Drawer, Home, and Project Detail", async () => {
+test("PriorityIndicator is consumed by Tasks list, Board, Drawer, and Project Detail", async () => {
   const files = [
     "src/components/lovable/work-item-row.tsx",
     "src/app/board/board-page-content.tsx",
     "src/components/lovable/task-drawer.tsx",
-    "src/app/app/page.tsx",
     "src/app/app/projects/projects-page-content.tsx",
   ]
 
@@ -213,8 +212,8 @@ test("PriorityIndicator is consumed by Tasks list, Board, Drawer, Home, and Proj
   assert.doesNotMatch(listRow, /PriorityIcon/)
   assert.doesNotMatch(board, /PriorityIcon/)
   assert.doesNotMatch(drawer, /PriorityIcon/)
-  assert.doesNotMatch(home, /PriorityIcon/)
   assert.doesNotMatch(projectDetail, /<PriorityIcon/)
+  assert.match(home, /<Flag aria-label=\{`\$\{item\.priority\} priority`\}/)
 })
 
 test("PriorityIndicator supports exactly one colored priority style at a time", async () => {

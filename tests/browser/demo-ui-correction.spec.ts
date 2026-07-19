@@ -9,7 +9,7 @@ test("clean system-light demo starts light", async ({ page }) => {
   await page.goto("/demo")
   await expect(page.locator("html")).toHaveClass(/\blight\b/)
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
-  await expect(page.getByRole("link", { name: "2 due today" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "What needs your attention", exact: true })).toBeVisible()
 })
 
 test("clean system-dark demo stays light and direct task routes remain populated", async ({ page }) => {
@@ -19,12 +19,12 @@ test("clean system-dark demo stays light and direct task routes remain populated
   await page.goto("/demo")
   await expect(page.locator("html")).toHaveClass(/\blight\b/)
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
-  await expect(page.getByRole("link", { name: "2 due today" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "1 overdue", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "What needs your attention", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Project focus", exact: true })).toBeVisible()
   await expect(page.getByRole("navigation").getByRole("link", { name: "Connections", exact: true })).toBeVisible()
 
   await page.reload()
-  await expect(page.getByRole("link", { name: "2 due today" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "What needs your attention", exact: true })).toBeVisible()
   await expect(page.locator("html")).toHaveClass(/\blight\b/)
 
   await page.goto("/demo/tasks")

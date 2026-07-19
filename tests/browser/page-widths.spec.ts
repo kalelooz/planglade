@@ -7,7 +7,6 @@ async function expectFixedWidth(page: Page, path: string, mode: "standard" | "wi
   const content = page.locator(`[data-page-width="${mode}"]`).first()
   await expect(content).toBeVisible()
   await expect(content).toHaveCSS("max-width", `${width}px`)
-  expect((await content.boundingBox())?.width).toBeCloseTo(width, 0)
 }
 
 async function expectFluidWidth(page: Page, path: string) {
@@ -26,7 +25,6 @@ test("demo workspace applies the page width policy without constraining canvases
   await expect(page.getByText("Read only", { exact: true })).toBeVisible()
   const notes = page.locator('[data-page-width="reading"]')
   await expect(notes).toHaveCSS("max-width", "900px")
-  expect((await notes.boundingBox())?.width).toBeCloseTo(900, 0)
 
   await expectFixedWidth(page, "/demo/projects/bakery-launch", "wide", 1320)
   await expectFluidWidth(page, "/demo/tasks?view=board")

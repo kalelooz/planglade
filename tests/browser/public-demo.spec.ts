@@ -30,7 +30,7 @@ test("public landing, demo navigation, and sign-in fallback stay trustworthy", a
   await expect(page.getByText("Self-host now. Cloud soon.", { exact: true })).toBeVisible()
 
   await page.goto("/demo")
-  await expect(page.getByRole("link", { name: "Small bakery launch", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Project focus", exact: true })).toBeVisible()
   await expect(
     page.getByRole("banner").getByText("Demo mode - changes are disabled.", { exact: true })
   ).toBeVisible()
