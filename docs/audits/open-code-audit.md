@@ -390,7 +390,7 @@ The console shows a single 404 error for the `/timeline` resource. This is a **d
 | `docs/ACTIVE_PLAN.md` | ✅ Aligned | UI matches the Page Plan for all sections. No contradictions. |
 | `docs/FULLSTACK_ROADMAP.md` | ✅ Aligned | Frontend loop complete; pages use server data as described. |
 | `docs/QUALITY-GATES.md` | ✅ Aligned | UI style matches established patterns. |
-| `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md` | ⚠️ Partial | Preview not showing app routes — deployment config may need attention. |
+| Provider-specific deployment runbook | Moved | Hosted deployment operations are maintained outside the public repository. |
 | `AGENTS.md` | ✅ Aligned | Conventions followed. |
 
 ---

@@ -22,7 +22,7 @@ function ensureFirebaseAdmin() {
     throw new Error("Firebase admin project is missing. Set FIREBASE_PROJECT_ID.")
   }
 
-  // In managed Firebase runtimes (e.g. App Hosting), credentials may be provided
+  // In managed runtimes, credentials may be provided
   // implicitly by the environment; in local/self-host mode, we require explicit
   // service-account credentials.
   if (clientEmail && privateKey) {

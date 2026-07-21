@@ -22,7 +22,7 @@ function lower(value: string | undefined, fallback: string) {
 }
 
 function getDefaultStorageProvider() {
-  return process.env.NODE_ENV === "production" ? "firebase" : "local"
+  return "local"
 }
 
 export function getConfiguredStorageProvider(): FlowboardStorageProvider | "invalid" {
@@ -49,10 +49,6 @@ export function getStorageConfigErrors() {
     if (!process.env.FIREBASE_STORAGE_BUCKET) {
       errors.push("Missing FIREBASE_STORAGE_BUCKET for firebase storage provider.")
     }
-  }
-
-  if (provider === "local" && process.env.NODE_ENV === "production") {
-    errors.push("FLOWBOARD_STORAGE_PROVIDER=local is not allowed in production.")
   }
 
   return { provider, errors }

@@ -119,7 +119,7 @@ Status: done.
 
 Goal: make the app structurally ready for real persistence.
 
-- [x] Choose deployment target and database path for v1 production. Decision (updated on May 21, 2026): Firebase App Hosting for Next.js runtime plus managed PostgreSQL (Neon) via Prisma. Keep SQLite for local development.
+- [x] Define the public self-host baseline: NextAuth, SQLite via Prisma, and local attachment storage. Keep provider-specific hosted deployment decisions private.
 - [x] Replace sample Prisma schema with FlowBoard schema.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
@@ -189,7 +189,7 @@ Goal: prepare for real users.
 - [ ] Logging, error reporting, and request tracing.
 - [ ] Rate limiting and abuse controls for auth and mutations.
 - [ ] Security review for auth, authorization, file upload, secrets, and tenant boundaries.
-- [x] Deployment runbook baseline for Firebase App Hosting is documented (`docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`).
+- [ ] Add a provider-neutral public self-host deployment, upgrade, backup, and rollback runbook.
 
 Done when: the app can be deployed, monitored, upgraded, backed up, and rolled back with documented procedures.
 
@@ -197,7 +197,7 @@ Done when: the app can be deployed, monitored, upgraded, backed up, and rolled b
 
 Continue with the collaboration foundation from `flowboard-collaboration-foundation-plan.md`:
 
-1. Complete production auth validation for Firebase Google login mode (sign-in, sign-out, refresh/expiry, and protected-route behavior).
+1. Complete production auth validation for public NextAuth self-host mode (sign-in, sign-out, refresh/expiry, and protected-route behavior).
 2. Extend authorization tests from relation boundaries to the rest of collaboration and optional-module routes.
-3. Complete remaining attachment storage hardening (cross-workspace tests, abuse limits, and lifecycle cleanup) on top of the new dev/prod storage pipeline.
-4. Complete production auth lifecycle validation across all core routes.
+3. Complete remaining local attachment storage hardening (cross-workspace tests, abuse limits, and lifecycle cleanup).
+4. Validate explicit Firebase compatibility separately without changing the public defaults.

@@ -44,7 +44,7 @@ Build the full-stack foundation without expanding the product surface.
 
 The next milestone is Phase 1 from `docs/FULLSTACK_ROADMAP.md`:
 
-- [x] Choose deployment target and database path for v1 production. Decision (updated on May 21, 2026): Firebase App Hosting for Next.js runtime, managed PostgreSQL (Neon) via Prisma for production data, and SQLite (`db/custom.db`) for local/dev.
+- [x] Define the public self-host baseline: NextAuth, SQLite via Prisma, and local attachment storage. Provider-specific hosted deployment decisions remain outside the public repository.
 - [x] Replace the sample Prisma schema with FlowBoard domain models.
 - [x] Add Zod schemas for core create/update payloads.
 - [x] Define API contracts for work items, projects, notes, labels, saved views, settings, and activity.
@@ -64,7 +64,7 @@ Additional progress completed during Phase 1 execution:
 - [x] Removed `typescript.ignoreBuildErrors` from `next.config.ts`.
 - [x] Replaced Bun-only production start script with cross-platform Node standalone start.
 - [x] Fixed Prisma API typing issues that blocked `tsc --noEmit` after removing build-error ignores.
-- [x] Locked production deployment/database decision (Firebase App Hosting + Neon PostgreSQL + Prisma).
+- [x] Locked the public self-host baseline (NextAuth + SQLite + local storage).
 
 ## Phase Breakdown (Pending vs Done)
 
@@ -111,7 +111,7 @@ Additional progress in this batch:
 - [ ] Authenticated bootstrap and full sign-in lifecycle validation for production auth mode (`firebase` / `nextauth`) across core views.
 - [x] Project-level feature flags baseline is implemented (`mode` + `featureFlags`) and enforced for currently mutable optional-module surfaces (comments, mentions, notifications, subtasks, relations, attachments). Docs/custom-fields/SLA surfaces remain unsurfaced.
 - [x] Attachments and indexed search baseline APIs are implemented with workspace auth + project-flag guards.
-- [ ] CI/deployment/security hardening. (partial: GitHub Actions CI baseline + Firebase App Hosting deployment runbook/config now committed)
+- [ ] CI/deployment/security hardening. (partial: GitHub Actions CI baseline committed; provider-neutral self-host deployment guidance remains pending)
 
 Additional progress in this batch:
 
@@ -131,7 +131,7 @@ Additional progress in this batch:
 - [x] Added storage-provider abstraction (`firebase` + `local`), plus signed local binary upload/download routes for development (`/api/attachments/upload-binary`, `/api/attachments/download-binary`).
 - [x] Added shared work-item relation boundary guard + automated tests for cross-workspace/cross-project/feature-flag relation checks.
 - [x] Added shared attachment project-boundary guard + automated tests for cross-workspace and attachment-flag enforcement checks.
-- [x] Added Firebase App Hosting baseline config (`apphosting.yaml`) and GitHub Actions CI workflow (`.github/workflows/ci.yml`).
+- [x] Added the GitHub Actions CI baseline (`.github/workflows/ci.yml`) and removed provider-specific hosted configuration from the public tree.
 
 ## Consolidated Next Implementation Order
 

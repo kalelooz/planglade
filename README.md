@@ -22,7 +22,7 @@ PlanGlade is not production-ready yet.
 - Project mode and feature-flag enforcement now gates comments/mentions/notifications/subtasks/relations/attachments on mutable routes.
 - Firebase Storage attachment upload pipeline now supports signed upload URLs (`POST /api/attachments/upload-url`) and validated metadata persistence (`POST /api/attachments`).
 - Attachment download now supports short-lived signed read URLs (`GET /api/attachments/:attachmentId/download-url`).
-- Attachment storage now supports provider selection: `FLOWBOARD_STORAGE_PROVIDER=firebase` (production) or `FLOWBOARD_STORAGE_PROVIDER=local` (local signed binary upload/download routes).
+- Attachment storage defaults to local signed binary upload/download routes; Firebase remains an explicit compatibility provider.
 - Relation authorization boundary tests now cover cross-workspace/cross-project project checks for work-item relation guards.
 - Attachment authorization boundary tests now cover cross-workspace and feature-flag checks for project attachment access.
 - Unified workspace search API now exists across projects/work-items/notes/labels (`GET /api/search`).
@@ -172,23 +172,21 @@ npm test
 
 ### Auth Modes
 
-- Default local mode: `FLOWBOARD_AUTH_MODE=dev` (or unset) uses the seeded dev session.
-- Recommended production mode: set `FLOWBOARD_AUTH_MODE=firebase` and configure client + admin env vars:
-  - Client: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID` (optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`)
-  - Admin: `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (or `FIREBASE_PRIVATE_KEY_BASE64`)
-- Legacy provider mode: set `FLOWBOARD_AUTH_MODE=nextauth` and configure at least one provider:
+- Public self-host mode: set `FLOWBOARD_AUTH_MODE=nextauth` and configure at least one provider:
   - `GITHUB_ID` + `GITHUB_SECRET`, or
   - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
-- Also set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` for provider mode.
+- Also set `NEXTAUTH_SECRET` and `NEXTAUTH_URL`.
+- Optional Firebase compatibility mode remains available when its client and admin environment variables are configured explicitly.
+- Development-only mode: `FLOWBOARD_AUTH_MODE=dev` uses the seeded dev session and is rejected in production.
 - Keep client/server mode aligned by also setting `NEXT_PUBLIC_FLOWBOARD_AUTH_MODE` to the same value (`dev` / `firebase` / `nextauth`).
 - Production guardrail: `npm run build` and `npm run start` now run `validate:auth-config` to fail fast on invalid auth/env configuration.
 
 ### Attachment Storage Modes
 
-- Production: set `FLOWBOARD_STORAGE_PROVIDER=firebase` with `FIREBASE_PROJECT_ID` and `FIREBASE_STORAGE_BUCKET`.
-- Local development: set `FLOWBOARD_STORAGE_PROVIDER=local` to use local signed binary routes:
+- Public self-host deployments default to `FLOWBOARD_STORAGE_PROVIDER=local` and use local signed binary routes:
   - `PUT /api/attachments/upload-binary`
   - `GET /api/attachments/download-binary`
+- Firebase Storage remains available only when `FLOWBOARD_STORAGE_PROVIDER=firebase`, `FIREBASE_PROJECT_ID`, and `FIREBASE_STORAGE_BUCKET` are configured explicitly.
 - Optional local overrides:
   - `FLOWBOARD_LOCAL_STORAGE_DIR` (default `storage/local-attachments`)
   - `FLOWBOARD_STORAGE_SIGNING_SECRET` (recommended even in local mode)
@@ -196,8 +194,7 @@ npm test
 ## Deployment
 
 - CI is configured in `.github/workflows/ci.yml`.
-- Firebase App Hosting runtime config is in `apphosting.yaml`.
-- Deployment runbook: `docs/DEPLOYMENT_FIREBASE_APP_HOSTING.md`.
+- Provider-specific hosted configuration and deployment operations are intentionally maintained outside the public repository.
 
 ## Known Quality Issues
 

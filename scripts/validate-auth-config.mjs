@@ -3,7 +3,7 @@ const isProductionLike =
   process.env.NODE_ENV === "production" || process.env.CI === "true"
 const storageProvider = (
   process.env.FLOWBOARD_STORAGE_PROVIDER ??
-  (isProductionLike ? "firebase" : "local")
+  "local"
 ).toLowerCase()
 
 function fail(message) {
@@ -53,8 +53,8 @@ if (mode === "nextauth") {
   if (!process.env.NEXTAUTH_URL) fail("Missing NEXTAUTH_URL for nextauth mode.")
 }
 
-if (storageProvider === "local") {
-  fail("FLOWBOARD_STORAGE_PROVIDER=local is not allowed in production-like environments.")
+if (storageProvider === "local" && !process.env.FLOWBOARD_STORAGE_SIGNING_SECRET && !process.env.NEXTAUTH_SECRET) {
+  fail("Missing FLOWBOARD_STORAGE_SIGNING_SECRET or NEXTAUTH_SECRET for local storage provider.")
 }
 
 if (storageProvider === "firebase") {
