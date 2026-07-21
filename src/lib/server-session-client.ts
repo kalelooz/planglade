@@ -1,4 +1,7 @@
-import { firebaseAuth, FIREBASE_ID_TOKEN_STORAGE_KEY } from "@/lib/firebase-client"
+import {
+  authProviderClient,
+  FIREBASE_ID_TOKEN_STORAGE_KEY,
+} from "@/lib/auth-provider-client"
 
 export type ServerSessionPayload = {
   user: { id: string; email: string; name: string | null }
@@ -9,16 +12,17 @@ export type ServerSessionPayload = {
 
 async function resolveAuthToken() {
   if (typeof window === "undefined") return null
+  if (!authProviderClient) return null
 
-  if (firebaseAuth?.currentUser) {
-    try {
-      const token = await firebaseAuth.currentUser.getIdToken()
+  try {
+    const token = await authProviderClient.getCurrentIdToken()
+    if (token) {
       localStorage.setItem(FIREBASE_ID_TOKEN_STORAGE_KEY, token)
       return token
-    } catch {
-      localStorage.removeItem(FIREBASE_ID_TOKEN_STORAGE_KEY)
-      return null
     }
+  } catch {
+    localStorage.removeItem(FIREBASE_ID_TOKEN_STORAGE_KEY)
+    return null
   }
 
   return localStorage.getItem(FIREBASE_ID_TOKEN_STORAGE_KEY)

@@ -1,8 +1,29 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+
+const firebaseClientModule = "./src/lib/auth-provider-client.firebase.ts";
+const firebaseClientPath = path.resolve(
+  process.cwd(),
+  firebaseClientModule
+);
+const useFirebaseClient =
+  process.env.FLOWBOARD_AUTH_MODE?.toLowerCase() === "firebase" &&
+  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() === "firebase";
 
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: false,
+  turbopack: {
+    resolveAlias: useFirebaseClient
+      ? { "@/lib/auth-provider-client": firebaseClientModule }
+      : {},
+  },
+  webpack(config) {
+    if (useFirebaseClient) {
+      config.resolve.alias["@/lib/auth-provider-client"] = firebaseClientPath;
+    }
+    return config;
+  },
   async redirects() {
     return [
       {

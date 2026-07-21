@@ -29,6 +29,10 @@ if (mode === "dev") {
   fail("FLOWBOARD_AUTH_MODE=dev is not allowed in production-like environments.")
 }
 
+if (process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() !== mode) {
+  fail("FLOWBOARD_AUTH_MODE and NEXT_PUBLIC_FLOWBOARD_AUTH_MODE must match.")
+}
+
 if (mode === "firebase") {
   const required = [
     "FIREBASE_PROJECT_ID",
@@ -43,9 +47,6 @@ if (mode === "firebase") {
     if (!process.env[key]) fail(`Missing required env var: ${key}`)
   }
 
-  if (process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE?.toLowerCase() !== "firebase") {
-    fail("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE must be 'firebase' when FLOWBOARD_AUTH_MODE=firebase.")
-  }
 }
 
 if (mode === "nextauth") {

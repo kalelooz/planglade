@@ -1,19 +1,13 @@
 "use client"
 
 import * as React from "react"
-import {
-  onIdTokenChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  type User as FirebaseUser,
-} from "firebase/auth"
 import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react"
 
 import {
-  firebaseAuth,
+  authProviderClient,
   FIREBASE_ID_TOKEN_STORAGE_KEY,
-  googleAuthProvider,
-} from "@/lib/firebase-client"
+  type AuthProviderUser,
+} from "@/lib/auth-provider-client"
 
 // ---------------------------------------------------------------------------
 // Types — mirrors Firebase Auth's User interface for easy future swap
@@ -72,7 +66,7 @@ function storeIdToken(token: string | null) {
   }
 }
 
-function toAuthUser(user: FirebaseUser): AuthUser {
+function toAuthUser(user: AuthProviderUser): AuthUser {
   const provider =
     user.providerData.find((entry) => entry.providerId === "google.com")?.providerId ??
     user.providerData[0]?.providerId ??
@@ -105,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return undefined
     }
 
-    if (!firebaseAuth) {
+    if (!authProviderClient) {
       setUser(null)
       storeUser(null)
       storeIdToken(null)
@@ -113,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return undefined
     }
 
-    const unsubscribe = onIdTokenChanged(firebaseAuth, async (nextUser) => {
+    const unsubscribe = authProviderClient.onIdTokenChanged(async (nextUser) => {
       if (!nextUser) {
         setUser(null)
         storeUser(null)
@@ -146,17 +140,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (!firebaseAuth) {
+    if (!authProviderClient) {
       throw new Error("Firebase Auth is not configured in this environment.")
     }
 
     setLoading(true)
     try {
-      const result = await signInWithPopup(firebaseAuth, googleAuthProvider)
-      const mappedUser = toAuthUser(result.user)
+      const firebaseUser = await authProviderClient.signInWithGoogle()
+      const mappedUser = toAuthUser(firebaseUser)
       setUser(mappedUser)
       storeUser(mappedUser)
-      storeIdToken(await result.user.getIdToken())
+      storeIdToken(await firebaseUser.getIdToken())
     } finally {
       setLoading(false)
     }
@@ -172,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true)
     try {
-      if (firebaseAuth) await firebaseSignOut(firebaseAuth)
+      if (authProviderClient) await authProviderClient.signOut()
     } finally {
       setUser(null)
       storeUser(null)

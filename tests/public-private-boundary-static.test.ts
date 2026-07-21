@@ -80,6 +80,28 @@ test("PUBLIC-PRIVATE-BOUNDARY-015 retains explicit Firebase compatibility adapte
   assert.ok(packageJson.dependencies["firebase-admin"])
 })
 
+test("AUTH-PROVIDER-CONTAIN-017 selects Firebase only for explicit Firebase builds", () => {
+  const nextConfig = read("next.config.ts")
+  const defaultClient = read("src/lib/auth-provider-client.ts")
+  const firebaseClient = read("src/lib/auth-provider-client.firebase.ts")
+
+  assert.match(nextConfig, /FLOWBOARD_AUTH_MODE\?\.toLowerCase\(\) === "firebase"/)
+  assert.match(nextConfig, /NEXT_PUBLIC_FLOWBOARD_AUTH_MODE\?\.toLowerCase\(\) === "firebase"/)
+  assert.match(nextConfig, /resolveAlias/)
+  assert.doesNotMatch(defaultClient, /from ["']firebase(?:\/|["'])/)
+  assert.match(firebaseClient, /from "firebase\/auth"/)
+  assert.match(firebaseClient, /from "@\/lib\/firebase-client"/)
+
+  for (const browserEntry of [
+    "src/components/flowboard/auth-context.tsx",
+    "src/lib/server-session-client.ts",
+  ]) {
+    const source = read(browserEntry)
+    assert.match(source, /from "@\/lib\/auth-provider-client"/)
+    assert.doesNotMatch(source, /from ["'](?:firebase|@\/lib\/firebase-client)/)
+  }
+})
+
 test("PUBLIC-PRIVATE-BOUNDARY-015 accepts self-host and explicit Firebase validation without a database", () => {
   const disposableDatabase = join(tmpdir(), `planglade-boundary-${process.pid}.db`)
   assert.equal(existsSync(disposableDatabase), false)
@@ -94,6 +116,16 @@ test("PUBLIC-PRIVATE-BOUNDARY-015 accepts self-host and explicit Firebase valida
     NODE_ENV: "production",
   })
   assert.equal(selfHost.status, 0, selfHost.stderr)
+
+  const mismatchedSelfHost = validate({
+    FLOWBOARD_AUTH_MODE: "nextauth",
+    NEXTAUTH_SECRET: "boundary-test-secret",
+    NEXTAUTH_URL: "http://localhost:3000",
+    NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: "firebase",
+    NODE_ENV: "production",
+  })
+  assert.notEqual(mismatchedSelfHost.status, 0)
+  assert.match(mismatchedSelfHost.stderr, /FLOWBOARD_AUTH_MODE and NEXT_PUBLIC_FLOWBOARD_AUTH_MODE must match/)
 
   const firebase = validate({
     FIREBASE_PROJECT_ID: "test-project",
