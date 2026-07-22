@@ -1,6 +1,6 @@
 # PlanGlade Backup And Restore
 
-Last updated: 2026-07-17
+Last updated: 2026-07-22
 
 PlanGlade includes a manual, local backup/restore command for the public SQLite and local-attachment self-host path. It is not a complete production backup system: scheduling, encryption, off-machine transfer, retention, monitoring, and restore drills remain operator responsibilities.
 
@@ -15,6 +15,12 @@ One versioned directory bundle contains:
 The command rejects links and special files. Restore rejects incompatible manifests, unsafe or path-traversal entries, missing or unlisted files, checksum mismatches, invalid SQLite headers/versions, and failed SQLite integrity checks before replacing live data. Restore copies both replacements into staging paths. If installation fails, it automatically rolls both destinations back to the original database and attachment directory.
 
 The bundle is a directory, not a compressed archive. Copy the whole directory without changing its contents. Store it encrypted and off-machine.
+
+### Authentication data and secrets
+
+`database.sqlite` is the complete authentication backup. It preserves users and normalized identity, `authVersion`, local password hashes and credential state, recovery-code hashes and used/unused state, first-run setup state, workspaces, memberships, roles, and workspace ownership. Old bundles therefore contain security-sensitive credential and recovery state and require the same access controls as the live database.
+
+The bundle does not contain `.env`. Protect `NEXTAUTH_SECRET`, OAuth credentials, the storage signing secret, and other environment secrets separately; never place an ordinary plaintext `.env` beside an unencrypted backup. Rotating `NEXTAUTH_SECRET` invalidates existing NextAuth sessions without changing database records. Increasing a user's `authVersion`, as enrollment and successful recovery do, invalidates that user's earlier sessions.
 
 ## Docker Data Locations
 
@@ -87,6 +93,8 @@ curl http://localhost:3000/api/health
 
 The health endpoint is status-only. A `{"status":"ok"}` response proves basic auth, storage, and database readiness; it does not prove restored records are correct. Sign in and inspect known projects, tasks, notes, settings, and several attachment downloads.
 
+Authentication verification must include an existing OAuth sign-in when configured, local sign-in when enrolled, the expected recovery-code used/unused state, unchanged workspace ownership and membership roles, and rejection of a session issued before the current `authVersion`. Use a test account or controlled test environment; never expose credential hashes or recovery codes in restore records.
+
 ## Local Node Backup And Restore
 
 The local CLI requires Node.js 22.5 or newer because it uses the Node standard SQLite module. Stop the local app, and ensure `.env` explicitly contains the SQLite and attachment paths:
@@ -123,6 +131,10 @@ Test restores regularly on disposable volumes or a separate machine:
 5. Record the result and recovery time.
 
 A backup that has never been restored is unverified. Workspace JSON export/import remains useful for portability, but it is not a full backup because it does not replace the SQLite database and attachment tree.
+
+## Rollback Is Restore, Not In-Place Downgrade
+
+After a schema-changing upgrade, do not delete authentication columns or tables and do not run an older application against the upgraded live database. Stop writes, rebuild the previous known-good application version, and restore its compatible pre-upgrade bundle. Test this procedure only with disposable database and attachment copies or isolated Docker volumes; never rehearse a downgrade against live data.
 
 ## Still Operator-Managed
 

@@ -30,6 +30,10 @@ test("auth database guard rejects missing and non-temporary database URLs", asyn
       () => assertIsolatedDatabaseUrl(databaseUrl(path.join(tmpdir(), "outside.db")), directory),
       /temporary directory/
     )
+    assert.throws(
+      () => assertIsolatedDatabaseUrl("file:/app/db/planglade.db", directory),
+      /temporary directory/
+    )
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

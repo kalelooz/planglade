@@ -2,6 +2,8 @@ import { db } from "@/lib/db"
 import type { Prisma } from "@prisma/client"
 import { normalizeEmail } from "@/lib/local-auth-email"
 
+type UserDatabase = Pick<Prisma.TransactionClient, "user">
+
 const userSelect = {
   id: true,
   email: true,
@@ -33,23 +35,24 @@ function matchingTransitionalUsers<T extends { email: string }>(users: T[], norm
 }
 
 export async function resolveVerifiedApplicationUser(
-  identity: VerifiedIdentity
+  identity: VerifiedIdentity,
+  client: UserDatabase = db,
 ): Promise<VerifiedApplicationUser | null> {
   const normalizedEmail = normalizeEmail(identity.email)
   if (!normalizedEmail || typeof identity.email !== "string") return null
   const email = identity.email.trim()
-  const existing = await db.user.findUnique({ where: { normalizedEmail }, select: userSelect })
+  const existing = await client.user.findUnique({ where: { normalizedEmail }, select: userSelect })
   if (existing) return existing
 
   const transitionalUsers = matchingTransitionalUsers(
-    await db.user.findMany({ where: { normalizedEmail: null }, select: userSelect }),
+    await client.user.findMany({ where: { normalizedEmail: null }, select: userSelect }),
     normalizedEmail
   )
   if (transitionalUsers.length > 1) return null
   if (transitionalUsers.length === 1) {
     const transitional = transitionalUsers[0]
     try {
-      return await db.user.update({
+      return await client.user.update({
         where: { id: transitional.id },
         data: {
           normalizedEmail,
@@ -65,7 +68,7 @@ export async function resolveVerifiedApplicationUser(
   }
 
   try {
-    return await db.user.create({
+    return await client.user.create({
       data: {
         email,
         normalizedEmail,
@@ -81,15 +84,18 @@ export async function resolveVerifiedApplicationUser(
 }
 
 // Temporary compatibility for OAuth JWTs issued before userId/authVersion claims existed.
-export async function resolveLegacyNextAuthUser(email: unknown): Promise<VerifiedApplicationUser | null> {
+export async function resolveLegacyNextAuthUser(
+  email: unknown,
+  client: UserDatabase = db,
+): Promise<VerifiedApplicationUser | null> {
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail) return null
 
-  const existing = await db.user.findUnique({ where: { normalizedEmail }, select: userSelect })
+  const existing = await client.user.findUnique({ where: { normalizedEmail }, select: userSelect })
   if (existing) return existing.authVersion === 0 ? existing : null
 
   const transitionalUsers = matchingTransitionalUsers(
-    await db.user.findMany({ where: { normalizedEmail: null }, select: userSelect }),
+    await client.user.findMany({ where: { normalizedEmail: null }, select: userSelect }),
     normalizedEmail
   )
   return transitionalUsers.length === 1 && transitionalUsers[0].authVersion === 0
