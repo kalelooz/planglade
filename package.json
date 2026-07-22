@@ -15,6 +15,7 @@
     "test": "node --import tsx --test tests/**/*.test.ts",
     "test:browser": "playwright test",
     "test:browser:headed": "playwright test --headed",
+    "proof:self-host-fresh-install": "node scripts/fresh-install-proof.mjs",
     "check:readme-sync": "node scripts/check-readme-sync.mjs",
     "jobs:expire-invites": "node scripts/expire-workspace-invites.mjs",
     "lint": "eslint .",

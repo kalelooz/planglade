@@ -41,6 +41,7 @@ test("LOGIN-POLISH-001: login keeps configured auth controls and avoids unsuppor
   assert.match(loginSource, /Use a recovery code/)
   assert.match(loginSource, /safeInternalPath\(searchParams\.get\("next"\)\)/)
   assert.match(loginRoute, /getProviderCapabilities\(\)\.localCredentials/)
+  assert.match(loginRoute, /export const dynamic = "force-dynamic"/)
   assert.doesNotMatch(loginSource, /FlowBoard/)
   assert.doesNotMatch(loginSource, /A calm clearing for your projects\./)
   assert.doesNotMatch(loginSource, /send password-reset email/i)
