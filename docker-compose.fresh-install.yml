@@ -1,0 +1,51 @@
+services:
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: file:/app/db/planglade.db
+    volumes:
+      - proof_data:/app/db
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: file:/app/db/planglade.db
+      NODE_ENV: production
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      PLANGLADE_SETUP_TOKEN: ${PLANGLADE_SETUP_TOKEN}
+      PLANGLADE_LOCAL_AUTH_ENABLED: ${PLANGLADE_LOCAL_AUTH_ENABLED}
+      PLANGLADE_THROTTLE_SECRET: ${PLANGLADE_THROTTLE_SECRET}
+      PLANGLADE_STORAGE_SIGNING_SECRET: ${PLANGLADE_STORAGE_SIGNING_SECRET}
+      PLANGLADE_AUTH_MODE: nextauth
+      NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
+      PLANGLADE_STORAGE_PROVIDER: local
+      PLANGLADE_LOCAL_STORAGE_DIR: /app/storage/local-attachments
+      PLANGLADE_EMAIL_PROVIDER: disabled
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${PLANGLADE_PROOF_APP_PORT}:3000"
+    volumes:
+      - proof_data:/app/db
+      - proof_attachments:/app/storage/local-attachments
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(async response => { const body = await response.json(); process.exit(response.ok && body.status === 'ok' ? 0 : 1) }).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  proof_data:
+  proof_attachments:

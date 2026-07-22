@@ -4,6 +4,8 @@ import { LoginPage } from "@/components/lovable/login-page"
 import { getProviderCapabilities } from "@/lib/auth-provider-capabilities"
 import { readPlanGladeEnv, readPublicPlanGladeEnv } from "@/lib/env-config"
 
+export const dynamic = "force-dynamic"
+
 function LoginPageFallback() {
   return <div className="p-6 text-sm text-muted-foreground">Loading sign-in...</div>
 }
