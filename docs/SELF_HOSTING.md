@@ -1,6 +1,6 @@
 # PlanGlade Self-Hosting
 
-Last updated: 2026-07-17
+Last updated: 2026-07-22
 
 PlanGlade has an early Docker self-host baseline and remains in early self-hosting status. It is not production-ready or production-hardened. The Docker path provides a repeatable standalone build, SQLite migrations, local credentials, local attachment storage, and checked backup/restore commands. It does not provide HTTPS, a reverse proxy, automated backups, monitoring, or security operations.
 
@@ -155,7 +155,9 @@ curl http://localhost:3000/api/health
 
 6. Sign in and verify a known workspace, task, note, setting, and attachment.
 
-To roll back after a schema-changing upgrade, stop the new stack, check out and rebuild the previous known-good version, restore its compatible pre-upgrade bundle, then start and verify. Do not run a destructive reset to hide a migration failure.
+For an authentication-changing release, also verify that an existing OAuth account keeps the same user and workspace access, an enrolled local password still works, recovery-code state is present, and workspace ownership and membership roles are unchanged. A restored database retains `authVersion`; sessions issued for an older version remain invalid. Rotating `NEXTAUTH_SECRET` deliberately invalidates every existing NextAuth session, so schedule that rotation separately from data verification.
+
+To roll back after a schema-changing upgrade, stop the new stack, check out and rebuild the previous known-good version, restore its compatible pre-upgrade bundle, then start and verify. Do not reverse the authentication migration in place or run a destructive reset to hide a migration failure. Rehearse downgrade/rollback only on disposable copies or isolated Docker volumes.
 
 ## Troubleshooting
 

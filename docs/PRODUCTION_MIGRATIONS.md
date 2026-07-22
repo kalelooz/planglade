@@ -1,6 +1,6 @@
 # Production Migrations
 
-Last updated: 2026-07-17
+Last updated: 2026-07-22
 
 ## Current Persistent Database Path
 
@@ -75,6 +75,8 @@ npm run db:migrate:status
 
 This preflight does not print `DATABASE_URL` or storage keys. Stop if it fails; do not use a reset as remediation.
 
+Before the local-auth persistence migration, run `npm run db:check:local-auth-emails` against the stopped installation. It rejects normalized-email collisions and values SQLite cannot normalize safely before changing the schema, without printing the affected addresses.
+
 ## Apply And Verify
 
 With the app stopped and backup secured:
@@ -91,7 +93,7 @@ The health endpoint returns status only. `{"status":"ok"}` confirms basic readin
 
 ## Rollback And Recovery
 
-Application rollback alone may be unsafe after a schema change. The reliable rollback is the previous known-good app version plus its compatible pre-upgrade bundle.
+Application rollback alone may be unsafe after a schema change. The reliable rollback is the previous known-good app version plus its compatible pre-upgrade bundle. There is no supported in-place authentication-schema downgrade.
 
 If verification fails, stop writes and restore from the backup before reopening the previous application version.
 
@@ -117,3 +119,5 @@ curl http://localhost:3000/api/health
 ```
 
 Do not delete volumes or run a destructive reset to make migration errors disappear. If restore reports a rollback artifact, preserve it and investigate before retrying.
+
+Exercise the previous version and restored pre-upgrade bundle only on disposable copies or isolated volumes before relying on this procedure. Never use the live upgraded database for a downgrade drill.

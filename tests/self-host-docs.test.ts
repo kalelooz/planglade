@@ -227,6 +227,30 @@ test("SELF-HOST-UPGRADE-RESTORE-001: backup and restore guarantees are documente
   assert.doesNotMatch(`${selfHosting}\n${readme}`, /Node(?:\.js)? 20(?:\+|\b)/i)
 })
 
+test("SELF-HOST-AUTH-UPGRADE-RESTORE-001: auth restore and rollback guarantees are documented", async () => {
+  const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
+  const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
+  const migrations = await readProjectFile("docs/PRODUCTION_MIGRATIONS.md")
+  const combined = `${backup}\n${selfHosting}\n${migrations}`
+
+  for (const required of [
+    /normalized identity/i,
+    /authVersion/,
+    /local password hashes/i,
+    /recovery-code hashes/i,
+    /workspace ownership/i,
+    /membership roles/i,
+    /NEXTAUTH_SECRET[\s\S]*invalidates[\s\S]*sessions/i,
+    /disposable copies|isolated Docker volumes/i,
+    /no supported in-place authentication-schema downgrade/i,
+  ]) {
+    assert.match(combined, required)
+  }
+  assert.match(backup, /\.env[\s\S]*does not contain|does not contain `\.env`/i)
+  assert.match(backup, /Workspace JSON export\/import[\s\S]*not a full backup/i)
+  assert.match(migrations, /npm run db:check:local-auth-emails/)
+})
+
 test("SELF-HOST-DOCS-001: health guidance describes the status-only contract", async () => {
   const selfHosting = await readProjectFile("docs/SELF_HOSTING.md")
   const backup = await readProjectFile("docs/BACKUP_RESTORE.md")
