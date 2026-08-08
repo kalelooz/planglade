@@ -31,8 +31,8 @@ after(async () => {
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
-  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
-  NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
+  PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
+  NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
@@ -41,8 +41,8 @@ const originalEnv = {
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  FLOWBOARD_WORKSPACE_SLUG: process.env.FLOWBOARD_WORKSPACE_SLUG,
-  FLOWBOARD_WORKSPACE_NAME: process.env.FLOWBOARD_WORKSPACE_NAME,
+  PLANGLADE_WORKSPACE_SLUG: process.env.PLANGLADE_WORKSPACE_SLUG,
+  PLANGLADE_WORKSPACE_NAME: process.env.PLANGLADE_WORKSPACE_NAME,
 }
 
 function restoreEnv() {
@@ -76,8 +76,8 @@ async function runWithMocks(fn: () => Promise<void>) {
 
 test("GET /auth/session rejects invalid auth mode", async () => {
   await runWithMocks(async () => {
-    setEnv("FLOWBOARD_AUTH_MODE", "passwordless")
-    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "passwordless")
+    setEnv("PLANGLADE_AUTH_MODE", "passwordless")
+    setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "passwordless")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
     const payload = (await response.json()) as { error?: string }
@@ -90,8 +90,8 @@ test("GET /auth/session rejects invalid auth mode", async () => {
 test("GET /auth/session blocks dev auth mode in production", async () => {
   await runWithMocks(async () => {
     setEnv("NODE_ENV", "production")
-    setEnv("FLOWBOARD_AUTH_MODE", "dev")
-    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "dev")
+    setEnv("PLANGLADE_AUTH_MODE", "dev")
+    setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "dev")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
     const payload = (await response.json()) as { error?: string; errors?: string[] }
@@ -104,8 +104,8 @@ test("GET /auth/session blocks dev auth mode in production", async () => {
 
 test("GET /auth/session reports nextauth provider misconfiguration", async () => {
   await runWithMocks(async () => {
-    setEnv("FLOWBOARD_AUTH_MODE", "nextauth")
-    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "nextauth")
+    setEnv("PLANGLADE_AUTH_MODE", "nextauth")
+    setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "nextauth")
     setEnv("NEXTAUTH_SECRET", "test-secret")
     setEnv("NEXTAUTH_URL", "http://localhost:3000")
 
@@ -123,8 +123,8 @@ test("GET /auth/session reports nextauth provider misconfiguration", async () =>
 test("GET /auth/session hides nextauth provider setup details in production", async () => {
   await runWithMocks(async () => {
     setEnv("NODE_ENV", "production")
-    setEnv("FLOWBOARD_AUTH_MODE", "nextauth")
-    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "nextauth")
+    setEnv("PLANGLADE_AUTH_MODE", "nextauth")
+    setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "nextauth")
     setEnv("NEXTAUTH_SECRET", "test-secret")
     setEnv("NEXTAUTH_URL", "https://planglade.example")
 
@@ -138,13 +138,13 @@ test("GET /auth/session hides nextauth provider setup details in production", as
 
 test("GET /auth/session requires Firebase token in firebase mode", async () => {
   await runWithMocks(async () => {
-    setEnv("FLOWBOARD_AUTH_MODE", "firebase")
-    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "firebase")
-    setEnv("FIREBASE_PROJECT_ID", "flowboard-test")
-    setEnv("FIREBASE_STORAGE_BUCKET", "flowboard-test.appspot.com")
+    setEnv("PLANGLADE_AUTH_MODE", "firebase")
+    setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "firebase")
+    setEnv("FIREBASE_PROJECT_ID", "planglade-test")
+    setEnv("FIREBASE_STORAGE_BUCKET", "planglade-test.appspot.com")
     setEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "api-key")
-    setEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "flowboard-test.firebaseapp.com")
-    setEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "flowboard-test")
+    setEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "planglade-test.firebaseapp.com")
+    setEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "planglade-test")
     setEnv("NEXT_PUBLIC_FIREBASE_APP_ID", "app-id")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
@@ -157,16 +157,16 @@ test("GET /auth/session requires Firebase token in firebase mode", async () => {
 
 test("GET /auth/session creates dev scaffold session", async () => {
   await runWithMocks(async () => {
-    setEnv("FLOWBOARD_AUTH_MODE", "dev")
-    setEnv("NEXT_PUBLIC_FLOWBOARD_AUTH_MODE", "dev")
-    setEnv("FLOWBOARD_WORKSPACE_SLUG", "test-workspace")
-    setEnv("FLOWBOARD_WORKSPACE_NAME", "Test Workspace")
+    setEnv("PLANGLADE_AUTH_MODE", "dev")
+    setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "dev")
+    setEnv("PLANGLADE_WORKSPACE_SLUG", "test-workspace")
+    setEnv("PLANGLADE_WORKSPACE_NAME", "Test Workspace")
 
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
     ;(db.user as typeof db.user).findMany = ((async () => []) as unknown) as typeof db.user.findMany
     ;(db.user as typeof db.user).create = ((async () => ({
       id: "user-1",
-      email: "alex.morgan@flowboard.dev",
+      email: "alex.morgan@planglade.dev",
       name: "Alex Morgan",
     })) as unknown) as typeof db.user.create
 
@@ -198,7 +198,7 @@ test("GET /auth/session creates dev scaffold session", async () => {
         user: {
           id: "user-1",
           name: "Alex Morgan",
-          email: "alex.morgan@flowboard.dev",
+          email: "alex.morgan@planglade.dev",
         },
       }]
     }) as unknown) as typeof db.workspaceMember.findMany

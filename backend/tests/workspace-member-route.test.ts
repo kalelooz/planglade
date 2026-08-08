@@ -5,18 +5,18 @@ import { NextRequest } from "next/server"
 import { db } from "../src/lib/db"
 import { DELETE as deleteWorkspaceMember, PATCH as patchWorkspaceMember } from "../src/app/api/workspace/members/[memberUserId]/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalMemberFindUnique = db.workspaceMember.findUnique
 const originalMemberUpdate = db.workspaceMember.update
 const originalMemberDelete = db.workspaceMember.delete
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalMemberFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).update = originalMemberUpdate
@@ -49,7 +49,7 @@ test("PATCH /workspace/members/:memberUserId blocks owner role downgrade", async
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
       body: JSON.stringify({
         workspaceId: "ws-1",
@@ -89,7 +89,7 @@ test("DELETE /workspace/members/:memberUserId blocks owner removal", async () =>
     const request = new NextRequest("http://localhost/api/workspace/members/owner-1?workspaceId=ws-1", {
       method: "DELETE",
       headers: {
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
     })
 
@@ -125,7 +125,7 @@ test("DELETE /workspace/members/:memberUserId blocks self removal", async () => 
     const request = new NextRequest("http://localhost/api/workspace/members/admin-1?workspaceId=ws-1", {
       method: "DELETE",
       headers: {
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
     })
 
@@ -167,7 +167,7 @@ test("DELETE /workspace/members/:memberUserId removes standard member", async ()
     const request = new NextRequest("http://localhost/api/workspace/members/member-1?workspaceId=ws-1", {
       method: "DELETE",
       headers: {
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
     })
 
@@ -194,7 +194,7 @@ test("DELETE /workspace/members/:memberUserId denies actor outside workspace", a
     const request = new NextRequest("http://localhost/api/workspace/members/member-1?workspaceId=ws-1", {
       method: "DELETE",
       headers: {
-        "x-flowboard-user-id": "outsider-1",
+        "x-planglade-user-id": "outsider-1",
       },
     })
 

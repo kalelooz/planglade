@@ -7,8 +7,8 @@ import { createWorkItemSchema, updateWorkItemSchema } from "../src/lib/contracts
 import { db } from "../src/lib/db"
 
 const originalEnv = {
-  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
-  NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
+  PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
+  NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
 }
 
 const originalWorkspaceFindUnique = db.workspace.findUnique
@@ -28,8 +28,8 @@ function restoreEnv() {
 
 async function runWithUpdateRouteMocks(fn: () => Promise<void>) {
   restoreEnv()
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
-  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
+  process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "dev"
 
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
     id: "workspace-1",
@@ -115,7 +115,7 @@ test("TASK-UPDATE-PARTIAL-PATCH-001: title-only update sends only title to the d
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-1",
+        "x-planglade-user-id": "user-1",
       },
       body: JSON.stringify({ title: "Renamed title" }),
     })
@@ -221,7 +221,7 @@ test("task placement reindexes the workspace-wide destination status across proj
 
     const response = await updateWorkItem(new NextRequest("http://localhost/api/work-items/task-1?workspaceId=workspace-1", {
       method: "PATCH",
-      headers: { "content-type": "application/json", "x-flowboard-user-id": "user-1" },
+      headers: { "content-type": "application/json", "x-planglade-user-id": "user-1" },
       body: JSON.stringify({ status: "TODO", beforeId: "task-2" }),
     }), { params: Promise.resolve({ workItemId: "task-1" }) })
 

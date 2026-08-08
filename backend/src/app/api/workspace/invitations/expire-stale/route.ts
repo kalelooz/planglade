@@ -11,7 +11,7 @@ function isAuthorizedMaintenanceRequest(request: NextRequest) {
   const tokenFromBearer = authHeader?.startsWith("Bearer ")
     ? authHeader.slice("Bearer ".length).trim()
     : null
-  const tokenFromCustomHeader = request.headers.get("x-flowboard-maintenance-token")
+  const tokenFromCustomHeader = request.headers.get("x-planglade-maintenance-token")
 
   const provided = tokenFromBearer ?? tokenFromCustomHeader ?? ""
   return provided.length > 0 && provided === configured

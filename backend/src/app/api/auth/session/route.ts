@@ -7,7 +7,7 @@ import { resolveVerifiedApplicationUser } from "@/lib/local-auth-identity"
 import { getVerifiedNextAuthUser } from "@/lib/local-auth-session"
 
 const DEV_USER = {
-  email: "alex.morgan@flowboard.dev",
+  email: "alex.morgan@planglade.dev",
   name: "Alex Morgan",
 }
 
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
     if (requestedMode === "firebase") {
       const tokenFromHeader = request.headers.get("authorization")
-      const tokenFromCustomHeader = request.headers.get("x-flowboard-firebase-id-token")
+      const tokenFromCustomHeader = request.headers.get("x-planglade-firebase-id-token")
       const authToken = tokenFromHeader?.startsWith("Bearer ")
         ? tokenFromHeader.slice("Bearer ".length).trim()
         : tokenFromCustomHeader?.trim() || null

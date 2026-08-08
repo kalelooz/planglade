@@ -6,7 +6,7 @@ import { db } from "@/lib/db"
 import { verifyFirebaseIdToken } from "@/lib/firebase-admin"
 
 export const DEV_USER_IDENTITY = {
-  email: "alex.morgan@flowboard.dev",
+  email: "alex.morgan@planglade.dev",
   name: "Alex Morgan",
 }
 
@@ -38,7 +38,7 @@ async function upsertSessionUser(identity: { email: string; name: string | null 
 
 function getBearerToken(request: Request) {
   const tokenFromHeader = request.headers.get("authorization")
-  const tokenFromCustomHeader = request.headers.get("x-flowboard-firebase-id-token")
+  const tokenFromCustomHeader = request.headers.get("x-planglade-firebase-id-token")
   if (tokenFromHeader?.startsWith("Bearer ")) {
     return tokenFromHeader.slice("Bearer ".length).trim()
   }
@@ -51,7 +51,7 @@ export async function resolveAuthenticatedUser(request: Request): Promise<Sessio
     return {
       ok: false,
       status: 500,
-      message: authConfig.errors[0] ?? "Invalid FLOWBOARD_AUTH_MODE.",
+      message: authConfig.errors[0] ?? "Invalid PLANGLADE_AUTH_MODE.",
       details: authConfig.errors,
     }
   }
@@ -88,7 +88,7 @@ export async function resolveAuthenticatedUser(request: Request): Promise<Sessio
     return {
       ok: false,
       status: 500,
-      message: "FLOWBOARD_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
+      message: "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider (Google or GitHub).",
     }
   }
 

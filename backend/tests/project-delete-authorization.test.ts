@@ -5,7 +5,7 @@ import { NextRequest } from "next/server"
 import { DELETE as deleteProject, PATCH as updateProject } from "../src/app/api/projects/[projectId]/route"
 import { db } from "../src/lib/db"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originals = {
   userUpsert: db.user.upsert,
   workspaceFindUnique: db.workspace.findUnique,
@@ -15,8 +15,8 @@ const originals = {
 }
 
 test.afterEach(() => {
-  if (originalAuthMode === undefined) delete process.env.FLOWBOARD_AUTH_MODE
-  else process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+  if (originalAuthMode === undefined) delete process.env.PLANGLADE_AUTH_MODE
+  else process.env.PLANGLADE_AUTH_MODE = originalAuthMode
   ;(db.user as typeof db.user).upsert = originals.userUpsert
   ;(db.workspace as typeof db.workspace).findUnique = originals.workspaceFindUnique
   ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originals.memberFindUnique
@@ -29,8 +29,8 @@ function request() {
 }
 
 function mockWorkspace(role: "VIEWER" | "MEMBER") {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
-  ;(db.user as typeof db.user).upsert = ((async () => ({ id: "member-1", email: "dev@flowboard.local", name: "Dev User" })) as unknown) as typeof db.user.upsert
+  process.env.PLANGLADE_AUTH_MODE = "dev"
+  ;(db.user as typeof db.user).upsert = ((async () => ({ id: "member-1", email: "dev@planglade.local", name: "Dev User" })) as unknown) as typeof db.user.upsert
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({ id: "workspace-1", ownerId: "owner-1" })) as unknown) as typeof db.workspace.findUnique
   ;(db.workspaceMember as typeof db.workspaceMember).findUnique = ((async () => ({ userId: "member-1", role })) as unknown) as typeof db.workspaceMember.findUnique
 }

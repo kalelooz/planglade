@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server"
 import { db } from "../src/lib/db"
 import { POST as acceptWorkspaceInvite } from "../src/app/api/workspace/invitations/accept/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 
 const originalUserFindUnique = db.user.findUnique
 const originalInviteFindUnique = db.workspaceInvite.findUnique
@@ -13,11 +13,11 @@ const originalInviteUpdate = db.workspaceInvite.update
 const originalTransaction = db.$transaction
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
     ;(db.workspaceInvite as typeof db.workspaceInvite).findUnique = originalInviteFindUnique
     ;(db.workspaceInvite as typeof db.workspaceInvite).update = originalInviteUpdate
@@ -58,7 +58,7 @@ test("POST /workspace/invitations/accept blocks invite acceptance when email mis
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-1",
+        "x-planglade-user-id": "user-1",
       },
       body: JSON.stringify({ token: "test-test-test-test-01" }),
     }) as unknown as NextRequest
@@ -105,7 +105,7 @@ test("POST /workspace/invitations/accept returns 410 and expires stale invite", 
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-1",
+        "x-planglade-user-id": "user-1",
       },
       body: JSON.stringify({ token: "tok-expired-1234567890" }),
     }) as unknown as NextRequest
@@ -152,7 +152,7 @@ test("POST /workspace/invitations/accept rejects a persisted OWNER invite", asyn
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-1",
+        "x-planglade-user-id": "user-1",
       },
       body: JSON.stringify({ token: "owner-test-test-token-01" }),
     }) as unknown as NextRequest

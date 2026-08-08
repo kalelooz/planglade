@@ -1,9 +1,9 @@
 function readPlanGladeEnv(name) {
-  return process.env[`PLANGLADE_${name}`] ?? process.env[`FLOWBOARD_${name}`]
+  return process.env[`PLANGLADE_${name}`]
 }
 
 function readPublicPlanGladeEnv(name) {
-  return process.env[`NEXT_PUBLIC_PLANGLADE_${name}`] ?? process.env[`NEXT_PUBLIC_FLOWBOARD_${name}`]
+  return process.env[`NEXT_PUBLIC_PLANGLADE_${name}`]
 }
 
 const isProductionLike =

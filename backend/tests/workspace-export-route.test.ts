@@ -6,7 +6,7 @@ import { db } from "../src/lib/db"
 import { GET as exportWorkspace } from "../src/app/api/workspace/export/route"
 import { POST as importWorkspace } from "../src/app/api/workspace/import-local/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
 const originalProjectFindMany = db.project.findMany
@@ -21,11 +21,11 @@ const originalTransaction = db.$transaction
 type Role = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalWorkspaceMemberFindUnique
     ;(db.project as typeof db.project).findMany = originalProjectFindMany
@@ -92,7 +92,7 @@ test("GET /workspace/export ignores client userId and does not export user setti
     const request = new NextRequest(
       "http://localhost/api/workspace/export?workspaceId=workspace-1&userId=other-1",
       {
-        headers: { "x-flowboard-user-id": "actor-1" },
+        headers: { "x-planglade-user-id": "actor-1" },
       }
     )
 
@@ -236,7 +236,7 @@ test("GET /workspace/export is workspace scoped and includes expected safe data"
     ;(db.projectDoc as typeof db.projectDoc).findMany = ((async () => []) as unknown) as typeof db.projectDoc.findMany
 
     const request = new NextRequest("http://localhost/api/workspace/export?workspaceId=workspace-1", {
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     })
 
     const response = await exportWorkspace(request)
@@ -305,7 +305,7 @@ test("GET /workspace/export includes legacy project docs and archived state", as
     }) as unknown) as typeof db.projectDoc.findMany
 
     const request = new NextRequest("http://localhost/api/workspace/export?workspaceId=workspace-1", {
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     })
 
     const response = await exportWorkspace(request)
@@ -371,7 +371,7 @@ test("GET /workspace/export preserves the actor's saved views", async () => {
     }) as unknown) as typeof db.savedView.findMany
 
     const response = await exportWorkspace(new NextRequest("http://localhost/api/workspace/export?workspaceId=workspace-1", {
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     }))
     const payload = (await response.json()) as { savedViews?: unknown[]; data?: { savedViews?: Array<{ name: string; project?: string }> }; counts?: { savedViews?: number } }
 
@@ -419,7 +419,7 @@ test("POST /workspace/import-local creates project docs with imported project as
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: JSON.stringify({
         workspaceId: "workspace-1",
@@ -478,7 +478,7 @@ test("POST /workspace/import-local restores saved presentation configuration", a
 
     const response = await importWorkspace(new NextRequest("http://localhost/api/workspace/import-local", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-flowboard-user-id": "actor-1" },
+      headers: { "content-type": "application/json", "x-planglade-user-id": "actor-1" },
       body: JSON.stringify({
         workspaceId: "workspace-1",
         projects: [{ id: "project-import-1", name: "Launch", status: "ACTIVE" }],
@@ -531,7 +531,7 @@ test("POST /workspace/import-local imports archived docs and handles missing pro
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: JSON.stringify({
         workspaceId: "workspace-1",
@@ -598,7 +598,7 @@ test("POST /workspace/import-local ignores spoofed project doc workspace and use
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: JSON.stringify({
         workspaceId: "workspace-1",

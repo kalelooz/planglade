@@ -5,17 +5,17 @@ import { NextRequest } from "next/server"
 import { db } from "../src/lib/db"
 import { POST as createOnboardingWorkspace } from "../src/app/api/workspace/onboarding/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalMembershipFindFirst = db.workspaceMember.findFirst
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalTransaction = db.$transaction
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspaceMember as typeof db.workspaceMember).findFirst = originalMembershipFindFirst
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db as typeof db).$transaction = originalTransaction
@@ -57,7 +57,7 @@ test("POST /workspace/onboarding creates workspace for first-time user", async (
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-1",
+        "x-planglade-user-id": "user-1",
       },
       body: JSON.stringify({
         name: "Acme Team",
@@ -92,7 +92,7 @@ test("POST /workspace/onboarding returns conflict if user already has workspace"
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-1",
+        "x-planglade-user-id": "user-1",
       },
       body: JSON.stringify({
         name: "Another Workspace",

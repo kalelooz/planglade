@@ -29,9 +29,9 @@ const plangladeKeys = [
   "PLANGLADE_AUTH_MODE",
   "NEXT_PUBLIC_PLANGLADE_AUTH_MODE",
   "PLANGLADE_STORAGE_PROVIDER",
-  "FLOWBOARD_AUTH_MODE",
-  "NEXT_PUBLIC_FLOWBOARD_AUTH_MODE",
-  "FLOWBOARD_STORAGE_PROVIDER",
+  "PLANGLADE_AUTH_MODE",
+  "NEXT_PUBLIC_PLANGLADE_AUTH_MODE",
+  "PLANGLADE_STORAGE_PROVIDER",
 ] as const
 
 const allKeys = [...firebaseKeys, ...plangladeKeys] as const
@@ -57,7 +57,7 @@ test("FIREBASE-SAAS-BOUNDARY-001: storage default never resolves to firebase, ev
   clearFirebaseAndModeEnv()
   try {
     env.NODE_ENV = "production"
-    // No PLANGLADE_STORAGE_PROVIDER / FLOWBOARD_STORAGE_PROVIDER set at all.
+    // No PLANGLADE_STORAGE_PROVIDER / PLANGLADE_STORAGE_PROVIDER set at all.
     assert.equal(getConfiguredStorageProvider(), "local")
   } finally {
     restoreEnv()

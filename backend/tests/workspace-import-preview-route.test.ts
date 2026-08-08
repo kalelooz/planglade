@@ -5,7 +5,7 @@ import { NextRequest } from "next/server"
 import { POST as previewWorkspaceImport } from "../src/app/api/workspace/import-preview/route"
 import { db } from "../src/lib/db"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
 const originalProjectFindMany = db.project.findMany
@@ -17,11 +17,11 @@ const originalTransaction = db.$transaction
 type Role = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalWorkspaceMemberFindUnique
     ;(db.project as typeof db.project).findMany = originalProjectFindMany
@@ -56,7 +56,7 @@ function previewRequest(body: unknown, userId = "actor-1") {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-flowboard-user-id": userId,
+      "x-planglade-user-id": userId,
     },
     body: JSON.stringify(body),
   })
@@ -79,7 +79,7 @@ test("POST /workspace/import-preview rejects malformed JSON with a safe error", 
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: "{",
     })

@@ -10,7 +10,7 @@ const forbidden = [
   /(^|\/)(ROADMAP\.md|PRODUCT\.md)$/i,
   /(^|\/)(Reddit|artifacts)(\/|$)/i,
   /(^|\/)docs\/(Sources|audits|archive|superpowers|slices)(\/|$)/i,
-  /(^|\/)(flowboard-collaboration-foundation-plan\.md|flowboard-marketing\.html)$/i,
+  /(^|\/)(planglade-collaboration-foundation-plan\.md|planglade-marketing\.html)$/i,
 ]
 
 const exposed = tracked.filter((file) => forbidden.some((pattern) => pattern.test(file)))

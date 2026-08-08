@@ -38,10 +38,7 @@ const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
   PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
-  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
-  NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
   PLANGLADE_STORAGE_PROVIDER: process.env.PLANGLADE_STORAGE_PROVIDER,
-  FLOWBOARD_STORAGE_PROVIDER: process.env.FLOWBOARD_STORAGE_PROVIDER,
   PLANGLADE_LOCAL_AUTH_ENABLED: process.env.PLANGLADE_LOCAL_AUTH_ENABLED,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
@@ -63,9 +60,9 @@ function setContractEnv(nodeEnv: "development" | "production", authMode = "dev")
   process.env.PLANGLADE_AUTH_MODE = authMode
   process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = authMode
   process.env.PLANGLADE_STORAGE_PROVIDER = "local"
-  delete process.env.FLOWBOARD_AUTH_MODE
-  delete process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE
-  delete process.env.FLOWBOARD_STORAGE_PROVIDER
+  delete process.env.PLANGLADE_AUTH_MODE
+  delete process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE
+  delete process.env.PLANGLADE_STORAGE_PROVIDER
   delete process.env.PLANGLADE_LOCAL_AUTH_ENABLED
   delete process.env.NEXTAUTH_SECRET
   delete process.env.NEXTAUTH_URL

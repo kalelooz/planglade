@@ -19,8 +19,6 @@ const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
   PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
-  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
-  NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
 }
 
 function restoreEnv() {
@@ -89,8 +87,6 @@ test("production dev auth fails closed before reading identity headers", async (
     Reflect.set(process.env, "NODE_ENV", "production")
     process.env.PLANGLADE_AUTH_MODE = "dev"
     process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "dev"
-    delete process.env.FLOWBOARD_AUTH_MODE
-    delete process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE
 
     assert.equal(
       getAuthConfigErrors().errors.includes(
@@ -102,7 +98,7 @@ test("production dev auth fails closed before reading identity headers", async (
     await assert.rejects(
       resolveRequestActorUserId(
         new Request("http://localhost/api/workspace/members?workspaceId=ws-1", {
-          headers: { "x-flowboard-user-id": "owner-1" },
+          headers: { "x-planglade-user-id": "owner-1" },
         })
       ),
       /disabled in production/
@@ -120,7 +116,7 @@ test("a protected API rejects a development identity header in production", asyn
 
     const response = await getWorkspaceMembers(
       new NextRequest("http://localhost/api/workspace/members?workspaceId=ws-1", {
-        headers: { "x-flowboard-user-id": "owner-1" },
+        headers: { "x-planglade-user-id": "owner-1" },
       })
     )
     const payload = (await response.json()) as { error?: string; details?: string }
@@ -141,7 +137,7 @@ test("development identity headers cannot override the canonical dev user", asyn
 
     const actor = await resolveRequestActorUserId(
       new Request("http://localhost/api/workspace/members?workspaceId=ws-1", {
-        headers: { "x-flowboard-user-id": "dev-user-1" },
+        headers: { "x-planglade-user-id": "dev-user-1" },
       })
     )
 

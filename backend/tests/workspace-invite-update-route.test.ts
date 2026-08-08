@@ -5,7 +5,7 @@ import { NextRequest } from "next/server"
 import { db } from "../src/lib/db"
 import { PATCH as patchWorkspaceInvite } from "../src/app/api/workspace/invitations/[inviteId]/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalMemberFindUnique = db.workspaceMember.findUnique
 const originalInviteFindFirst = db.workspaceInvite.findFirst
@@ -14,11 +14,11 @@ const originalInvitePolicyCreate = db.workspaceInvitePolicy.create
 const originalTransaction = db.$transaction
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalMemberFindUnique
     ;(db.workspaceInvite as typeof db.workspaceInvite).findFirst = originalInviteFindFirst
@@ -45,7 +45,7 @@ test("PATCH /workspace/invitations/:inviteId revokes invite", async () => {
     ;(db.workspaceInvite as typeof db.workspaceInvite).findFirst = ((async () => ({
       id: "invite-1",
       workspaceId: "ws-1",
-      email: "new@flowboard.dev",
+      email: "new@planglade.dev",
       role: "MEMBER",
       status: "PENDING",
       token: "test-test-test-test-01",
@@ -78,7 +78,7 @@ test("PATCH /workspace/invitations/:inviteId revokes invite", async () => {
           update: async () => ({
             id: "invite-1",
             workspaceId: "ws-1",
-            email: "new@flowboard.dev",
+            email: "new@planglade.dev",
             role: "MEMBER",
             status: "REVOKED",
             token: "test-test-test-test-01",
@@ -100,7 +100,7 @@ test("PATCH /workspace/invitations/:inviteId revokes invite", async () => {
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
       body: JSON.stringify({
         workspaceId: "ws-1",
@@ -137,7 +137,7 @@ test("PATCH /workspace/invitations/:inviteId blocks resend for accepted invite",
     ;(db.workspaceInvite as typeof db.workspaceInvite).findFirst = ((async () => ({
       id: "invite-2",
       workspaceId: "ws-1",
-      email: "accepted@flowboard.dev",
+      email: "accepted@planglade.dev",
       role: "MEMBER",
       status: "ACCEPTED",
       token: "accepted-test-token-01",
@@ -174,7 +174,7 @@ test("PATCH /workspace/invitations/:inviteId blocks resend for accepted invite",
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
       body: JSON.stringify({
         workspaceId: "ws-1",
@@ -213,7 +213,7 @@ test("PATCH /workspace/invitations/:inviteId denies actor outside workspace", as
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "outsider-1",
+        "x-planglade-user-id": "outsider-1",
       },
       body: JSON.stringify({
         workspaceId: "ws-1",

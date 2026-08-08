@@ -5,19 +5,19 @@ import { NextRequest } from "next/server"
 import { db } from "../src/lib/db"
 import { POST as sendTestInviteEmail } from "../src/app/api/workspace/invitations/test-send/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalMemberFindUnique = db.workspaceMember.findUnique
 const originalUserFindUnique = db.user.findUnique
 const originalPolicyFindUnique = db.workspaceInvitePolicy.findUnique
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
-  process.env.FLOWBOARD_EMAIL_PROVIDER = "console"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
+  process.env.PLANGLADE_EMAIL_PROVIDER = "console"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalMemberFindUnique
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
@@ -41,7 +41,7 @@ test("POST /workspace/invitations/test-send sends a test invite email", async ()
 
     ;(db.user as typeof db.user).findUnique = ((async () => ({
       id: "admin-1",
-      email: "admin@flowboard.dev",
+      email: "admin@planglade.dev",
       name: "Admin User",
     })) as unknown) as typeof db.user.findUnique
 
@@ -66,7 +66,7 @@ test("POST /workspace/invitations/test-send sends a test invite email", async ()
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "admin-1",
+        "x-planglade-user-id": "admin-1",
       },
       body: JSON.stringify({
         workspaceId: "ws-1",
@@ -79,7 +79,7 @@ test("POST /workspace/invitations/test-send sends a test invite email", async ()
 
     assert.equal(response.status, 200)
     assert.equal(payload.ok, true)
-    assert.equal(payload.toEmail, "admin@flowboard.dev")
+    assert.equal(payload.toEmail, "admin@planglade.dev")
     assert.equal(payload.error, undefined)
   })
 })

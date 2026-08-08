@@ -20,7 +20,7 @@ const originalEnv = {
   PLANGLADE_STORAGE_PROVIDER: process.env.PLANGLADE_STORAGE_PROVIDER,
   PLANGLADE_LOCAL_STORAGE_DIR: process.env.PLANGLADE_LOCAL_STORAGE_DIR,
   PLANGLADE_STORAGE_SIGNING_SECRET: process.env.PLANGLADE_STORAGE_SIGNING_SECRET,
-  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
+  PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
 }
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalMemberFindUnique = db.workspaceMember.findUnique
@@ -225,7 +225,7 @@ test("attachment storage keys are unique in the data model", async () => {
 })
 
 test("attachment finalization rejects reuse of an already finalized storage key", async () => {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
       id: "ws-1",
@@ -256,7 +256,7 @@ test("attachment finalization rejects reuse of an already finalized storage key"
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
           workspaceId: "ws-1",

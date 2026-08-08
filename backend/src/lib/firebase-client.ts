@@ -24,4 +24,4 @@ const app = hasFirebaseClientConfig
 
 export const firebaseAuth = app ? getAuth(app) : null
 export const googleAuthProvider = new GoogleAuthProvider()
-export const FIREBASE_ID_TOKEN_STORAGE_KEY = "flowboard-firebase-id-token"
+export const FIREBASE_ID_TOKEN_STORAGE_KEY = "planglade-firebase-id-token"

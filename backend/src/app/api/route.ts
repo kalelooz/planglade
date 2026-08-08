@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   return NextResponse.json({
-    service: "flowboard-api",
+    service: "planglade-api",
     status: "ok",
     version: "0.2.0",
     generatedAt: new Date().toISOString(),

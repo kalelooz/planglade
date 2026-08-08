@@ -7,7 +7,7 @@ import { GET as getProjectDoc, PATCH as patchProjectDoc, DELETE as deleteProject
 import { POST as archiveProjectDoc } from "../src/app/api/project-docs/[docId]/archive/route"
 import { GET as listProjectDocs, POST as createProjectDoc } from "../src/app/api/project-docs/route"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
 const originalProjectFindUnique = db.project.findUnique
@@ -19,11 +19,11 @@ const originalTransaction = db.$transaction
 type Role = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalWorkspaceMemberFindUnique
     ;(db.project as typeof db.project).findUnique = originalProjectFindUnique
@@ -63,7 +63,7 @@ test("GET /project-docs lists active docs in the current workspace by default", 
     }) as unknown) as typeof db.projectDoc.findMany
 
     const request = new NextRequest("http://localhost/api/project-docs?workspaceId=ws-1", {
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     })
 
     const response = await listProjectDocs(request)
@@ -87,7 +87,7 @@ test("POST /project-docs validates input before writing", async () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: JSON.stringify({ workspaceId: "ws-1", title: "" }),
     })
@@ -118,7 +118,7 @@ test("POST /project-docs rejects a project from another workspace", async () => 
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: JSON.stringify({ workspaceId: "ws-1", projectId: "project-2", title: "Runbook" }),
     })
@@ -138,7 +138,7 @@ test("GET /project-docs/:docId does not return a cross-workspace doc", async () 
     ;(db.projectDoc as typeof db.projectDoc).findFirst = ((async () => null) as unknown) as typeof db.projectDoc.findFirst
 
     const request = new NextRequest("http://localhost/api/project-docs/doc-2?workspaceId=ws-1", {
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     })
 
     const response = await getProjectDoc(request, {
@@ -178,7 +178,7 @@ test("PATCH /project-docs/:docId updates only allowed fields", async () => {
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "actor-1",
+        "x-planglade-user-id": "actor-1",
       },
       body: JSON.stringify({
         workspaceId: "ws-2",
@@ -225,7 +225,7 @@ test("POST /project-docs/:docId/archive soft archives the owned doc", async () =
 
     const request = new NextRequest("http://localhost/api/project-docs/doc-1/archive?workspaceId=ws-1", {
       method: "POST",
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     })
 
     const response = await archiveProjectDoc(request, {
@@ -261,7 +261,7 @@ test("DELETE /project-docs/:docId hard deletes only an owned doc", async () => {
 
     const request = new NextRequest("http://localhost/api/project-docs/doc-1?workspaceId=ws-1", {
       method: "DELETE",
-      headers: { "x-flowboard-user-id": "actor-1" },
+      headers: { "x-planglade-user-id": "actor-1" },
     })
 
     const response = await deleteProjectDoc(request, {

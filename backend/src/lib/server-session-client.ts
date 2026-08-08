@@ -54,9 +54,9 @@ export async function buildApiAuthHeaders(initHeaders?: HeadersInit): Promise<He
   if (
     getPublicConfiguredAuthMode() === "dev" &&
     lastResolvedUserId &&
-    !headers.has("x-flowboard-user-id")
+    !headers.has("x-planglade-user-id")
   ) {
-    headers.set("x-flowboard-user-id", lastResolvedUserId)
+    headers.set("x-planglade-user-id", lastResolvedUserId)
   }
   return headers
 }

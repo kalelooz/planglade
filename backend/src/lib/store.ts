@@ -521,7 +521,7 @@ export const useStore = create<State & Actions>()(
         if (state.settings?.accent === legacyDefaultAccent) {
           state.settings = { ...(state.settings as Settings), accent: defaultSettings.accent };
         }
-        if (state.settings?.workspaceName === "FlowBoard Workspace") {
+        if (state.settings?.workspaceName === "PlanGlade Workspace") {
           state.settings = { ...(state.settings as Settings), workspaceName: defaultSettings.workspaceName };
         }
         if (state.settings && (!("activeProjectId" in state.settings) || state.settings.activeProjectId === undefined)) {

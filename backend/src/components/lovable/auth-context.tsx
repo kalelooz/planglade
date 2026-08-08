@@ -46,8 +46,7 @@ export interface AuthContextValue {
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null)
-const publicAuthMode =
-  process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE ?? process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE
+const publicAuthMode = process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE
 
 const configuredAuthMode = (
   publicAuthMode?.toLowerCase() === "firebase"
@@ -60,9 +59,9 @@ const configuredAuthMode = (
 function storeUser(user: AuthUser | null) {
   if (typeof window === "undefined") return
   if (user) {
-    sessionStorage.setItem("flowboard-auth-session", JSON.stringify(user))
+    sessionStorage.setItem("planglade-auth-session", JSON.stringify(user))
   } else {
-    sessionStorage.removeItem("flowboard-auth-session")
+    sessionStorage.removeItem("planglade-auth-session")
   }
 }
 

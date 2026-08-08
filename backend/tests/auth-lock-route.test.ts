@@ -11,8 +11,8 @@ import { db } from "../src/lib/db"
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
-  FLOWBOARD_AUTH_MODE: process.env.FLOWBOARD_AUTH_MODE,
-  NEXT_PUBLIC_FLOWBOARD_AUTH_MODE: process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE,
+  PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
+  NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
 }
 
 const originalWorkspaceFindUnique = db.workspace.findUnique
@@ -34,8 +34,8 @@ function restoreEnv() {
 
 async function runWithMocks(fn: () => Promise<void>) {
   restoreEnv()
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
-  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
+  process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "dev"
 
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
     id: "workspace-b",
@@ -91,7 +91,7 @@ test("AUTH-LOCK-1: canonical dev user cannot read another workspace's work items
       return []
     }) as unknown) as typeof db.note.findMany
 
-    const headers = { "x-flowboard-user-id": "user-a" }
+    const headers = { "x-planglade-user-id": "user-a" }
     const [workItemsResponse, projectsResponse, notesResponse] = await Promise.all([
       listWorkItems(new NextRequest("http://localhost/api/work-items?workspaceId=workspace-b", { headers })),
       listProjects(new NextRequest("http://localhost/api/projects?workspaceId=workspace-b", { headers })),
@@ -116,7 +116,7 @@ test("AUTH-LOCK-1: canonical dev user cannot create a task in another workspace"
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-a",
+        "x-planglade-user-id": "user-a",
       },
       body: JSON.stringify({
         workspaceId: "workspace-b",
@@ -141,7 +141,7 @@ test("AUTH-LOCK-1: canonical dev user cannot update another workspace's task", a
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": "user-a",
+        "x-planglade-user-id": "user-a",
       },
       body: JSON.stringify({ title: "Cross-workspace update" }),
     })
@@ -159,8 +159,8 @@ test("AUTH-LOCK-1: canonical dev user cannot update another workspace's task", a
 test("AUTH-LOCK-1: production blocks dev auth mode", async () => {
   await runWithMocks(async () => {
     Reflect.set(process.env, "NODE_ENV", "production")
-    process.env.FLOWBOARD_AUTH_MODE = "dev"
-    process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE = "dev"
+    process.env.PLANGLADE_AUTH_MODE = "dev"
+    process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "dev"
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
     const payload = (await response.json()) as { error?: string }

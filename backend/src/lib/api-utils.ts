@@ -71,7 +71,7 @@ export function parseDateValue(value?: string | null) {
 
 function extractFirebaseToken(request: Request) {
   const tokenFromHeader = request.headers.get("authorization")
-  const tokenFromCustomHeader = request.headers.get("x-flowboard-firebase-id-token")
+  const tokenFromCustomHeader = request.headers.get("x-planglade-firebase-id-token")
   if (tokenFromHeader?.startsWith("Bearer ")) {
     return tokenFromHeader.slice("Bearer ".length).trim()
   }

@@ -28,7 +28,7 @@ export async function GET() {
     return NextResponse.json(
       {
         status: isReady ? "ok" : "degraded",
-        service: "flowboard-api",
+        service: "planglade-api",
         time: new Date().toISOString(),
         checks: {
           auth: {
@@ -62,7 +62,7 @@ export async function GET() {
     return NextResponse.json(
       {
         status: "error",
-        service: "flowboard-api",
+        service: "planglade-api",
         time: new Date().toISOString(),
       },
       { status: 500 }

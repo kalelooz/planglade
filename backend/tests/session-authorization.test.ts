@@ -10,11 +10,11 @@ import { GET as getSettings, PUT as updateSettings } from "../src/app/api/settin
 import { POST as createWorkItem } from "../src/app/api/work-items/route"
 
 const TEST_PREFIX = "auth-session-test"
-const TEST_EMAIL_DOMAIN = "auth-session-test.flowboard.dev"
+const TEST_EMAIL_DOMAIN = "auth-session-test.planglade.dev"
 
 const AUTH_ENV_KEYS = [
-  "FLOWBOARD_AUTH_MODE",
-  "NEXT_PUBLIC_FLOWBOARD_AUTH_MODE",
+  "PLANGLADE_AUTH_MODE",
+  "NEXT_PUBLIC_PLANGLADE_AUTH_MODE",
   "FIREBASE_PROJECT_ID",
   "FIREBASE_STORAGE_BUCKET",
   "NEXT_PUBLIC_FIREBASE_API_KEY",
@@ -48,13 +48,13 @@ function restoreAuthEnv() {
 }
 
 function useDevAuth() {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
-  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
+  process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "dev"
 }
 
 function useFirebaseAuthWithoutToken() {
-  process.env.FLOWBOARD_AUTH_MODE = "firebase"
-  process.env.NEXT_PUBLIC_FLOWBOARD_AUTH_MODE = "firebase"
+  process.env.PLANGLADE_AUTH_MODE = "firebase"
+  process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "firebase"
   process.env.FIREBASE_PROJECT_ID = "test-project"
   process.env.FIREBASE_STORAGE_BUCKET = "test-bucket"
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key"
@@ -159,12 +159,12 @@ test("production runtime does not use the dev session scaffold", async () => {
   assert.equal(payload.error, "PLANGLADE_AUTH_MODE=dev is disabled in production.")
 })
 
-test("spoofed x-flowboard-user-id does not grant workspace access", async () => {
+test("spoofed x-planglade-user-id does not grant workspace access", async () => {
   const { owner, workspace } = await createWorkspace()
 
   const access = await requireWorkspaceRole(
     new Request("http://test.local/api/projects", {
-      headers: { "x-flowboard-user-id": owner.id },
+      headers: { "x-planglade-user-id": owner.id },
     }),
     workspace.id,
     "MEMBER"
@@ -189,7 +189,7 @@ test("spoofed settings query userId does not grant access", async () => {
 
   const response = await getSettings({
     nextUrl: new URL(`http://test.local/api/settings?workspaceId=${workspace.id}&userId=${owner.id}`),
-    headers: new Headers({ "x-flowboard-user-id": owner.id }),
+    headers: new Headers({ "x-planglade-user-id": owner.id }),
   } as NextRequest)
 
   assert.equal(response.status, 403)
@@ -203,7 +203,7 @@ test("spoofed settings body userId does not grant access", async () => {
       method: "PUT",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": owner.id,
+        "x-planglade-user-id": owner.id,
       },
       body: JSON.stringify({
         workspaceId: workspace.id,
@@ -224,7 +224,7 @@ test("spoofed import actorUserId does not grant owner fallback access", async ()
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": owner.id,
+        "x-planglade-user-id": owner.id,
       },
       body: JSON.stringify({
         workspaceId: workspace.id,
@@ -297,7 +297,7 @@ test("spoofed work item capture userId does not grant workspace access", async (
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-flowboard-user-id": owner.id,
+        "x-planglade-user-id": owner.id,
       },
       body: JSON.stringify({
         workspaceId: workspace.id,

@@ -8,7 +8,7 @@ import { PATCH as updateWorkItem } from "../src/app/api/work-items/[workItemId]/
 import { POST as createWorkItem } from "../src/app/api/work-items/route"
 import { db } from "../src/lib/db"
 
-const originalAuthMode = process.env.FLOWBOARD_AUTH_MODE
+const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originals = {
   workspaceFindUnique: db.workspace.findUnique,
   memberFindUnique: db.workspaceMember.findUnique,
@@ -22,7 +22,7 @@ const originals = {
 }
 
 async function runWithMocks(fn: () => Promise<void>) {
-  process.env.FLOWBOARD_AUTH_MODE = "dev"
+  process.env.PLANGLADE_AUTH_MODE = "dev"
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
     id: "ws-1",
     ownerId: "owner-1",
@@ -31,7 +31,7 @@ async function runWithMocks(fn: () => Promise<void>) {
   try {
     await fn()
   } finally {
-    process.env.FLOWBOARD_AUTH_MODE = originalAuthMode
+    process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originals.workspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originals.memberFindUnique
     ;(db.label as typeof db.label).findMany = originals.labelFindMany
@@ -58,7 +58,7 @@ test("labels GET allows a workspace viewer", async () => {
 
     const response = await listLabels(
       new NextRequest("http://localhost/api/labels?workspaceId=ws-1", {
-        headers: { "x-flowboard-user-id": "viewer-1" },
+        headers: { "x-planglade-user-id": "viewer-1" },
       })
     )
 
@@ -71,7 +71,7 @@ test("labels GET rejects an authenticated non-member", async () => {
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = ((async () => null) as unknown) as typeof db.workspaceMember.findUnique
     const response = await listLabels(
       new NextRequest("http://localhost/api/labels?workspaceId=ws-1", {
-        headers: { "x-flowboard-user-id": "outsider-1" },
+        headers: { "x-planglade-user-id": "outsider-1" },
       })
     )
     assert.equal(response.status, 403)
@@ -89,7 +89,7 @@ test("saved views GET rejects a non-member before loading data", async () => {
 
     const response = await listSavedViews(
       new NextRequest("http://localhost/api/saved-views?workspaceId=ws-1", {
-        headers: { "x-flowboard-user-id": "outsider-1" },
+        headers: { "x-planglade-user-id": "outsider-1" },
       })
     )
 
@@ -109,7 +109,7 @@ test("saved views GET allows a workspace viewer", async () => {
 
     const response = await listSavedViews(
       new NextRequest("http://localhost/api/saved-views?workspaceId=ws-1", {
-        headers: { "x-flowboard-user-id": "viewer-1" },
+        headers: { "x-planglade-user-id": "viewer-1" },
       })
     )
 
@@ -140,7 +140,7 @@ test("work-item creation rejects mixed same-workspace and foreign labels", async
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
           workspaceId: "ws-1",
@@ -183,7 +183,7 @@ test("failed work-item label update preserves existing relations", async () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({ labelIds: ["foreign-label"] }),
       }),
@@ -233,7 +233,7 @@ test("valid label IDs are deduplicated before join writes", async () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
           workspaceId: "ws-1",
@@ -267,7 +267,7 @@ test("saved-view creation rejects a foreign project reference", async () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
           workspaceId: "ws-1",
@@ -302,7 +302,7 @@ test("work-item creation rejects a foreign project reference", async () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
           workspaceId: "ws-1",
@@ -336,7 +336,7 @@ test("work-item update rejects an assignee outside the workspace", async () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
-          "x-flowboard-user-id": "member-1",
+          "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({ assigneeId: "outsider-1" }),
       }),
