@@ -1,0 +1,168 @@
+"use client";
+
+import { useMemo, type ComponentType } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Inbox,
+  Home,
+  ListTodo,
+  FolderKanban,
+  Calendar,
+  FileText,
+  Settings,
+  LayoutGrid,
+  Network,
+} from "lucide-react";
+import { useStore } from "@/lib/store";
+import type { Note } from "@/lib/store";
+import type { Project, WorkItem } from "@/lib/mock-data";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@/components/ui/command";
+
+type PaletteCommand = {
+  label: string;
+  to: string;
+  icon: ComponentType<{ className?: string }>;
+  group: string;
+  search: string;
+  value: string;
+};
+
+const APP_COMMAND_ROUTES = {
+  home: "/app",
+  inbox: "/app/inbox",
+  tasks: "/app/tasks",
+  projects: "/app/projects",
+  notes: "/app/notes",
+  calendar: "/app/calendar",
+  settings: "/app/settings",
+  connections: "/app/connections",
+  tasksBoard: "/app/tasks?view=board",
+} as const;
+
+function commandValue(group: string, to: string, label: string, search: string) {
+  return `${group} ${to} ${label} ${search}`;
+}
+
+function scopedRoute(path: string, basePath: "/app" | "/demo") {
+  return path === "/app" ? basePath : path.replace(/^\/app(?=\/|\?|#|$)/, basePath);
+}
+
+export function CommandPalette({ open, onClose, basePath = "/app", projects: projectsOverride, workItems: workItemsOverride, notes: notesOverride }: {
+  open: boolean;
+  onClose: () => void;
+  basePath?: "/app" | "/demo";
+  projects?: Project[];
+  workItems?: WorkItem[];
+  notes?: Note[];
+}) {
+  const router = useRouter();
+  const storeProjects = useStore((s) => s.projects);
+  const storeWorkItems = useStore((s) => s.workItems);
+  const storeNotes = useStore((s) => s.notes);
+  const projects = projectsOverride ?? storeProjects;
+  const workItems = workItemsOverride ?? storeWorkItems;
+  const notes = notesOverride ?? storeNotes;
+
+  const commands = useMemo<PaletteCommand[]>(() => {
+    const staticCommands = [
+      { label: "Go to Home", to: scopedRoute(APP_COMMAND_ROUTES.home, basePath), icon: Home, group: "Navigate", search: "home" },
+      { label: "Go to Inbox", to: scopedRoute(APP_COMMAND_ROUTES.inbox, basePath), icon: Inbox, group: "Navigate", search: "inbox" },
+      { label: "Go to Tasks", to: scopedRoute(APP_COMMAND_ROUTES.tasks, basePath), icon: ListTodo, group: "Navigate", search: "tasks" },
+      { label: "Go to Projects", to: scopedRoute(APP_COMMAND_ROUTES.projects, basePath), icon: FolderKanban, group: "Navigate", search: "projects" },
+      { label: "Go to Notes", to: scopedRoute(APP_COMMAND_ROUTES.notes, basePath), icon: FileText, group: "Navigate", search: "notes" },
+      { label: "Go to Calendar", to: scopedRoute(APP_COMMAND_ROUTES.calendar, basePath), icon: Calendar, group: "Navigate", search: "calendar" },
+      { label: "Go to Connections", to: scopedRoute(APP_COMMAND_ROUTES.connections, basePath), icon: Network, group: "Navigate", search: "connections relationships dependencies" },
+      { label: "Go to Settings", to: scopedRoute(APP_COMMAND_ROUTES.settings, basePath), icon: Settings, group: "Navigate", search: "settings" },
+      { label: "Open Tasks board", to: scopedRoute(APP_COMMAND_ROUTES.tasksBoard, basePath), icon: LayoutGrid, group: "Tasks", search: "board kanban tasks" },
+    ];
+
+    return [
+      ...staticCommands,
+      ...projects.map((project) => ({
+        label: project.name,
+        to: `${basePath}/projects/${encodeURIComponent(project.id)}`,
+        icon: FolderKanban,
+        group: "Projects",
+        search: `${project.name} ${project.id}`,
+      })),
+      ...workItems.map((item) => ({
+        label: item.title.trim() || "Untitled task",
+        to: `${basePath}/tasks?task=${encodeURIComponent(item.id)}`,
+        icon: ListTodo,
+        group: "Tasks",
+        search: `${item.id} ${item.title} ${item.label} ${item.status}`,
+      })),
+      ...notes.map((note) => ({
+        label: note.title.trim() || "Untitled note",
+        to: `${basePath}/notes?id=${encodeURIComponent(note.id)}`,
+        icon: FileText,
+        group: "Notes",
+        search: `${note.title} ${note.tag} ${note.excerpt}`,
+      })),
+    ].map((command) => ({
+      ...command,
+      value: commandValue(command.group, command.to, command.label, command.search),
+    }));
+  }, [basePath, notes, projects, workItems]);
+
+  const groups = useMemo(() => {
+    return commands.reduce<Record<string, PaletteCommand[]>>((acc, command) => {
+      (acc[command.group] ||= []).push(command);
+      return acc;
+    }, {});
+  }, [commands]);
+
+  const runCommand = (command: PaletteCommand) => {
+    router.push(command.to);
+    onClose();
+  };
+
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+      title="Command palette"
+      description="Search for navigation, projects, tasks, and notes."
+      showCloseButton={false}
+      className="top-[15vh] w-[560px] max-w-[92vw] translate-y-0 overflow-hidden rounded-md border bg-popover p-0 shadow-2xl data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100"
+      >
+        <CommandInput autoFocus placeholder="Search commands" className="text-base sm:text-sm" />
+        <CommandList className="max-h-80 scroll-py-2 overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
+          <CommandEmpty className="px-3 py-6 text-center text-xs text-muted-foreground">No results</CommandEmpty>
+          {Object.entries(groups).map(([group, items]) => (
+            <CommandGroup key={group} heading={group}>
+              {items.map((command) => {
+                const Icon = command.icon;
+                return (
+                  <CommandItem
+                    key={command.value}
+                    value={command.value}
+                    onSelect={() => runCommand(command)}
+                    className="gap-2.5 px-3 py-1.5 text-[13px]"
+                  >
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{command.label}</span>
+                    <CommandShortcut>{command.group}</CommandShortcut>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          ))}
+        </CommandList>
+        <div className="flex items-center justify-between border-t bg-sidebar px-3 py-1.5 text-[11px] text-muted-foreground">
+          <span>Use arrow keys to navigate</span>
+          <span>Select <kbd className="ml-1 rounded border bg-background px-1 font-mono">Enter</kbd></span>
+        </div>
+    </CommandDialog>
+  );
+}

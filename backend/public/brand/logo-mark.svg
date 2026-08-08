@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">PlanGlade PG mark</title>
+  <desc id="desc">White PG monogram inside a near-black rounded square.</desc>
+  <rect width="96" height="96" rx="18" fill="#18181b"/>
+  <text x="48" y="62" fill="#ffffff" font-family="Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="40" font-weight="850" text-anchor="middle">PG</text>
+</svg>

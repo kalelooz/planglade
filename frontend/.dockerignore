@@ -1,0 +1,8 @@
+node_modules
+dist
+artifacts
+e2e
+test-results
+*.log
+.env
+.env.*

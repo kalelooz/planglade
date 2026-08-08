@@ -1,0 +1,62 @@
+name: planglade
+
+services:
+  migrate:
+    build:
+      context: ./backend
+      target: migrator
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/db/planglade.db
+    volumes:
+      - planglade_data:/app/db
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: runner
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/db/planglade.db
+      PLANGLADE_AUTH_MODE: nextauth
+      NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
+      PLANGLADE_STORAGE_PROVIDER: local
+      PLANGLADE_LOCAL_STORAGE_DIR: /app/storage/local-attachments
+      NEXTAUTH_URL: ${PLANGLADE_PUBLIC_URL:-http://localhost:8080}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - planglade_data:/app/db
+      - planglade_attachments:/app/storage/local-attachments
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(async response => { const body = await response.json(); process.exit(response.ok && body.status === 'ok' ? 0 : 1) }).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runner
+    environment:
+      PLANGLADE_BACKEND_ORIGIN: http://backend:3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${PLANGLADE_PORT:-8080}:8080"
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  planglade_data:
+  planglade_attachments:

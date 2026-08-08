@@ -1,0 +1,14 @@
+{
+  "name": "planglade",
+  "version": "0.2.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "install:all": "npm ci --prefix backend && npm ci --prefix frontend",
+    "check:public": "node scripts/check-public-boundary.mjs",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "test": "npm test --prefix backend && npm test --prefix frontend -- --run",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend"
+  }
+}

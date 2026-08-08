@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+db
+storage
+.env*
+*.db
+*.sqlite*
+*.log
+*.tmp
+*.tsbuildinfo
+tests
+docs

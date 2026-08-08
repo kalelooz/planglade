@@ -1,0 +1,12 @@
+.root {
+  min-height: 100vh;
+}
+
+.root :global([data-demo-disabled="true"]) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.root :global([data-demo-disabled="true"]:hover) {
+  color: var(--muted-foreground);
+}
