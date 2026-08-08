@@ -19,7 +19,7 @@ Evidence in this repo:
 - `docs/SELF_HOSTING.md` documents a one-shot Docker migration container that runs `prisma migrate deploy` before the app starts.
 - `netlify.toml` only runs `npx prisma generate && npm run build`.
 - `docs/NETLIFY_PREVIEW.md` uses `DATABASE_URL="file:/tmp/planglade.db"` for Netlify preview/public-site checks.
-- `middleware.ts` redirects `/app` to `/` in production when NextAuth has no configured provider, leaving the Netlify site as public landing plus read-only demo.
+- `src/proxy.ts` applies the API demo-write guard. Product routes are owned exclusively by the Vite frontend; this service exposes API, sign-in, and first-run setup routes only.
 
 Conclusion: the repo-confirmed persistent app database is Docker SQLite. The Netlify configuration is for the public website/read-only demo path and must not be treated as a persistent production database. A Netlify `file:/tmp/...` SQLite database is ephemeral.
 
