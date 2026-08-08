@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import {
   Home, Inbox, CheckSquare, FolderOpen, StickyNote, CalendarDays, Waypoints, Settings as SettingsIcon,
   Search, Plus, PanelLeftClose, PanelLeftOpen, Menu, Moon, Sun, MonitorSmartphone, Sprout, CircleUserRound,
-  Check, ChevronsUpDown,
+  Check, ChevronsUpDown, Github,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
@@ -326,6 +326,20 @@ export default function AppShell() {
               </Tooltip>
               {!collapsed && (
                 <div className="flex items-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a
+                        href="https://github.com/kalelooz/planglade"
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="PlanGlade on GitHub"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-[0.96]"
+                      >
+                        <Github className="h-4 w-4" aria-hidden />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">GitHub</TooltipContent>
+                  </Tooltip>
                   <AppearanceMenu />
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -339,6 +353,20 @@ export default function AppShell() {
               )}
               {collapsed && (
                 <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a
+                        href="https://github.com/kalelooz/planglade"
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="PlanGlade on GitHub"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-[0.96]"
+                      >
+                        <Github className="h-4 w-4" aria-hidden />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">GitHub</TooltipContent>
+                  </Tooltip>
                   <AppearanceMenu />
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -369,7 +397,16 @@ export default function AppShell() {
               </SheetHeader>
               <div className="flex flex-col flex-1 overflow-hidden">
                 <NavItems onNavigate={() => setMobileNav({ open: false, path: location.pathname })} />
-                <div className="border-t border-border p-2">
+                <div className="flex items-center border-t border-border p-2">
+                  <a
+                    href="https://github.com/kalelooz/planglade"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="PlanGlade on GitHub"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-[0.96]"
+                  >
+                    <Github className="h-4 w-4" aria-hidden />
+                  </a>
                   <AppearanceMenu triggerClassName="h-11 w-11" />
                 </div>
               </div>
