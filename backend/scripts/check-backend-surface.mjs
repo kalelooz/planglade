@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { dirname, join } from "node:path"
+import { dirname, join, relative, sep } from "node:path"
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
@@ -50,7 +50,10 @@ for (const retiredPath of ["src/components", "src/hooks", "public", "Caddyfile"]
 }
 
 const sources = sourceFiles(join(root, "src")).filter((path) => !/\.d\.[cm]?ts$/.test(path))
-const roots = sources.filter((path) => path.includes(`${join("src", "app")}\\`) || path.endsWith(join("src", "proxy.ts")))
+const roots = sources.filter((path) => {
+  const repositoryPath = relative(root, path).split(sep).join("/")
+  return repositoryPath.startsWith("src/app/") || repositoryPath === "src/proxy.ts"
+})
 const reachable = new Set(roots)
 const pending = [...roots]
 const importPattern = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["']([^"']+)["']/g

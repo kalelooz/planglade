@@ -8,6 +8,7 @@
     "dev:local": "node scripts/dev-local.mjs",
     "dev:reference": "vite --mode reference",
     "build": "tsc -b && vite build",
+    "build:reference": "tsc -b && vite build --mode reference",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

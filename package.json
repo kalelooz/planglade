@@ -10,6 +10,7 @@
     "check:public": "node scripts/check-public-boundary.mjs",
     "check:ci": "node scripts/check-ci-workflow.mjs",
     "check:docs": "node scripts/check-public-docs.mjs",
+    "check:hosting": "node scripts/check-hosting-config.mjs",
     "check:release": "node scripts/check-release-readiness.mjs",
     "test:release": "node scripts/rehearse-release.mjs",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",

@@ -7,6 +7,7 @@ const requiredCommands = [
   'npm run check:public',
   'npm run check:ci',
   'npm run check:docs',
+  'npm run check:hosting',
   'npm run check:release',
   'npm run check:backend-surface --prefix backend',
   'npm run lint',
