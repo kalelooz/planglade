@@ -19,7 +19,7 @@ Create a local `backups` folder, then stop the app so the SQLite copy is consist
 
 ```bash
 mkdir -p backups
-docker compose stop app
+docker compose stop backend
 ```
 
 Copy the database from the named volume on Linux or macOS:
@@ -50,7 +50,7 @@ If the volume name differs, find it with `docker volume ls` rather than guessing
 With the default local storage provider, attachments live in the `planglade_planglade_attachments` volume. Back it up alongside the SQLite backup, while the app is stopped:
 
 ```bash
-docker compose stop app
+docker compose stop backend
 ```
 
 Linux or macOS:
@@ -116,7 +116,7 @@ Start and verify:
 ```bash
 docker compose up -d
 docker compose ps -a
-curl http://localhost:3000/api/health
+curl http://localhost:8080/api/health
 ```
 
 Check sign-in and several known projects, tasks, notes, attachments, and settings. A healthy endpoint alone does not prove the data restored correctly.
@@ -135,18 +135,19 @@ A backup that has never been restored is unverified.
 
 ## Local Development Backup
 
-The non-Docker local path still uses SQLite plus local attachments. Stop the app, then copy both:
+The root development launcher uses `.runtime/planglade-dev.db` plus backend
+local attachments. Stop the launcher, then copy both:
 
 ```bash
-cp db/custom.db backups/custom-2026-07-01.db
-cp -R storage/local-attachments backups/local-attachments-2026-07-01
+cp .runtime/planglade-dev.db backups/planglade-dev.db
+cp -R backend/storage/local-attachments backups/local-attachments
 ```
 
 Windows PowerShell:
 
 ```powershell
-Copy-Item db\custom.db backups\custom-2026-07-01.db
-Copy-Item storage\local-attachments backups\local-attachments-2026-07-01 -Recurse
+Copy-Item .runtime\planglade-dev.db backups\planglade-dev.db
+Copy-Item backend\storage\local-attachments backups\local-attachments -Recurse
 ```
 
 Restore both from the same backup window while the app is stopped.

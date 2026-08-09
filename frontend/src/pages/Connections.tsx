@@ -200,7 +200,7 @@ function GraphNodeView({
         <span className="block truncate text-[12.5px] font-medium leading-4">
           {node.label}
         </span>
-        <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
+        <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
           {node.meta}
         </span>
       </span>
@@ -611,7 +611,7 @@ function Connections() {
       <PageContainer width="canvas" className="min-w-0 pt-6 sm:pt-8">
         <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+            <p className="text-[12.5px] font-semibold uppercase text-muted-foreground">
               Workspace graph
             </p>
             <h1 className="pg-page-title mt-1">
@@ -664,7 +664,7 @@ function Connections() {
                     setKinds((value) => ({ ...value, [kind]: !value[kind] }))
                   }
                   className={cn(
-                    "h-11 rounded border px-2 text-[11px] capitalize lg:h-8",
+                    "h-11 rounded border px-2 text-[12.5px] capitalize lg:h-8",
                     kinds[kind]
                       ? "border-foreground/20 bg-foreground text-background"
                       : "border-border text-muted-foreground",
@@ -678,7 +678,7 @@ function Connections() {
               <button
                 type="button"
                 onClick={() => setShowLabels((value) => !value)}
-                className="h-11 rounded border px-2 text-[11px] lg:h-8"
+                className="h-11 rounded border px-2 text-[12.5px] lg:h-8"
               >
                 {showLabels ? "Hide labels" : "Show labels"}
               </button>
@@ -805,6 +805,8 @@ function Connections() {
             </section>
           ) : (
             <div className="grid min-h-0 flex-1 grid-rows-[minmax(28rem,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1">
+              {/* Pointer panning is supplementary; the adjacent list exposes the same relationships and actions to keyboard users. */}
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
               <div
                 ref={viewportRef}
                 data-connections-graph="true"
@@ -856,7 +858,7 @@ function Connections() {
                   {GRAPH_LEGEND.map((item) => (
                     <span
                       key={item.label}
-                      className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[10px] font-semibold uppercase text-muted-foreground"
+                      className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[12.5px] font-semibold uppercase text-muted-foreground"
                     >
                       <span
                         className="h-1.5 w-4 rounded-full"
@@ -943,7 +945,7 @@ function Connections() {
                                 x={point.x}
                                 y={point.y + 3.5}
                                 textAnchor="middle"
-                                className="fill-muted-foreground text-[10px] font-medium"
+                                className="fill-muted-foreground text-[12.5px] font-medium"
                               >
                                 {label}
                               </text>
@@ -983,7 +985,7 @@ function Connections() {
               >
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                    <p className="text-[12.5px] font-semibold uppercase text-muted-foreground">
                       {selected ? selected.type : "Overview"}
                     </p>
                     <h2 className="mt-1 text-base font-semibold">

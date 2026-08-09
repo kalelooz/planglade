@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { motion } from 'framer-motion'
 import {
   Home, Inbox, CheckSquare, FolderOpen, StickyNote, CalendarDays, Waypoints, Settings as SettingsIcon,
-  Search, Plus, PanelLeftClose, PanelLeftOpen, Menu, Moon, Sun, MonitorSmartphone, Sprout, CircleUserRound,
+  Search, Plus, PanelLeftClose, PanelLeftOpen, Menu, Moon, Sun, MonitorSmartphone, CircleUserRound,
   Check, ChevronsUpDown, Github,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { CountBadge } from '@/components/bits'
+import { PlanGladeMark } from '@/components/PlanGladeBrand'
+import { useAppCommands } from '@/store/app-commands'
 
 const NAV = [
   { name: 'Home', path: '/', icon: Home },
@@ -92,14 +94,12 @@ function WorkspaceSwitcher({ collapsed = false, mobile = false }: { collapsed?: 
                   collapsed && 'w-10 justify-center px-0',
                 )}
               >
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground" aria-hidden>
-                  <Sprout className="h-4 w-4" />
-                </span>
+                <PlanGladeMark className="size-7" />
                 {!collapsed && (
                   <>
                     <span className="min-w-0 flex-1 leading-tight">
                       <span className="block truncate text-[13px] font-semibold">{current?.name ?? ws.state.workspaceName}</span>
-                      <span className="block truncate text-[10.5px] capitalize text-muted-foreground">{current?.role?.toLowerCase() ?? 'workspace'}</span>
+                      <span className="block truncate text-[12.5px] capitalize text-muted-foreground">{current?.role?.toLowerCase() ?? 'workspace'}</span>
                     </span>
                     <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                   </>
@@ -110,7 +110,7 @@ function WorkspaceSwitcher({ collapsed = false, mobile = false }: { collapsed?: 
           {collapsed && <TooltipContent side="right">Switch workspace</TooltipContent>}
         </Tooltip>
         <DropdownMenuContent align="start" side={mobile ? 'bottom' : 'right'} sideOffset={6} className="w-[min(17rem,calc(100vw-1rem))] p-1.5">
-          <DropdownMenuLabel className="px-2.5 py-2 text-[11px] font-medium text-muted-foreground">Workspaces</DropdownMenuLabel>
+          <DropdownMenuLabel className="px-2.5 py-2 text-[12.5px] font-medium text-muted-foreground">Workspaces</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {ws.workspaces.map((workspace) => {
             const selected = workspace.id === ws.workspaceId || (!ws.workspaceId && workspace.id === current?.id)
@@ -124,12 +124,12 @@ function WorkspaceSwitcher({ collapsed = false, mobile = false }: { collapsed?: 
                 )}
               >
                 <span className={cn(
-                  'grid size-7 shrink-0 place-items-center rounded-md text-[11px] font-semibold uppercase',
+                  'grid size-7 shrink-0 place-items-center rounded-md text-[12.5px] font-semibold uppercase',
                   selected ? 'bg-background text-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]' : 'bg-accent text-foreground',
                 )} aria-hidden>{workspace.name.slice(0, 2)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[12.5px] font-medium">{workspace.name}</span>
-                  <span className="block text-[10.5px] capitalize text-muted-foreground">{workspace.role.toLowerCase()}</span>
+                  <span className="block text-[12.5px] capitalize text-muted-foreground">{workspace.role.toLowerCase()}</span>
                 </span>
                 <span className="grid size-4 shrink-0 place-items-center text-muted-foreground">
                   {selected && <Check className="h-4 w-4" aria-label="Current workspace" />}
@@ -234,6 +234,7 @@ export default function AppShell() {
   const { openCapture } = useQuickCapture()
   const location = useLocation()
   const navigate = useNavigate()
+  const commands = useAppCommands()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('planglade-sidebar') === 'collapsed')
   const [mobileNav, setMobileNav] = useState({ open: false, path: location.pathname })
   const reducedMotion = usePrefersReducedMotion()
@@ -242,12 +243,6 @@ export default function AppShell() {
   useEffect(() => {
     localStorage.setItem('planglade-sidebar', collapsed ? 'collapsed' : 'expanded')
   }, [collapsed])
-
-  useEffect(() => {
-    const inboxGoto = () => navigate('/inbox')
-    window.addEventListener('planglade:goto-inbox', inboxGoto)
-    return () => window.removeEventListener('planglade:goto-inbox', inboxGoto)
-  }, [navigate])
 
   const toggleCollapse = () => setCollapsed((c) => !c)
 
@@ -287,7 +282,7 @@ export default function AppShell() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('planglade:command-palette'))}
+                  onClick={() => commands.dispatch('open-command-palette')}
                   className={cn(
                     'mt-1.5 w-full inline-flex items-center gap-2 rounded-md px-2.5 h-8 text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/70 transition-colors',
                     collapsed && 'justify-center px-0',
@@ -298,7 +293,7 @@ export default function AppShell() {
                   {!collapsed && (
                     <>
                       <span>Search</span>
-                      <kbd className="ml-auto text-[10px] text-muted-foreground/80 border border-border rounded px-1 py-px bg-background">⌘K</kbd>
+                      <kbd className="ml-auto rounded border border-border bg-background px-1 py-px text-[12.5px] text-muted-foreground">⌘K</kbd>
                     </>
                   )}
                 </button>
@@ -319,10 +314,10 @@ export default function AppShell() {
                     aria-label="Account"
                   >
                     <CircleUserRound className="h-4 w-4 shrink-0" aria-hidden />
-                    {!collapsed && <span className="truncate">{ws.state.userName} · {ws.readOnly ? 'Connected' : 'Local'}</span>}
+                    {!collapsed && <span className="truncate">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected' : 'Local'}</span>}
                   </button>
                 </TooltipTrigger>
-                {collapsed && <TooltipContent side="right">{ws.state.userName} · {ws.readOnly ? 'Connected workspace' : 'Local prototype'}</TooltipContent>}
+                {collapsed && <TooltipContent side="right">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected workspace' : 'Local prototype'}</TooltipContent>}
               </Tooltip>
               {!collapsed && (
                 <div className="flex items-center">
@@ -417,7 +412,7 @@ export default function AppShell() {
           </button>
           <div className="ml-auto flex items-center gap-1">
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('planglade:command-palette'))}
+              onClick={() => commands.dispatch('open-command-palette')}
               aria-label="Search"
               className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >

@@ -86,8 +86,13 @@ try {
     DATABASE_URL: process.env.DATABASE_URL ?? databaseUrl(databasePath),
     PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE ?? 'dev',
     NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE ?? 'dev',
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? 'http://127.0.0.1:3000',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? 'http://127.0.0.1:5173',
   }
+  await execFile(process.execPath, [path.join(backendDirectory, 'node_modules', 'prisma', 'build', 'index.js'), 'db', 'push', '--skip-generate'], {
+    cwd: backendDirectory,
+    env: environment,
+    windowsHide: true,
+  })
   start('backend', process.execPath, [path.join(backendDirectory, 'node_modules', 'next', 'dist', 'bin', 'next'), 'dev', '-p', '3000'], { cwd: backendDirectory, env: environment })
   await waitForServer('http://127.0.0.1:3000/api/auth/session', 'Backend')
   start('frontend', process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'api', '--host', '127.0.0.1'], {

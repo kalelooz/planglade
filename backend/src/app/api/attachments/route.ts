@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
       await resolveRequestActorUserId(request),
-      "MEMBER"
+      "VIEWER"
     )
     if (!access.ok) return access.response
 

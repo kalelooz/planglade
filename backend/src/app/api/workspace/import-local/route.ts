@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 
 import { parseDateValue, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
-import { importLocalWorkspaceSchema } from "@/lib/contracts"
+import { logActivityEvent } from "@/lib/activity"
+import { IMPORT_LIMITS, importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
+import { tryAcquireWorkspaceImport } from "@/lib/workspace-import-lock"
 
 function toProjectStatus(value: string) {
   const normalized = value.trim().toUpperCase().replace(/\s+/g, "_")
@@ -58,7 +60,10 @@ function slugify(input: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const parsed = await parseJsonBody(request, importLocalWorkspaceSchema)
+  const parsed = await parseJsonBody(request, importLocalWorkspaceSchema, {
+    maxBytes: IMPORT_LIMITS.bodyBytes,
+    maxNodes: 100_000,
+  })
   if (!parsed.ok) return parsed.response
 
   const { workspaceId, mode, projects, workItems, notes, projectDocs, savedViews } = parsed.data
@@ -71,18 +76,16 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+    const releaseImport = tryAcquireWorkspaceImport(workspaceId)
+    if (!releaseImport) {
+      return NextResponse.json(
+        { error: "Another import is already running for this workspace" },
+        { status: 409 }
+      )
+    }
 
-    const summary = await db.$transaction(async (tx) => {
-      if (mode === "replace") {
-        await tx.workItem.deleteMany({ where: { workspaceId } })
-        await tx.note.deleteMany({
-          where: buildNoteAccessWhere(workspaceId, actorUserId),
-        })
-        await tx.projectDoc.deleteMany({ where: { workspaceId } })
-        await tx.savedView.deleteMany({ where: { workspaceId, createdById: actorUserId } })
-        await tx.project.deleteMany({ where: { workspaceId } })
-      }
-
+    try {
+      const summary = await db.$transaction(async (tx) => {
       const projectMap = new Map<string, string>()
       const workspaceMembers = await tx.workspaceMember.findMany({
         where: { workspaceId },
@@ -259,7 +262,7 @@ export async function POST(request: NextRequest) {
         createdSavedViews += 1
       }
 
-      return {
+      const result = {
         workspaceId,
         mode,
         imported: {
@@ -279,9 +282,29 @@ export async function POST(request: NextRequest) {
           projectDocsMissingProjects: unlinkedProjectDocs,
         },
       }
-    })
 
-    return NextResponse.json(summary, { status: 201 })
+      await logActivityEvent(tx, {
+        workspaceId,
+        actorId: actorUserId,
+        action: "UPDATED",
+        entityType: "WORKSPACE",
+        entityId: workspaceId,
+        summary: "Appended imported workspace data",
+        metadata: {
+          operation: "IMPORT_APPEND",
+          imported: result.imported,
+          skipped: result.skipped,
+          warnings: result.warnings,
+        },
+      })
+
+      return result
+      }, { maxWait: 2_000, timeout: 15_000 })
+
+      return NextResponse.json(summary, { status: 201 })
+    } finally {
+      releaseImport()
+    }
   } catch (error) {
     return serverError("Failed to import local workspace data", String(error))
   }

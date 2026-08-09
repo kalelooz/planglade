@@ -69,12 +69,12 @@ function BoardCard({ task, overlay, collapsed, density = 'comfortable', visibleF
       <p className={cn('relative z-10 pointer-events-none text-[13px] font-medium leading-5 text-pretty', task.status === 'done' && 'line-through text-muted-foreground font-normal')}>
         {task.title}
       </p>
-      <div className="pointer-events-none relative z-10 mt-2 flex h-7 min-w-0 items-center text-[10.5px] text-muted-foreground">
+      <div className="pointer-events-none relative z-10 mt-2 flex h-7 min-w-0 items-center text-[12.5px] text-muted-foreground">
         {field('project') && project && <span className="min-w-0 flex-1 truncate">{project.name}</span>}
       </div>
-      <div className={cn('relative z-10 pointer-events-none mt-2 grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-2 text-[10.5px] text-muted-foreground', task.status === 'done' && 'opacity-75')}>
+      <div className="relative z-10 pointer-events-none mt-2 grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-2 text-[12.5px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-          <span className="truncate text-[11px] text-muted-foreground">{STATUS_LABELS[task.status]}</span>
+          <span className="truncate text-[12.5px] text-muted-foreground">{STATUS_LABELS[task.status]}</span>
           {blocked && task.status !== 'done' && <BlockedIndicator />}
           {subs.length > 0 && (
             <span className="inline-flex shrink-0 items-center gap-1 tabular-nums" aria-label={`${subsDone} of ${subs.length} subtasks done`}>
@@ -84,7 +84,7 @@ function BoardCard({ task, overlay, collapsed, density = 'comfortable', visibleF
           )}
         </div>
         <div className="flex min-w-0 items-center justify-end gap-2 overflow-hidden">
-          {field('dueDate') && <DueBadge date={task.dueDate} done={task.status === 'done'} className="min-w-0 max-w-[88px] justify-start text-[11px]" />}
+          {field('dueDate') && <DueBadge date={task.dueDate} done={task.status === 'done'} className="min-w-0 max-w-[88px] justify-start text-[12.5px]" />}
           {field('priority') && <PriorityBadge priority={task.priority} className="shrink-0" />}
         </div>
       </div>
@@ -154,7 +154,7 @@ function BoardColumn({
           <div data-slotwrap aria-hidden style={{ height: holeHeight }} />
         )}
         {tasks.length === 0 && (
-          <p className="text-[11.5px] text-muted-foreground/70 text-center py-6 border border-dashed border-border rounded-md">
+          <p className="text-[12.5px] text-muted-foreground/70 text-center py-6 border border-dashed border-border rounded-md">
             Nothing here
           </p>
         )}
@@ -190,7 +190,7 @@ export function Board({
   const tiltRaw = useTransform(velocityX, [-1200, 1200], [-3, 3], { clamp: true })
   const tiltSpring = useSpring(tiltRaw, { stiffness: 300, damping: 30, mass: 0.6 })
   const tilt = useTransform(() => reducedMotion ? 0 : tiltSpring.get())
-  const statuses = ws.readOnly ? STATUS_ORDER.filter((status) => status !== 'blocked') : STATUS_ORDER
+  const statuses = ws.supportsBlockedStatus ? STATUS_ORDER : STATUS_ORDER.filter((status) => status !== 'blocked')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),

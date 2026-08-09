@@ -27,7 +27,7 @@ function MapNode({ data, selected }: NodeProps<Node<MapNodeData>>) {
   return (
     <div className={cn('w-[220px] rounded-md border border-border bg-card px-3 py-2 shadow-sm', selected && 'ring-2 ring-ring')}>
       <p className={cn('text-[13px] font-medium leading-snug', task.status === 'done' && 'text-muted-foreground line-through')}>{task.title}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">{projectName} · {task.status.replace('_', ' ')}</p>
+      <p className="mt-1 text-[12.5px] text-muted-foreground">{projectName} · {task.status.replace('_', ' ')}</p>
     </div>
   )
 }

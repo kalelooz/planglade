@@ -28,7 +28,7 @@ function request() {
   return new NextRequest("http://localhost/api/projects/project-1?workspaceId=workspace-1", { method: "DELETE" })
 }
 
-function mockWorkspace(role: "VIEWER" | "MEMBER") {
+function mockWorkspace(role: "VIEWER" | "MEMBER" | "ADMIN") {
   process.env.PLANGLADE_AUTH_MODE = "dev"
   ;(db.user as typeof db.user).upsert = ((async () => ({ id: "member-1", email: "dev@planglade.local", name: "Dev User" })) as unknown) as typeof db.user.upsert
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({ id: "workspace-1", ownerId: "owner-1" })) as unknown) as typeof db.workspace.findUnique
@@ -50,7 +50,7 @@ test("project deletion rejects viewers before loading the project", async () => 
 })
 
 test("project deletion rejects a project outside the authorized workspace", async () => {
-  mockWorkspace("MEMBER")
+  mockWorkspace("ADMIN")
   ;(db.project as typeof db.project).findUnique = ((async () => ({ id: "project-1", workspaceId: "workspace-2", name: "Foreign project" })) as unknown) as typeof db.project.findUnique
   let transactionCalled = false
   ;(db as typeof db).$transaction = (async () => {
@@ -61,6 +61,26 @@ test("project deletion rejects a project outside the authorized workspace", asyn
   const response = await deleteProject(request(), { params: Promise.resolve({ projectId: "project-1" }) })
 
   assert.equal(response.status, 404)
+  assert.equal(transactionCalled, false)
+})
+
+test("project deletion rejects a member who did not create the project", async () => {
+  mockWorkspace("MEMBER")
+  ;(db.project as typeof db.project).findUnique = ((async () => ({
+    id: "project-1",
+    workspaceId: "workspace-1",
+    name: "Shared project",
+    createdById: "creator-2",
+  })) as unknown) as typeof db.project.findUnique
+  let transactionCalled = false
+  ;(db as typeof db).$transaction = (async () => {
+    transactionCalled = true
+    throw new Error("mutation must not start")
+  }) as typeof db.$transaction
+
+  const response = await deleteProject(request(), { params: Promise.resolve({ projectId: "project-1" }) })
+
+  assert.equal(response.status, 403)
   assert.equal(transactionCalled, false)
 })
 

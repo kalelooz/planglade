@@ -40,7 +40,7 @@ export function TaskRow({
   const blocked = ws.isBlocked(task)
   const blocking = !done && ws.tasks.some((candidate) => candidate.status !== 'done' && candidate.dependsOn.includes(task.id))
   const selected = openTaskId === task.id
-  const priorityOptions: Task['priority'][] = ws.readOnly ? ['high', 'medium', 'low'] : ['high', 'medium', 'low', 'none']
+  const priorityOptions: Task['priority'][] = ws.supportsNoPriority ? ['high', 'medium', 'low', 'none'] : ['high', 'medium', 'low']
   const field = (name: string) => !visibleFields || visibleFields.has(name)
   const hasMobileStatus = showStatus && field('status') && !done && task.status !== 'blocked'
   const hasMobileDue = field('dueDate') && !!task.dueDate
@@ -75,10 +75,10 @@ export function TaskRow({
               {showStatus && field('status') && !done && task.status !== 'blocked' && <StatusBadge status={task.status} className={cn('mt-0.5 shrink-0', listMobileLayout && 'hidden lg:inline-flex')} />}
             </div>
             {(subs.length > 0 || showProject || (blocked && !done) || blocking || hasMobileStatus || hasMobileDue || hasMobilePriority) && (
-              <div className={cn('mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-[11px] leading-4 text-muted-foreground lg:flex-wrap', done && 'opacity-75')}>
+              <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-[12.5px] leading-4 text-muted-foreground lg:flex-wrap">
                 {subs.length > 0 && (
                   <span className="inline-flex items-center gap-1.5 tabular-nums text-foreground/75" aria-label={`${subsDone} of ${subs.length} subtasks done`}>
-                    <span className="h-1 w-7 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={subs.length} aria-valuenow={subsDone}>
+                    <span className="h-1 w-7 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`${subsDone} of ${subs.length} subtasks done`} aria-valuemin={0} aria-valuemax={subs.length} aria-valuenow={subsDone}>
                       <span className="block h-full rounded-full bg-foreground/55" style={{ width: `${(subsDone / subs.length) * 100}%` }} />
                     </span>
                     {subsDone}/{subs.length} subtasks
@@ -88,15 +88,15 @@ export function TaskRow({
                 {blocked && !done && <BlockedIndicator className="shrink-0" />}
                 {blocking && <BlockingIndicator className="shrink-0" />}
                 {hasMobileStatus && <StatusBadge status={task.status} className="shrink-0" />}
-                {hasMobileDue && <DueBadge date={task.dueDate} done={done} className="max-w-full shrink-0 text-[11.5px]" />}
+                {hasMobileDue && <DueBadge date={task.dueDate} done={done} className="max-w-full shrink-0 text-[12.5px]" />}
                 {hasMobilePriority && <PriorityBadge priority={task.priority} className={cn('inline-flex min-w-4 shrink-0 items-center justify-center', mutedPriority && 'text-muted-foreground')} />}
               </div>
             )}
           </div>
-          <div className={cn('relative z-10 hidden items-center overflow-hidden lg:col-auto lg:flex lg:pt-0.5', done && 'opacity-70')}>
+          <div className="relative z-10 hidden items-center overflow-hidden lg:col-auto lg:flex lg:pt-0.5">
             {field('dueDate') && <DueBadge date={task.dueDate} done={done} className="justify-start w-full" />}
           </div>
-          <div className={cn('relative z-10 hidden items-center justify-start lg:col-auto lg:flex lg:pt-0.5', done && 'opacity-70')}>
+          <div className="relative z-10 hidden items-center justify-start lg:col-auto lg:flex lg:pt-0.5">
             {field('priority') && <PriorityBadge priority={task.priority} className={mutedPriority ? 'text-muted-foreground' : undefined} />}
           </div>
         </div>

@@ -5,10 +5,16 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "install:all": "npm ci --prefix backend && npm ci --prefix frontend",
+    "setup:local": "node scripts/setup-local.mjs",
+    "dev": "npm run dev --prefix frontend",
     "check:public": "node scripts/check-public-boundary.mjs",
+    "check:ci": "node scripts/check-ci-workflow.mjs",
+    "check:docs": "node scripts/check-public-docs.mjs",
+    "check:release": "node scripts/check-release-readiness.mjs",
+    "test:release": "node scripts/rehearse-release.mjs",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
-    "test": "npm test --prefix backend && npm test --prefix frontend -- --run",
+    "test": "node scripts/test-setup-local.mjs && npm test --prefix backend && npm test --prefix frontend -- --run",
     "build": "npm run build --prefix backend && npm run build --prefix frontend"
   }
 }

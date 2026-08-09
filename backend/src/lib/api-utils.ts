@@ -2,10 +2,24 @@ import { NextResponse } from "next/server"
 import type { WorkspaceRole } from "@prisma/client"
 import { ZodSchema } from "zod"
 
-import { getConfiguredAuthMode } from "@/lib/auth-config"
 import { db } from "@/lib/db"
+import {
+  hasMinimumWorkspaceRole,
+  resolveRequestPrincipal,
+  resolveWorkspaceActor,
+} from "@/lib/permissions/principal"
 
 type Dict = Record<string, unknown>
+
+const DEFAULT_JSON_BODY_BYTES = 1024 * 1024
+const DEFAULT_JSON_MAX_DEPTH = 40
+const DEFAULT_JSON_MAX_NODES = 50_000
+
+type JsonBodyOptions = {
+  maxBytes?: number
+  maxDepth?: number
+  maxNodes?: number
+}
 
 export function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details }, { status: 400 })
@@ -23,6 +37,10 @@ export function unauthorized(message: string) {
   return NextResponse.json({ error: message }, { status: 401 })
 }
 
+export function payloadTooLarge(message: string) {
+  return NextResponse.json({ error: message }, { status: 413 })
+}
+
 export function serverError(message: string, details?: unknown) {
   console.error(message, details)
   return NextResponse.json(
@@ -34,12 +52,90 @@ export function serverError(message: string, details?: unknown) {
   )
 }
 
-export async function parseJsonBody<T>(request: Request, schema: ZodSchema<T>) {
+function validateJsonComplexity(raw: unknown, maxDepth: number, maxNodes: number) {
+  const pending: Array<{ value: unknown; depth: number }> = [{ value: raw, depth: 0 }]
+  let nodes = 0
+
+  while (pending.length > 0) {
+    const current = pending.pop()!
+    nodes += 1
+    if (nodes > maxNodes) return "Request JSON contains too many values"
+    if (current.depth > maxDepth) return "Request JSON is nested too deeply"
+    if (typeof current.value !== "object" || current.value === null) continue
+
+    const children = Array.isArray(current.value)
+      ? current.value
+      : Object.values(current.value as Record<string, unknown>)
+    for (const child of children) pending.push({ value: child, depth: current.depth + 1 })
+  }
+
+  return null
+}
+
+async function readBoundedJson(request: Request, maxBytes: number) {
+  const contentEncoding = request.headers.get("content-encoding")?.trim().toLowerCase()
+  if (contentEncoding && contentEncoding !== "identity") {
+    return { ok: false as const, response: badRequest("Compressed JSON request bodies are not supported") }
+  }
+
+  const declaredLength = request.headers.get("content-length")
+  if (declaredLength !== null) {
+    const parsedLength = Number(declaredLength)
+    if (!Number.isSafeInteger(parsedLength) || parsedLength < 0) {
+      return { ok: false as const, response: badRequest("Content-Length must be a valid byte count") }
+    }
+    if (parsedLength > maxBytes) {
+      return { ok: false as const, response: payloadTooLarge("Request body is too large") }
+    }
+  }
+
+  const reader = request.body?.getReader()
+  if (!reader) return { ok: true as const, text: "" }
+
+  const decoder = new TextDecoder("utf-8", { fatal: true })
+  const parts: string[] = []
+  let bytesRead = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytesRead += value.byteLength
+      if (bytesRead > maxBytes) {
+        await reader.cancel()
+        return { ok: false as const, response: payloadTooLarge("Request body is too large") }
+      }
+      parts.push(decoder.decode(value, { stream: true }))
+    }
+    parts.push(decoder.decode())
+  } catch {
+    return { ok: false as const, response: badRequest("Request body must be valid UTF-8 JSON") }
+  }
+  return { ok: true as const, text: parts.join("") }
+}
+
+export async function parseJsonBody<T>(
+  request: Request,
+  schema: ZodSchema<T>,
+  options: JsonBodyOptions = {}
+) {
+  const maxBytes = options.maxBytes ?? DEFAULT_JSON_BODY_BYTES
+  const body = await readBoundedJson(request, maxBytes)
+  if (!body.ok) return body
+
   let raw: unknown
   try {
-    raw = await request.json()
+    raw = JSON.parse(body.text)
   } catch {
     return { ok: false as const, response: badRequest("Request body must be valid JSON") }
+  }
+
+  const complexityError = validateJsonComplexity(
+    raw,
+    options.maxDepth ?? DEFAULT_JSON_MAX_DEPTH,
+    options.maxNodes ?? DEFAULT_JSON_MAX_NODES
+  )
+  if (complexityError) {
+    return { ok: false as const, response: badRequest(complexityError) }
   }
 
   const parsed = schema.safeParse(raw)
@@ -69,51 +165,11 @@ export function parseDateValue(value?: string | null) {
   return date
 }
 
-function extractFirebaseToken(request: Request) {
-  const tokenFromHeader = request.headers.get("authorization")
-  const tokenFromCustomHeader = request.headers.get("x-planglade-firebase-id-token")
-  if (tokenFromHeader?.startsWith("Bearer ")) {
-    return tokenFromHeader.slice("Bearer ".length).trim()
-  }
-  return tokenFromCustomHeader?.trim() || null
-}
-
 export async function resolveRequestActorUserId(request: Request): Promise<string | undefined> {
-  const authMode = getConfiguredAuthMode()
-
-  if (authMode === "invalid") {
-    throw new Error("Authentication configuration is invalid")
-  }
-  if (process.env.NODE_ENV === "production" && authMode === "dev") {
-    throw new Error("Development authentication is disabled in production")
-  }
-
-  if (authMode === "firebase") {
-    const token = extractFirebaseToken(request)
-    if (!token) return undefined
-    const { verifyFirebaseIdToken } = await import("@/lib/firebase-admin")
-    try {
-      const verified = await verifyFirebaseIdToken(token)
-      const { resolveVerifiedApplicationUser } = await import("@/lib/local-auth-identity")
-      const user = await resolveVerifiedApplicationUser({
-        email: verified.email,
-        name: verified.name,
-      })
-      return user?.id
-    } catch {
-      return undefined
-    }
-  }
-
-  if (authMode === "nextauth") {
-    const { getVerifiedNextAuthUser } = await import("@/lib/local-auth-session")
-    const user = await getVerifiedNextAuthUser()
-    return user?.id
-  }
-
-  const { resolveAuthenticatedUser } = await import("@/lib/permissions/session")
-  const session = await resolveAuthenticatedUser(request)
-  return session.ok ? session.user.id : undefined
+  const principal = await resolveRequestPrincipal(request)
+  if (principal.ok) return principal.user.id
+  if (principal.status === 500) throw new Error(principal.message)
+  return undefined
 }
 
 export async function resolveActorUserId(workspaceId: string, requestedUserId?: string) {
@@ -133,34 +189,7 @@ export async function resolveActorUserId(workspaceId: string, requestedUserId?: 
   return membership?.userId ?? null
 }
 
-const ROLE_RANK: Record<WorkspaceRole, number> = {
-  OWNER: 4,
-  ADMIN: 3,
-  MEMBER: 2,
-  VIEWER: 1,
-}
-
-export async function resolveWorkspaceActor(workspaceId: string, requestedUserId?: string) {
-  const workspace = await db.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { id: true, ownerId: true },
-  })
-  if (!workspace) return null
-
-  if (!requestedUserId) return null
-
-  const membership = await db.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: requestedUserId } },
-    select: { userId: true, role: true },
-  })
-  if (!membership) return null
-
-  return { userId: membership.userId, role: membership.role }
-}
-
-export function hasMinimumWorkspaceRole(actual: WorkspaceRole, minimum: WorkspaceRole) {
-  return ROLE_RANK[actual] >= ROLE_RANK[minimum]
-}
+export { hasMinimumWorkspaceRole, resolveWorkspaceActor }
 
 export function requireWorkspaceRole(request: Request, workspaceId: string, minimumRole: WorkspaceRole): Promise<
   | { ok: false; response: NextResponse }
@@ -178,15 +207,20 @@ export async function requireWorkspaceRole(
   const workspaceId = typeof requestOrWorkspaceId === "string" ? requestOrWorkspaceId : workspaceIdOrUserId
   let requestedUserId = workspaceIdOrUserId
   if (typeof requestOrWorkspaceId !== "string") {
-    const { resolveAuthenticatedUser } = await import("@/lib/permissions/session")
-    const session = await resolveAuthenticatedUser(requestOrWorkspaceId)
-    if (!session.ok) {
+    const principal = await resolveRequestPrincipal(requestOrWorkspaceId)
+    if (!principal.ok) {
       return {
         ok: false as const,
-        response: NextResponse.json({ error: session.message }, { status: session.status }),
+        response: NextResponse.json(
+          {
+            error: principal.message,
+            ...(process.env.NODE_ENV === "production" ? {} : { details: principal.details }),
+          },
+          { status: principal.status }
+        ),
       }
     }
-    requestedUserId = session.user.id
+    requestedUserId = principal.user.id
   }
   if (!workspaceId) {
     return { ok: false as const, response: badRequest("workspaceId is required") }

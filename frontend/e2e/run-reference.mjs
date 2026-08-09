@@ -6,6 +6,8 @@ import { promisify } from 'node:util'
 const execFile = promisify(execFileCallback)
 const appDirectory = path.resolve(import.meta.dirname, '..')
 const resultDirectory = path.join(appDirectory, 'test-results', 'vite-reference')
+const referencePort = Number(process.env.PLANGLADE_E2E_REFERENCE_PORT ?? 5173)
+const referenceOrigin = `http://127.0.0.1:${referencePort}`
 const logs = []
 
 async function portOwner(port) {
@@ -18,7 +20,7 @@ async function waitForServer() {
   const deadline = Date.now() + 60_000
   while (Date.now() < deadline) {
     try {
-      if ((await fetch('http://127.0.0.1:5173/')).ok) return
+      if ((await fetch(`${referenceOrigin}/`)).ok) return
     } catch {
       // The process is still starting.
     }
@@ -27,12 +29,12 @@ async function waitForServer() {
   throw new Error('Reference Vite server did not become ready')
 }
 
-const owner = await portOwner(5173)
-if (owner) throw new Error(`Port 5173 is already occupied by PID ${owner}. Stop that process before running this harness.`)
+const owner = await portOwner(referencePort)
+if (owner) throw new Error(`Port ${referencePort} is already occupied by PID ${owner}. Stop that process before running this harness.`)
 let vite
 let exitCode = 1
 try {
-  vite = spawn(process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'reference', '--host', '127.0.0.1'], {
+  vite = spawn(process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'reference', '--host', '127.0.0.1', '--port', String(referencePort)], {
     cwd: appDirectory,
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -47,6 +49,7 @@ try {
     cwd: appDirectory,
     shell: false,
     stdio: 'inherit',
+    env: { ...process.env, PLANGLADE_E2E_BASE_URL: referenceOrigin },
     windowsHide: true,
   })
   exitCode = await new Promise((resolve) => test.once('exit', (code) => resolve(code ?? 1)))

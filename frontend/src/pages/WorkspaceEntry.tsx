@@ -1,26 +1,23 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { getSession } from '@/lib/api/session'
 import { createWorkspace } from '@/lib/api/onboarding'
 import { toApiError } from '@/lib/api/errors'
+import { authLoginHref, normalizeWorkspaceDestination } from '@/lib/auth-destination'
+import { AuthFrame } from '@/components/AuthFrame'
 
 function EntryFrame({ children }: { children: ReactNode }) {
-  return (
-    <main className="min-h-dvh bg-background px-4 py-8 sm:grid sm:place-items-center sm:p-8">
-      <section className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
-        <p className="text-sm font-medium text-muted-foreground">PlanGlade</p>
-        {children}
-      </section>
-    </main>
-  )
+  return <AuthFrame compact>{children}</AuthFrame>
 }
 
 export default function WorkspaceEntry() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const nameInput = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
+  const destination = normalizeWorkspaceDestination(new URLSearchParams(location.search).get('next'))
   const sessionQuery = useQuery({
     queryKey: ['session'],
     queryFn: ({ signal }) => getSession(null, signal),
@@ -33,7 +30,7 @@ export default function WorkspaceEntry() {
     retry: false,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['session'] })
-      navigate('/', { replace: true })
+      navigate(destination, { replace: true })
     },
   })
 
@@ -44,7 +41,7 @@ export default function WorkspaceEntry() {
   if (sessionQuery.isPending) {
     return (
       <EntryFrame>
-        <h1 className="pg-page-title mt-3">Preparing your workspace</h1>
+        <h1 className="pg-page-title">Preparing your workspace</h1>
         <p className="mt-2 text-sm text-muted-foreground">Checking your PlanGlade session.</p>
         <button className="mt-6 h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60" disabled>
           Loading workspace…
@@ -58,7 +55,7 @@ export default function WorkspaceEntry() {
     const mutationError = onboarding.error ? toApiError(onboarding.error) : null
     return (
       <EntryFrame>
-        <h1 className="pg-page-title mt-3">Create your workspace</h1>
+        <h1 className="pg-page-title">Create your workspace</h1>
         <p className="mt-2 text-sm text-muted-foreground">Choose a name to finish setting up PlanGlade.</p>
         <form
           className="mt-6 space-y-4"
@@ -97,12 +94,12 @@ export default function WorkspaceEntry() {
     const signedOut = sessionError.kind === 'unauthenticated'
     return (
       <EntryFrame>
-        <h1 className="pg-page-title mt-3">{signedOut ? 'Sign in to continue' : 'PlanGlade is temporarily unavailable'}</h1>
+        <h1 className="pg-page-title">{signedOut ? 'Sign in to continue' : 'PlanGlade is temporarily unavailable'}</h1>
         <p role="alert" className="mt-2 text-sm text-muted-foreground">
           {signedOut ? 'Your PlanGlade session is not active.' : 'Please try again when the workspace service is available.'}
         </p>
         {signedOut ? (
-          <a className="mt-6 flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" href="/auth/login?next=/login">
+          <a className="mt-6 flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" href={authLoginHref(destination)}>
             Continue to sign in
           </a>
         ) : (
@@ -119,11 +116,11 @@ export default function WorkspaceEntry() {
 
   return (
     <EntryFrame>
-      <h1 className="pg-page-title mt-3">Welcome back</h1>
+      <h1 className="pg-page-title">Welcome back</h1>
       <p className="mt-2 text-sm text-muted-foreground">Your workspace is ready.</p>
       <button
         className="mt-6 h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-        onClick={() => navigate('/', { replace: true })}
+        onClick={() => navigate(destination, { replace: true })}
       >
         Continue to workspace
       </button>

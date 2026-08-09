@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import type { Priority, TaskStatus, Project, Label as LabelType } from '@/types'
 import { STATUS_LABELS, PRIORITY_LABELS } from '@/types'
 import { dueTone, relativeLabel } from '@/lib/dates'
-import { useWorkspace } from '@/store/workspace'
+import { useWorkspaceCapabilities, useWorkspaceData } from '@/store/workspace'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const priorityStyles: Record<Priority, string> = {
@@ -17,8 +17,8 @@ export const priorityStyles: Record<Priority, string> = {
 type PageWidth = 'standard' | 'wide' | 'canvas' | 'reading'
 
 const pageWidthClasses: Record<PageWidth, string> = {
-  standard: 'mx-auto max-w-[1080px] px-3 sm:px-5 lg:px-6 xl:px-8',
-  wide: 'mx-auto max-w-[1320px] px-3 sm:px-5 lg:px-6 xl:px-8',
+  standard: 'mx-auto max-w-[1200px] px-3 sm:px-5 lg:px-6 xl:px-8',
+  wide: 'mx-auto max-w-[1600px] px-3 sm:px-5 lg:px-6 xl:px-8',
   canvas: 'px-3 sm:px-5 lg:px-6 xl:px-8',
   reading: 'mx-auto max-w-[900px] px-3 sm:px-5 lg:px-6',
 }
@@ -28,7 +28,7 @@ export function PageContainer({ width = 'standard', className, ...props }: React
 }
 
 export function PriorityBadge({ priority, className }: { priority: Priority; className?: string }) {
-  const { state } = useWorkspace()
+  const { state } = useWorkspaceData()
   const asText = state.settings.priorityDisplay === 'text'
   if (priority === 'none') {
     return asText ? <span className={cn('text-xs text-muted-foreground', className)}>—</span> : null
@@ -73,7 +73,7 @@ export function DueBadge({ date, done, className }: { date: string | null; done?
       className={cn(
         'inline-flex items-center gap-1 text-xs whitespace-nowrap min-w-0',
         tone === 'overdue' && 'text-red-600 dark:text-red-400 font-medium',
-        tone === 'today' && 'text-amber-600 dark:text-amber-400 font-medium',
+        tone === 'today' && 'text-amber-700 dark:text-amber-300 font-medium',
         tone === 'soon' && 'text-foreground/80',
         (tone === 'future' || tone === 'none') && 'text-muted-foreground',
         className,
@@ -113,7 +113,7 @@ export function ProjectChip({ project, className, onClick }: { project: Project 
 export function LabelChip({ label, className }: { label: LabelType; className?: string }) {
   return (
     <span
-      className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', className)}
+      className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[12.5px] font-medium', className)}
       style={{ borderColor: `hsl(${label.color} / 0.4)`, color: `hsl(${label.color})`, backgroundColor: `hsl(${label.color} / 0.08)` }}
     >
       {label.name}
@@ -132,7 +132,7 @@ export function TaskCheckbox({
   blocked?: boolean
   size?: 'sm' | 'md'
 }) {
-    const { canMutateTasks, taskMutationPending } = useWorkspace()
+  const { canMutateTasks, taskMutationPending } = useWorkspaceCapabilities()
   return (
     <button
       role="checkbox"
@@ -178,7 +178,7 @@ export function BlockedIndicator({ className }: { className?: string }) {
 
 export function BlockingIndicator({ className }: { className?: string }) {
   return (
-    <span className={cn('pg-chip-text inline-flex items-center gap-1 text-orange-600 dark:text-orange-400', className)} title="Blocking another task">
+    <span className={cn('pg-chip-text inline-flex items-center gap-1 text-orange-700 dark:text-orange-300', className)} title="Blocking another task">
       <CircleSlash className="h-3 w-3 rotate-45" />
       <span>Blocking</span>
     </span>
@@ -210,7 +210,7 @@ export function CountBadge({ count, label, className }: { count: number; label?:
   return (
     <span
       className={cn(
-        'inline-flex size-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-foreground bg-foreground px-1 text-[10px] font-semibold leading-none tabular-nums text-background',
+        'inline-flex size-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-foreground bg-foreground px-1 text-[12.5px] font-semibold leading-none tabular-nums text-background',
         className,
       )}
       aria-label={label ?? `${count} items`}
@@ -221,6 +221,7 @@ export function CountBadge({ count, label, className }: { count: number; label?:
 }
 
 export function SectionHeader({
+  id,
   title,
   count,
   action,
@@ -228,6 +229,7 @@ export function SectionHeader({
   collapsed,
   onToggle,
 }: {
+  id?: string
   title: string
   count?: number
   action?: React.ReactNode
@@ -237,7 +239,7 @@ export function SectionHeader({
 }) {
   const inner = (
     <>
-      <h2 className="pg-section-title">{title}</h2>
+      <h2 id={id} className="pg-section-title">{title}</h2>
       {count !== undefined && <CountBadge count={count} />}
     </>
   )
@@ -250,7 +252,7 @@ export function SectionHeader({
           className="flex items-center gap-2 group rounded -ml-1 px-1 py-0.5 hover:bg-accent/60 transition-colors"
         >
           {inner}
-          <span className={cn('text-muted-foreground transition-transform duration-150 text-[10px]', collapsed ? '-rotate-90' : 'rotate-0')} aria-hidden>
+          <span className={cn('text-muted-foreground transition-transform duration-150 text-[12.5px]', collapsed ? '-rotate-90' : 'rotate-0')} aria-hidden>
             ▾
           </span>
         </button>

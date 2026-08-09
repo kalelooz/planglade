@@ -24,4 +24,6 @@ PlanGlade should be a practical, respectful place to build.
 
 Maintainers may remove comments, close issues, reject contributions, or block participation when behavior harms the project or its contributors.
 
-If you need to report a conduct concern and no dedicated contact is published yet, use a private maintainer contact channel when possible. If no private channel exists, open a minimal public issue asking for a private contact path without sharing sensitive details.
+To report a conduct concern, use the **Security or conduct contact request** in
+the repository issue chooser. Ask only for private follow-up; do not identify
+people or describe the incident publicly.

@@ -21,7 +21,7 @@ const markReadSchema = z.object({
   workspaceId: z.string().min(1),
   userId: z.string().min(1).optional(),
   lastReadAt: z.string().datetime().optional(),
-  notificationIds: z.array(z.string().min(1)).optional(),
+  notificationIds: z.array(z.string().min(1).max(128)).max(200).optional(),
 })
 
 const TYPE_TO_PREF: Record<"MENTION" | "ASSIGNED" | "COMMENT" | "STATUS", string> = {

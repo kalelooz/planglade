@@ -6,9 +6,11 @@ import {
   resolveRequestActorUserId,
   serverError,
 } from "@/lib/api-utils"
+import { logActivityEvent } from "@/lib/activity"
 import { resolvePriorityDisplayStyle, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
+import { createNotificationRecord } from "@/lib/notifications"
 
 export async function GET(request: NextRequest) {
   const query = parseQuery(
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
       actorUserId,
-      "MEMBER"
+      "ADMIN"
     )
     if (!access.ok) return access.response
 
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest) {
         where: { id: query.data.workspaceId },
         select: {
           id: true,
+          ownerId: true,
           slug: true,
           name: true,
           taskPriorityDisplayStyle: true,
@@ -261,10 +264,63 @@ export async function GET(request: NextRequest) {
     const tasks = serializedWorkItems.filter((item) => !item.isInbox)
     const inboxItems = serializedWorkItems.filter((item) => item.isInbox)
 
+    const scope = {
+      includes: [
+        "workspace profile",
+        "projects",
+        "tasks and inbox items",
+        "actor-accessible notes",
+        "labels",
+        "project documents",
+        "actor-owned saved views",
+      ],
+      excludes: [
+        "memberships",
+        "invitations",
+        "activity history",
+        "notifications",
+        "attachments and storage object keys",
+        "authentication material",
+        "user settings",
+      ],
+    }
+
+    await logActivityEvent(db, {
+      workspaceId: query.data.workspaceId,
+      actorId: access.actor.userId,
+      action: "UPDATED",
+      entityType: "WORKSPACE",
+      entityId: query.data.workspaceId,
+      summary: "Exported workspace data",
+      metadata: {
+        operation: "WORKSPACE_EXPORT",
+        counts: {
+          projects: serializedProjects.length,
+          workItems: serializedWorkItems.length,
+          notes: serializedNotes.length,
+          labels: serializedLabels.length,
+          projectDocs: serializedLegacyDocs.length,
+          savedViews: serializedSavedViews.length,
+        },
+      },
+    })
+    if (workspace?.ownerId && workspace.ownerId !== access.actor.userId) {
+      await createNotificationRecord(db, {
+        workspaceId: query.data.workspaceId,
+        userId: workspace.ownerId,
+        actorId: access.actor.userId,
+        type: "STATUS",
+        title: "Workspace export completed",
+        body: "An administrator exported workspace data.",
+        sourceKey: `workspace-export:${access.actor.userId}:${exportedAt}`,
+      })
+    }
+
     const response = NextResponse.json({
       version: 1,
       exportedAt,
       generatedAt: exportedAt,
+      scope,
       workspace: serializedWorkspace,
       projects: serializedProjects,
       tasks,
@@ -329,6 +385,8 @@ export async function GET(request: NextRequest) {
       },
     })
     response.headers.set("Cache-Control", "no-store")
+    response.headers.set("Pragma", "no-cache")
+    response.headers.set("X-Content-Type-Options", "nosniff")
     return response
   } catch {
     return serverError("Failed to export workspace snapshot")

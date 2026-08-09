@@ -120,7 +120,7 @@
   }
 
   .pg-item-title {
-    @apply text-[13.5px] font-medium leading-5 text-foreground text-pretty;
+    @apply text-sm font-medium leading-5 text-foreground text-pretty;
   }
 
   .pg-body {
@@ -132,11 +132,11 @@
   }
 
   .pg-meta {
-    @apply text-[11.5px] leading-4 text-muted-foreground;
+    @apply text-[12.5px] leading-[1.125rem] text-muted-foreground;
   }
 
   .pg-chip-text {
-    @apply text-[11px] font-medium leading-none;
+    @apply text-[12.5px] font-medium leading-4;
   }
 
   .scrollbar-thin {

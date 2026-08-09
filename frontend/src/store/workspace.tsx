@@ -1,114 +1,37 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type {
-  WorkspaceState, Task, Note, InboxItem, Project, ProjectStatus, AppSettings, Priority, RecentItem,
+  WorkspaceState, Task, Note, InboxItem, Project, ProjectStatus, AppSettings,
 } from '@/types'
-import { seedWorkspace } from '@/data/seed'
 import { relativeLabel } from '@/lib/dates'
 import { dataMode } from '@/lib/data-mode'
 import { loadApiSettings, saveApiSettings } from '@/lib/api-settings'
-import { getSession } from '@/lib/api/session'
-import { getProjects } from '@/lib/api/projects'
-import { createNote as createApiNote, deleteNote as deleteApiNote, getNotes, updateNote as patchApiNote, type NoteMutationPatch } from '@/lib/api/notes'
-import { createBlockedByRelation, deleteWorkItemRelation, getWorkItemRelations } from '@/lib/api/relations'
-import { createWorkspace as createApiWorkspace, updateWorkspace as updateApiWorkspace } from '@/lib/api/workspace'
-import { getUserSettings, updateUserSettings } from '@/lib/api/settings'
-import { createProject as createApiProject, deleteProject as deleteApiProject, replaceProjectInList, updateProject as patchApiProject, type CreateProjectInput, type ProjectMutationPatch } from '@/lib/api/projects'
-import { canMutateTasksForAuthMode, createTask, deleteTask as deleteApiTask, getInboxItems, getTasks, optimisticallyPatchTask, removeInboxFromList, removeTaskFromList, replaceInboxInList, replaceTaskInList, updateTask as patchApiTask, type CreateTaskInput } from '@/lib/api/tasks'
+import { createBlockedByRelation, deleteWorkItemRelation } from '@/lib/api/relations'
+import type { NoteMutationPatch } from '@/lib/api/notes'
+import type { ProjectMutationPatch } from '@/lib/api/projects'
+import { canMutateTasksForAuthMode } from '@/lib/api/tasks'
 import { adaptNote, adaptProject, adaptTask, buildApiWorkspaceState } from '@/lib/api/adapters'
-import type { BackendNote, BackendProject, BackendWorkItem, Session } from '@/lib/api/contracts'
 import { toApiError } from '@/lib/api/errors'
 import { createTaskMutationQueue } from '@/lib/task-mutation-queue'
 import { placeBoardTask } from '@/lib/board-order'
+import { authLoginHref, currentWorkspaceDestination } from '@/lib/auth-destination'
+import { useNavigate } from 'react-router'
+import { useAppCommands } from '@/store/app-commands'
+import { useApiWorkspaceQueries } from '@/store/use-api-workspace-queries'
+import { createReferenceWorkspaceAdapter } from '@/store/reference-workspace-adapter'
+import { useApiWorkspaceMutations } from '@/store/use-api-workspace-mutations'
+import {
+  WorkspaceContexts,
+  type TaskPatch,
+  type WorkspaceApi,
+  type WorkspaceNotePatch,
+} from '@/store/workspace-context'
 
-const STORAGE_KEY = 'planglade-workspace-v1'
+export { useWorkspace, useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData, useWorkspaceIdentity } from '@/store/workspace-context'
+export type { TaskPatch, WorkspaceMode } from '@/store/workspace-context'
+
 const ACTIVE_WORKSPACE_KEY = 'planglade-active-workspace-v1'
-
-const uid = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
-
-function loadState(): WorkspaceState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as WorkspaceState
-      if (parsed && Array.isArray(parsed.tasks) && Array.isArray(parsed.projects)) return parsed
-    }
-  } catch {
-    /* corrupted state falls through to seed */
-  }
-  return seedWorkspace()
-}
-
-export type TaskPatch = Partial<Omit<Task, 'id' | 'history' | 'source'>> & { beforeId?: string | null }
-type WorkspaceNotePatch = Pick<Partial<Note>, 'title' | 'content' | 'projectId'>
-
-interface WorkspaceApi {
-  readOnly: boolean
-  workspaceId: string | null
-  workspaces: Array<{ id: string; slug: string; name: string; role: string }>
-  switchWorkspace: (workspaceId: string) => void
-  createWorkspace: (name: string) => Promise<boolean>
-  canManageWorkspace: boolean
-  canMutateTasks: boolean
-  taskMutationPending: boolean
-  canMutateNotes: boolean
-  noteMutationPending: boolean
-  connectionsData: {
-    notes: 'loading' | 'ready' | 'error'
-    relations: 'loading' | 'ready' | 'error'
-    relationLimitReached: boolean
-  }
-  state: WorkspaceState
-  tasks: Task[]
-  projects: Project[]
-  notes: Note[]
-  inbox: InboxItem[]
-  getTask: (id: string | null | undefined) => Task | undefined
-  getProject: (id: string | null | undefined) => Project | undefined
-  getNote: (id: string | null | undefined) => Note | undefined
-  subtasksOf: (taskId: string) => Task[]
-  isBlocked: (task: Task) => boolean
-  blockersOf: (task: Task) => Task[]
-  projectProgress: (projectId: string) => { done: number; total: number }
-  // settings
-  updateSettings: (patch: Partial<AppSettings>) => void
-  setWorkspaceName: (name: string) => Promise<boolean> | void
-  // inbox
-  capture: (text: string, meta?: { projectId?: string | null; dueDate?: string | null; priority?: Priority }) => Promise<Task | null>
-  updateInboxItem: (id: string, patch: Partial<InboxItem>) => void
-  dismissInboxItem: (id: string) => void
-  convertInboxItem: (id: string) => Promise<Task | null>
-  bulkConvert: (ids: string[]) => void
-  bulkDismiss: (ids: string[]) => void
-  bulkAssignProject: (ids: string[], projectId: string | null) => void
-  // tasks
-  addTask: (partial: Partial<Task> & { title: string }) => Promise<Task | null>
-  updateTask: (id: string, patch: TaskPatch, opts?: { silent?: boolean }) => Promise<boolean>
-  toggleTask: (id: string) => Promise<boolean>
-  deleteTask: (id: string) => Promise<boolean>
-  // notes
-  addNote: (partial?: Partial<Note>) => Promise<Note | null>
-  updateNote: (id: string, patch: WorkspaceNotePatch, opts?: { silent?: boolean }) => Promise<Note | null>
-  deleteNote: (id: string) => Promise<boolean>
-  // projects
-  addProject: (partial: { name: string; slug?: string; description?: string; status?: ProjectStatus; color?: string; icon?: string; startDate?: string | null; targetDate?: string | null }) => Promise<Project | null>
-  updateProject: (id: string, patch: ProjectMutationPatch) => Promise<boolean>
-  deleteProject: (id: string) => Promise<boolean>
-  // misc
-  pushRecent: (item: Omit<RecentItem, 'at'>) => void
-  resetWorkspace: () => void
-  exportJson: () => string
-  signOut: () => void
-}
-
-const Ctx = createContext<WorkspaceApi | null>(null)
-
-export function useWorkspace(): WorkspaceApi {
-  const v = useContext(Ctx)
-  if (!v) throw new Error('useWorkspace outside provider')
-  return v
-}
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   return dataMode === 'reference'
@@ -137,9 +60,9 @@ function BootstrapState({ error }: { error?: unknown }) {
 
   const apiError = toApiError(error)
   const content = apiError.kind === 'unauthenticated'
-    ? { title: 'Sign in to continue', detail: 'Your PlanGlade session is not active.', action: 'Sign in', href: '/login' }
+    ? { title: 'Sign in to continue', detail: 'Your PlanGlade session is not active.', action: 'Sign in', href: authLoginHref(currentWorkspaceDestination()) }
     : apiError.kind === 'onboarding_required'
-      ? { title: 'Workspace setup required', detail: 'Your account does not belong to a workspace yet.' }
+      ? { title: 'Workspace setup required', detail: 'Create your first workspace to continue.', action: 'Create workspace', href: `/onboarding?next=${encodeURIComponent(currentWorkspaceDestination())}` }
       : apiError.kind === 'forbidden'
         ? { title: 'Workspace access unavailable', detail: 'Your account cannot access this workspace.' }
         : { title: 'PlanGlade is temporarily unavailable', detail: 'Please try again when the backend is available.' }
@@ -154,7 +77,7 @@ function BootstrapState({ error }: { error?: unknown }) {
             {content.action}
           </a>
         )}
-        {apiError.requestId && <p className="mt-4 text-[11px] text-muted-foreground">Request {apiError.requestId}</p>}
+        {apiError.requestId && <p className="mt-4 text-[12.5px] text-muted-foreground">Request {apiError.requestId}</p>}
       </div>
     </main>
   )
@@ -169,11 +92,29 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
   const noteUpdateQueue = useRef<ReturnType<typeof createTaskMutationQueue<{ patch: NoteMutationPatch; silent: boolean }, Note | null>>>(undefined)
   const noteDeletePending = useRef(false)
   useTheme(settings.theme)
-  const sessionQuery = useQuery({
-    queryKey: ['session', selectedWorkspaceId],
-    queryFn: ({ signal }) => getSession(selectedWorkspaceId, signal),
-    retry: false,
-  })
+  const {
+    session: sessionQuery,
+    settings: settingsQuery,
+    projects: projectsQuery,
+    tasks: tasksQuery,
+    inbox: inboxQuery,
+    notes: notesQuery,
+    relations: relationsQuery,
+  } = useApiWorkspaceQueries(selectedWorkspaceId)
+  const {
+    createTaskMutation: createMutation,
+    updateTaskMutation: updateMutation,
+    deleteTaskMutation: deleteMutation,
+    createProjectMutation,
+    updateProjectMutation,
+    deleteProjectMutation,
+    createNoteMutation,
+    updateNoteMutation,
+    deleteNoteMutation,
+    createWorkspaceMutation,
+    updateWorkspaceMutation,
+    updateSettingsMutation,
+  } = useApiWorkspaceMutations(selectedWorkspaceId)
 
   useEffect(() => {
     if (!selectedWorkspaceId || !sessionQuery.isError) return
@@ -183,13 +124,6 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     setSelectedWorkspaceId(null)
   }, [selectedWorkspaceId, sessionQuery.error, sessionQuery.isError])
   const workspaceId = sessionQuery.data?.workspace.id
-  const sessionUserId = sessionQuery.data?.user.id
-  const settingsQuery = useQuery({
-    queryKey: ['user-settings', workspaceId, sessionUserId],
-    queryFn: ({ signal }) => getUserSettings(workspaceId!, sessionUserId!, signal),
-    enabled: !!workspaceId && !!sessionUserId,
-    retry: false,
-  })
   useEffect(() => {
     const server = settingsQuery.data?.settings
     if (!server) return
@@ -205,138 +139,6 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       return next
     })
   }, [settingsQuery.data])
-  const projectsQuery = useQuery({
-    queryKey: ['projects', workspaceId],
-    queryFn: ({ signal }) => getProjects(workspaceId!, signal),
-    enabled: !!workspaceId,
-    retry: false,
-  })
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', workspaceId],
-    queryFn: ({ signal }) => getTasks(workspaceId!, signal),
-    enabled: !!workspaceId,
-    retry: false,
-  })
-  const inboxQuery = useQuery({
-    queryKey: ['inbox', workspaceId],
-    queryFn: ({ signal }) => getInboxItems(workspaceId!, signal),
-    enabled: !!workspaceId,
-    retry: false,
-  })
-  const notesQuery = useQuery({
-    queryKey: ['notes', workspaceId],
-    queryFn: ({ signal }) => getNotes(workspaceId!, signal),
-    enabled: !!workspaceId,
-    retry: false,
-  })
-  const relationsQuery = useQuery({
-    queryKey: ['work-item-relations', workspaceId],
-    queryFn: ({ signal }) => getWorkItemRelations(workspaceId!, signal),
-    enabled: !!workspaceId,
-    retry: false,
-  })
-  const createMutation = useMutation({
-    mutationFn: ({ input }: { input: CreateTaskInput }) => createTask(input),
-    retry: false,
-    onSuccess: (created, variables) => {
-      const workspaceId = variables.input.workspaceId
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', workspaceId], (current = []) => created.isInbox ? current : [...current.filter((task) => task.id !== created.id), created])
-      queryClient.setQueryData<BackendWorkItem[]>(['inbox', workspaceId], (current = []) => created.isInbox ? [...current.filter((item) => item.id !== created.id), created] : current)
-    },
-  })
-  const updateMutation = useMutation({
-    mutationFn: ({ workspaceId, task, patch }: { workspaceId: string; task: BackendWorkItem; patch: TaskPatch }) => patchApiTask(workspaceId, task, patch),
-    retry: false,
-    onMutate: async ({ workspaceId, task, patch }) => {
-      await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] })
-      const previousTasks = queryClient.getQueryData<BackendWorkItem[]>(['tasks', workspaceId])
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', workspaceId], (current = []) => optimisticallyPatchTask(current, task, patch))
-      return { previousTasks }
-    },
-    onError: (_error, { workspaceId }, context) => {
-      if (context?.previousTasks) queryClient.setQueryData(['tasks', workspaceId], context.previousTasks)
-    },
-    onSuccess: (updated, { workspaceId }) => {
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', workspaceId], (current = []) => replaceTaskInList(current, updated))
-      queryClient.setQueryData<BackendWorkItem[]>(['inbox', workspaceId], (current = []) => replaceInboxInList(current, updated))
-    },
-  })
-  const deleteMutation = useMutation({
-    mutationFn: ({ workspaceId, taskId }: { workspaceId: string; taskId: string }) => deleteApiTask(workspaceId, taskId),
-    retry: false,
-    onSuccess: (_deleted, { workspaceId, taskId }) => {
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', workspaceId], (current = []) => removeTaskFromList(current, taskId))
-      queryClient.setQueryData<BackendWorkItem[]>(['inbox', workspaceId], (current = []) => removeInboxFromList(current, taskId))
-      window.dispatchEvent(new CustomEvent('planglade:task-deleted', { detail: taskId }))
-    },
-  })
-  const createProjectMutation = useMutation({
-    mutationFn: ({ input }: { input: CreateProjectInput }) => createApiProject(input),
-    retry: false,
-    onSuccess: (created, variables) => {
-      queryClient.setQueryData<BackendProject[]>(['projects', variables.input.workspaceId], (current = []) => [...current.filter((project) => project.id !== created.id), created])
-    },
-  })
-  const updateProjectMutation = useMutation({
-    mutationFn: ({ workspaceId, project, patch }: { workspaceId: string; project: BackendProject; patch: ProjectMutationPatch }) => patchApiProject(workspaceId, project, patch),
-    retry: false,
-    onSuccess: (updated, variables) => {
-      queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => replaceProjectInList(current, updated))
-    },
-  })
-  const createNoteMutation = useMutation({
-    mutationFn: ({ workspaceId, title, body, projectId }: { workspaceId: string; title: string; body?: string; projectId?: string }) => createApiNote({ workspaceId, title, ...(body !== undefined ? { body } : {}), ...(projectId !== undefined ? { projectId } : {}) }),
-    retry: false,
-    onSuccess: (created, variables) => {
-      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => [created, ...current.filter((note) => note.id !== created.id)])
-    },
-  })
-  const updateNoteMutation = useMutation({
-    mutationFn: ({ workspaceId, noteId, patch }: { workspaceId: string; noteId: string; patch: NoteMutationPatch }) => patchApiNote(workspaceId, noteId, patch),
-    retry: false,
-    onSuccess: (updated, variables) => {
-      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.id === updated.id ? updated : note))
-    },
-  })
-  const deleteNoteMutation = useMutation({
-    mutationFn: ({ workspaceId, noteId }: { workspaceId: string; noteId: string }) => deleteApiNote(workspaceId, noteId),
-    retry: false,
-    onSuccess: (_deleted, variables) => {
-      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.filter((note) => note.id !== variables.noteId))
-    },
-  })
-  const deleteProjectMutation = useMutation({
-    mutationFn: ({ workspaceId, projectId }: { workspaceId: string; projectId: string }) => deleteApiProject(workspaceId, projectId),
-    retry: false,
-    onSuccess: (_deleted, variables) => {
-      queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => current.filter((project) => project.id !== variables.projectId))
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', variables.workspaceId], (current = []) => current.map((task) => task.projectId === variables.projectId ? { ...task, projectId: null } : task))
-      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.projectId === variables.projectId ? { ...note, projectId: null } : note))
-    },
-  })
-  const createWorkspaceMutation = useMutation({
-    mutationFn: ({ name }: { name: string }) => createApiWorkspace(name),
-    retry: false,
-  })
-  const updateWorkspaceMutation = useMutation({
-    mutationFn: ({ workspaceId, name }: { workspaceId: string; name: string }) => updateApiWorkspace(workspaceId, { name }),
-    retry: false,
-    onSuccess: (updated) => {
-      queryClient.setQueryData<Session>(['session', selectedWorkspaceId], (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          workspace: current.workspace.id === updated.id ? { ...current.workspace, ...updated } : current.workspace,
-          workspaces: current.workspaces?.map((workspace) => workspace.id === updated.id ? { ...workspace, ...updated } : workspace),
-        }
-      })
-    },
-  })
-  const updateSettingsMutation = useMutation({
-    mutationFn: ({ workspaceId, userId, patch }: { workspaceId: string; userId: string; patch: Partial<AppSettings> }) => updateUserSettings(workspaceId, userId, patch),
-    retry: false,
-  })
-
   const error = sessionQuery.error ?? projectsQuery.error ?? tasksQuery.error ?? inboxQuery.error
   if (error) return <BootstrapState error={error} />
   if (!sessionQuery.data || !projectsQuery.data || !tasksQuery.data || !inboxQuery.data) return <BootstrapState />
@@ -619,7 +421,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   }
   const api: WorkspaceApi = {
-    readOnly: true,
+    mode: { kind: 'server' },
     workspaceId: workspaceId ?? null,
     workspaces: session.workspaces?.length
       ? session.workspaces
@@ -635,6 +437,11 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     taskMutationPending: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || createProjectMutation.isPending || updateProjectMutation.isPending || deleteProjectMutation.isPending,
     canMutateNotes: taskMutationsAllowed,
     noteMutationPending: createNoteMutation.isPending || updateNoteMutation.isPending || deleteNoteMutation.isPending,
+    supportsBlockedStatus: false,
+    supportsNoPriority: false,
+    supportsTaskHistory: true,
+    supportsCompletedProjectStatus: false,
+    deletionIsRecoverable: false,
     connectionsData,
     state,
     tasks,
@@ -724,21 +531,24 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ csrfToken: csrf.csrfToken, callbackUrl: '/login', json: 'true' }),
+          body: new URLSearchParams({ csrfToken: csrf.csrfToken, callbackUrl: '/auth/login', json: 'true' }),
         })
         if (!response.ok) throw new Error('signout')
-        window.location.assign('/login')
+        window.location.assign('/auth/login')
       } catch {
         toast.error('Sign out could not be completed. Please try again.')
       }
     },
   }
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>
+  return <WorkspaceContexts value={api}>{children}</WorkspaceContexts>
 }
 
 function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<WorkspaceState>(loadState)
+  const adapter = useMemo(() => createReferenceWorkspaceAdapter(localStorage), [])
+  const [state, setState] = useState<WorkspaceState>(() => adapter.load())
   const first = useRef(true)
+  const commands = useAppCommands()
+  const navigate = useNavigate()
   useTheme(state.settings.theme)
 
   useEffect(() => {
@@ -747,11 +557,11 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       return
     }
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      adapter.save(state)
     } catch {
       /* storage full or unavailable — prototype continues in memory */
     }
-  }, [state])
+  }, [adapter, state])
 
   const api = useMemo<WorkspaceApi>(() => {
     const byId = new Map(state.tasks.map((t) => [t.id, t]))
@@ -766,7 +576,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
 
     const addTask = (partial: Partial<Task> & { title: string }): Task => {
       const task: Task = {
-        id: uid('tsk'),
+        id: adapter.nextId('tsk'),
         title: partial.title,
         description: partial.description ?? '',
         projectId: partial.projectId ?? null,
@@ -828,7 +638,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
     }
 
     const apiObj: WorkspaceApi = {
-      readOnly: false,
+      mode: { kind: 'reference', mutable: true },
       workspaceId: null,
       workspaces: [{ id: 'reference-workspace', slug: 'local', name: state.workspaceName, role: 'OWNER' }],
       switchWorkspace: () => undefined,
@@ -841,6 +651,11 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       taskMutationPending: false,
       canMutateNotes: true,
       noteMutationPending: false,
+      supportsBlockedStatus: true,
+      supportsNoPriority: true,
+      supportsTaskHistory: false,
+      supportsCompletedProjectStatus: true,
+      deletionIsRecoverable: true,
       connectionsData: { notes: 'ready', relations: 'ready', relationLimitReached: false },
       state,
       tasks: state.tasks,
@@ -866,7 +681,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
 
       capture: async (text, meta) => {
         const item: InboxItem = {
-          id: uid('inx'),
+          id: adapter.nextId('inx'),
           text,
           projectId: meta?.projectId ?? null,
           dueDate: meta?.dueDate ?? null,
@@ -875,7 +690,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         }
         commit((s) => ({ ...s, inbox: [item, ...s.inbox] }))
         toast.success('Captured to Inbox', {
-          action: { label: 'View', onClick: () => window.dispatchEvent(new CustomEvent('planglade:goto-inbox')) },
+          action: { label: 'View', onClick: () => navigate('/inbox') },
         })
         return null
       },
@@ -903,7 +718,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         toast.success('Converted to task', {
           action: {
             label: 'Open',
-            onClick: () => window.dispatchEvent(new CustomEvent('planglade:open-task', { detail: task.id })),
+            onClick: () => commands.dispatch('open-task', { taskId: task.id }),
           },
           cancel: {
             label: 'Undo',
@@ -922,7 +737,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         const items = state.inbox.filter((i) => ids.includes(i.id))
         if (!items.length) return
         const newTasks: Task[] = items.map((item) => ({
-          id: uid('tsk'),
+          id: adapter.nextId('tsk'),
           title: item.text,
           description: '',
           projectId: item.projectId,
@@ -1008,13 +823,13 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
               commit((s) => (s.tasks.some((x) => x.id === id) ? s : { ...s, tasks: [...s.tasks, t] })),
           },
         })
-        window.dispatchEvent(new CustomEvent('planglade:task-deleted', { detail: id }))
+        commands.dispatch('task-deleted', { taskId: id })
         return true
       },
 
       addNote: async (partial) => {
         const note: Note = {
-          id: uid('nte'),
+          id: adapter.nextId('nte'),
           title: partial?.title ?? 'Untitled note',
           content: partial?.content ?? '',
           projectId: partial?.projectId ?? null,
@@ -1043,7 +858,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
 
       addProject: async ({ name, description, status, startDate, targetDate }) => {
         const project: Project = {
-          id: uid('prj'),
+          id: adapter.nextId('prj'),
           name,
           description: description ?? '',
           status: status === 'completed' ? 'active' : status ?? 'active',
@@ -1079,8 +894,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
           recents: [{ ...item, at: Date.now() }, ...s.recents.filter((r) => !(r.type === item.type && r.id === item.id))].slice(0, 8),
         })),
       resetWorkspace: () => {
-        localStorage.removeItem(STORAGE_KEY)
-        setState(seedWorkspace())
+        setState(adapter.reset())
         toast.success('Workspace reset to sample data')
       },
       exportJson: () => JSON.stringify(state, null, 2),
@@ -1091,7 +905,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       },
     }
     return apiObj
-  }, [state])
+  }, [adapter, commands, navigate, state])
 
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>
+  return <WorkspaceContexts value={api}>{children}</WorkspaceContexts>
 }

@@ -16,6 +16,8 @@ playwright-report/
 !.env.example
 frontend/.env
 backend/.env
+backend/AGENTS.md
+backend/CLAUDE.md
 *.db
 *.sqlite
 *.sqlite3

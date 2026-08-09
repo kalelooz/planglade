@@ -80,7 +80,7 @@ function NewTaskDialog({
               dueDate: dueDate || null,
             })
             setSaving(false)
-            if (saved || !ws.readOnly) onOpenChange(false)
+            if (saved || ws.mode.kind === 'reference') onOpenChange(false)
           }}
           className="space-y-3"
         >
@@ -109,7 +109,7 @@ function NewTaskDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(STATUS_LABELS) as TaskStatus[]).filter((s) => !ws.readOnly || s !== 'blocked').map((s) => (
+                {(Object.keys(STATUS_LABELS) as TaskStatus[]).filter((s) => ws.supportsBlockedStatus || s !== 'blocked').map((s) => (
                   <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
                 ))}
               </SelectContent>
@@ -119,7 +119,7 @@ function NewTaskDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(PRIORITY_LABELS) as Array<typeof priority>).filter((p) => !ws.readOnly || p !== 'none').map((p) => (
+                {(Object.keys(PRIORITY_LABELS) as Array<typeof priority>).filter((p) => ws.supportsNoPriority || p !== 'none').map((p) => (
                   <SelectItem key={p} value={p}>{PRIORITY_LABELS[p]}</SelectItem>
                 ))}
               </SelectContent>
@@ -275,7 +275,7 @@ export default function Tasks() {
   }
 
   const openNew = (status: TaskStatus = 'planned') => {
-    if (!ws.canMutateTasks || (ws.readOnly && status === 'blocked')) return
+    if (!ws.canMutateTasks || (!ws.supportsBlockedStatus && status === 'blocked')) return
     setNewStatus(status)
     setNewOpen(true)
   }
@@ -302,8 +302,8 @@ export default function Tasks() {
           <dl className="mt-4 flex max-w-full flex-wrap gap-1.5 rounded-xl border border-border/50 bg-card/45 p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.03)]" aria-label="Task summary">
             {taskCounts.map((item) => (
               <div key={item.label} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-muted-foreground transition-colors hover:bg-background/75 hover:text-foreground">
-                <dt className="text-[11px] leading-none">{item.label}</dt>
-                <dd className="text-[11px] font-medium leading-none tabular-nums text-foreground/70">{item.value}</dd>
+                <dt className="text-[12.5px] leading-none">{item.label}</dt>
+                <dd className="text-[12.5px] font-medium leading-none tabular-nums text-foreground/70">{item.value}</dd>
               </div>
             ))}
           </dl>
@@ -365,7 +365,7 @@ export default function Tasks() {
             <PopoverContent align="start" className="w-[280px] p-3">
               <div className="space-y-3">
                 <div>
-                  <p className="text-[11px] font-medium text-muted-foreground mb-1.5">When</p>
+                  <p className="text-[12.5px] font-medium text-muted-foreground mb-1.5">When</p>
                   <div className="flex flex-wrap gap-1">
                     {QUICK_FILTERS.map((f) => (
                       <button
@@ -381,7 +381,7 @@ export default function Tasks() {
                 </div>
                 <Separator />
                 <div>
-                  <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Project</p>
+                  <p className="text-[12.5px] font-medium text-muted-foreground mb-1.5">Project</p>
                   <div className="flex flex-wrap gap-1">
                     {ws.projects.map((p) => (
                       <button
@@ -397,7 +397,7 @@ export default function Tasks() {
                 </div>
                 <Separator />
                 <div>
-                  <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Priority</p>
+                  <p className="text-[12.5px] font-medium text-muted-foreground mb-1.5">Priority</p>
                   <div className="flex flex-wrap gap-1">
                     {(['high', 'medium', 'low'] as const).map((p) => (
                       <button
@@ -454,25 +454,25 @@ export default function Tasks() {
           {(view === 'list' || view === 'board') && <Popover>
             <PopoverTrigger asChild><button className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background/80 text-muted-foreground hover:text-foreground lg:h-8 lg:w-8" aria-label="Display options"><Rows3 className="h-3.5 w-3.5" /></button></PopoverTrigger>
             <PopoverContent align="start" className="w-48 p-2">
-              <p className="px-2 pb-1 text-[11px] font-medium text-muted-foreground">Density</p>
+              <p className="px-2 pb-1 text-[12.5px] font-medium text-muted-foreground">Density</p>
               {(['comfortable', 'compact'] as const).map((density) => <button key={density} onClick={() => updatePresentation({ density })} className={cn('w-full rounded px-2 py-1.5 text-left text-[12px] capitalize hover:bg-accent', presentation.density === density && 'bg-accent font-medium')}>{density}</button>)}
               <Separator className="my-2" />
-              <p className="px-2 pb-1 text-[11px] font-medium text-muted-foreground">Visible fields</p>
+              <p className="px-2 pb-1 text-[12.5px] font-medium text-muted-foreground">Visible fields</p>
               {([['project', 'Project'], ['status', 'Status'], ['dueDate', 'Due date'], ['priority', 'Priority']] as const).map(([field, label]) => <label key={field} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[12px] hover:bg-accent"><input type="checkbox" checked={presentation.fields.includes(field)} onChange={() => toggleSet(new Set(presentation.fields), field, (fields) => updatePresentation({ fields }))} /> {label}</label>)}
             </PopoverContent>
           </Popover>}
 
-          <label className="ml-auto inline-flex min-h-9 shrink-0 cursor-pointer select-none items-center gap-2 pl-1 text-[12.5px] text-muted-foreground lg:min-h-8">
+          <div className="ml-auto inline-flex min-h-9 shrink-0 select-none items-center gap-2 pl-1 text-[12.5px] text-muted-foreground lg:min-h-8">
             <Switch checked={showCompleted} onCheckedChange={(checked) => updatePresentation({ showCompleted: checked })} aria-label="Show completed tasks" />
             Done
-          </label>
+          </div>
         </div>
         </header>
       </PageContainer>
 
       {/* Content */}
       {view === 'list' ? (
-        <PageContainer className="pb-10">
+        <PageContainer width="wide" className="pb-10">
           {filtered.length === 0 ? (
             <EmptyState
               icon={<CheckSquare className="h-7 w-7" />}
@@ -499,7 +499,7 @@ export default function Tasks() {
                 {g.label && (
                   <h2
                     id={`task-group-${g.key}`}
-                    className="flex min-h-10 items-center gap-2 border-b border-border/50 bg-muted/20 px-3 text-[11px] font-semibold uppercase text-foreground/75"
+                    className="flex min-h-10 items-center gap-2 border-b border-border/50 bg-muted/20 px-3 text-[12.5px] font-semibold uppercase text-foreground/75"
                   >
                     <span>{g.label}</span>
                     <CountBadge count={g.tasks.length} label={`${g.tasks.length} tasks`} />
@@ -527,7 +527,7 @@ export default function Tasks() {
       ) : view === 'board' ? (
         <div className="flex w-full min-w-0 flex-1 min-h-0 flex-col overflow-hidden">
           {filtered.length === 0 ? (
-            <PageContainer>
+            <PageContainer width="wide">
               <EmptyState icon={<CheckSquare className="h-7 w-7" />} title="No tasks match" hint="Try widening the filters." />
             </PageContainer>
           ) : (

@@ -57,16 +57,16 @@ test('workspace entry enables an authenticated member and preserves access after
 
   for (const viewport of [{ width: 1280, height: 720 }, { width: 768, height: 844 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)
-    await page.goto('/login')
-    const continueButton = page.getByRole('button', { name: 'Continue to workspace' })
+    await page.goto('/auth/login')
+    const continueButton = page.getByRole('link', { name: 'Continue to workspace' })
     await expect(continueButton).toBeVisible()
     await expect(continueButton).toBeEnabled()
     expect(await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true)
   }
 
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto('/login')
-  await page.getByRole('button', { name: 'Continue to workspace' }).press('Enter')
+  await page.goto('/auth/login')
+  await page.getByRole('link', { name: 'Continue to workspace' }).press('Enter')
   await expect(page).toHaveURL('/')
   await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
   await page.reload()
@@ -78,7 +78,7 @@ test('workspace entry exposes a retryable backend failure', async ({ page }) => 
   await page.route('**/api/auth/session', async (route) => {
     await route.fulfill({ contentType: 'application/json', status: 503, body: '{"error":"Temporary"}' })
   })
-  await page.goto('/login')
+  await page.goto('/onboarding')
   await expect(page.getByText('PlanGlade is temporarily unavailable', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Try again' })).toBeEnabled()
 })
@@ -99,7 +99,7 @@ test('workspace onboarding enables only valid input and refreshes the session af
     onboardingRequired = false
     await route.fulfill({ contentType: 'application/json', status: 201, body: '{"workspace":{"id":"created","slug":"created","name":"Created workspace"}}' })
   })
-  await page.goto('/login')
+  await page.goto('/onboarding')
   const name = page.getByLabel('Workspace name')
   await expect(name).toBeFocused()
   const continueButton = page.getByRole('button', { name: 'Continue to workspace' })
@@ -131,6 +131,38 @@ test('authenticated API mode reads protected workspace data through Vite', async
   expect(directBackendRequests).toEqual([])
   expect(corsFailures).toEqual([])
   expect(consoleErrors).toEqual([])
+})
+
+test('primary, compatibility, back, and home navigation remain wired', async ({ page }) => {
+  const destinations = [
+    ['Home', '/'],
+    ['Inbox', '/inbox'],
+    ['Tasks', '/tasks'],
+    ['Projects', '/projects'],
+    ['Notes', '/notes'],
+    ['Calendar', '/calendar'],
+    ['Connections', '/connections'],
+    ['Settings', '/settings'],
+  ] as const
+
+  await page.goto('/')
+  for (const [name, path] of destinations.slice(1)) {
+    await page.getByLabel('Sidebar').getByRole('link', { name }).click()
+    await expect(page).toHaveURL(path)
+    await expect(page.locator('main')).toBeVisible()
+  }
+  await page.getByLabel('Sidebar').getByRole('link', { name: 'Home' }).click()
+  await expect(page).toHaveURL('/')
+
+  await page.goto('/app/tasks?view=board')
+  await expect(page).toHaveURL('/tasks?view=board')
+  await page.goto('/missing-page')
+  await expect(page.getByRole('heading', { name: 'This path does not lead to a PlanGlade page.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Go back' }).click()
+  await expect(page).toHaveURL('/tasks?view=board')
+  await page.goto('/missing-page')
+  await page.getByRole('link', { name: 'Go home' }).click()
+  await expect(page).toHaveURL('/')
 })
 
 test('Tasks view tabs keep their selected semantic state while switching views', async ({ page }) => {
@@ -247,7 +279,7 @@ test('Quick Capture creates one persisted backend Inbox item', async ({ page }) 
   await page.goto('/')
   await page.getByLabel('Quick capture to inbox').fill(title)
   const response = page.waitForResponse((candidate) =>
-    candidate.url() === 'http://127.0.0.1:5173/api/work-items' && candidate.request().method() === 'POST',
+    new URL(candidate.url()).pathname === '/api/work-items' && candidate.request().method() === 'POST',
   )
   await page.getByLabel('Quick capture to inbox').press('Enter')
   const created = await response
@@ -553,7 +585,7 @@ test('Settings signs out through the authenticated backend', async ({ page }) =>
   )
   await page.getByRole('button', { name: 'Sign out' }).click()
   expect((await signOut).ok()).toBe(true)
-  await page.waitForURL(/\/login/)
+  await page.waitForURL(/\/auth\/login/)
   await expect(page.getByText(/sign in|welcome back/i).first()).toBeVisible()
 })
 
@@ -583,7 +615,7 @@ test('signed-out API mode exposes no fixture data and sends no mutation', async 
 
   try {
     expect(await context.cookies()).toEqual([])
-    await page.goto('http://127.0.0.1:5173/')
+    await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
     await expect(page.getByText(fixture.taskTitle, { exact: true })).toHaveCount(0)
     expect(taskMutations).toBe(0)

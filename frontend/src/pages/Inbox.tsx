@@ -39,7 +39,7 @@ function InboxRow({
     >
       <SelectTrigger
         aria-label="Assign project"
-        className="h-8 min-w-0 max-w-[128px] data-[size=default]:h-8 overflow-hidden rounded-md border-0 bg-transparent px-1.5 text-[11.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden"
+        className="h-8 min-w-0 max-w-[128px] data-[size=default]:h-8 overflow-hidden rounded-md border-0 bg-transparent px-1.5 text-[12.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden"
       >
         <FolderOpen className="h-3.5 w-3.5 shrink-0" />
         <span className="min-w-0 truncate"><SelectValue placeholder="Project" /></span>
@@ -61,7 +61,7 @@ function InboxRow({
             <button
               aria-label="Set due date"
               className={cn(
-                'inline-flex h-8 max-w-[112px] items-center gap-1 rounded-md px-1.5 text-[11.5px] transition-colors hover:bg-accent',
+                'inline-flex h-8 max-w-[112px] items-center gap-1 rounded-md px-1.5 text-[12.5px] transition-colors hover:bg-accent',
                 item.dueDate ? 'text-foreground' : 'text-muted-foreground/70',
               )}
             >
@@ -87,7 +87,7 @@ function InboxRow({
     <Select value={item.priority} onValueChange={(v) => ws.updateInboxItem(item.id, { priority: v as Priority })}>
       <SelectTrigger
         aria-label="Set priority"
-        className={cn('h-8 max-w-[90px] data-[size=default]:h-8 overflow-hidden rounded-md border-0 bg-transparent px-1.5 text-[11.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden', priorityStyles[item.priority])}
+        className={cn('h-8 max-w-[90px] data-[size=default]:h-8 overflow-hidden rounded-md border-0 bg-transparent px-1.5 text-[12.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden', priorityStyles[item.priority])}
       >
         <Flag className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden truncate sm:inline"><SelectValue /></span>
@@ -242,7 +242,7 @@ export default function Inbox() {
   const selectedIds = useMemo(() => Array.from(selected).filter((id) => items.some((i) => i.id === id)), [selected, items])
 
   return (
-    <PageContainer width="reading" className="py-6 sm:py-8">
+    <PageContainer width="wide" className="py-6 sm:py-8">
       <header className="mb-5">
         <h1 className="pg-page-title">Inbox</h1>
         <p className="pg-page-kicker">

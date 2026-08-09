@@ -1,6 +1,8 @@
 # Security Policy
 
-PlanGlade is under active development and is not production-hardened yet. Please treat the project as pre-public release software unless the docs for your deployment path say otherwise.
+PlanGlade is under active development and is not production-hardened yet.
+Treat every published version as early-preview software unless its release notes
+explicitly state a stronger support level.
 
 ## Reporting a Vulnerability
 
@@ -8,13 +10,15 @@ Security issues must be reported privately, not through normal GitHub Issues. Do
 
 **Primary path:** use GitHub Private Vulnerability Reporting on this repository if it is visible to you. This is the preferred path because it keeps the report private and supports coordinated fixes.
 
-**If private vulnerability reporting is not visible:** open a minimal public GitHub issue that says only:
+**If private vulnerability reporting is not visible:** use the security contact
+request in the repository issue chooser and say only:
 
 > I need a private channel to report a security issue.
 
 That public issue must not include exploit details, reproduction steps, credentials, tokens, private keys, database URLs, URLs containing secrets, private user data, or screenshots with sensitive data. A maintainer will follow up privately.
 
-A dedicated security email may be added later. Until then, the paths above are the supported reporting channels.
+A dedicated security email may be added later. Until then, these verified
+GitHub paths are the supported reporting channels.
 
 Normal bugs and feature requests belong in GitHub Issues. Suspected security vulnerabilities do not.
 

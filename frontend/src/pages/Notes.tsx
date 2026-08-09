@@ -7,6 +7,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
+import { useAppCommands } from '@/store/app-commands'
 import { Markdown } from '@/components/Markdown'
 import { EmptyState, ProjectChip } from '@/components/bits'
 import { timeAgo, relativeLabel } from '@/lib/dates'
@@ -53,6 +54,7 @@ const formattingTools: FormattingTool[] = [
 
 function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
   const ws = useWorkspace()
+  const commands = useAppCommands()
   const canEdit = ws.canMutateNotes
   const [mode, setMode] = useState<'edit' | 'read'>('edit')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -220,7 +222,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
     if (!t) return
     setConvert({ open: false, text: '' })
     toast.success('Task created from note', {
-      action: { label: 'Open task', onClick: () => window.dispatchEvent(new CustomEvent('planglade:open-task', { detail: t.id })) },
+      action: { label: 'Open task', onClick: () => commands.dispatch('open-task', { taskId: t.id }) },
     })
   }
 
@@ -309,9 +311,9 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
       </div>
 
       {/* meta row */}
-      <div className="flex items-center gap-3 px-4 py-1.5 border-b border-border text-[11.5px] text-muted-foreground flex-wrap">
+      <div className="flex items-center gap-3 px-4 py-1.5 border-b border-border text-[12.5px] text-muted-foreground flex-wrap">
         <Select disabled={!canEdit || projectSaving} value={note.projectId ?? 'none'} onValueChange={(v) => { void saveProject(v) }}>
-          <SelectTrigger className="!h-11 text-[11.5px] border-0 bg-transparent hover:bg-accent px-1.5 -ml-1.5 w-auto shadow-none focus:ring-1 gap-1" aria-label="Linked project">
+          <SelectTrigger className="!h-11 text-[12.5px] border-0 bg-transparent hover:bg-accent px-1.5 -ml-1.5 w-auto shadow-none focus:ring-1 gap-1" aria-label="Linked project">
             <SelectValue placeholder="No project" />
           </SelectTrigger>
           <SelectContent>
@@ -585,7 +587,7 @@ export default function Notes() {
                   )}
                 >
                   <p className="text-[13px] font-medium truncate">{n.title}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 min-w-0">
+                  <p className="text-[12.5px] text-muted-foreground mt-0.5 flex items-center gap-1.5 min-w-0">
                     <span className="shrink-0">{timeAgo(n.updatedAt)}</span>
                     {n.projectId && <ProjectChip project={ws.getProject(n.projectId)} className="truncate" />}
                   </p>

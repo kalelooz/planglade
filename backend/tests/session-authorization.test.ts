@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server"
 
 import { requireWorkspaceRole } from "../src/lib/api-utils"
 import { db } from "../src/lib/db"
-import { DEV_USER_IDENTITY } from "../src/lib/permissions/session"
+import { DEV_USER_IDENTITY } from "../src/lib/permissions/principal"
 import { POST as importLocalWorkspace } from "../src/app/api/workspace/import-local/route"
 import { GET as getSettings, PUT as updateSettings } from "../src/app/api/settings/route"
 import { POST as createWorkItem } from "../src/app/api/work-items/route"

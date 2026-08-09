@@ -15,6 +15,7 @@ import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { updateAttachmentSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canAccessNote } from "@/lib/note-access"
+import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 import { deleteStorageObject } from "@/lib/storage"
 
 type Params = { params: Promise<{ attachmentId: string }> }
@@ -161,6 +162,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (existing.note && !canAccessNote(existing.note, query.data.workspaceId, actorUserId)) {
       return notFound("Attachment not found")
     }
+    if (!canDeleteWorkspaceContent({
+      role: access.actor.role,
+      actorUserId,
+      creatorUserId: existing.uploadedById,
+    })) return forbidden("Only the uploader or a workspace admin can delete this attachment")
 
     const projectId = existing.workItem?.projectId ?? existing.note?.projectId ?? null
     const flagError = await ensureProjectAttachmentsEnabled(query.data.workspaceId, projectId)

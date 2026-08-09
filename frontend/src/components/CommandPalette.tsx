@@ -11,6 +11,7 @@ import { useWorkspace } from '@/store/workspace'
 import { useQuickCapture } from '@/components/QuickCapture'
 import { useTaskDrawer } from '@/components/TaskDrawer'
 import { TASK_VIEW_CATALOG } from '@/lib/task-view-catalog'
+import { useAppCommands } from '@/store/app-commands'
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
@@ -18,6 +19,7 @@ export function CommandPalette() {
   const ws = useWorkspace()
   const { openCapture } = useQuickCapture()
   const { openTask } = useTaskDrawer()
+  const commands = useAppCommands()
   const openerRef = useRef<HTMLElement | null>(null)
 
   const close = (restoreFocus = true) => {
@@ -41,12 +43,12 @@ export function CommandPalette() {
       setOpen(true)
     }
     document.addEventListener('keydown', down)
-    window.addEventListener('planglade:command-palette', openHandler)
+    const unsubscribe = commands.subscribe('open-command-palette', openHandler)
     return () => {
       document.removeEventListener('keydown', down)
-      window.removeEventListener('planglade:command-palette', openHandler)
+      unsubscribe()
     }
-  }, [])
+  }, [commands])
 
   const go = (path: string) => {
     close(false)

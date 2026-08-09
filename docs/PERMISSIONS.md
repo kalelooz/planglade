@@ -1,0 +1,40 @@
+# Workspace permissions
+
+PlanGlade uses four workspace roles. Access is always limited to the current workspace.
+
+| Action | Viewer | Member | Admin | Owner |
+| --- | --- | --- | --- | --- |
+| View and search workspace content | Yes | Yes | Yes | Yes |
+| Download an accessible attachment | Yes | Yes | Yes | Yes |
+| Create and edit ordinary content | No | Yes | Yes | Yes |
+| Delete content you created | No | Yes | Yes | Yes |
+| Delete content created by someone else | No | No | Yes | Yes |
+| Manage labels and task relationships | No | Create and edit | Full access | Full access |
+| Manage members and invitation policy | No | No | Yes | Yes |
+| Export the workspace | No | No | Yes | Yes |
+| Preview or append an import | No | No | Yes | Yes |
+| Transfer ownership or delete the workspace | No | No | No | Owner only |
+
+## Exports
+
+Workspace exports are recorded in the activity log and are not cached. An export contains the workspace profile, projects, tasks and inbox items, notes the person exporting can access, labels, project documents, and saved views owned by that person.
+
+Exports do not contain memberships, invitations, activity history, notifications, attachment files or storage object keys, authentication material, or user settings.
+
+Store exported JSON files securely. They can contain private workspace content.
+
+## Imports
+
+Imports are append-only. PlanGlade previews supported data before import, then creates new records or skips duplicates. It does not delete or replace existing workspace data.
+
+Only admins and owners can import data. Each completed import is recorded in the activity log.
+
+## Deletion
+
+Members can delete content they created. Admins and owners can also delete shared content created by other members. Labels and task relationships do not record a creator, so only admins and owners can delete them.
+
+Use archive controls where PlanGlade provides them. Permanent deletion cannot be undone from the app.
+
+## Owner-only operations
+
+Ownership transfer, workspace deletion, and recovery-sensitive operations are reserved for the owner. These operations are not currently exposed in the early-preview interface.

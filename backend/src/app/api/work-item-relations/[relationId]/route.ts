@@ -45,7 +45,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
       await resolveRequestActorUserId(request),
-      "MEMBER"
+      "ADMIN"
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId

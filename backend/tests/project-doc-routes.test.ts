@@ -208,6 +208,7 @@ test("POST /project-docs/:docId/archive soft archives the owned doc", async () =
       id: "doc-1",
       workspaceId: "ws-1",
       title: "Runbook",
+      createdById: "actor-1",
       status: "ACTIVE",
       archivedAt: null,
     })) as unknown) as typeof db.projectDoc.findUnique
@@ -246,6 +247,7 @@ test("DELETE /project-docs/:docId hard deletes only an owned doc", async () => {
       id: "doc-1",
       workspaceId: "ws-1",
       title: "Runbook",
+      createdById: "actor-1",
     })) as unknown) as typeof db.projectDoc.findUnique
 
     let deleteWhere: unknown

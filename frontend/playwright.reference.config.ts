@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 30_000,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: process.env.PLANGLADE_E2E_BASE_URL ?? 'http://127.0.0.1:5173',
     browserName: 'chromium',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import {
   badRequest,
+  forbidden,
   notFound,
   parseDateValue,
   parseJsonBody,
@@ -12,6 +13,7 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { updateProjectSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 import { toProjectFeatureFlagsJson } from "@/lib/project-flags"
 
 type Params = { params: Promise<{ projectId: string }> }
@@ -115,10 +117,15 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.project.findUnique({
       where: { id: projectId },
-      select: { id: true, workspaceId: true, name: true },
+      select: { id: true, workspaceId: true, name: true, createdById: true },
     })
     if (!existing) return notFound("Project not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Project not found in workspace")
+    if (!canDeleteWorkspaceContent({
+      role: access.actor.role,
+      actorUserId,
+      creatorUserId: existing.createdById,
+    })) return forbidden("Only the project creator or a workspace admin can delete this project")
 
     await db.$transaction(async (tx) => {
       await tx.project.delete({ where: { id: projectId } })

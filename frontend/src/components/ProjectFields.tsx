@@ -76,7 +76,7 @@ export function ProjectColorField({ id, value, onChange }: { id: string; value: 
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-56 p-3" align="start" collisionPadding={16}>
-            <p className="mb-2 text-[11px] font-medium text-muted-foreground">Choose a color</p>
+            <p className="mb-2 text-[12.5px] font-medium text-muted-foreground">Choose a color</p>
             <div className="grid grid-cols-5 gap-2" role="group" aria-label="Project colors">
               {PROJECT_COLORS.map((color) => {
                 const active = color.value === value
@@ -123,7 +123,7 @@ export function ProjectIconField({ id, value, color, onChange }: { id: string; v
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" align="start" collisionPadding={16}>
-          <p className="mb-2 text-[11px] font-medium text-muted-foreground">Choose an icon</p>
+          <p className="mb-2 text-[12.5px] font-medium text-muted-foreground">Choose an icon</p>
           <div className="grid grid-cols-7 gap-1" role="group" aria-label="Project icons">
             {PROJECT_ICONS.map((item) => {
               const Icon = item.icon

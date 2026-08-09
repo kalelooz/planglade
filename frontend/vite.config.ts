@@ -18,16 +18,6 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backendOrigin,
         },
-        '/auth/login': {
-          target: backendOrigin,
-          rewrite: (path) => path.replace(/^\/auth\/login/, '/login'),
-        },
-        '/setup': {
-          target: backendOrigin,
-        },
-        '/_next': {
-          target: backendOrigin,
-        },
       },
     },
     resolve: {

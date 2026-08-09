@@ -1,10 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CalendarDays, CircleHelp, Flag, FolderOpen, Inbox as InboxIcon } from 'lucide-react'
-import { useWorkspace } from '@/store/workspace'
+import { useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData } from '@/store/workspace'
 import { parseCaptureInput, relativeLabel } from '@/lib/dates'
 
 interface QuickCaptureCtx {
@@ -20,26 +20,22 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
   const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const ws = useWorkspace()
+  const { canMutateTasks } = useWorkspaceCapabilities()
+  const { projects } = useWorkspaceData()
+  const { capture } = useWorkspaceActions()
 
   const openCapture = useCallback((s?: string) => {
-    if (!ws.canMutateTasks) {
+    if (!canMutateTasks) {
       return
     }
     setValue(s ?? '')
     setOpen(true)
-  }, [ws.canMutateTasks])
+  }, [canMutateTasks])
 
-  useEffect(() => {
-    const handler = () => openCapture()
-    window.addEventListener('planglade:quick-capture', handler)
-    return () => window.removeEventListener('planglade:quick-capture', handler)
-  }, [openCapture])
-
-  const projectNames = useMemo(() => ws.projects.map((p) => p.name), [ws.projects])
+  const projectNames = useMemo(() => projects.map((p) => p.name), [projects])
   const parsed = useMemo(() => parseCaptureInput(value, projectNames), [value, projectNames])
-  const parsedProject = parsed.projectName ? ws.projects.find((p) => p.name === parsed.projectName) : null
-  const projectExample = ws.projects[0]?.name.split(/\s+/)[0] ?? 'project'
+  const parsedProject = parsed.projectName ? projects.find((p) => p.name === parsed.projectName) : null
+  const projectExample = projects[0]?.name.split(/\s+/)[0] ?? 'project'
   const examples = [
     'Send homepage draft tomorrow',
     'Review launch copy next Friday p1',
@@ -49,7 +45,7 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
   const save = async () => {
     if (!parsed.text.trim()) return
     setSaving(true)
-    const saved = await ws.capture(parsed.text.trim(), {
+    const saved = await capture(parsed.text.trim(), {
       projectId: parsedProject?.id ?? null,
       dueDate: parsed.dueDate,
       priority: parsed.priority,
@@ -82,7 +78,7 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
                 <PopoverContent align="start" sideOffset={6} className="w-[min(20rem,calc(100vw-2rem))] p-3">
                   <div className="mb-2">
                     <p className="text-[12px] font-semibold text-foreground">Capture examples</p>
-                    <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">Click one to try it. Dates, priorities, and project tags are organized automatically.</p>
+                    <p className="mt-0.5 text-[12.5px] leading-4 text-muted-foreground">Click one to try it. Dates, priorities, and project tags are organized automatically.</p>
                   </div>
                   <div className="space-y-1">
                     {examples.map((example) => (
@@ -96,7 +92,7 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 border-t border-border pt-2 text-[10.5px] leading-4 text-muted-foreground">Try dates like “today,” “in 3 days,” or “next Monday.” Priorities also accept p1, p2, and p3.</p>
+                  <p className="mt-2 border-t border-border pt-2 text-[12.5px] leading-4 text-muted-foreground">Try dates like “today,” “in 3 days,” or “next Monday.” Priorities also accept p1, p2, and p3.</p>
                 </PopoverContent>
               </Popover>
             </div>
@@ -120,23 +116,23 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
             />
             {parsed.inferred && value.trim() && (
               <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-live="polite">
-                <span className="text-[11px] text-muted-foreground mr-1">Will save:</span>
-                <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-secondary-foreground max-w-[220px]">
+                <span className="text-[12.5px] text-muted-foreground mr-1">Will save:</span>
+                <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground max-w-[220px]">
                   <InboxIcon className="h-3 w-3 shrink-0" />
                   <span className="truncate">{parsed.text}</span>
                 </span>
                 {parsed.dueDate && (
-                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-secondary-foreground">
+                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground">
                     <CalendarDays className="h-3 w-3" /> {relativeLabel(parsed.dueDate)}
                   </span>
                 )}
                 {parsed.priority !== 'none' && (
-                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-secondary-foreground capitalize">
+                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground capitalize">
                     <Flag className="h-3 w-3" /> {parsed.priority}
                   </span>
                 )}
                 {parsedProject && (
-                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-secondary-foreground max-w-[160px]">
+                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground max-w-[160px]">
                     <FolderOpen className="h-3 w-3 shrink-0" />
                     <span className="truncate">{parsedProject.name}</span>
                   </span>
@@ -144,7 +140,7 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
               </div>
             )}
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-[11px] text-muted-foreground hidden sm:block">
+              <p className="text-[12.5px] text-muted-foreground hidden sm:block">
                 Try “tomorrow”, “next Friday”, “p1”, or “#project”
               </p>
               <div className="flex gap-2 ml-auto">

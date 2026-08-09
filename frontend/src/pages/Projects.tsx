@@ -35,9 +35,9 @@ export default function Projects() {
   const [icon, setIcon] = useState<ProjectIconName>(DEFAULT_PROJECT_ICON)
   const [iconEdited, setIconEdited] = useState(false)
   const [saving, setSaving] = useState(false)
-  const projectStatuses = ws.readOnly
-    ? (['active', 'in_review', 'on_hold', 'archived'] as const)
-    : (Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[])
+  const projectStatuses = ws.supportsCompletedProjectStatus
+    ? (Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[])
+    : (['active', 'in_review', 'on_hold', 'archived'] as const)
 
   const list = useMemo(() => {
     let l = [...ws.projects]
@@ -104,7 +104,7 @@ export default function Projects() {
   }
 
   return (
-    <PageContainer className="py-6 sm:py-8">
+    <PageContainer width="wide" className="py-6 sm:py-8">
       <header className="mb-4 flex flex-wrap items-center gap-3">
         <div className="mr-auto">
           <h1 className="pg-page-title">Projects</h1>
@@ -160,7 +160,7 @@ export default function Projects() {
         {portfolioSummary.map((item) => (
           <div key={item.label} className="flex shrink-0 items-baseline gap-1.5">
             <dd className="text-base font-semibold tabular-nums">{item.value}</dd>
-            <dt className="text-[11.5px] text-muted-foreground">{item.label}</dt>
+            <dt className="text-[12.5px] text-muted-foreground">{item.label}</dt>
           </div>
         ))}
       </dl>
@@ -188,18 +188,18 @@ export default function Projects() {
                     <div className="flex items-center gap-2">
                       <ProjectIcon className="h-4 w-4 shrink-0" style={{ color: p.source?.color ?? DEFAULT_PROJECT_COLOR }} aria-hidden />
                       <span className="text-[14px] font-medium truncate">{p.name}</span>
-                      <span className={cn('text-[11px] rounded px-1.5 py-px shrink-0', p.status === 'active' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : p.status === 'on_hold' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400')}>
+                      <span className={cn('text-[12.5px] rounded px-1.5 py-px shrink-0', p.status === 'active' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : p.status === 'on_hold' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400')}>
                         {PROJECT_STATUS_LABELS[p.status]}
                       </span>
                       {overdueCount > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400 shrink-0">
+                        <span className="inline-flex items-center gap-1 text-[12.5px] text-red-600 dark:text-red-400 shrink-0">
                           <CircleAlert className="h-3 w-3" /> {overdueCount} overdue
                         </span>
                       )}
                     </div>
                     <p className="text-[12.5px] text-muted-foreground truncate mt-0.5">{p.description}</p>
                   </div>
-                  <div className="hidden sm:flex items-center gap-5 shrink-0 text-[11.5px] text-muted-foreground">
+                  <div className="hidden sm:flex items-center gap-5 shrink-0 text-[12.5px] text-muted-foreground">
                     <div className="w-[110px]">
                       <div className="flex justify-between mb-1">
                         <span className="tabular-nums">{pct}%</span>
@@ -211,7 +211,7 @@ export default function Projects() {
                   </div>
                 </div>
                 {recentNote && (
-                  <p className="text-[11.5px] text-muted-foreground/80 mt-1 truncate pl-0">
+                  <p className="text-[12.5px] text-muted-foreground/80 mt-1 truncate pl-0">
                     Latest note: {recentNote.title} · {timeAgo(recentNote.updatedAt)}
                   </p>
                 )}

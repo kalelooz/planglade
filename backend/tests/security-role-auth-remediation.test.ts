@@ -2,7 +2,10 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { NextRequest } from "next/server"
 
-import { GET as getWorkspaceMembers } from "../src/app/api/workspace/members/route"
+import {
+  GET as getWorkspaceMembers,
+  POST as createWorkspaceMember,
+} from "../src/app/api/workspace/members/route"
 import { resolveRequestActorUserId } from "../src/lib/api-utils"
 import { getAuthConfigErrors } from "../src/lib/auth-config"
 import {
@@ -80,6 +83,15 @@ test("generic member and invitation inputs retain lower roles", () => {
     }).success,
     true
   )
+})
+
+test("direct workspace membership creation is disabled in favor of invitations", async () => {
+  const response = await createWorkspaceMember()
+  const payload = (await response.json()) as { error?: string }
+
+  assert.equal(response.status, 405)
+  assert.equal(response.headers.get("allow"), "GET")
+  assert.match(payload.error ?? "", /invitation/i)
 })
 
 test("production dev auth fails closed before reading identity headers", async () => {

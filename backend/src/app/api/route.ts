@@ -8,7 +8,6 @@ export async function GET() {
     generatedAt: new Date().toISOString(),
     endpoints: {
       health: "/api/health",
-      workspaceBootstrap: "/api/workspace/bootstrap",
       workspaceOnboarding: "/api/workspace/onboarding",
       workspaceMembers: "/api/workspace/members",
       workspaceInvitations: "/api/workspace/invitations",

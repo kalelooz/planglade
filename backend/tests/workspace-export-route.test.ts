@@ -15,6 +15,8 @@ const originalNoteFindMany = db.note.findMany
 const originalLabelFindMany = db.label.findMany
 const originalProjectDocFindMany = db.projectDoc.findMany
 const originalSavedViewFindMany = db.savedView.findMany
+const originalActivityEventCreate = db.activityEvent.create
+const originalNotificationUpsert = db.notification.upsert
 const originalUserSettingsFindUnique = db.userSettings.findUnique
 const originalTransaction = db.$transaction
 
@@ -34,6 +36,8 @@ async function runWithMocks(fn: () => Promise<void>) {
     ;(db.label as typeof db.label).findMany = originalLabelFindMany
     ;(db.projectDoc as typeof db.projectDoc).findMany = originalProjectDocFindMany
     ;(db.savedView as typeof db.savedView).findMany = originalSavedViewFindMany
+    ;(db.activityEvent as typeof db.activityEvent).create = originalActivityEventCreate
+    ;(db.notification as typeof db.notification).upsert = originalNotificationUpsert
     ;(db.userSettings as typeof db.userSettings).findUnique = originalUserSettingsFindUnique
     ;(db as unknown as { $transaction: unknown }).$transaction = originalTransaction
   }
@@ -54,6 +58,9 @@ function mockWorkspaceAccess(role: Role) {
     userId: "actor-1",
     role,
   })) as unknown) as typeof db.workspaceMember.findUnique
+  ;(db.savedView as typeof db.savedView).findMany = ((async () => []) as unknown) as typeof db.savedView.findMany
+  ;(db.activityEvent as typeof db.activityEvent).create = ((async () => ({})) as unknown) as typeof db.activityEvent.create
+  ;(db.notification as typeof db.notification).upsert = ((async () => ({})) as unknown) as typeof db.notification.upsert
 }
 
 function mockEmptyWorkspaceExport() {
@@ -64,17 +71,31 @@ function mockEmptyWorkspaceExport() {
   ;(db.projectDoc as typeof db.projectDoc).findMany = ((async () => []) as unknown) as typeof db.projectDoc.findMany
   ;(db.savedView as typeof db.savedView).findMany = ((async () => []) as unknown) as typeof db.savedView.findMany
   ;(db.userSettings as typeof db.userSettings).findUnique = ((async () => null) as unknown) as typeof db.userSettings.findUnique
+  ;(db.activityEvent as typeof db.activityEvent).create = ((async () => ({})) as unknown) as typeof db.activityEvent.create
 }
 
 function mockTransaction(tx: unknown) {
   ;(db as unknown as { $transaction: unknown }).$transaction = (async <T>(
     fn: (transactionClient: unknown) => Promise<T>
-  ) => fn(tx)) as typeof db.$transaction
+  ) => fn({ activityEvent: { create: async () => ({}) }, ...(tx as object) })) as typeof db.$transaction
 }
+
+test("GET /workspace/export requires a workspace admin", async () => {
+  await runWithMocks(async () => {
+    mockWorkspaceAccess("MEMBER")
+    mockEmptyWorkspaceExport()
+
+    const response = await exportWorkspace(
+      new NextRequest("http://localhost/api/workspace/export?workspaceId=workspace-1")
+    )
+
+    assert.equal(response.status, 403)
+  })
+})
 
 test("GET /workspace/export ignores client userId and does not export user settings", async () => {
   await runWithMocks(async () => {
-    mockWorkspaceAccess("MEMBER")
+    mockWorkspaceAccess("ADMIN")
 
     mockEmptyWorkspaceExport()
     let settingsLoaded = false
@@ -111,7 +132,7 @@ test("GET /workspace/export ignores client userId and does not export user setti
 
 test("GET /workspace/export is workspace scoped and includes expected safe data", async () => {
   await runWithMocks(async () => {
-    mockWorkspaceAccess("MEMBER")
+    mockWorkspaceAccess("ADMIN")
     const createdAt = new Date("2026-06-10T08:00:00.000Z")
     const updatedAt = new Date("2026-06-10T09:00:00.000Z")
 
@@ -251,6 +272,7 @@ test("GET /workspace/export is workspace scoped and includes expected safe data"
       taskLabels?: Array<{ taskId: string; labelId: string }>
       data?: { workItems?: Array<{ id: string }> }
       counts?: { tasks?: number; inboxItems?: number; labels?: number; taskLabels?: number }
+      scope?: { includes?: string[]; excludes?: string[] }
     }
     const serialized = JSON.stringify(payload)
 
@@ -275,13 +297,18 @@ test("GET /workspace/export is workspace scoped and includes expected safe data"
     assert.equal(payload.counts?.inboxItems, 1)
     assert.equal(payload.counts?.labels, 1)
     assert.equal(payload.counts?.taskLabels, 1)
+    assert.ok(payload.scope?.includes?.includes("actor-accessible notes"))
+    assert.ok(payload.scope?.excludes?.includes("authentication material"))
+    assert.equal(response.headers.get("cache-control"), "no-store")
+    assert.equal(response.headers.get("pragma"), "no-cache")
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff")
     assert.doesNotMatch(serialized, /password|token|secret|session|oauth/i)
   })
 })
 
 test("GET /workspace/export includes legacy project docs and archived state", async () => {
   await runWithMocks(async () => {
-    mockWorkspaceAccess("MEMBER")
+    mockWorkspaceAccess("ADMIN")
     mockEmptyWorkspaceExport()
 
     const archivedAt = new Date("2026-06-06T10:00:00.000Z")
@@ -357,7 +384,7 @@ test("GET /workspace/export includes legacy project docs and archived state", as
 
 test("GET /workspace/export preserves the actor's saved views", async () => {
   await runWithMocks(async () => {
-    mockWorkspaceAccess("MEMBER")
+    mockWorkspaceAccess("ADMIN")
     mockEmptyWorkspaceExport()
     const createdAt = new Date("2026-06-06T09:00:00.000Z")
     ;(db.savedView as typeof db.savedView).findMany = ((async (args: unknown) => {

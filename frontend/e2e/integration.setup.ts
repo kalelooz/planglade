@@ -18,7 +18,7 @@ type Runtime = {
 }
 
 export default async function setupIntegration() {
-  const baseURL = 'http://127.0.0.1:5173'
+  const baseURL = process.env.PLANGLADE_E2E_BASE_URL ?? 'http://127.0.0.1:5173'
   const setupToken = required('PLANGLADE_E2E_SETUP_TOKEN')
   const email = required('PLANGLADE_E2E_EMAIL')
   const password = required('PLANGLADE_E2E_PASSWORD')
