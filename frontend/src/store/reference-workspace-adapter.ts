@@ -3,6 +3,22 @@ import type { WorkspaceState } from '@/types'
 
 const STORAGE_KEY = 'planglade-workspace-v1'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isWorkspaceState(value: unknown): value is WorkspaceState {
+  if (!isRecord(value) || typeof value.workspaceName !== 'string' || typeof value.userName !== 'string') return false
+  for (const field of ['projects', 'tasks', 'notes', 'inbox', 'people', 'labels', 'recents']) {
+    if (!Array.isArray(value[field])) return false
+  }
+  if (!isRecord(value.settings)) return false
+  return ['light', 'dark', 'system'].includes(String(value.settings.theme))
+    && ['icon', 'text'].includes(String(value.settings.priorityDisplay))
+    && (value.settings.weekStartsOn === 0 || value.settings.weekStartsOn === 1)
+    && typeof value.settings.hideHomeCompleted === 'boolean'
+}
+
 export interface ReferenceWorkspaceAdapter {
   load(): WorkspaceState
   save(state: WorkspaceState): void
@@ -19,8 +35,8 @@ export function createReferenceWorkspaceAdapter(
       try {
         const raw = storage.getItem(STORAGE_KEY)
         if (raw) {
-          const parsed = JSON.parse(raw) as WorkspaceState
-          if (parsed && Array.isArray(parsed.tasks) && Array.isArray(parsed.projects)) return parsed
+          const parsed: unknown = JSON.parse(raw)
+          if (isWorkspaceState(parsed)) return parsed
         }
       } catch {
         // Corrupt or unavailable storage falls back to a fresh reference workspace.

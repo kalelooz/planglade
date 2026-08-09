@@ -56,7 +56,7 @@ function NewTaskDialog({
   const [title, setTitle] = useState('')
   const [projectId, setProjectId] = useState<string>('none')
   const [status, setStatus] = useState<TaskStatus>(defaultStatus)
-  const [priority, setPriority] = useState<'none' | 'low' | 'medium' | 'high'>('none')
+  const [priority, setPriority] = useState<'none' | 'low' | 'medium' | 'high'>(ws.supportsNoPriority ? 'none' : 'medium')
   const [dueDate, setDueDate] = useState('')
   const [saving, setSaving] = useState(false)
 

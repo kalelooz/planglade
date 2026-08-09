@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify annotated tag signature
         env:
@@ -28,6 +29,11 @@ jobs:
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME" --jq '.object.sha')"
           test "$tag_type" = 'tag'
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.verification.verified')" = 'true'
+          tag_target_type="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.object.type')"
+          tag_commit="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.object.sha')"
+          test "$tag_target_type" = 'commit'
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$tag_commit" origin/main
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

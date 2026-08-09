@@ -12,7 +12,7 @@ test("the transitional Next application exposes API routes only", () => {
   assert.equal(existsSync("public"), false)
   assert.equal(existsSync("Caddyfile"), false)
 
-  for (const pathname of ["/", "/auth/login", "/setup", "/tasks", "/_next/static/example.js"]) {
+  for (const pathname of ["/", "/apiary", "/auth/login", "/setup", "/tasks", "/_next/static/example.js"]) {
     const response = proxy(new NextRequest(`http://127.0.0.1:3000${pathname}`))
     assert.equal(response?.status, 404, pathname)
   }

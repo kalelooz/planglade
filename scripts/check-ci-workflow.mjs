@@ -31,8 +31,12 @@ if (/pull_request_target:/.test(workflow)) {
   throw new Error('CI workflow must not execute pull_request_target code')
 }
 
-const actionReferences = [...workflow.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#.*)?$/gm)].map((match) => match[1])
+const actionReferencePattern = /^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#.*)?$/gm
+const actionReferences = [...workflow.matchAll(actionReferencePattern)].map((match) => match[1])
 if (actionReferences.length === 0) throw new Error('CI workflow must use pinned GitHub Actions')
+if ([...'- uses: owner/action@0123456789abcdef0123456789abcdef01234567'.matchAll(actionReferencePattern)].length !== 1) {
+  throw new Error('CI workflow validation must recognize direct list-form action steps')
+}
 for (const reference of actionReferences) {
   if (!/@[0-9a-f]{40}$/.test(reference)) {
     throw new Error(`GitHub Action must be pinned to a full commit SHA: ${reference}`)

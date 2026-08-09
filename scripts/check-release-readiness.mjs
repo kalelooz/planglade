@@ -43,10 +43,20 @@ for (const migration of migrations) {
 }
 
 const workflow = await read('.github/workflows/release.yml')
-for (const required of ['verification.verified', 'npm run check:release', 'npm run test:release', 'npm sbom', 'sha256sum', 'gh release create']) {
+for (const required of [
+  'verification.verified',
+  'persist-credentials: false',
+  'git fetch --no-tags origin main',
+  'git merge-base --is-ancestor "$tag_commit" origin/main',
+  'npm run check:release',
+  'npm run test:release',
+  'npm sbom',
+  'sha256sum',
+  'gh release create',
+]) {
   assert.ok(workflow.includes(required), `Release workflow is missing ${required}`)
 }
-for (const reference of [...workflow.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#.*)?$/gm)].map((match) => match[1])) {
+for (const reference of [...workflow.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#.*)?$/gm)].map((match) => match[1])) {
   assert.match(reference, /@[0-9a-f]{40}$/, `Release action must be pinned to a full commit SHA: ${reference}`)
 }
 

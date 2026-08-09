@@ -1,13 +1,11 @@
-import { spawn, execFile as execFileCallback } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { DatabaseSync } from 'node:sqlite'
+import { assertPortAvailable, parsePort, portAvailable, stopProcessTree } from './harness-utils.mjs'
 
-const execFile = promisify(execFileCallback)
 const appDirectory = path.resolve(import.meta.dirname, '..')
 const backendDirectory = process.env.PLANGLADE_E2E_BACKEND_DIR ?? path.resolve(appDirectory, '..', 'backend')
 const resultDirectory = path.join(appDirectory, 'test-results', 'vite-integration')
@@ -16,8 +14,8 @@ const databasePath = path.join(temporaryDirectory, 'integration.db')
 const runtimeFile = path.join(temporaryDirectory, 'runtime.json')
 const storageState = path.join(temporaryDirectory, 'storage-state.json')
 const runId = randomBytes(8).toString('hex')
-const backendPort = Number(process.env.PLANGLADE_E2E_BACKEND_PORT ?? 3000)
-const frontendPort = Number(process.env.PLANGLADE_E2E_FRONTEND_PORT ?? 5173)
+const backendPort = parsePort(process.env.PLANGLADE_E2E_BACKEND_PORT, 'PLANGLADE_E2E_BACKEND_PORT', 3000)
+const frontendPort = parsePort(process.env.PLANGLADE_E2E_FRONTEND_PORT, 'PLANGLADE_E2E_FRONTEND_PORT', 5173)
 const backendOrigin = `http://127.0.0.1:${backendPort}`
 const frontendOrigin = `http://127.0.0.1:${frontendPort}`
 const children = []
@@ -25,26 +23,6 @@ const logs = []
 
 function fileUrl(filePath) {
   return `file:${filePath.replaceAll('\\', '/')}`
-}
-
-async function portAvailable(port) {
-  return new Promise((resolve, reject) => {
-    const server = createServer()
-    server.unref()
-    server.once('error', (error) => {
-      if (error.code === 'EADDRINUSE') resolve(false)
-      else reject(error)
-    })
-    server.listen({ host: '127.0.0.1', port, exclusive: true }, () => {
-      server.close((error) => error ? reject(error) : resolve(true))
-    })
-  })
-}
-
-async function assertPortAvailable(port) {
-  if (!(await portAvailable(port))) {
-    throw new Error(`Port ${port} is already occupied. Stop that process before running this harness.`)
-  }
 }
 
 async function applyMigrations() {
@@ -62,7 +40,13 @@ async function applyMigrations() {
 }
 
 function start(name, command, args, options) {
-  const child = spawn(command, args, { ...options, shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  const child = spawn(command, args, {
+    ...options,
+    detached: process.platform !== 'win32',
+    shell: false,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
   children.push(child)
   for (const stream of [child.stdout, child.stderr]) {
     stream.setEncoding('utf8')
@@ -86,22 +70,7 @@ async function waitForServer(url, name) {
 }
 
 async function stopChildren() {
-  await Promise.all(children.map(async (child) => {
-    if (!child.pid || child.exitCode !== null) return
-    if (process.platform === 'win32') {
-      try {
-        await execFile('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true })
-      } catch {
-        // A child may already have exited while its parent is being stopped.
-      }
-      return
-    }
-
-    const exited = new Promise((resolve) => child.once('exit', resolve))
-    child.kill('SIGTERM')
-    await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 5_000))])
-    if (child.exitCode === null) child.kill('SIGKILL')
-  }))
+  await Promise.all(children.map(stopProcessTree))
 }
 
 async function assertPortsReleased() {

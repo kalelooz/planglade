@@ -8,7 +8,7 @@ import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, useV
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Task, TaskStatus } from '@/types'
-import { STATUS_ORDER, STATUS_LABELS } from '@/types'
+import { TASK_STATUS_ORDER, STATUS_LABELS } from '@/types'
 import { useWorkspace } from '@/store/workspace'
 import { useTaskDrawer } from '@/components/TaskDrawer'
 import { PriorityBadge, DueBadge, BlockedIndicator, CountBadge } from '@/components/bits'
@@ -190,7 +190,7 @@ export function Board({
   const tiltRaw = useTransform(velocityX, [-1200, 1200], [-3, 3], { clamp: true })
   const tiltSpring = useSpring(tiltRaw, { stiffness: 300, damping: 30, mass: 0.6 })
   const tilt = useTransform(() => reducedMotion ? 0 : tiltSpring.get())
-  const statuses = ws.supportsBlockedStatus ? STATUS_ORDER : STATUS_ORDER.filter((status) => status !== 'blocked')
+  const statuses = ws.supportsBlockedStatus ? TASK_STATUS_ORDER : TASK_STATUS_ORDER.filter((status) => status !== 'blocked')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),

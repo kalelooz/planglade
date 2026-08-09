@@ -285,36 +285,39 @@ export async function GET(request: NextRequest) {
       ],
     }
 
-    await logActivityEvent(db, {
-      workspaceId: query.data.workspaceId,
-      actorId: access.actor.userId,
-      action: "UPDATED",
-      entityType: "WORKSPACE",
-      entityId: query.data.workspaceId,
-      summary: "Exported workspace data",
-      metadata: {
-        operation: "WORKSPACE_EXPORT",
-        counts: {
-          projects: serializedProjects.length,
-          workItems: serializedWorkItems.length,
-          notes: serializedNotes.length,
-          labels: serializedLabels.length,
-          projectDocs: serializedLegacyDocs.length,
-          savedViews: serializedSavedViews.length,
+    const sideEffects: Array<() => Promise<unknown>> = [
+      () => logActivityEvent(db, {
+        workspaceId: query.data.workspaceId,
+        actorId: access.actor.userId,
+        action: "UPDATED",
+        entityType: "WORKSPACE",
+        entityId: query.data.workspaceId,
+        summary: "Exported workspace data",
+        metadata: {
+          operation: "WORKSPACE_EXPORT",
+          counts: {
+            projects: serializedProjects.length,
+            workItems: serializedWorkItems.length,
+            notes: serializedNotes.length,
+            labels: serializedLabels.length,
+            projectDocs: serializedLegacyDocs.length,
+            savedViews: serializedSavedViews.length,
+          },
         },
-      },
-    })
+      }),
+    ]
     if (workspace?.ownerId && workspace.ownerId !== access.actor.userId) {
-      await createNotificationRecord(db, {
+      sideEffects.push(() => createNotificationRecord(db, {
         workspaceId: query.data.workspaceId,
         userId: workspace.ownerId,
         actorId: access.actor.userId,
         type: "STATUS",
         title: "Workspace export completed",
         body: "An administrator exported workspace data.",
-        sourceKey: `workspace-export:${access.actor.userId}:${exportedAt}`,
-      })
+        sourceKey: `workspace-export:${access.actor.userId}:${exportedAt.slice(0, 10)}`,
+      }))
     }
+    await Promise.allSettled(sideEffects.map(async (effect) => effect()))
 
     const response = NextResponse.json({
       version: 1,

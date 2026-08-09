@@ -73,6 +73,7 @@ export function useApiWorkspaceMutations(selectedWorkspaceId: string | null) {
     onSuccess: (_deleted, variables) => {
       queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => current.filter((project) => project.id !== variables.projectId))
       queryClient.setQueryData<BackendWorkItem[]>(['tasks', variables.workspaceId], (current = []) => current.map((task) => task.projectId === variables.projectId ? { ...task, projectId: null } : task))
+      queryClient.setQueryData<BackendWorkItem[]>(['inbox', variables.workspaceId], (current = []) => current.map((item) => item.projectId === variables.projectId ? { ...item, projectId: null } : item))
       queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.projectId === variables.projectId ? { ...note, projectId: null } : note))
     },
   })

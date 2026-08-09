@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { Copy, Printer } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { AuthFrame } from '@/components/AuthFrame'
@@ -50,10 +50,10 @@ function ownerErrors(values: { name: string; email: string; password: string; co
   return errors
 }
 
-function StatePage({ title, detail, retry }: { title: string; detail?: ReactNode; retry?: () => void }) {
+function StatePage({ title, detail, retry, headingRef }: { title: string; detail?: ReactNode; retry?: () => void; headingRef: RefObject<HTMLHeadingElement | null> }) {
   return (
     <AuthFrame compact>
-      <h1 tabIndex={-1} className="pg-page-title outline-none">{title}</h1>
+      <h1 ref={headingRef} tabIndex={-1} className="pg-page-title outline-none">{title}</h1>
       {detail && <div className="pg-body-muted mt-3">{detail}</div>}
       <div className="mt-6 flex flex-wrap gap-3">
         {retry && <Button onClick={retry}>Try again</Button>}
@@ -234,10 +234,10 @@ export default function Setup() {
   const describedBy = (field: OwnerField, help?: string) => [help, fieldError(field) ? `${field}-error` : null].filter(Boolean).join(' ') || undefined
 
   if (screen === 'checking') return <AuthFrame compact><h1 className="pg-page-title">Checking setup availability</h1><p role="status" className="pg-body-muted mt-3">This check does not change your workspace.</p></AuthFrame>
-  if (screen === 'configuration') return <StatePage title="Setup needs installation configuration" detail={<>Run <code className="font-mono text-foreground">npm run setup:local</code>, restart PlanGlade, then return here.</>} retry={() => void discover()} />
-  if (screen === 'unavailable') return <StatePage title="Setup is not available" detail="An owner account already exists or this installation does not allow first-time setup." />
-  if (screen === 'temporary') return <StatePage title="Setup is temporarily unavailable" detail="Check that the PlanGlade backend is running, then try again." retry={() => void discover()} />
-  if (screen === 'completion-lost') return <StatePage title="Setup may already be complete" detail="Try signing in with the owner email and password you entered." />
+  if (screen === 'configuration') return <StatePage headingRef={headingRef} title="Setup needs installation configuration" detail={<>Run <code className="font-mono text-foreground">npm run setup:local</code>, restart PlanGlade, then return here.</>} retry={() => void discover()} />
+  if (screen === 'unavailable') return <StatePage headingRef={headingRef} title="Setup is not available" detail="An owner account already exists or this installation does not allow first-time setup." />
+  if (screen === 'temporary') return <StatePage headingRef={headingRef} title="Setup is temporarily unavailable" detail="Check that the PlanGlade backend is running, then try again." retry={() => void discover()} />
+  if (screen === 'completion-lost') return <StatePage headingRef={headingRef} title="Setup may already be complete" detail="Try signing in with the owner email and password you entered." />
 
   if (screen === 'recovery') return (
     <AuthFrame compact><Progress current={3} /><div ref={recoveryRef} className="mt-8"><h1 ref={headingRef} tabIndex={-1} className="pg-page-title outline-none">Recovery codes</h1><p className="pg-body-muted mt-3 font-medium text-foreground">Save these codes now. Each works once, and PlanGlade cannot show them again.</p><ol className="mt-6 grid gap-2 font-mono text-sm" aria-label="Recovery codes">{recoveryCodes.map((code, index) => <li key={code} className="select-text rounded-md border border-border bg-muted/55 px-3 py-2"><span className="mr-3 text-muted-foreground">{index + 1}.</span>{code.split('-').map((group, groupIndex) => <span key={`${group}-${groupIndex}`} className="inline-block whitespace-nowrap">{group}{groupIndex < 7 ? '-' : ''}</span>)}</li>)}</ol><div className="mt-5 flex flex-wrap gap-3"><Button type="button" variant="outline" size="lg" onClick={() => void copyCodes()}><Copy aria-hidden="true" />Copy all codes</Button><Button type="button" variant="outline" size="lg" onClick={printCodes}><Printer aria-hidden="true" />Print codes</Button></div><p className="mt-3 min-h-5 text-sm text-muted-foreground" aria-live="polite">{routineStatus}</p><label className="mt-6 flex min-h-11 items-start gap-3 rounded-md border border-border p-3 text-sm font-medium"><input type="checkbox" checked={codesSaved} onChange={(event) => setCodesSaved(event.target.checked)} className="mt-0.5 size-5" />I saved these recovery codes.</label><Button size="lg" className="mt-5 w-full" disabled={!codesSaved} onClick={continueToLogin}>Continue to sign in</Button></div></AuthFrame>

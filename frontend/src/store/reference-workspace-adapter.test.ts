@@ -25,4 +25,15 @@ describe('reference workspace adapter', () => {
     expect(adapter.reset().workspaceName).toBe('Local')
     expect(values.size).toBe(0)
   })
+
+  it('rejects partial persisted state before the provider reads required fields', () => {
+    const partial = JSON.stringify({ workspaceName: 'Broken', userName: 'Owner', projects: [], tasks: [] })
+    const storage = {
+      getItem: () => partial,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    }
+
+    expect(createReferenceWorkspaceAdapter(storage, fixture).load()).toEqual(fixture())
+  })
 })

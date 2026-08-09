@@ -93,6 +93,31 @@ test("GET /workspace/export requires a workspace admin", async () => {
   })
 })
 
+test("GET /workspace/export survives audit failures and coalesces owner notifications by day", async () => {
+  await runWithMocks(async () => {
+    mockWorkspaceAccess("ADMIN")
+    mockEmptyWorkspaceExport()
+    let notificationCalls = 0
+    let sourceKey: unknown
+    ;(db.activityEvent as typeof db.activityEvent).create = ((async () => {
+      throw new Error("audit unavailable")
+    }) as unknown) as typeof db.activityEvent.create
+    ;(db.notification as typeof db.notification).upsert = ((async (args: unknown) => {
+      notificationCalls += 1
+      sourceKey = (args as { create?: { sourceKey?: unknown } }).create?.sourceKey
+      throw new Error("notification unavailable")
+    }) as unknown) as typeof db.notification.upsert
+
+    const response = await exportWorkspace(
+      new NextRequest("http://localhost/api/workspace/export?workspaceId=workspace-1")
+    )
+
+    assert.equal(response.status, 200)
+    assert.equal(notificationCalls, 1)
+    assert.match(String(sourceKey), /^workspace-export:actor-1:\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
 test("GET /workspace/export ignores client userId and does not export user settings", async () => {
   await runWithMocks(async () => {
     mockWorkspaceAccess("ADMIN")

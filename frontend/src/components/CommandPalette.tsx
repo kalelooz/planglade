@@ -93,12 +93,12 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>Nothing found. Try a different search.</CommandEmpty>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => { close(false); openCapture() }}>
+          {ws.canMutateTasks && <CommandItem onSelect={() => { close(false); openCapture() }}>
             <Plus className="mr-2 h-4 w-4" /> Capture to Inbox
-          </CommandItem>
-          <CommandItem onSelect={() => { close(false); navigate('/tasks', { state: { newTask: true } }) }}>
+          </CommandItem>}
+          {ws.canMutateTasks && <CommandItem onSelect={() => { close(false); navigate('/tasks', { state: { newTask: true } }) }}>
             <CheckSquare className="mr-2 h-4 w-4" /> Create task
-          </CommandItem>
+          </CommandItem>}
           {ws.canMutateNotes && <CommandItem onSelect={() => { close(false); navigate('/notes', { state: { newNote: true } }) }}>
             <StickyNote className="mr-2 h-4 w-4" /> Create note
           </CommandItem>}

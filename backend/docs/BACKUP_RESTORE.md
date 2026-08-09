@@ -35,23 +35,13 @@ New-Item -ItemType Directory -Force backups
 docker run --rm -v planglade_planglade_data:/data:ro -v "${PWD}\backups:/backup" alpine cp /data/planglade.db /backup/planglade-2026-07-01.db
 ```
 
-Start the app again:
-
-```bash
-docker compose up -d
-```
-
 Confirm the backup file exists and has a non-zero size. Copy it to encrypted off-machine storage.
 
 If the volume name differs, find it with `docker volume ls` rather than guessing.
 
 ## Docker Local Attachment Backup
 
-With the default local storage provider, attachments live in the `planglade_planglade_attachments` volume. Back it up alongside the SQLite backup, while the app is stopped:
-
-```bash
-docker compose stop backend
-```
+With the default local storage provider, attachments live in the `planglade_planglade_attachments` volume. Keep the backend stopped after the SQLite copy, then back up the attachments from the same consistent window:
 
 Linux or macOS:
 
@@ -65,7 +55,7 @@ Windows PowerShell:
 docker run --rm -v planglade_planglade_attachments:/data:ro -v "${PWD}\backups:/backup" alpine tar -C /data -cf /backup/local-attachments-2026-07-01.tar .
 ```
 
-Start the app again:
+Start the app again only after both the database file and attachment archive exist:
 
 ```bash
 docker compose up -d

@@ -55,6 +55,7 @@ export async function resolveRequestPrincipal(request: Request): Promise<Princip
       const { verifyFirebaseIdToken } = await import("@/lib/firebase-admin")
       const verified = await verifyFirebaseIdToken(token)
       const user = await resolveVerifiedApplicationUser({
+        firebaseUid: verified.uid,
         email: verified.email,
         name: verified.name ?? verified.email.split("@")[0],
       })
