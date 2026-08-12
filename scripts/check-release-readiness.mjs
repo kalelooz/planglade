@@ -11,11 +11,12 @@ const packages = await Promise.all([
   readJson('package.json'),
   readJson('backend/package.json'),
   readJson('frontend/package.json'),
+  readJson('website/package.json'),
 ])
 const [version] = packages.map(({ version }) => version)
 
 assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/, 'Root package has an invalid release version')
-assert.deepEqual(new Set(packages.map(({ version: packageVersion }) => packageVersion)), new Set([version]), 'Root, backend, and frontend versions must match')
+assert.deepEqual(new Set(packages.map(({ version: packageVersion }) => packageVersion)), new Set([version]), 'Root, backend, frontend, and website versions must match')
 
 for (const lockPath of ['backend/package-lock.json', 'frontend/package-lock.json']) {
   const lock = await readJson(lockPath)
