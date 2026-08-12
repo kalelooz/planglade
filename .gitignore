@@ -2,6 +2,8 @@ node_modules/
 frontend/node_modules/
 backend/node_modules/
 frontend/dist/
+frontend/dist-demo/
+website/dist/
 backend/.next/
 .runtime/
 db/
@@ -16,6 +18,8 @@ playwright-report/
 !.env.example
 frontend/.env
 backend/.env
+backend/AGENTS.md
+backend/CLAUDE.md
 *.db
 *.sqlite
 *.sqlite3

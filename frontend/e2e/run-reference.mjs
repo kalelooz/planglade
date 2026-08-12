@@ -1,24 +1,19 @@
-import { spawn, execFile as execFileCallback } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { assertPortAvailable, parsePort, stopProcessTree } from './harness-utils.mjs'
 
-const execFile = promisify(execFileCallback)
 const appDirectory = path.resolve(import.meta.dirname, '..')
 const resultDirectory = path.join(appDirectory, 'test-results', 'vite-reference')
+const referencePort = parsePort(process.env.PLANGLADE_E2E_REFERENCE_PORT, 'PLANGLADE_E2E_REFERENCE_PORT', 5173)
+const referenceOrigin = `http://127.0.0.1:${referencePort}`
 const logs = []
-
-async function portOwner(port) {
-  const { stdout } = await execFile('netstat.exe', ['-ano', '-p', 'tcp'], { windowsHide: true })
-  const line = stdout.split(/\r?\n/).find((entry) => entry.includes(`:${port}`) && entry.includes('LISTENING'))
-  return line?.trim().split(/\s+/).at(-1) ?? null
-}
 
 async function waitForServer() {
   const deadline = Date.now() + 60_000
   while (Date.now() < deadline) {
     try {
-      if ((await fetch('http://127.0.0.1:5173/')).ok) return
+      if ((await fetch(`${referenceOrigin}/`)).ok) return
     } catch {
       // The process is still starting.
     }
@@ -27,13 +22,13 @@ async function waitForServer() {
   throw new Error('Reference Vite server did not become ready')
 }
 
-const owner = await portOwner(5173)
-if (owner) throw new Error(`Port 5173 is already occupied by PID ${owner}. Stop that process before running this harness.`)
 let vite
 let exitCode = 1
 try {
-  vite = spawn(process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'reference', '--host', '127.0.0.1'], {
+  await assertPortAvailable(referencePort)
+  vite = spawn(process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'reference', '--host', '127.0.0.1', '--port', String(referencePort)], {
     cwd: appDirectory,
+    detached: process.platform !== 'win32',
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
@@ -47,6 +42,7 @@ try {
     cwd: appDirectory,
     shell: false,
     stdio: 'inherit',
+    env: { ...process.env, PLANGLADE_E2E_BASE_URL: referenceOrigin },
     windowsHide: true,
   })
   exitCode = await new Promise((resolve) => test.once('exit', (code) => resolve(code ?? 1)))
@@ -56,12 +52,6 @@ try {
   await writeFile(path.join(resultDirectory, 'server.log'), logs.join(''), 'utf8')
   throw error
 } finally {
-  if (vite?.pid && vite.exitCode === null) {
-    try {
-      await execFile('taskkill.exe', ['/pid', String(vite.pid), '/t', '/f'], { windowsHide: true })
-    } catch {
-      // The Vite process may have already exited.
-    }
-  }
+  await stopProcessTree(vite)
   if (exitCode === 0) await rm(resultDirectory, { recursive: true, force: true })
 }

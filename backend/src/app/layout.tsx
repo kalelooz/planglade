@@ -1,15 +1,9 @@
-import "./globals.css";
-import { AuthProvider } from "@/components/lovable/auth-context";
+import type { ReactNode } from "react"
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body><AuthProvider>{children}</AuthProvider>
-      </body>
+      <body>{children}</body>
     </html>
-  );
+  )
 }

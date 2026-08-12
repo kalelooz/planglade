@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import {
   badRequest,
+  forbidden,
   notFound,
   parseJsonBody,
   requireWorkspaceRole,
@@ -12,6 +13,7 @@ import { logActivityEvent } from "@/lib/activity"
 import { updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canAccessNote } from "@/lib/note-access"
+import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 
 type Params = { params: Promise<{ noteId: string }> }
 
@@ -124,6 +126,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     if (!canAccessNote(existing, query.data.workspaceId, actorUserId)) {
       return notFound("Note not found")
     }
+    if (!canDeleteWorkspaceContent({
+      role: access.actor.role,
+      actorUserId,
+      creatorUserId: existing.createdById,
+    })) return forbidden("Only the note creator or a workspace admin can delete this note")
 
     await db.$transaction(async (tx) => {
       await tx.note.delete({ where: { id: noteId } })

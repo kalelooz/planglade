@@ -1,20 +1,21 @@
 # Security Policy
 
-PlanGlade is under active development and is not production-hardened yet. Please treat the project as pre-public release software unless the docs for your deployment path say otherwise.
+PlanGlade is under active development and is not production-hardened yet.
+Treat every published version as early-preview software unless its release notes
+explicitly state a stronger support level.
 
 ## Reporting a Vulnerability
 
 Security issues must be reported privately, not through normal GitHub Issues. Do not open a public issue with exploit details, reproduction steps, credentials, tokens, private keys, database URLs, URLs containing secrets, private user data, or screenshots with sensitive data.
 
-**Primary path:** use GitHub Private Vulnerability Reporting on this repository if it is visible to you. This is the preferred path because it keeps the report private and supports coordinated fixes.
+**Private reporting path:** GitHub Private Vulnerability Reporting is enabled on
+this repository. Use the repository's **Report a vulnerability** form to open a
+private security advisory with the maintainer. This is the supported reporting
+channel because it keeps the report and follow-up private.
 
-**If private vulnerability reporting is not visible:** open a minimal public GitHub issue that says only:
-
-> I need a private channel to report a security issue.
-
-That public issue must not include exploit details, reproduction steps, credentials, tokens, private keys, database URLs, URLs containing secrets, private user data, or screenshots with sensitive data. A maintainer will follow up privately.
-
-A dedicated security email may be added later. Until then, the paths above are the supported reporting channels.
+If GitHub does not show that form, do not substitute a public issue or public
+discussion. GitHub authentication and access to Private Vulnerability Reporting
+are required for the current private reporting channel.
 
 Normal bugs and feature requests belong in GitHub Issues. Suspected security vulnerabilities do not.
 

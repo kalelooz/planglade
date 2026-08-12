@@ -10,11 +10,15 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
 })
 
+const routerBase = import.meta.env.BASE_URL === '/'
+  ? '/'
+  : import.meta.env.BASE_URL.replace(/\/$/, '')
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
-        <BrowserRouter>
+        <BrowserRouter basename={routerBase}>
           <App />
         </BrowserRouter>
       </MotionConfig>

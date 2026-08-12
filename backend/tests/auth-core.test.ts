@@ -343,7 +343,7 @@ test("password hashes are salted and verify asynchronously", async () => {
 
 test("verified identities use normalized email and backfill one transitional user", async () => {
   try {
-    const user = { id: "user-1", email: "person@example.com", name: "Person", authVersion: 0 }
+    const user = { id: "user-1", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
     ;(db.user as typeof db.user).findMany = ((async () => [
       { ...user, email: "Person@Example.com", normalizedEmail: null },
@@ -386,7 +386,7 @@ test("ambiguous transitional and legacy identity matches fail closed", async () 
 
 test("new verified users are created with canonical email and normalized email", async () => {
   try {
-    const created = { id: "user-2", email: "person@example.com", name: "Person", authVersion: 0 }
+    const created = { id: "user-2", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
     ;(db.user as typeof db.user).findMany = ((async () => []) as unknown) as typeof db.user.findMany
     let createData: unknown
@@ -409,5 +409,44 @@ test("new verified users are created with canonical email and normalized email",
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
     ;(db.user as typeof db.user).findMany = originalUserFindMany
     ;(db.user as typeof db.user).create = originalUserCreate
+  }
+})
+
+test("Firebase identities remain attached to uid when the verified email changes", async () => {
+  try {
+    const existing = {
+      id: "user-1",
+      email: "old@example.com",
+      normalizedEmail: "old@example.com",
+      firebaseUid: "firebase-user-1",
+      name: "Old name",
+      image: null,
+      authVersion: 0,
+    }
+    ;(db.user as typeof db.user).findUnique = ((async ({ where }: { where: Record<string, unknown> }) => (
+      where.firebaseUid === "firebase-user-1" ? existing : null
+    )) as unknown) as typeof db.user.findUnique
+    let updateData: unknown
+    ;(db.user as typeof db.user).update = ((async ({ data }) => {
+      updateData = data
+      return { ...existing, ...data }
+    }) as unknown) as typeof db.user.update
+
+    const resolved = await resolveVerifiedApplicationUser({
+      firebaseUid: "firebase-user-1",
+      email: "new@example.com",
+      name: "New name",
+    })
+
+    assert.equal(resolved?.id, "user-1")
+    assert.equal(resolved?.email, "new@example.com")
+    assert.deepEqual(updateData, {
+      email: "new@example.com",
+      normalizedEmail: "new@example.com",
+      name: "New name",
+    })
+  } finally {
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
+    ;(db.user as typeof db.user).update = originalUserUpdate
   }
 })

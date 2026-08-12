@@ -46,7 +46,7 @@ function TaskChip({ task, overlay, active, onOpen }: { task: Task; overlay?: boo
         if (e.key === 'Enter') onOpen(e as unknown as React.MouseEvent<HTMLDivElement>)
       }}
       className={cn(
-        'w-full cursor-grab select-none truncate rounded px-1.5 py-[3px] text-left text-[11px] leading-tight transition-[background-color,color,box-shadow,transform] active:cursor-grabbing',
+        'w-full cursor-grab select-none truncate rounded px-1.5 py-[3px] text-left text-[12.5px] leading-tight transition-[background-color,color,box-shadow,transform] active:cursor-grabbing',
         active ? 'bg-foreground text-background shadow-[0_0_0_1px_hsl(var(--foreground)),0_6px_18px_hsl(var(--foreground)/0.12)]' : [tone.bg, tone.text],
         isDragging && 'opacity-40',
         overlay && 'shadow-[0_6px_18px_hsl(240_8%_10%/0.18)]',
@@ -86,14 +86,8 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      role={hasOverflow ? 'button' : undefined}
-      tabIndex={hasOverflow ? 0 : undefined}
-      aria-label={`${format(date, 'EEEE, MMMM d')}. ${tasks.length} tasks.`}
-      onClick={() => hasOverflow && onOpenDay()}
-      onKeyDown={(e) => e.key === 'Enter' && hasOverflow && onOpenDay()}
       className={cn(
-        'min-h-[92px] border-b border-r border-border/60 p-1 transition-colors text-left flex flex-col outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset',
-        hasOverflow && 'cursor-pointer',
+        'min-h-[92px] border-b border-r border-border/60 p-1 transition-colors text-left flex flex-col',
         !inMonth && 'bg-muted/30',
         selected && 'bg-accent/25 shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.16)]',
         isOver && 'bg-accent',
@@ -101,13 +95,13 @@ function DayCell({
     >
       <span
         className={cn(
-          'inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] mb-0.5 self-start',
+          'inline-flex h-5 w-5 items-center justify-center rounded-full text-[12.5px] mb-0.5 self-start',
           isToday(date) ? 'bg-foreground text-background font-semibold' : inMonth ? 'text-foreground/80' : 'text-muted-foreground/60',
         )}
       >
         {format(date, 'd')}
       </span>
-      <div className="space-y-0.5 w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="space-y-0.5 w-full">
         {visible.map((t) => (
           <TaskChip
             key={t.id}
@@ -124,7 +118,7 @@ function DayCell({
             onOpenDay()
           }}
           aria-label={`Show all ${tasks.length} tasks for ${format(date, 'MMMM d')}`}
-          className="mt-auto inline-flex min-h-6 w-fit items-center gap-1 rounded-[5px] border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-left text-[10.5px] font-medium tabular-nums text-sky-700 transition-[background-color,color,border-color,transform] hover:border-sky-500/30 hover:bg-sky-500/15 active:scale-[0.96] dark:text-sky-300"
+          className="mt-auto inline-flex min-h-6 w-fit items-center gap-1 rounded-[5px] border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-left text-[12.5px] font-medium tabular-nums text-sky-700 transition-[background-color,color,border-color,transform] hover:border-sky-500/30 hover:bg-sky-500/15 active:scale-[0.96] dark:text-sky-300"
         >
           <span className="font-semibold">{tasks.length}</span>
           <span>{tasks.length === 1 ? 'task' : 'tasks'}</span>
@@ -257,7 +251,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
             </div>
             <div className="flex items-center gap-1">
               {!isMobile && <div className="mr-2 inline-flex rounded-md border border-border bg-card p-0.5" aria-label="Calendar range">
-                {(['month', 'week'] as const).map((mode) => <button key={mode} onClick={() => setCalendarMode(mode)} aria-pressed={calendarMode === mode} className={cn('h-7 rounded px-2 text-[11.5px] capitalize text-muted-foreground hover:text-foreground', calendarMode === mode && 'bg-accent font-medium text-foreground')}>{mode}</button>)}
+                {(['month', 'week'] as const).map((mode) => <button key={mode} onClick={() => setCalendarMode(mode)} aria-pressed={calendarMode === mode} className={cn('h-7 rounded px-2 text-[12.5px] capitalize text-muted-foreground hover:text-foreground', calendarMode === mode && 'bg-accent font-medium text-foreground')}>{mode}</button>)}
               </div>}
               <button onClick={() => changeMonth(-1)} aria-label={calendarMode === 'month' ? 'Previous month' : 'Previous week'} className="h-8 w-8 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                 <ChevronLeft className="h-4 w-4" />
@@ -307,7 +301,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
               <div className="rounded-lg border border-border bg-card overflow-hidden">
                 <div className="grid grid-cols-7 border-b border-border bg-muted/40">
                   {weekdayNames.map((d) => (
-                    <div key={d} className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 border-r border-border/60 last:border-r-0">
+                    <div key={d} className="text-[12.5px] font-medium text-muted-foreground px-2 py-1.5 border-r border-border/60 last:border-r-0">
                       {d}
                     </div>
                   ))}
@@ -419,7 +413,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <DialogTitle className="text-[16px]">{relativeLabel(selectedIso)}</DialogTitle>
-                    <span className="inline-flex rounded-[5px] border border-sky-500/20 bg-sky-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums text-sky-700 dark:text-sky-300">
+                    <span className="inline-flex rounded-[5px] border border-sky-500/20 bg-sky-500/10 px-1.5 py-0.5 text-[12.5px] font-semibold tabular-nums text-sky-700 dark:text-sky-300">
                       {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'}
                     </span>
                   </div>
@@ -451,7 +445,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                             <span className="pg-meta capitalize">{task.priority} priority</span>
                           </span>
                         </span>
-                        <span className="mt-0.5 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">Open</span>
+                        <span className="mt-0.5 text-[12.5px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">Open</span>
                       </button>
                     )
                   })}

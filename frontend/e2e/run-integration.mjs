@@ -1,36 +1,28 @@
-import { spawn, execFile as execFileCallback } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { DatabaseSync } from 'node:sqlite'
+import { assertPortAvailable, parsePort, portAvailable, stopProcessTree } from './harness-utils.mjs'
 
-const execFile = promisify(execFileCallback)
 const appDirectory = path.resolve(import.meta.dirname, '..')
-const backendDirectory = process.env.PLANGLADE_E2E_BACKEND_DIR ?? path.resolve(appDirectory, '..', '..', 'planglade-vite-backend-current-validation')
+const backendDirectory = process.env.PLANGLADE_E2E_BACKEND_DIR ?? path.resolve(appDirectory, '..', 'backend')
 const resultDirectory = path.join(appDirectory, 'test-results', 'vite-integration')
 const temporaryDirectory = await mkdtemp(path.join(tmpdir(), 'planglade-vite-e2e-'))
 const databasePath = path.join(temporaryDirectory, 'integration.db')
 const runtimeFile = path.join(temporaryDirectory, 'runtime.json')
 const storageState = path.join(temporaryDirectory, 'storage-state.json')
 const runId = randomBytes(8).toString('hex')
+const backendPort = parsePort(process.env.PLANGLADE_E2E_BACKEND_PORT, 'PLANGLADE_E2E_BACKEND_PORT', 3000)
+const frontendPort = parsePort(process.env.PLANGLADE_E2E_FRONTEND_PORT, 'PLANGLADE_E2E_FRONTEND_PORT', 5173)
+const backendOrigin = `http://127.0.0.1:${backendPort}`
+const frontendOrigin = `http://127.0.0.1:${frontendPort}`
 const children = []
 const logs = []
 
 function fileUrl(filePath) {
   return `file:${filePath.replaceAll('\\', '/')}`
-}
-
-async function portOwner(port) {
-  const { stdout } = await execFile('netstat.exe', ['-ano', '-p', 'tcp'], { windowsHide: true })
-  const line = stdout.split(/\r?\n/).find((entry) => entry.includes(`:${port}`) && entry.includes('LISTENING'))
-  return line?.trim().split(/\s+/).at(-1) ?? null
-}
-
-async function assertPortAvailable(port) {
-  const owner = await portOwner(port)
-  if (owner) throw new Error(`Port ${port} is already occupied by PID ${owner}. Stop that process before running this harness.`)
 }
 
 async function applyMigrations() {
@@ -48,7 +40,13 @@ async function applyMigrations() {
 }
 
 function start(name, command, args, options) {
-  const child = spawn(command, args, { ...options, shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  const child = spawn(command, args, {
+    ...options,
+    detached: process.platform !== 'win32',
+    shell: false,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
   children.push(child)
   for (const stream of [child.stdout, child.stderr]) {
     stream.setEncoding('utf8')
@@ -72,38 +70,30 @@ async function waitForServer(url, name) {
 }
 
 async function stopChildren() {
-  await Promise.all(children.map(async (child) => {
-    if (!child.pid || child.exitCode !== null) return
-    try {
-      await execFile('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true })
-    } catch {
-      // A child may already have exited while its parent is being stopped.
-    }
-  }))
+  await Promise.all(children.map(stopProcessTree))
 }
 
 async function assertPortsReleased() {
-  for (const port of [3000, 5173]) {
+  for (const port of [backendPort, frontendPort]) {
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      if (!(await portOwner(port))) break
+      if (await portAvailable(port)) break
       await new Promise((resolve) => setTimeout(resolve, 250))
     }
-    const owner = await portOwner(port)
-    if (owner) throw new Error(`Harness cleanup left port ${port} occupied by PID ${owner}`)
+    if (!(await portAvailable(port))) throw new Error(`Harness cleanup left port ${port} occupied`)
   }
 }
 
 let exitCode = 1
 try {
-  await assertPortAvailable(3000)
-  await assertPortAvailable(5173)
+  await assertPortAvailable(backendPort)
+  await assertPortAvailable(frontendPort)
   await applyMigrations()
   const secret = randomBytes(32).toString('base64url')
   const harnessEnvironment = {
     ...process.env,
     DATABASE_URL: fileUrl(databasePath),
     NEXTAUTH_SECRET: secret,
-    NEXTAUTH_URL: 'http://127.0.0.1:5173',
+    NEXTAUTH_URL: frontendOrigin,
     PLANGLADE_AUTH_MODE: 'nextauth',
     NEXT_PUBLIC_PLANGLADE_AUTH_MODE: 'nextauth',
     PLANGLADE_LOCAL_AUTH_ENABLED: 'true',
@@ -114,17 +104,17 @@ try {
     PLANGLADE_EMAIL_PROVIDER: 'disabled',
   }
   await mkdir(harnessEnvironment.PLANGLADE_LOCAL_STORAGE_DIR, { recursive: true })
-  start('backend', process.execPath, [path.join(backendDirectory, 'node_modules', 'next', 'dist', 'bin', 'next'), 'dev', '-p', '3000'], {
+  start('backend', process.execPath, [path.join(backendDirectory, 'node_modules', 'next', 'dist', 'bin', 'next'), 'dev', '-p', String(backendPort)], {
     cwd: backendDirectory,
     env: harnessEnvironment,
   })
-  await waitForServer('http://127.0.0.1:3000/api/auth/session', 'Backend')
-  await waitForServer('http://127.0.0.1:3000/api/auth/setup/claim', 'Backend setup route')
-  start('vite', process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'api', '--host', '127.0.0.1'], {
+  await waitForServer(`${backendOrigin}/api/auth/session`, 'Backend')
+  await waitForServer(`${backendOrigin}/api/auth/setup/claim`, 'Backend setup route')
+  start('vite', process.execPath, [path.join(appDirectory, 'node_modules', 'vite', 'bin', 'vite.js'), '--mode', 'api', '--host', '127.0.0.1', '--port', String(frontendPort)], {
     cwd: appDirectory,
-    env: { ...process.env, PLANGLADE_DEV_BACKEND_ORIGIN: 'http://127.0.0.1:3000' },
+    env: { ...process.env, PLANGLADE_DEV_BACKEND_ORIGIN: backendOrigin },
   })
-  await waitForServer('http://127.0.0.1:5173/', 'Vite')
+  await waitForServer(`${frontendOrigin}/`, 'Vite')
   const test = start('playwright', process.execPath, [
     path.join(appDirectory, 'node_modules', '@playwright', 'test', 'cli.js'),
     'test',
@@ -136,6 +126,7 @@ try {
     env: {
       ...process.env,
       PLANGLADE_E2E_EMAIL: `integration-${runId}@example.test`,
+      PLANGLADE_E2E_BASE_URL: frontendOrigin,
       PLANGLADE_E2E_PASSWORD: randomBytes(24).toString('base64url'),
       PLANGLADE_E2E_RUN_ID: runId,
       PLANGLADE_E2E_RUNTIME_FILE: runtimeFile,
@@ -152,6 +143,6 @@ try {
 } finally {
   await stopChildren()
   await assertPortsReleased()
-  await rm(temporaryDirectory, { recursive: true, force: true })
+  await rm(temporaryDirectory, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 })
   if (exitCode === 0) await rm(resultDirectory, { recursive: true, force: true })
 }

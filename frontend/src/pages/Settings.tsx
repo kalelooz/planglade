@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Download, RotateCcw, LogOut, CircleUserRound, Upload } from 'lucide-react'
 import { useWorkspace } from '@/store/workspace'
 import { PageContainer, SectionHeader } from '@/components/bits'
@@ -26,29 +26,38 @@ function ChoiceRow<T extends string>({
   options: { value: T; label: string }[]
   onChange: (v: T) => void
 }) {
+  const groupName = useId()
+
   return (
     <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
       <div>
-        <p className="text-[13.5px]">{label}</p>
-        {hint && <p className="text-[12px] text-muted-foreground mt-0.5">{hint}</p>}
+        <p className="pg-item-title">{label}</p>
+        {hint && <p className="pg-meta mt-0.5 text-pretty">{hint}</p>}
       </div>
-      <div className="inline-flex rounded-md border border-border bg-card p-0.5" role="radiogroup" aria-label={label}>
+      <fieldset className="inline-flex rounded-md border border-border bg-card p-0.5">
+        <legend className="sr-only">{label}</legend>
         {options.map((o) => (
-          <button
-            key={o.value}
-            role="radio"
-            aria-checked={value === o.value}
-            onClick={() => onChange(o.value)}
-            className={
-              value === o.value
-                ? 'rounded px-2.5 h-7 text-[12.5px] bg-accent text-foreground font-medium transition-colors'
-                : 'rounded px-2.5 h-7 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors'
-            }
-          >
-            {o.label}
-          </button>
+          <label key={o.value} className="cursor-pointer rounded">
+            <input
+              type="radio"
+              name={groupName}
+              value={o.value}
+              checked={value === o.value}
+              onChange={() => onChange(o.value)}
+              className="peer sr-only"
+            />
+            <span
+              className={
+                value === o.value
+                  ? 'inline-flex h-7 items-center rounded bg-accent px-2.5 text-[12.5px] font-medium text-foreground transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2'
+                  : 'inline-flex h-7 items-center rounded px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2'
+              }
+            >
+              {o.label}
+            </span>
+          </label>
         ))}
-      </div>
+      </fieldset>
     </div>
   )
 }
@@ -66,13 +75,14 @@ export default function Settings() {
   const [importPreview, setImportPreview] = useState<Awaited<ReturnType<typeof previewWorkspaceImport>> | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const settings = ws.state.settings
+  const serverBacked = ws.mode.kind === 'server'
 
   useEffect(() => {
     setName(ws.state.workspaceName)
   }, [ws.state.workspaceName])
 
   const loadExport = async () => {
-    if (!ws.readOnly) return ws.exportJson()
+    if (!serverBacked) return ws.exportJson()
     if (!ws.workspaceId) throw new Error('Missing workspace scope')
     return JSON.stringify(await getWorkspaceExport(ws.workspaceId), null, 2)
   }
@@ -150,30 +160,30 @@ export default function Settings() {
       <header className="mb-6">
         <h1 className="pg-page-title">Settings</h1>
         <p className="pg-page-kicker">
-          {ws.readOnly ? 'Authenticated workspace preferences and your permitted export.' : 'Everything stays in this browser. No account, no cloud.'}
+          {serverBacked ? 'Authenticated workspace preferences and your permitted export.' : 'Everything stays in this browser. No account, no cloud.'}
         </p>
       </header>
 
       {/* Workspace */}
       <section aria-labelledby="s-workspace" className="mb-8">
-        <SectionHeader title="Workspace" />
+        <SectionHeader id="s-workspace" title="Workspace" />
         <div className="border-y border-border/60 divide-y divide-border/60">
           <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div>
-              <p className="text-[13.5px]">Workspace name</p>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Shown in the sidebar and on Home.</p>
+              <p className="pg-item-title">Workspace name</p>
+              <p className="pg-meta mt-0.5 text-pretty">Shown in the sidebar and on Home.</p>
             </div>
             <div className="flex items-center gap-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 aria-label="Workspace name"
-                disabled={ws.readOnly && !ws.canManageWorkspace}
+                disabled={serverBacked && !ws.canManageWorkspace}
                 className="h-8 w-[180px] rounded-md border border-input bg-card px-2.5 text-[13px] outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
               />
               <button
                 onClick={() => name.trim() && void ws.setWorkspaceName(name.trim())}
-                disabled={!name.trim() || name.trim() === ws.state.workspaceName || (ws.readOnly && !ws.canManageWorkspace)}
+                disabled={!name.trim() || name.trim() === ws.state.workspaceName || (serverBacked && !ws.canManageWorkspace)}
                 className="h-8 px-3 rounded-md text-[13px] bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
               >
                 Save
@@ -185,7 +195,7 @@ export default function Settings() {
 
       {/* Appearance */}
       <section aria-labelledby="s-appearance" className="mb-8">
-        <SectionHeader title="Appearance" />
+        <SectionHeader id="s-appearance" title="Appearance" />
         <div className="border-y border-border/60 divide-y divide-border/60">
           <ChoiceRow<ThemeMode>
             label="Theme"
@@ -213,7 +223,7 @@ export default function Settings() {
 
       {/* Dates */}
       <section aria-labelledby="s-dates" className="mb-8">
-        <SectionHeader title="Dates" />
+        <SectionHeader id="s-dates" title="Dates" />
         <div className="border-y border-border/60 divide-y divide-border/60">
           <ChoiceRow<'1' | '0'>
             label="Week starts on"
@@ -229,13 +239,13 @@ export default function Settings() {
 
       {/* Data */}
       <section aria-labelledby="s-data" className="mb-8">
-        <SectionHeader title="Your data" />
+        <SectionHeader id="s-data" title="Your data" />
         <div className="border-y border-border/60 divide-y divide-border/60">
           <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div>
-              <p className="text-[13.5px]">Export workspace</p>
-              <p className="text-[12px] text-muted-foreground mt-0.5">
-                {ws.readOnly ? 'A JSON export of the workspace data your account is permitted to export.' : 'A plain JSON file of the workspace data currently loaded here.'}
+              <p className="pg-item-title">Export workspace</p>
+              <p className="pg-meta mt-0.5 text-pretty">
+                {serverBacked ? 'A JSON export of the workspace data your account is permitted to export.' : 'A plain JSON file of the workspace data currently loaded here.'}
               </p>
             </div>
             <div className="flex gap-2">
@@ -247,10 +257,10 @@ export default function Settings() {
               </button>
             </div>
           </div>
-          {ws.readOnly && <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
+          {serverBacked && <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div>
-              <p className="text-[13.5px]">Import workspace</p>
-              <p className="mt-0.5 text-pretty text-[12px] text-muted-foreground">
+              <p className="pg-item-title">Import workspace</p>
+              <p className="pg-meta mt-0.5 text-pretty">
                 {ws.canManageWorkspace ? 'Preview a PlanGlade JSON export before adding its records to this workspace.' : 'Only workspace admins can import records.'}
               </p>
               {importError && <p role="alert" className="mt-1 max-w-md text-pretty text-[12px] text-destructive">{importError}</p>}
@@ -266,10 +276,10 @@ export default function Settings() {
               />
             </label>
           </div>}
-          {!ws.readOnly && <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
+          {!serverBacked && <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div>
-              <p className="text-[13.5px]">Reset to sample data</p>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Clears your changes and restores the original sample workspace.</p>
+              <p className="pg-item-title">Reset to sample data</p>
+              <p className="pg-meta mt-0.5 text-pretty">Clears your changes and restores the original sample workspace.</p>
             </div>
             <button
               onClick={() => setResetOpen(true)}
@@ -283,15 +293,15 @@ export default function Settings() {
 
       {/* Account */}
       <section aria-labelledby="s-account" className="mb-8">
-        <SectionHeader title="Account" />
+        <SectionHeader id="s-account" title="Account" />
         <div className="border-y border-border/60 divide-y divide-border/60">
           <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div className="flex items-center gap-3">
               <CircleUserRound className="h-8 w-8 text-muted-foreground/60" aria-hidden />
               <div>
-                <p className="text-[13.5px]">{ws.state.userName}</p>
-                <p className="text-[12px] text-muted-foreground mt-0.5">
-                  {ws.readOnly ? 'Authenticated PlanGlade session.' : 'Local prototype identity - no sign-in required.'}
+                <p className="pg-item-title">{ws.state.userName}</p>
+                <p className="pg-meta mt-0.5 text-pretty">
+                  {serverBacked ? 'Authenticated PlanGlade session.' : 'Local prototype identity - no sign-in required.'}
                 </p>
               </div>
             </div>
@@ -303,10 +313,8 @@ export default function Settings() {
             </button>
           </div>
         </div>
-        {!ws.readOnly && <p className="text-[12px] text-muted-foreground mt-6 leading-relaxed">
-          {ws.readOnly
-            ? 'PlanGlade · A calm clearing for your projects. Server-backed editing comes in the next integration slice.'
-            : "PlanGlade · A calm clearing for your projects. This prototype stores data only in your browser's local storage."}
+        {!serverBacked && <p className="pg-meta mt-6 text-pretty leading-relaxed">
+          PlanGlade · A calm clearing for your projects. This prototype stores data only in your browser&apos;s local storage.
         </p>}
       </section>
 
@@ -315,9 +323,9 @@ export default function Settings() {
         <DialogContent className="sm:max-w-[560px] max-h-[80dvh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-base">Export preview</DialogTitle>
-            <DialogDescription>{ws.readOnly ? 'The server-generated workspace export for your permitted data.' : 'Your whole workspace as JSON. Nothing leaves this browser unless you download it.'}</DialogDescription>
+            <DialogDescription>{serverBacked ? 'The server-generated workspace export for your permitted data.' : 'Your whole workspace as JSON. Nothing leaves this browser unless you download it.'}</DialogDescription>
           </DialogHeader>
-          <pre className="min-h-[200px] flex-1 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-[11px] leading-relaxed">
+          <pre className="min-h-[200px] flex-1 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-[12.5px] leading-relaxed">
             {exportPreview.slice(0, 4000)}
             {exportPreview.length > 4000 && '\n…'}
           </pre>

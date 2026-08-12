@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Verify and publish signed release
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out signed tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify annotated tag signature
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag_type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME" --jq '.object.type')"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME" --jq '.object.sha')"
+          test "$tag_type" = 'tag'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.verification.verified')" = 'true'
+          tag_target_type="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.object.type')"
+          tag_commit="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.object.sha')"
+          test "$tag_target_type" = 'commit'
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$tag_commit" origin/main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm run install:all
+
+      - name: Generate Prisma client
+        run: npm run db:generate --prefix backend
+
+      - name: Verify release contract
+        env:
+          PLANGLADE_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          npm run check:public
+          npm run check:ci
+          npm run check:docs
+          npm run check:release
+          npm run check:backend-surface --prefix backend
+          npm exec --prefix backend -- prisma validate --schema backend/prisma/schema.prisma
+          npm run test:release
+
+      - name: Run product checks
+        env:
+          DATABASE_URL: file:${{ runner.temp }}/planglade-release.db
+          NEXTAUTH_URL: http://127.0.0.1:3000
+          NEXTAUTH_SECRET: release-check-only-secret
+          NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
+          PLANGLADE_AUTH_MODE: nextauth
+          PLANGLADE_EMAIL_PROVIDER: disabled
+          PLANGLADE_LOCAL_AUTH_ENABLED: 'true'
+          PLANGLADE_LOCAL_STORAGE_DIR: ${{ runner.temp }}/attachments
+          PLANGLADE_STORAGE_PROVIDER: local
+          PLANGLADE_STORAGE_SIGNING_SECRET: release-check-only-storage-secret
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run db:migrate:deploy --prefix backend
+          npm test
+          npm run build
+
+      - name: Build release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "v$version"
+          mkdir -p release
+          git archive --format=tar.gz --prefix="planglade-$version/" --output="release/planglade-$version.tar.gz" HEAD
+          npm sbom --prefix backend --sbom-format cyclonedx > "release/planglade-$version-backend.cdx.json"
+          npm sbom --prefix frontend --sbom-format cyclonedx > "release/planglade-$version-frontend.cdx.json"
+          node -e "require('node:fs').writeFileSync('release/build-provenance.json', JSON.stringify({version: process.env.GITHUB_REF_NAME.slice(1), commit: process.env.GITHUB_SHA, repository: process.env.GITHUB_REPOSITORY, workflowRun: process.env.GITHUB_RUN_ID, node: process.version}, null, 2) + '\n')"
+          (cd release && sha256sum planglade-* build-provenance.json > SHA256SUMS)
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" release/* --verify-tag --prerelease --title "PlanGlade $version" --notes-file "docs/releases/$version.md"

@@ -44,6 +44,8 @@ Connections visualizes relationships between projects, tasks, notes, people, and
 
 Settings contains workspace preferences, appearance and date controls, account information, and data tools.
 
+Read [workspace permissions](./PERMISSIONS.md) to see what each role can view, change, export, import, or delete.
+
 Export the workspace regularly and keep the resulting JSON file somewhere protected. Administrators of authenticated workspaces can preview supported imports before adding records.
 
 For server backups, upgrades, and recovery procedures, see:
@@ -54,6 +56,6 @@ For server backups, upgrades, and recovery procedures, see:
 
 ## Get help
 
-- [Report a bug](https://github.com/kalelooz/planglade/issues/new)
+- [Support and bug reports](./SUPPORT.md)
 - [Read the security policy](../SECURITY.md)
 - [Review recent changes](../CHANGELOG.md)

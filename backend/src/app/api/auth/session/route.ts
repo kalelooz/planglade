@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       const { verifyFirebaseIdToken } = await import("@/lib/firebase-admin")
       const verified = await verifyFirebaseIdToken(authToken)
       const resolved = await resolveVerifiedApplicationUser({
+        firebaseUid: verified.uid,
         email: verified.email,
         name: verified.name ?? verified.email.split("@")[0],
       })

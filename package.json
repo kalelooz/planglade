@@ -5,10 +5,22 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "install:all": "npm ci --prefix backend && npm ci --prefix frontend",
+    "setup:local": "node scripts/setup-local.mjs",
+    "dev": "npm run dev --prefix frontend",
+    "dev:website": "node website/scripts/serve.mjs",
+    "build:site": "npm run build:demo --prefix frontend && npm run build:website",
+    "build:website": "node website/scripts/build.mjs",
     "check:public": "node scripts/check-public-boundary.mjs",
+    "check:ci": "node scripts/check-ci-workflow.mjs",
+    "check:docs": "node scripts/check-public-docs.mjs",
+    "check:hosting": "node scripts/check-hosting-config.mjs",
+    "check:site": "node --test website/tests/site-boundary.test.mjs website/tests/color-contrast.test.mjs website/tests/server-path.test.mjs",
+    "check:site-output": "node --test website/tests/site-output.test.mjs",
+    "check:release": "node scripts/check-release-readiness.mjs",
+    "test:release": "node scripts/rehearse-release.mjs",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
-    "test": "npm test --prefix backend && npm test --prefix frontend -- --run",
+    "test": "node scripts/test-setup-local.mjs && npm test --prefix backend && npm test --prefix frontend -- --run",
     "build": "npm run build --prefix backend && npm run build --prefix frontend"
   }
 }

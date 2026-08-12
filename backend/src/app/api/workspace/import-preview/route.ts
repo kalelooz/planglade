@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import {
+  IMPORT_LIMITS,
   importPreviewWorkspaceSnapshotSchema,
   type ImportPreviewWorkspaceSnapshotInput,
   workspaceQuerySchema,
@@ -104,7 +105,10 @@ export async function POST(request: NextRequest) {
   )
   if (!query.ok) return query.response
 
-  const parsed = await parseJsonBody(request, importPreviewWorkspaceSnapshotSchema)
+  const parsed = await parseJsonBody(request, importPreviewWorkspaceSnapshotSchema, {
+    maxBytes: IMPORT_LIMITS.bodyBytes,
+    maxNodes: 100_000,
+  })
   if (!parsed.ok) return parsed.response
 
   try {

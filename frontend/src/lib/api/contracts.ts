@@ -265,7 +265,7 @@ export const workspaceImportPreviewSchema = z.object({
 
 export const workspaceImportResultSchema = z.object({
   workspaceId: z.string(),
-  mode: z.enum(['append', 'replace']),
+  mode: z.literal('append'),
   imported: z.object({ projects: z.number(), workItems: z.number(), notes: z.number(), projectDocs: z.number(), savedViews: z.number() }).passthrough(),
   skipped: z.object({ workItems: z.number(), notes: z.number(), projectDocs: z.number(), savedViews: z.number() }).passthrough(),
 }).passthrough()

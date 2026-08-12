@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import {
-  Inbox as InboxIcon, StickyNote, ArrowRight, MoreHorizontal, Eye, EyeOff, Sprout, Clock,
+  Inbox as InboxIcon, StickyNote, ArrowRight, MoreHorizontal, Eye, EyeOff, Sprout, Clock, CheckCircle2, Circle,
 } from 'lucide-react'
 import { useWorkspace } from '@/store/workspace'
 import { useTaskDrawer } from '@/components/TaskDrawer'
@@ -85,14 +85,39 @@ export default function Home() {
     setCaptureSaving(true)
     const saved = await ws.capture(v)
     setCaptureSaving(false)
-    if (saved || !ws.readOnly) setCaptureText('')
+    if (saved || ws.mode.kind === 'reference') setCaptureText('')
   }
 
   const hour = new Date().getHours()
   const firstName = ws.state.userName
+  const firstRunSteps = [
+    {
+      label: 'Capture your first task',
+      detail: 'Put one real item in Inbox. You can organize it later.',
+      href: '/inbox',
+      action: 'Open Inbox',
+      complete: ws.tasks.length + ws.inbox.length > 0,
+    },
+    {
+      label: 'Create a project',
+      detail: 'Give related tasks and notes a shared home.',
+      href: '/projects',
+      action: 'Open Projects',
+      complete: ws.projects.length > 0,
+    },
+    {
+      label: 'Write a note',
+      detail: 'Keep context beside the work it supports.',
+      href: '/notes',
+      action: 'Open Notes',
+      complete: ws.notes.length > 0,
+    },
+  ]
+  const completedFirstRunSteps = firstRunSteps.filter((step) => step.complete).length
+  const showFirstRun = ws.mode.kind === 'server' && completedFirstRunSteps < firstRunSteps.length
 
   return (
-    <PageContainer className="py-6 sm:py-8">
+    <PageContainer width="wide" className="py-6 sm:py-8">
       {/* Greeting */}
       <header className="flex items-end justify-between gap-3 mb-5">
         <div>
@@ -145,7 +170,44 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-x-8 gap-y-8">
+      {showFirstRun && (
+        <section aria-labelledby="first-run-title" className="mb-8 rounded-lg border border-border/70 bg-card p-4 shadow-[0_1px_2px_hsl(240_8%_10%/0.04)] sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[12.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">First workspace</p>
+              <h2 id="first-run-title" className="mt-1 text-base font-semibold tracking-tight">Make PlanGlade yours</h2>
+              <p className="mt-1 text-sm text-muted-foreground">These steps update from your real workspace. No sample records are added.</p>
+            </div>
+            <p className="text-xs tabular-nums text-muted-foreground" aria-label={`${completedFirstRunSteps} of ${firstRunSteps.length} setup steps complete`}>
+              {completedFirstRunSteps}/{firstRunSteps.length} complete
+            </p>
+          </div>
+          <ol className="mt-4 grid gap-2 sm:grid-cols-3">
+            {firstRunSteps.map((step) => (
+              <li key={step.label} className="rounded-md bg-secondary/55 p-3">
+                <div className="flex items-start gap-2.5">
+                  {step.complete
+                    ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden="true" />
+                    : <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{step.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{step.detail}</p>
+                    {step.complete ? (
+                      <p className="mt-2 text-xs font-medium text-foreground">Complete</p>
+                    ) : (
+                      <Link className="mt-2 inline-flex min-h-8 items-center text-xs font-medium text-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" to={step.href}>
+                        {step.action}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-8 min-w-0">
           {/* Needs attention */}
           <section aria-labelledby="home-attention">

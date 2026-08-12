@@ -2,10 +2,13 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 
-test("shared API utilities do not eagerly import Firebase Admin", async () => {
-  const apiUtils = await readFile(new URL("../src/lib/api-utils.ts", import.meta.url), "utf8")
-  assert.doesNotMatch(apiUtils, /import\s+\{[^}]*verifyFirebaseIdToken[^}]*\}\s+from\s+["']@\/lib\/firebase-admin["']/)
-  assert.match(apiUtils, /await import\(["']@\/lib\/firebase-admin["']\)/)
+test("the canonical principal boundary does not eagerly import Firebase Admin", async () => {
+  const principal = await readFile(
+    new URL("../src/lib/permissions/principal.ts", import.meta.url),
+    "utf8"
+  )
+  assert.doesNotMatch(principal, /import\s+\{[^}]*verifyFirebaseIdToken[^}]*\}\s+from\s+["']@\/lib\/firebase-admin["']/)
+  assert.match(principal, /await import\(["']@\/lib\/firebase-admin["']\)/)
 })
 
 test("storage configuration does not eagerly import Firebase Admin", async () => {

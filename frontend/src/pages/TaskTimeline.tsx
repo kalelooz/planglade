@@ -104,7 +104,7 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
           <button type="button" onClick={scrollToToday} className="h-8 rounded px-2.5 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Today</button>
           <span className="mx-1 h-4 w-px bg-border" aria-hidden />
           <div className="flex rounded bg-muted/70 p-0.5" aria-label="Timeline scale">
-            {(['weeks', 'days'] as const).map((option) => <button key={option} type="button" aria-pressed={scale === option} onClick={() => setScale(option)} className={cn('h-7 rounded px-2.5 text-[11px] font-medium capitalize text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', scale === option && 'bg-card text-foreground shadow-sm')}>{option}</button>)}
+            {(['weeks', 'days'] as const).map((option) => <button key={option} type="button" aria-pressed={scale === option} onClick={() => setScale(option)} className={cn('h-7 rounded px-2.5 text-[12.5px] font-medium capitalize text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', scale === option && 'bg-card text-foreground shadow-sm')}>{option}</button>)}
           </div>
         </div>
       </div>
@@ -113,13 +113,13 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
         <div ref={scrollerRef} data-timeline-scroller className="max-h-[68vh] overflow-x-hidden overflow-y-auto">
           <div className="relative w-full">
             <div className="sticky top-0 z-40 flex h-16 border-b border-border bg-card/95 backdrop-blur-sm">
-              <div className="sticky left-0 z-30 flex w-60 shrink-0 items-end bg-card px-4 pb-2.5 text-[11px] font-semibold uppercase text-muted-foreground">Task</div>
+              <div className="sticky left-0 z-30 flex w-60 shrink-0 items-end bg-card px-4 pb-2.5 text-[12.5px] font-semibold uppercase text-muted-foreground">Task</div>
               <div className="relative min-w-0 flex-1 border-l border-border">
                 <div className="flex h-6 border-b border-border/60">
-                  {months.map((month) => <div key={month.label} className="shrink-0 whitespace-nowrap border-r border-border/60 px-2 pt-1 text-[10px] font-semibold text-muted-foreground" style={{ width: month.days * dayWidth }}>{month.label}</div>)}
+                  {months.map((month) => <div key={month.label} className="shrink-0 whitespace-nowrap border-r border-border/60 px-2 pt-1 text-[12.5px] font-semibold text-muted-foreground" style={{ width: month.days * dayWidth }}>{month.label}</div>)}
                 </div>
                 <div className="flex h-10">
-                  {scale === 'weeks' ? weeks.map((week) => <div key={week.start.toISOString()} className="flex shrink-0 items-center justify-center border-r border-border/50 px-2 text-[10px] font-medium tabular-nums text-muted-foreground" style={{ width: week.days * dayWidth }}>{format(week.start, 'MMM d')}–{format(week.end, 'MMM d')}</div>) : dates.map((date) => <div key={date.toISOString()} className={cn('flex shrink-0 flex-col items-center justify-center border-r border-border/40 tabular-nums text-muted-foreground', (date.getDay() === 0 || date.getDay() === 6) && 'bg-muted/35', isSameDay(date, new Date()) && 'font-semibold text-primary')} style={{ width: dayWidth }}><span className="text-[8px] font-medium uppercase leading-none">{format(date, 'EEE')}</span><span className="mt-1 text-[11px] font-semibold leading-none">{format(date, 'd')}</span></div>)}
+                  {scale === 'weeks' ? weeks.map((week) => <div key={week.start.toISOString()} className="flex shrink-0 items-center justify-center border-r border-border/50 px-2 text-[12.5px] font-medium tabular-nums text-muted-foreground" style={{ width: week.days * dayWidth }}>{format(week.start, 'MMM d')}–{format(week.end, 'MMM d')}</div>) : dates.map((date) => <div key={date.toISOString()} className={cn('flex shrink-0 flex-col items-center justify-center border-r border-border/40 tabular-nums text-muted-foreground', (date.getDay() === 0 || date.getDay() === 6) && 'bg-muted/35', isSameDay(date, new Date()) && 'font-semibold text-primary')} style={{ width: dayWidth }}><span className="text-[12.5px] font-medium uppercase leading-none">{format(date, 'EEE')}</span><span className="mt-1 text-[12.5px] font-semibold leading-none">{format(date, 'd')}</span></div>)}
                 </div>
               </div>
             </div>
@@ -128,7 +128,7 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
 
             {rows.map(({ project, tasks: projectTasks }) => (
               <section key={project?.id ?? 'none'}>
-                <header className="sticky left-0 z-30 flex h-8 w-60 items-center border-r border-border bg-muted/60 px-4 text-[11px] font-semibold">
+                <header className="sticky left-0 z-30 flex h-8 w-60 items-center border-r border-border bg-muted/60 px-4 text-[12.5px] font-semibold">
                   <span className="truncate">{project?.name ?? 'No project'}</span><span className="ml-2 tabular-nums text-muted-foreground">{projectTasks.length}</span>
                 </header>
                 {projectTasks.map((task) => {
@@ -161,7 +161,7 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
                               void ws.updateTask(task.id, { dueDate: format(nextDue < start ? start : nextDue, 'yyyy-MM-dd') }, { silent: true })
                             } else void ws.updateTask(task.id, { startDate: format(addDays(start, delta), 'yyyy-MM-dd'), dueDate: format(addDays(end, delta), 'yyyy-MM-dd') }, { silent: true })
                           }}
-                          className={cn('absolute flex cursor-grab touch-none items-center text-left font-semibold shadow-sm active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', previewWidthDays === 1 ? 'top-3 h-5 w-5 justify-center rounded-full' : 'top-2 h-7 truncate rounded-md px-2.5 pr-4 text-[10.5px]', activeGesture && 'ring-2 ring-ring', task.status === 'done' ? 'bg-emerald-600/18 text-emerald-800 dark:text-emerald-100' : task.priority === 'high' ? 'bg-red-500/18 text-red-800 dark:text-red-100' : task.priority === 'medium' ? 'bg-amber-500/20 text-amber-900 dark:text-amber-100' : 'bg-primary/14 text-foreground')}
+                          className={cn('absolute flex cursor-grab touch-none items-center text-left font-semibold shadow-sm active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', previewWidthDays === 1 ? 'top-3 h-5 w-5 justify-center rounded-full' : 'top-2 h-7 truncate rounded-md px-2.5 pr-4 text-[12.5px]', activeGesture && 'ring-2 ring-ring', task.status === 'done' ? 'bg-emerald-600/18 text-emerald-800 dark:text-emerald-100' : task.priority === 'high' ? 'bg-red-500/18 text-red-800 dark:text-red-100' : task.priority === 'medium' ? 'bg-amber-500/20 text-amber-900 dark:text-amber-100' : 'bg-primary/14 text-foreground')}
                           style={{ left: previewLeftDays * dayWidth + (previewWidthDays === 1 ? (dayWidth - 20) / 2 : 4), width: previewWidthDays === 1 ? 20 : previewWidthDays * dayWidth - 8 }}
                           title={`${task.title}: ${format(start, 'MMM d')}–${format(end, 'MMM d')}`}
                         >
@@ -176,7 +176,7 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/20 px-4 py-2 text-[12.5px] text-muted-foreground">
           <span>{scheduled.length} scheduled · {unscheduled.length} without dates</span>
           <span className="hidden items-center gap-2 sm:flex"><ChevronLeft className="h-3 w-3" /> Switch between Weeks and Days <ChevronRight className="h-3 w-3" /></span>
         </div>

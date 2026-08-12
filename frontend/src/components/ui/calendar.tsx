@@ -91,7 +91,7 @@ function Calendar({
         table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "flex h-6 w-[var(--cell-size)] items-center justify-center rounded-md text-[9px] font-semibold uppercase text-muted-foreground select-none",
+          "flex h-6 w-[var(--cell-size)] items-center justify-center rounded-md text-[12.5px] font-semibold uppercase text-muted-foreground select-none",
           defaultClassNames.weekday
         ),
         week: cn("flex w-full", defaultClassNames.week),
@@ -203,7 +203,7 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "flex h-[var(--cell-size)] min-w-[var(--cell-size)] w-[var(--cell-size)] flex-col gap-1 rounded-md text-[11px] font-medium leading-none data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground [&>span]:text-xs [&>span]:opacity-70",
+        "flex h-[var(--cell-size)] min-w-[var(--cell-size)] w-[var(--cell-size)] flex-col gap-1 rounded-md text-[12.5px] font-medium leading-none data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground [&>span]:text-xs [&>span]:opacity-70",
         className
       )}
       {...props}

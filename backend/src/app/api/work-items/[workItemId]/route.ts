@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import {
   badRequest,
+  forbidden,
   notFound,
   parseDateValue,
   parseJsonBody,
@@ -12,6 +13,7 @@ import {
 import { logActivityEvent } from "@/lib/activity"
 import { updateWorkItemSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 import { createNotificationRecord } from "@/lib/notifications"
 import { normalizeProjectFeatureFlags } from "@/lib/project-flags"
 import { validateNoteReferences } from "@/lib/note-access"
@@ -306,10 +308,15 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.workItem.findUnique({
       where: { id: workItemId },
-      select: { id: true, workspaceId: true, title: true },
+      select: { id: true, workspaceId: true, title: true, createdById: true },
     })
     if (!existing) return notFound("Work item not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
+    if (!canDeleteWorkspaceContent({
+      role: access.actor.role,
+      actorUserId,
+      creatorUserId: existing.createdById,
+    })) return forbidden("Only the work-item creator or a workspace admin can delete this work item")
 
     await db.$transaction(async (tx) => {
       await tx.workItem.delete({ where: { id: workItemId } })

@@ -1,226 +1,173 @@
-# PlanGlade Self-Hosting
+# PlanGlade self-hosting
 
-Last updated: 2026-07-01
+PlanGlade is an early self-host preview, not a production-hardened managed
+service. The bundled deployment is suitable for careful personal or small-team
+evaluation when you use unique secrets, HTTPS, and tested backups.
 
-PlanGlade has an early Docker self-host baseline and remains in early self-hosting status. It is not production-ready or production-hardened. The Docker setup gives maintainers a repeatable build, migration, and startup path; it does not provide HTTPS, a reverse proxy, monitoring, automated backups, or security operations.
+## Architecture
 
-The existing local/developer self-host path remains documented below.
+The root `compose.yml` runs:
 
-## What The Docker Baseline Uses
+- `frontend`: the Vite SPA and Nginx gateway exposed on port 8080;
+- `backend`: the internal Next.js API, authentication, and setup service;
+- `migrate`: a one-shot `prisma migrate deploy` job;
+- `planglade_data`: persistent SQLite data;
+- `planglade_attachments`: persistent local attachment files.
 
-- One standalone Next.js app container.
-- One short-lived migration container that runs `prisma migrate deploy` before the app starts.
-- SQLite in a persistent Docker volume.
-- NextAuth with a configured GitHub or Google OAuth provider.
-- Local file attachment storage in a persistent Docker volume.
-- `/api/health` as the container health check.
+The backend is not published directly. Browser traffic, API requests, setup,
+and authentication share the frontend gateway origin.
 
-PostgreSQL is not included. The tracked Prisma schema uses SQLite, so changing database providers would be a separate migration project, not a Docker configuration change.
-
-## Before You Start
-
-You need:
+## Requirements
 
 - Docker Engine or Docker Desktop with Docker Compose.
-- A GitHub or Google OAuth application for sign-in.
-- A terminal and a text editor.
+- Node.js 22 or newer to generate the initial configuration.
+- A terminal and text editor.
 
-You do **not** need a Firebase project. The Docker default stores attachments on a local Docker volume and uses NextAuth for sign-in.
+OAuth, Firebase, and an email provider are optional. Local email/password
+authentication is the default self-host path.
 
-Do not expose PlanGlade publicly during initial setup. First configure real secrets, verify sign-in and storage, add HTTPS through a reverse proxy, and establish tested backups.
+## First run
 
-## First Run With Docker Compose
+1. Install only the root tooling needed by the repository, then generate the
+   ignored `.env` file:
 
-1. Copy the environment example.
+   ```bash
+   npm run setup:local
+   ```
 
-```bash
-cp .env.example .env
-```
+   The command is idempotent. It enables local credentials, generates a strong
+   `NEXTAUTH_SECRET` and one-time `PLANGLADE_SETUP_TOKEN`, preserves existing
+   generated secrets, and prints the setup token. Never commit `.env`.
 
-Windows PowerShell:
+2. For a non-local deployment, edit `.env` and set:
 
-```powershell
-Copy-Item .env.example .env
-```
+   ```env
+   PLANGLADE_PUBLIC_URL=https://plan.example.com
+   ```
 
-2. Open `.env` and replace every Docker placeholder. The Docker default quick start needs only:
+   OAuth remains optional. If you enable Google OAuth, uncomment its variables
+   and configure this callback:
 
-- `NEXTAUTH_URL`: `http://localhost:3000` for a local check, or your final HTTPS URL.
-- `NEXTAUTH_SECRET`: a long random value. Generate one with `openssl rand -base64 32`.
-- Either `GITHUB_ID` and `GITHUB_SECRET`, or `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+   ```text
+   https://plan.example.com/api/auth/callback/google
+   ```
 
-No Firebase values are required. The Docker Compose file sets `PLANGLADE_STORAGE_PROVIDER=local`, stores attachments in the `planglade_attachments` volume at `/app/storage/local-attachments`, and signs attachment URLs with `NEXTAUTH_SECRET` (or `PLANGLADE_STORAGE_SIGNING_SECRET` if you set it).
+3. Validate and build:
 
-Never commit `.env`. Values beginning with `NEXT_PUBLIC_` are visible in the browser; do not put secrets in them.
+   ```bash
+   docker compose -f compose.yml config
+   docker compose -f compose.yml build
+   ```
 
-For GitHub OAuth, use this callback URL for a local check:
+4. Start PlanGlade:
 
-```text
-http://localhost:3000/api/auth/callback/github
-```
+   ```bash
+   docker compose -f compose.yml up -d
+   docker compose -f compose.yml ps -a
+   ```
 
-3. Validate and build the configuration.
+   The `migrate` service must exit successfully before `backend` becomes
+   healthy.
 
-```bash
-docker compose config
-docker compose build
-```
+5. Open `http://localhost:8080/setup` (or your configured HTTPS origin), enter
+   the token printed by `npm run setup:local`, create the first owner account,
+   and store the recovery codes securely. After setup, sign in with that email
+   and password.
 
-4. Start PlanGlade.
+6. Verify both health boundaries:
 
-```bash
-docker compose up -d
-```
+   ```bash
+   curl http://localhost:8080/healthz
+   curl http://localhost:8080/api/health
+   ```
 
-Compose first runs the `migrate` service with `prisma migrate deploy`. The app starts only after migrations succeed.
+Before adding real data, verify sign-in, task create/edit/delete, refresh
+persistence, and attachment upload/download.
 
-5. Check the containers and health endpoint.
+## HTTPS and public exposure
 
-```bash
-docker compose ps -a
-curl http://localhost:3000/api/health
-```
-
-The `migrate` container should show `Exited (0)`, the `app` container should become healthy, and the health response should report `"status":"ok"`.
-
-6. Open `http://localhost:3000` and test sign-in, creating a task, and uploading/downloading an attachment before wider use.
-
-## Database And Migrations
-
-Docker stores SQLite at `/app/db/planglade.db` in the `planglade_data` named volume. `docker compose down` keeps that volume. `docker compose down -v` deletes it and is destructive.
-
-Docker uses the checked-in Prisma migration history:
-
-```bash
-docker compose run --rm migrate
-```
-
-Normal `docker compose up -d` already runs this step. Run it directly only for troubleshooting. Do not use `prisma migrate dev`, `prisma db push`, or `prisma migrate reset` against Docker self-host data.
-
-The existing local development path remains SQLite with `npm run db:push`; it is separate from the Docker migration path.
-
-## Local Attachment Storage (Docker Default)
-
-The Docker default stores attachments as files inside the `planglade_attachments` Docker volume, mounted at `/app/storage/local-attachments`. Attachment upload and download are workspace-scoped and served through short-lived HMAC-signed URLs. The storage layer rejects path traversal (`..`, absolute paths) and confines all reads and writes to the configured volume path.
-
-Back up this volume alongside the SQLite volume. See `docs/BACKUP_RESTORE.md`.
-
-## Stop, Restart, And Update
-
-Stop while keeping data:
-
-```bash
-docker compose down
-```
-
-Restart:
-
-```bash
-docker compose up -d
-```
-
-Update safely:
-
-1. Back up the SQLite volume and the local attachment volume.
-2. Pull the new code.
-3. Review release notes and environment changes.
-4. Rebuild and start:
-
-```bash
-docker compose build
-docker compose up -d
-docker compose ps -a
-curl http://localhost:3000/api/health
-```
-
-To roll back, stop the new containers, check out the previous known-good commit, restore a compatible backup if migrations changed the database, rebuild, and start again.
-
-## Backup And Restore
-
-Back up before every upgrade. Docker persists both the SQLite database volume and the local attachment volume by default.
-
-Follow `docs/BACKUP_RESTORE.md`. Test restores on a disposable copy before relying on a backup procedure.
-
-## Troubleshooting
-
-### Docker is unavailable
-
-If Docker reports that it cannot connect to the daemon, start Docker Desktop or the Docker service, then run `docker version` again.
-
-### Port 3000 is already used
-
-Set another host port in `.env`, for example `PLANGLADE_PORT="3001"`, then open `http://localhost:3001`. Keep `NEXTAUTH_URL` and the OAuth callback URL aligned with that port.
-
-### Migration failed
-
-Run:
-
-```bash
-docker compose logs migrate
-```
-
-Do not reset the volume to hide a migration error. Back up the data and investigate the failed migration.
-
-### App is unhealthy
-
-Run:
-
-```bash
-docker compose logs --tail=100 app
-curl http://localhost:3000/api/health
-```
-
-A `degraded` health response lists configuration errors without returning secret values. Check auth/provider variables and storage settings.
-
-### Sign-in fails
-
-Confirm `NEXTAUTH_URL`, the OAuth callback URL, provider ID/secret, and HTTPS scheme all match. Docker defaults to NextAuth; dev auth is intentionally disabled in production mode.
-
-### Attachment actions fail
-
-With the default local storage provider, confirm the `planglade_attachments` volume is healthy and writable, and that `PLANGLADE_STORAGE_SIGNING_SECRET` (or `NEXTAUTH_SECRET`) is set and stable across restarts. Changing the signing secret invalidates any in-flight signed URLs but does not delete files.
-
-## Local Development Without Docker
-
-The existing developer path remains supported:
-
-```bash
-npm install
-cp .env.example .env
-npm run db:generate
-npm run db:push
-npm run dev
-```
-
-Use these local-only values:
-
-```env
-DATABASE_URL="file:../db/custom.db"
-PLANGLADE_AUTH_MODE="dev"
-NEXT_PUBLIC_PLANGLADE_AUTH_MODE="dev"
-PLANGLADE_STORAGE_PROVIDER="local"
-PLANGLADE_LOCAL_STORAGE_DIR="storage/local-attachments"
-PLANGLADE_STORAGE_SIGNING_SECRET="replace-with-a-random-local-secret"
-```
-
-Open `http://localhost:3000`.
-
-## Public Exposure Checklist
+The bundle does not terminate public TLS. Put a maintained HTTPS reverse proxy
+or tunnel in front of port 8080 and keep the backend container private.
 
 Before public exposure:
 
-- Replace every placeholder and use strong unique secrets.
-- Use a real NextAuth OAuth provider; never use dev auth.
-- Put an HTTPS reverse proxy in front of the app.
-- Restrict firewall access and keep Docker/SQLite volumes off shared or untrusted storage.
-- Back up SQLite and local attachment volumes off-machine.
-- Test a full restore.
-- Add logging, monitoring, rate limiting, update procedures, and an incident plan.
+- set the final HTTPS `PLANGLADE_PUBLIC_URL` before sign-in;
+- keep unique secrets and never put secrets in `NEXT_PUBLIC_*` variables;
+- restrict firewall access to Docker and the host;
+- establish off-machine backups for both named volumes;
+- complete a restore drill;
+- add monitoring, log retention, update procedures, and an incident plan.
 
-## Known Limitations
+## Data, migrations, and backups
 
-- Not production-ready or production-hardened.
-- SQLite is suitable for this early baseline, not a substitute for a reviewed multi-user database architecture.
-- No PostgreSQL support or migration runbook.
-- No bundled HTTPS, reverse proxy, automated backup, restore drill, monitoring, or alerting.
-- Docker uses NextAuth plus local file storage by default.
+SQLite is stored at `/app/db/planglade.db` in `planglade_data`. Attachments are
+stored in `planglade_attachments`. Back up and restore them together.
+
+Normal startup runs checked-in migrations automatically. Never run
+`prisma db push`, `prisma migrate dev`, `prisma migrate reset`, or
+`docker compose down -v` against self-host data.
+
+Read:
+
+- [Backup and restore](./BACKUP_RESTORE.md)
+- [Production migrations](./PRODUCTION_MIGRATIONS.md)
+
+## Stop and update
+
+Stop while preserving data:
+
+```bash
+docker compose -f compose.yml down
+```
+
+For an update:
+
+1. Back up and verify both volumes.
+2. Review the changelog and environment changes.
+3. Pull or check out the intended version.
+4. Run:
+
+   ```bash
+   docker compose -f compose.yml build
+   docker compose -f compose.yml up -d
+   docker compose -f compose.yml ps -a
+   curl http://localhost:8080/api/health
+   ```
+
+Rollback means stopping the new containers, restoring a backup compatible with
+the earlier version when migrations changed data, checking out the earlier
+source revision, rebuilding, and starting again.
+
+## Local development without Docker
+
+From the repository root:
+
+```bash
+npm run install:all
+npm run dev
+```
+
+The launcher prepares `.runtime/planglade-dev.db`, runs the backend internally
+on port 3000, and serves the product at `http://127.0.0.1:5173`. Development
+authentication is local-only and cannot be enabled in production.
+
+## Troubleshooting
+
+- **Port 8080 is occupied:** set `PLANGLADE_PORT` in `.env` and keep
+  `PLANGLADE_PUBLIC_URL` aligned.
+- **Migration failed:** inspect `docker compose logs migrate`; do not delete the
+  volume to hide the failure.
+- **Backend is unhealthy:** inspect `docker compose logs --tail=100 backend`
+  and `/api/health` for redacted configuration errors.
+- **Sign-in fails:** verify the public URL, stable session secret, local-auth
+  flag, and any optional OAuth callback.
+- **Attachments fail:** verify the attachment volume is writable and the
+  session/storage signing secret stayed stable.
+
+## Known limitations
+
+- No bundled TLS, automated backup, monitoring, alerting, or malware scanning.
+- SQLite and the in-process import lock assume the bundled single-backend
+  topology; horizontal scaling requires additional coordination.
+- Releases and upgrade guarantees remain early-preview quality until a
+  versioned release and restore rehearsal are published.

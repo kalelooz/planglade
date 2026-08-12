@@ -5,55 +5,35 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-For $remote_addr;
+  proxy_set_header X-Real-IP $remote_addr;
+
   location = /healthz {
     access_log off;
     add_header Content-Type text/plain;
     return 200 "ok\n";
   }
 
+  location = /api/attachments/upload-binary {
+    client_max_body_size 52m;
+    proxy_request_buffering off;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+    proxy_pass ${PLANGLADE_BACKEND_ORIGIN};
+  }
+
+  location ~ ^/api/workspace/import-(local|preview)$ {
+    client_max_body_size 8m;
+    proxy_pass ${PLANGLADE_BACKEND_ORIGIN};
+  }
+
   location /api/ {
+    client_max_body_size 2m;
     proxy_pass ${PLANGLADE_BACKEND_ORIGIN};
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
-  }
-
-  location = /auth/login {
-    proxy_pass ${PLANGLADE_BACKEND_ORIGIN}/login$is_args$args;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
-  }
-
-  location /login {
-    proxy_pass ${PLANGLADE_BACKEND_ORIGIN};
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
-  }
-
-  location /setup {
-    proxy_pass ${PLANGLADE_BACKEND_ORIGIN};
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
-  }
-
-  location /_next/ {
-    proxy_pass ${PLANGLADE_BACKEND_ORIGIN};
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
   }
 
   location /assets/ {

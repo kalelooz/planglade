@@ -1,134 +1,65 @@
-# Production Migrations
+# Production migrations
 
-Last updated: 2026-07-09
+PlanGlade currently supports SQLite. The bundled Docker release stores the
+database in the persistent `planglade_data` volume and runs checked-in Prisma
+migrations through the one-shot `migrate` service before the backend starts.
 
-This repo currently has one production-facing migration risk:
+## Upgrade rule
 
-```text
-prisma/migrations/20260709000000_unique_attachment_storage_key/migration.sql
-```
+Before every upgrade:
 
-It creates a unique index on `Attachment.storageKey`.
+1. Record the current PlanGlade version or commit.
+2. Back up both the SQLite and attachment volumes from the same stopped state.
+3. Verify that the backup files are non-empty and complete a periodic restore
+   drill on a disposable installation.
+4. Read the changelog for migrations, environment changes, and rollback notes.
 
-## Current Database Architecture
+Do not use `prisma db push`, `prisma migrate dev`, `prisma migrate reset`, or
+`docker compose down -v` against self-host data.
 
-Evidence in this repo:
+## Docker migration path
 
-- `prisma/schema.prisma` uses SQLite only.
-- `docker-compose.yml` stores SQLite at `/app/db/planglade.db` in a persistent Docker volume.
-- `docs/SELF_HOSTING.md` documents a one-shot Docker migration container that runs `prisma migrate deploy` before the app starts.
-- `netlify.toml` only runs `npx prisma generate && npm run build`.
-- `docs/NETLIFY_PREVIEW.md` uses `DATABASE_URL="file:/tmp/planglade.db"` for Netlify preview/public-site checks.
-- `src/proxy.ts` applies the API demo-write guard. Product routes are owned exclusively by the Vite frontend; this service exposes API, sign-in, and first-run setup routes only.
-
-Conclusion: the repo-confirmed persistent app database is Docker SQLite. The Netlify configuration is for the public website/read-only demo path and must not be treated as a persistent production database. A Netlify `file:/tmp/...` SQLite database is ephemeral.
-
-Do not add `prisma migrate deploy` to the Netlify build command unless Netlify is changed to use a real persistent database and authenticated app traffic.
-
-## Production Status For This Migration
-
-As of this runbook, production migration state is:
-
-```text
-Not confirmed against a persistent production database.
-```
-
-Reason: the repo does not expose the real Netlify dashboard environment. If Netlify still uses `file:/tmp/planglade.db`, there is no persistent production database to migrate there.
-
-Before running anything against production, confirm only the provider and persistence model. Do not print or paste the secret value of `DATABASE_URL`.
-
-Record one of these outcomes:
-
-- Netlify uses `file:/tmp/...`: no persistent production DB; do not run migrations in Netlify.
-- Docker self-host uses `file:/app/db/planglade.db`: persistent SQLite; Docker migration service is the migration mechanism.
-- Another hosted SQL database exists: document the provider, backup status, and operator command before use.
-
-## Safe Migration Mechanism
-
-Selected mechanism for now: documented operator-run migration against the persistent database, with Docker Compose already automated for Docker self-host.
-
-For Docker self-host, normal startup already runs:
+Normal startup is the supported migration mechanism:
 
 ```bash
-docker compose up -d
+docker compose -f compose.yml build
+docker compose -f compose.yml up -d
+docker compose -f compose.yml ps -a
+docker compose -f compose.yml logs migrate
 ```
 
-The `migrate` service must exit with code 0 before the app starts.
+The `migrate` service must exit with code 0. The backend waits for that result
+and must not start against a failed or partially migrated database.
 
-For any non-Docker persistent database, run migrations from an operator machine or protected deployment job that has access to that database. Do not run them from the Netlify build filesystem.
-
-## Preflight
-
-1. Confirm the target database is persistent.
-2. Confirm a backup or snapshot exists and a restore has been tested enough for the risk.
-3. Generate Prisma client:
+Afterward, verify:
 
 ```bash
-npm run db:generate
+curl http://localhost:8080/api/health
 ```
 
-4. Check duplicate attachment storage keys:
+Then sign in and inspect known tasks, projects, notes, settings, and attachment
+downloads. A healthy endpoint alone does not prove application data is intact.
+
+## Operator diagnostics
+
+For an explicitly configured persistent database outside Compose, run commands
+from the repository root with `DATABASE_URL` supplied through a protected
+operator environment:
 
 ```bash
-npm run db:check:attachment-storage-keys
+npm run db:check:attachment-storage-keys --prefix backend
+npm run db:migrate:status --prefix backend
+npm run db:migrate:deploy --prefix backend
 ```
 
-This command does not print `DATABASE_URL` or storage keys.
+Never print or paste `DATABASE_URL` or storage keys into logs or support issues.
 
-5. Check migration state:
+## Failure and rollback
 
-```bash
-npm run db:migrate:status
-```
+If a migration fails, stop application writes and inspect the migration log.
+Do not reset or delete the database volume. Restore the pre-upgrade database
+and attachment backup together, check out the earlier compatible PlanGlade
+version, rebuild, and start it.
 
-If `20260709000000_unique_attachment_storage_key` is pending and duplicate storage keys exist, stop and clean the data first.
-
-## Apply
-
-Run only against the confirmed persistent database:
-
-```bash
-npm run db:migrate:deploy
-```
-
-Never use these against production or self-host data:
-
-```bash
-npm run db:push
-npm run db:migrate
-npm run db:reset
-prisma migrate reset
-```
-
-## Verify
-
-After migration:
-
-```bash
-npm run db:migrate:status
-curl https://<deployment-host>/api/health
-```
-
-Then sign in and check a known workspace, task list, notes page, and attachment flow if attachments are enabled.
-
-For Docker self-host:
-
-```bash
-docker compose ps -a
-docker compose logs migrate
-curl http://localhost:3000/api/health
-```
-
-## Rollback And Recovery
-
-The safe rollback for a failed schema migration is restore from the backup taken before the migration, then redeploy the previous known-good app version.
-
-Do not attempt a destructive reset. Do not delete the SQLite volume to make migration errors disappear.
-
-If the unique index migration fails because duplicates exist:
-
-1. Stop the app or prevent writes.
-2. Restore backup if the database is partially changed.
-3. Identify and resolve duplicate `Attachment.storageKey` rows.
-4. Rerun the duplicate check.
-5. Rerun `npm run db:migrate:deploy`.
+Forward-only schema changes may make a new database incompatible with an older
+binary. A source rollback without a compatible data restore is not guaranteed.

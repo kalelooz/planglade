@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 
-import { badRequest, notFound, parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { badRequest, forbidden, notFound, parseJsonBody, parseQuery, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { updateSavedViewSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 import { workspaceProjectExists } from "@/lib/workspace-reference-guards"
 
 type Params = { params: Promise<{ viewId: string }> }
@@ -91,7 +92,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     })
     if (!existing) return notFound("Saved view not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Saved view not found in workspace")
-    if (existing.createdById !== access.actor.userId) return notFound("Saved view not found")
+    if (!canDeleteWorkspaceContent({
+      role: access.actor.role,
+      actorUserId: access.actor.userId,
+      creatorUserId: existing.createdById,
+    })) return forbidden("Only the saved-view creator or a workspace admin can delete this saved view")
 
     await db.savedView.delete({ where: { id: viewId } })
     return NextResponse.json({ deleted: true })

@@ -320,16 +320,17 @@ const workItemBaseSchema = z.object({
   dueDate: z.string().datetime().optional(),
   assigneeId: z.string().min(1).optional(),
   parentId: z.string().min(1).optional(),
-  labelIds: z.array(z.string().min(1)).optional(),
-  noteIds: z.array(z.string().min(1)).optional(),
+  labelIds: z.array(z.string().min(1).max(128)).max(100).optional(),
+  noteIds: z.array(z.string().min(1).max(128)).max(100).optional(),
   checklist: z
     .array(
       z.object({
-        id: z.string().min(1),
-        text: z.string().min(1),
+        id: z.string().min(1).max(128),
+        text: z.string().min(1).max(500),
         done: z.boolean(),
       })
     )
+    .max(100)
     .optional(),
 })
 
@@ -360,7 +361,7 @@ export const createNoteSchema = z.object({
   body: z.string().trim().max(20000).optional(),
   visibility: noteVisibilitySchema.default("PRIVATE"),
   pinned: z.boolean().default(false),
-  tags: z.array(z.string().trim().min(1).max(32)).default([]),
+  tags: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
 })
 
 export const updateNoteSchema = createNoteSchema.partial().extend({
@@ -409,50 +410,67 @@ export const updateUserSettingsSchema = z.object({
   taskPriorityDisplayStyle: priorityDisplayStyleSchema.optional(),
 })
 
+export const IMPORT_LIMITS = {
+  bodyBytes: 8 * 1024 * 1024,
+  projects: 250,
+  workItems: 1_000,
+  notes: 500,
+  projectDocs: 300,
+  savedViews: 200,
+  total: 1_500,
+  relationshipsPerWorkItem: 100,
+} as const
+
+const localIdSchema = z.string().trim().min(1).max(128)
+const localFeatureFlagsSchema = z
+  .record(z.string().trim().min(1).max(64), z.boolean())
+  .refine((value) => Object.keys(value).length <= 50, "At most 50 feature flags are allowed")
+
 const localProjectSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  status: z.string().min(1),
-  mode: z.string().optional(),
-  featureFlags: z.record(z.string(), z.boolean()).optional(),
-  due: z.string().optional(),
-  accent: z.string().optional(),
+  id: localIdSchema,
+  name: z.string().trim().min(1).max(120),
+  status: z.string().trim().min(1).max(32),
+  mode: z.string().trim().max(32).optional(),
+  featureFlags: localFeatureFlagsSchema.optional(),
+  due: z.string().trim().max(64).optional(),
+  accent: z.string().trim().max(32).optional(),
 })
 
 const localWorkItemSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  status: z.string().min(1),
-  priority: z.string().min(1),
-  assignee: z.string().optional(),
-  due: z.string().optional(),
-  start: z.string().optional(),
-  project: z.string().optional(),
-  description: z.string().optional(),
+  id: localIdSchema,
+  title: z.string().trim().min(1).max(200),
+  status: z.string().trim().min(1).max(32),
+  priority: z.string().trim().min(1).max(32),
+  assignee: localIdSchema.optional(),
+  due: z.string().trim().max(64).optional(),
+  start: z.string().trim().max(64).optional(),
+  project: localIdSchema.optional(),
+  description: z.string().max(5000).optional(),
   isInbox: z.boolean().optional(),
-  noteIds: z.array(z.string().min(1)).optional(),
+  noteIds: z.array(localIdSchema).max(IMPORT_LIMITS.relationshipsPerWorkItem).optional(),
   checklist: z
     .array(
       z.object({
-        id: z.string().min(1),
-        text: z.string().min(1),
+        id: localIdSchema,
+        text: z.string().trim().min(1).max(500),
         done: z.boolean(),
       })
     )
+    .max(IMPORT_LIMITS.relationshipsPerWorkItem)
     .optional(),
 })
 
 const localNoteSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  tag: z.string().optional(),
-  excerpt: z.string().optional(),
-  body: z.string().optional(),
+  id: localIdSchema,
+  title: z.string().trim().min(1).max(180),
+  tag: z.string().trim().max(32).optional(),
+  excerpt: z.string().max(500).optional(),
+  body: z.string().max(20000).optional(),
 })
 
 const localProjectDocSchema = z.object({
-  id: z.string().min(1),
-  project: z.string().min(1).optional(),
+  id: localIdSchema,
+  project: localIdSchema.optional(),
   title: z.string().trim().min(1).max(180),
   body: z.string().max(50000).optional(),
   status: projectDocStatusSchema.default("ACTIVE"),
@@ -460,8 +478,8 @@ const localProjectDocSchema = z.object({
 })
 
 const localSavedViewSchema = z.object({
-  id: z.string().min(1),
-  project: z.string().min(1).optional(),
+  id: localIdSchema,
+  project: localIdSchema.optional(),
   name: z.string().trim().min(1).max(120),
   layout: z.enum(["list", "board", "kanban", "calendar", "map", "timeline", "overview", "table"]),
   groupBy: z.string().trim().max(64).optional(),
@@ -471,44 +489,59 @@ const localSavedViewSchema = z.object({
   isDefault: z.boolean().default(false),
 })
 
+type ImportEntityArrays = {
+  projects: unknown[]
+  workItems: unknown[]
+  notes: unknown[]
+  projectDocs: unknown[]
+  savedViews: unknown[]
+}
+
+function validateImportTotal(data: ImportEntityArrays, context: z.RefinementCtx) {
+  const total = data.projects.length + data.workItems.length + data.notes.length + data.projectDocs.length + data.savedViews.length
+  if (total > IMPORT_LIMITS.total) {
+    context.addIssue({ code: "custom", message: `Import contains more than ${IMPORT_LIMITS.total} total records` })
+  }
+}
+
 export const importLocalWorkspaceSchema = z.object({
-  workspaceId: z.string().min(1),
-  mode: z.enum(["append", "replace"]).default("append"),
-  projects: z.array(localProjectSchema).default([]),
-  workItems: z.array(localWorkItemSchema).default([]),
-  notes: z.array(localNoteSchema).default([]),
-  projectDocs: z.array(localProjectDocSchema).default([]),
-  savedViews: z.array(localSavedViewSchema).default([]),
-})
+  workspaceId: localIdSchema,
+  mode: z.literal("append").default("append"),
+  projects: z.array(localProjectSchema).max(IMPORT_LIMITS.projects).default([]),
+  workItems: z.array(localWorkItemSchema).max(IMPORT_LIMITS.workItems).default([]),
+  notes: z.array(localNoteSchema).max(IMPORT_LIMITS.notes).default([]),
+  projectDocs: z.array(localProjectDocSchema).max(IMPORT_LIMITS.projectDocs).default([]),
+  savedViews: z.array(localSavedViewSchema).max(IMPORT_LIMITS.savedViews).default([]),
+}).superRefine(validateImportTotal)
 
 export const importPreviewWorkspaceSnapshotSchema = z.object({
   version: z.number().int().positive().optional(),
-  generatedAt: z.string().optional(),
+  generatedAt: z.string().max(64).optional(),
   workspace: z
     .object({
-      id: z.string().optional(),
-      slug: z.string().optional(),
-      name: z.string().optional(),
+      id: localIdSchema.optional(),
+      slug: z.string().trim().max(80).optional(),
+      name: z.string().trim().max(120).optional(),
     })
     .optional(),
   settings: z
     .object({
-      userId: z.string().optional(),
-      theme: z.string().nullable().optional(),
-      density: z.string().nullable().optional(),
-      accent: z.string().nullable().optional(),
+      userId: localIdSchema.optional(),
+      theme: z.string().max(32).nullable().optional(),
+      density: z.string().max(32).nullable().optional(),
+      accent: z.string().max(32).nullable().optional(),
       notifications: z.record(z.string(), z.unknown()).nullable().optional(),
     })
     .passthrough()
     .nullable()
     .optional(),
   data: z.object({
-    projects: z.array(localProjectSchema).default([]),
-    workItems: z.array(localWorkItemSchema).default([]),
-    notes: z.array(localNoteSchema).default([]),
-    projectDocs: z.array(localProjectDocSchema).default([]),
-    savedViews: z.array(localSavedViewSchema).default([]),
-  }),
+    projects: z.array(localProjectSchema).max(IMPORT_LIMITS.projects).default([]),
+    workItems: z.array(localWorkItemSchema).max(IMPORT_LIMITS.workItems).default([]),
+    notes: z.array(localNoteSchema).max(IMPORT_LIMITS.notes).default([]),
+    projectDocs: z.array(localProjectDocSchema).max(IMPORT_LIMITS.projectDocs).default([]),
+    savedViews: z.array(localSavedViewSchema).max(IMPORT_LIMITS.savedViews).default([]),
+  }).superRefine(validateImportTotal),
   counts: z
     .object({
       projects: z.number().int().nonnegative().optional(),

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
@@ -23,6 +23,7 @@ import { BlockingIndicator, TaskCheckbox, StatusBadge } from '@/components/bits'
 import { relativeLabel, timeAgo } from '@/lib/dates'
 import { useQuery } from '@tanstack/react-query'
 import { getTaskHistory } from '@/lib/api/tasks'
+import { useAppCommands } from '@/store/app-commands'
 
 interface TaskDrawerCtx {
   openTask: (id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => void
@@ -39,30 +40,27 @@ export function TaskDrawerProvider({ children }: { children: React.ReactNode }) 
   const [drawerNonModal, setDrawerNonModal] = useState(false)
   const originRef = useRef<HTMLElement | null>(null)
   const { getTask } = useWorkspace()
+  const commands = useAppCommands()
 
-  const openTask = (id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => {
+  const openTask = useCallback((id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => {
     originRef.current = origin ?? (document.activeElement as HTMLElement | null)
     setDrawerNonModal(options?.nonModal ?? false)
     setOpenTaskId(id)
-  }
-  const closeTask = () => {
+  }, [])
+  const closeTask = useCallback(() => {
     setOpenTaskId(null)
     setDrawerNonModal(false)
-  }
-
-  useEffect(() => {
-    const handler = (e: Event) => openTask((e as CustomEvent<string>).detail)
-    window.addEventListener('planglade:open-task', handler)
-    return () => window.removeEventListener('planglade:open-task', handler)
   }, [])
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      if ((e as CustomEvent<string>).detail === openTaskId) closeTask()
-    }
-    window.addEventListener('planglade:task-deleted', handler)
-    return () => window.removeEventListener('planglade:task-deleted', handler)
-  }, [openTaskId])
+    return commands.subscribe('open-task', ({ taskId }) => openTask(taskId))
+  }, [commands, openTask])
+
+  useEffect(() => {
+    return commands.subscribe('task-deleted', ({ taskId }) => {
+      if (taskId === openTaskId) closeTask()
+    })
+  }, [closeTask, commands, openTaskId])
 
   useEffect(() => {
     if (!openTaskId || drawerNonModal) return
@@ -222,7 +220,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
   const historyQuery = useQuery({
     queryKey: ['work-item-history', ws.workspaceId, task.id],
     queryFn: ({ signal }) => getTaskHistory(ws.workspaceId!, task.id, signal),
-    enabled: showHistory && Boolean(ws.readOnly && ws.workspaceId && task.source),
+    enabled: showHistory && Boolean(ws.supportsTaskHistory && ws.workspaceId && task.source),
     staleTime: 30_000,
   })
 
@@ -286,7 +284,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <StatusBadge status={task.status} />
               {blocked && !done && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400">
+                <span className="inline-flex items-center gap-1 text-[12.5px] text-red-600 dark:text-red-400">
                   <CircleSlash className="h-3 w-3" /> Blocked
                 </span>
               )}
@@ -294,7 +292,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
               {parent && (
                 <button
                   onClick={() => onNavigateTask(parent.id)}
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <CornerDownRight className="h-3 w-3" /> {parent.title}
                 </button>
@@ -329,7 +327,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(STATUS_LABELS) as TaskStatus[]).filter((s) => !ws.readOnly || s !== 'blocked').map((s) => (
+                {(Object.keys(STATUS_LABELS) as TaskStatus[]).filter((s) => ws.supportsBlockedStatus || s !== 'blocked').map((s) => (
                   <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
                 ))}
               </SelectContent>
@@ -341,7 +339,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(PRIORITY_LABELS) as Priority[]).filter((p) => !ws.readOnly || p !== 'none').map((p) => (
+                {(Object.keys(PRIORITY_LABELS) as Priority[]).filter((p) => ws.supportsNoPriority || p !== 'none').map((p) => (
                   <SelectItem key={p} value={p}>{PRIORITY_LABELS[p]}</SelectItem>
                 ))}
               </SelectContent>
@@ -407,7 +405,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
                       )
                     }
                     className={cn(
-                      'rounded-full border px-2 py-0.5 text-[11px] font-medium transition-[opacity,background-color,border-color,box-shadow,transform]',
+                      'rounded-full border px-2 py-0.5 text-[12.5px] font-medium transition-[opacity,background-color,border-color,box-shadow,transform]',
                       active ? 'opacity-100' : 'opacity-40 hover:opacity-80',
                     )}
                     style={{ borderColor: color, color, backgroundColor: active ? `color-mix(in srgb, ${color} 10%, transparent)` : 'transparent' }}
@@ -511,7 +509,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
                     <button onClick={() => onNavigateTask(b.id)} className="flex-1 text-left text-sm truncate hover:underline underline-offset-2">
                       {b.title}
                     </button>
-                    <span className="text-[11px] text-muted-foreground">{STATUS_LABELS[b.status]}</span>
+                    <span className="text-[12.5px] text-muted-foreground">{STATUS_LABELS[b.status]}</span>
                     {canEdit && <button
                       aria-label={`Remove dependency on ${b.title}`}
                       onClick={() => ws.updateTask(task.id, { dependsOn: task.dependsOn.filter((d) => d !== b.id) }, { silent: true })}
@@ -550,7 +548,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
                         className="flex min-h-9 w-full items-center gap-2 rounded px-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                       >
                         <span className="min-w-0 flex-1 truncate">{candidate.title}</span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">{STATUS_LABELS[candidate.status]}</span>
+                        <span className="shrink-0 text-[12.5px] text-muted-foreground">{STATUS_LABELS[candidate.status]}</span>
                       </button>
                     ))}
                   </div>
@@ -572,7 +570,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
                     <button onClick={() => onNavigateTask(blockedTask.id)} className="flex-1 text-left text-sm truncate hover:underline underline-offset-2">
                       {blockedTask.title}
                     </button>
-                    <span className="text-[11px] text-muted-foreground">{STATUS_LABELS[blockedTask.status]}</span>
+                    <span className="text-[12.5px] text-muted-foreground">{STATUS_LABELS[blockedTask.status]}</span>
                   </li>
                 ))}
               </ul>
@@ -606,11 +604,11 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
             className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
           >
             <History className="h-3.5 w-3.5" /> History
-            <span className={cn('inline-block transition-transform text-[9px]', showHistory ? 'rotate-180' : '')}>▾</span>
+            <span className={cn('inline-block transition-transform text-[12.5px]', showHistory ? 'rotate-180' : '')}>▾</span>
           </button>
           {showHistory && (
             <ul className="mt-2 space-y-1.5 border-l border-border pl-3 ml-0.5">
-              {ws.readOnly ? (
+              {ws.supportsTaskHistory ? (
                 historyQuery.isLoading ? <li className="text-xs text-muted-foreground">Loading history…</li> :
                 historyQuery.isError ? <li className="text-xs text-destructive">History could not be loaded.</li> :
                 historyQuery.data?.length ? historyQuery.data.map((event) => (
@@ -631,7 +629,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
       {canEdit && <>
       <Separator />
       <div className="min-w-0 px-5 py-3 flex items-center justify-between gap-3">
-        <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+        <span className="min-w-0 truncate text-[12.5px] text-muted-foreground">
           {project ? `In ${project.name}` : 'Not in a project'}
         </span>
         <Button
@@ -650,7 +648,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this task?</AlertDialogTitle>
             <AlertDialogDescription>
-              “{task.title}” will be removed{!ws.readOnly && ' and can be undone right after from the toast'}.
+              “{task.title}” will be removed{ws.deletionIsRecoverable && ' and can be undone right after from the toast'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

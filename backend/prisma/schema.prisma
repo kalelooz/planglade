@@ -118,6 +118,7 @@ model User {
   id                String            @id @default(cuid())
   email             String            @unique
   normalizedEmail   String?           @unique
+  firebaseUid       String?           @unique
   authVersion       Int               @default(0)
   name              String?
   image             String?
