@@ -13,7 +13,7 @@ describe('E2E harness port parsing', () => {
   })
 
   it('waits until a child emits exit', async () => {
-    const child = Object.assign(new EventEmitter(), { exitCode: null })
+    const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: null })
     const exited = waitForChildExit(child, 100)
 
     setTimeout(() => {
@@ -22,5 +22,11 @@ describe('E2E harness port parsing', () => {
     }, 5)
 
     await expect(exited).resolves.toBe(true)
+  })
+
+  it('recognizes a child that exited by signal', async () => {
+    const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: 'SIGTERM' })
+
+    await expect(waitForChildExit(child, 100)).resolves.toBe(true)
   })
 })

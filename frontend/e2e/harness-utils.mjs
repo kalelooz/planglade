@@ -35,7 +35,7 @@ export async function assertPortAvailable(port) {
 }
 
 export function waitForChildExit(child, timeoutMs) {
-  if (child.exitCode !== null) return Promise.resolve(true)
+  if (child.exitCode !== null || typeof child.signalCode === 'string') return Promise.resolve(true)
   return new Promise((resolve) => {
     const onExit = () => {
       clearTimeout(timeout)
@@ -43,14 +43,14 @@ export function waitForChildExit(child, timeoutMs) {
     }
     const timeout = setTimeout(() => {
       child.off('exit', onExit)
-      resolve(child.exitCode !== null)
+      resolve(child.exitCode !== null || typeof child.signalCode === 'string')
     }, timeoutMs)
     child.once('exit', onExit)
   })
 }
 
 export async function stopProcessTree(child) {
-  if (!child?.pid || child.exitCode !== null) return
+  if (!child?.pid || child.exitCode !== null || typeof child.signalCode === 'string') return
   if (process.platform === 'win32') {
     try {
       await execFile('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true })
@@ -65,8 +65,8 @@ export async function stopProcessTree(child) {
   } catch (error) {
     if (error?.code !== 'ESRCH') throw error
   }
-  await waitForChildExit(child, 5_000)
-  if (child.exitCode === null) {
+  const exitedAfterTerm = await waitForChildExit(child, 5_000)
+  if (!exitedAfterTerm) {
     try {
       process.kill(-child.pid, 'SIGKILL')
     } catch (error) {
