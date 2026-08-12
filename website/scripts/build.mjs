@@ -33,7 +33,7 @@ await Promise.all([
 ])
 
 const publicPaths = pages
-  .filter((page) => page.robots !== 'noindex, follow')
+  .filter((page) => !/\bnoindex\b/i.test(page.robots ?? ''))
   .map((page) => page.path)
 const lastModified = new Date().toISOString().slice(0, 10)
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>

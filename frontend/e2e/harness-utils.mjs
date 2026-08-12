@@ -34,6 +34,21 @@ export async function assertPortAvailable(port) {
   }
 }
 
+export function waitForChildExit(child, timeoutMs) {
+  if (child.exitCode !== null) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timeout)
+      resolve(true)
+    }
+    const timeout = setTimeout(() => {
+      child.off('exit', onExit)
+      resolve(child.exitCode !== null)
+    }, timeoutMs)
+    child.once('exit', onExit)
+  })
+}
+
 export async function stopProcessTree(child) {
   if (!child?.pid || child.exitCode !== null) return
   if (process.platform === 'win32') {
@@ -45,18 +60,18 @@ export async function stopProcessTree(child) {
     return
   }
 
-  const exited = new Promise((resolve) => child.once('exit', resolve))
   try {
     process.kill(-child.pid, 'SIGTERM')
   } catch (error) {
     if (error?.code !== 'ESRCH') throw error
   }
-  await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 5_000))])
+  await waitForChildExit(child, 5_000)
   if (child.exitCode === null) {
     try {
       process.kill(-child.pid, 'SIGKILL')
     } catch (error) {
       if (error?.code !== 'ESRCH') throw error
     }
+    await waitForChildExit(child, 1_000)
   }
 }

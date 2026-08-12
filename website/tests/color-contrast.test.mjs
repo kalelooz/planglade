@@ -46,14 +46,16 @@ function contrast(first, second) {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
-test('primary text, secondary text, and accent text meet AA in both appearances', () => {
+test('visible text tokens meet AA in both appearances', () => {
   const themes = {
     light: themeTokens(':root'),
     dark: themeTokens('html[data-theme="dark"]'),
   }
+  assert.deepEqual(themeTokens('html:not([data-theme])'), themes.dark, 'system dark mode must use the explicit dark palette')
   for (const [name, tokens] of Object.entries(themes)) {
     assert.ok(contrast(tokens['--ink'], tokens['--canvas']) >= 7, `${name} primary text must meet AAA`)
     assert.ok(contrast(tokens['--ink-soft'], tokens['--canvas']) >= 4.5, `${name} secondary text must meet AA`)
+    assert.ok(contrast(tokens['--ink-faint'], tokens['--canvas']) >= 4.5, `${name} faint text must meet AA`)
     assert.ok(contrast(tokens['--accent'], tokens['--canvas']) >= 4.5, `${name} accent text must meet AA`)
   }
 })

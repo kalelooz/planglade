@@ -21,6 +21,8 @@ test('built site contains public pages and distinct website assets', async () =>
     'contact/index.html',
     '404.html',
     'assets/styles.css',
+    'assets/theme.js',
+    'assets/site.js',
     'assets/editorial-clearing-v1.jpg',
     'assets/product/home.png',
   ]) await access(path.join(outputRoot, file))
@@ -51,5 +53,6 @@ test('robots and sitemap keep sample demo content out of search', async () => {
   ])
   assert.match(robots, /Disallow: \/demo\//)
   assert.doesNotMatch(sitemap, /\/demo\/?<\/loc>/)
+  assert.doesNotMatch(sitemap, /\/404\/<\/loc>/)
   assert.match(sitemap, /https:\/\/planglade\.com\/product\//)
 })
