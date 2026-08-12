@@ -8,6 +8,8 @@ const requiredCommands = [
   'npm run check:ci',
   'npm run check:docs',
   'npm run check:hosting',
+  'npm run check:site',
+  'npm run check:site-output',
   'npm run check:release',
   'npm run check:backend-surface --prefix backend',
   'npm run lint',
@@ -16,6 +18,7 @@ const requiredCommands = [
   'npm run test:release',
   'npm test',
   'npm run build',
+  'npm run build:site',
   'npm exec --prefix backend -- prisma validate --schema backend/prisma/schema.prisma',
   'npm run test:e2e:integration --prefix frontend',
 ]

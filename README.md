@@ -96,17 +96,20 @@ The root command runs database initialization, the internal backend on port
 
 ## Architecture
 
-PlanGlade keeps the product in one repository while separating its runtime responsibilities:
+PlanGlade keeps the public site and product in one repository while separating their source and deployment responsibilities:
 
 ```text
 planglade/
-├── frontend/    React and Vite product interface
+├── website/     Public pages and curated marketing assets
+├── frontend/    React and Vite core application
 ├── backend/     API, authentication, SQLite, migrations, and attachments
-├── compose.yml  Single-origin production deployment
-└── docs/        User-facing project documentation
+├── compose.yml  Single-origin self-host deployment
+└── docs/        User-facing and architecture documentation
 ```
 
 Docker Compose exposes one application origin on port `8080`; API, authentication, and setup requests are routed to the backend internally.
+
+The public website deploy is independent of the self-host runtime. Netlify publishes `website/dist`; the browser-local demo is compiled from `frontend/` and mounted as a separate artifact at `/demo`. The website never imports core application source. See the [website boundary](./docs/WEBSITE_ARCHITECTURE.md) for the build and verification contract.
 
 ## Documentation
 
@@ -114,6 +117,7 @@ Docker Compose exposes one application origin on port `8080`; API, authenticatio
 - [PlanGlade 0.2.0 release notes](./docs/releases/0.2.0.md)
 - [User guide](./docs/USER_GUIDE.md)
 - [Workspace permissions](./docs/PERMISSIONS.md)
+- [Website and core application boundary](./docs/WEBSITE_ARCHITECTURE.md)
 - [Self-hosting](./backend/docs/SELF_HOSTING.md)
 - [Backup and restore](./backend/docs/BACKUP_RESTORE.md)
 - [Production migrations](./backend/docs/PRODUCTION_MIGRATIONS.md)
@@ -128,12 +132,16 @@ Docker Compose exposes one application origin on port `8080`; API, authenticatio
 npm run check:public
 npm run check:ci
 npm run check:docs
+npm run check:hosting
+npm run check:site
 npm run check:backend-surface --prefix backend
 npm run lint
 npm run typecheck
 npm exec --prefix backend -- prisma validate --schema backend/prisma/schema.prisma
 npm test
 npm run build
+npm run build:site
+npm run check:site-output
 npm run test:e2e:integration --prefix frontend
 ```
 
