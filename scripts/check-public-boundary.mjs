@@ -15,6 +15,8 @@ const forbidden = [
   /(^|\/)(\.agents|\.codex|\.opencode|\.zscripts|\.playwright-mcp)(\/|$)/i,
   /(^|\/)(ROADMAP\.md|PRODUCT\.md)$/i,
   /(^|\/)(Reddit|artifacts)(\/|$)/i,
+  /(^|\/)website(\/|$)/i,
+  /(^|\/)netlify\.toml$/i,
   /(^|\/)docs\/(Sources|audits|archive|superpowers|slices)(\/|$)/i,
   /(^|\/)(planglade-collaboration-foundation-plan\.md|planglade-marketing\.html)$/i,
   /(^|\/)Caddyfile$/i,

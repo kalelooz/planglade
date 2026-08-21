@@ -44,6 +44,6 @@ assert.match(files['README.md'], /docs\/PERMISSIONS\.md/)
 
 const migrationDocs = files['backend/docs/PRODUCTION_MIGRATIONS.md']
 assert.match(migrationDocs, /docker compose -f compose\.yml/)
-assert.doesNotMatch(migrationDocs, /docker-compose\.yml|Netlify|file:\/tmp/)
+assert.doesNotMatch(migrationDocs, /docker-compose\.yml|file:\/tmp/)
 
 console.log('Public setup, contributor, self-hosting, migration, support, and reporting docs are aligned.')

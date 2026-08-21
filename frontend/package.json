@@ -9,7 +9,6 @@
     "dev:reference": "vite --mode reference",
     "build": "tsc -b && vite build",
     "build:reference": "tsc -b && vite build --mode reference",
-    "build:demo": "tsc -b && vite build --mode reference --base /demo/ --outDir dist-demo",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
