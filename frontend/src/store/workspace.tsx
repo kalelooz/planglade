@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type {
   WorkspaceState, Task, Note, InboxItem, Project, ProjectStatus, AppSettings,
@@ -18,9 +17,8 @@ import { placeBoardTask } from '@/lib/board-order'
 import { authLoginHref, currentWorkspaceDestination } from '@/lib/auth-destination'
 import { useNavigate } from 'react-router'
 import { useAppCommands } from '@/store/app-commands'
-import { useApiWorkspaceQueries } from '@/store/use-api-workspace-queries'
 import { createReferenceWorkspaceAdapter } from '@/store/reference-workspace-adapter'
-import { useApiWorkspaceMutations } from '@/store/use-api-workspace-mutations'
+import { useServerWorkspaceSync } from '@/store/server-workspace-sync'
 import {
   WorkspaceContexts,
   type TaskPatch,
@@ -86,7 +84,6 @@ function BootstrapState({ error }: { error?: unknown }) {
 function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState(loadApiSettings)
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() => localStorage.getItem(ACTIVE_WORKSPACE_KEY))
-  const queryClient = useQueryClient()
   const updateQueue = useRef<ReturnType<typeof createTaskMutationQueue<{ patch: TaskPatch; silent: boolean }>>>(undefined)
   const deletePending = useRef(false)
   const noteUpdateQueue = useRef<ReturnType<typeof createTaskMutationQueue<{ patch: NoteMutationPatch; silent: boolean }, Note | null>>>(undefined)
@@ -100,8 +97,6 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     inbox: inboxQuery,
     notes: notesQuery,
     relations: relationsQuery,
-  } = useApiWorkspaceQueries(selectedWorkspaceId)
-  const {
     createTaskMutation: createMutation,
     updateTaskMutation: updateMutation,
     deleteTaskMutation: deleteMutation,
@@ -114,7 +109,8 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     createWorkspaceMutation,
     updateWorkspaceMutation,
     updateSettingsMutation,
-  } = useApiWorkspaceMutations(selectedWorkspaceId)
+    invalidateRelations,
+  } = useServerWorkspaceSync(selectedWorkspaceId)
 
   useEffect(() => {
     if (!selectedWorkspaceId || !sessionQuery.isError) return
@@ -233,7 +229,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
           const relation = relationFor(blockerId)
           if (relation) await deleteWorkItemRelation(workspaceId, relation.id)
         }
-        await queryClient.invalidateQueries({ queryKey: ['work-item-relations', workspaceId] })
+        await invalidateRelations(workspaceId)
         if (!opts?.silent) toast.success('Changes saved')
         return true
       } catch (error) {

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -19,12 +19,18 @@ describe('workspace architecture', () => {
       .map((path) => readFileSync(path, 'utf8'))
       .join('\n')
     const workspaceProvider = readFileSync(join(sourceRoot, 'store', 'workspace.tsx'), 'utf8')
+    const serverSync = readFileSync(join(sourceRoot, 'store', 'server-workspace-sync.ts'), 'utf8')
+    const board = readFileSync(join(sourceRoot, 'pages', 'Board.tsx'), 'utf8')
 
     expect(productionSource).not.toMatch(/planglade:/)
     expect(productionSource).not.toMatch(/\breadOnly\s*:/)
     expect(productionSource).not.toMatch(/\.readOnly\b/)
-    expect(workspaceProvider).toContain('useApiWorkspaceQueries')
-    expect(workspaceProvider).toContain('useApiWorkspaceMutations')
+    expect(workspaceProvider).toContain('useServerWorkspaceSync')
     expect(workspaceProvider).toContain('createReferenceWorkspaceAdapter')
+    expect(serverSync).toContain('useQuery')
+    expect(serverSync).toContain('useMutation')
+    expect(board).toContain('TASK_STATUS_ORDER')
+    expect(existsSync(join(sourceRoot, 'store', 'use-api-workspace-queries.ts'))).toBe(false)
+    expect(existsSync(join(sourceRoot, 'store', 'use-api-workspace-mutations.ts'))).toBe(false)
   })
 })

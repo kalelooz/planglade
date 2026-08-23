@@ -4,17 +4,16 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, SlidersHorizontal, Plus, ArrowUpDown, CheckSquare, X, Rows3,
 } from 'lucide-react'
-import { differenceInCalendarDays, parseISO, startOfDay } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
-import type { Task, TaskStatus } from '@/types'
+import type { TaskStatus } from '@/types'
 import { STATUS_LABELS, PRIORITY_LABELS } from '@/types'
 import { TaskRow } from '@/components/TaskRow'
 import { Board } from '@/pages/Board'
 import { TaskTimeline } from '@/pages/TaskTimeline'
 import { TASK_VIEW_CATALOG } from '@/lib/task-view-catalog'
 import { CountBadge, EmptyState, PageContainer } from '@/components/bits'
-import { isOverdue, isDueToday } from '@/lib/dates'
+import { buildTaskPlanningProjection } from '@/lib/task-planning'
 import {
   taskPresentationFromQuery,
   taskPresentationToQuery,
@@ -176,90 +175,15 @@ export default function Tasks() {
     if (defaultView) setSearchParams(taskPresentationToQuery(savedViewToPresentation(defaultView), defaultView.id), { replace: true })
   }, [savedViews.loading, savedViews.views, searchParams, setSearchParams])
 
-  const filtered = useMemo(() => {
-    const today = startOfDay(new Date())
-    let list = ws.tasks.filter((t) => !t.parentId)
-    if (!showCompleted) list = list.filter((t) => t.status !== 'done')
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      list = list.filter((t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
-    }
-    if (quick.size > 0) {
-      list = list.filter((t) => {
-        const checks: Record<QuickFilter, boolean> = {
-          today: isDueToday(t.dueDate),
-          upcoming: !!t.dueDate && differenceInCalendarDays(parseISO(t.dueDate), today) > 0,
-          overdue: isOverdue(t.dueDate, t.status === 'done'),
-          no_date: !t.dueDate,
-          blocked: ws.isBlocked(t),
-        }
-        return Array.from(quick).some((k) => checks[k])
-      })
-    }
-    if (projectFilter.size > 0) list = list.filter((t) => t.projectId && projectFilter.has(t.projectId))
-    if (priorityFilter.size > 0) list = list.filter((t) => priorityFilter.has(t.priority))
-    const prioRank = { high: 0, medium: 1, low: 2, none: 3 }
-    const sorted = [...list].sort((a, b) => {
-      switch (sort) {
-        case 'due':
-          return (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') || a.createdAt - b.createdAt
-        case 'priority':
-          return prioRank[a.priority] - prioRank[b.priority] || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
-        case 'created':
-          return b.createdAt - a.createdAt
-        case 'title':
-          return a.title.localeCompare(b.title)
-      }
-    })
-    return sorted
-  }, [ws, search, quick, projectFilter, priorityFilter, showCompleted, sort])
-
-  const groups = useMemo(() => {
-    if (group === 'none') return [{ key: 'all', label: '', tasks: filtered }]
-    const map = new Map<string, Task[]>()
-    const labelOf = (key: string) => {
-      if (group === 'project') return key === 'none' ? 'No project' : ws.getProject(key)?.name ?? 'No project'
-      if (group === 'status') return STATUS_LABELS[key as TaskStatus]
-      // due
-      if (key === 'overdue') return 'Overdue'
-      if (key === 'today') return 'Today'
-      if (key === 'week') return 'This week'
-      if (key === 'later') return 'Later'
-      return 'No date'
-    }
-    const keyOf = (t: Task) => {
-      if (group === 'project') return t.projectId ?? 'none'
-      if (group === 'status') return t.status
-      if (!t.dueDate) return 'none'
-      const d = differenceInCalendarDays(parseISO(t.dueDate), startOfDay(new Date()))
-      if (d < 0) return 'overdue'
-      if (d === 0) return 'today'
-      if (d <= 7) return 'week'
-      return 'later'
-    }
-    filtered.forEach((t) => {
-      const k = keyOf(t)
-      if (!map.has(k)) map.set(k, [])
-      map.get(k)!.push(t)
-    })
-    const order = group === 'due' ? ['overdue', 'today', 'week', 'later', 'none'] : group === 'status' ? ['backlog', 'planned', 'in_progress', 'in_review', 'blocked', 'done'] : Array.from(map.keys())
-    return order
-      .filter((k) => map.has(k))
-      .map((k) => ({ key: k, label: labelOf(k), tasks: map.get(k)! }))
-  }, [filtered, group, ws])
+  const projection = useMemo(() => buildTaskPlanningProjection({
+    tasks: ws.tasks,
+    projects: ws.projects,
+    presentation,
+    isBlocked: ws.isBlocked,
+  }), [presentation, ws.isBlocked, ws.projects, ws.tasks])
+  const { tasks: filtered, groups, counts: taskCounts } = projection
 
   const activeFilterCount = quick.size + projectFilter.size + priorityFilter.size
-
-  const taskCounts = useMemo(() => {
-    const scope = ws.tasks.filter((task) => !task.parentId)
-    return [
-      { label: 'Open', value: scope.filter((task) => task.status !== 'done').length },
-      { label: 'Backlog', value: scope.filter((task) => task.status === 'backlog').length },
-      { label: 'In progress', value: scope.filter((task) => task.status === 'in_progress').length },
-      { label: 'In review', value: scope.filter((task) => task.status === 'in_review').length },
-      { label: 'Done', value: scope.filter((task) => task.status === 'done').length },
-    ]
-  }, [ws.tasks])
 
   const updatePresentation = (patch: Partial<TaskPresentation>, replace = false) => {
     setSearchParams(taskPresentationToQuery({ ...presentation, ...patch }, searchParams.get('saved')), { replace })

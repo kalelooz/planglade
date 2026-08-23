@@ -58,3 +58,23 @@ test('primary product surfaces pass axe and Settings radios support native keybo
     }))).toEqual([])
   }
 })
+
+test('desktop task rows render metadata once', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/tasks')
+  await page.getByRole('tab', { name: 'List' }).click()
+  await page.getByRole('textbox', { name: 'Search tasks' }).fill("Renew driver's license")
+
+  const row = page.getByText("Renew driver's license", { exact: true }).locator('xpath=../../..')
+  await expect(row).toBeVisible()
+  await expect(row.getByText('Planned', { exact: true }).filter({ visible: true })).toHaveCount(1)
+  await expect(row.locator('svg.lucide-calendar-days').filter({ visible: true })).toHaveCount(1)
+  await expect(row.getByText('Medium priority', { exact: true }).filter({ visible: true })).toHaveCount(1)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await expect(row).toBeVisible()
+  await expect(row.getByText('Planned', { exact: true }).filter({ visible: true })).toHaveCount(1)
+  await expect(row.locator('svg.lucide-calendar-days').filter({ visible: true })).toHaveCount(1)
+  await expect(row.getByText('Medium priority', { exact: true }).filter({ visible: true })).toHaveCount(1)
+})

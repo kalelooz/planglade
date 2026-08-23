@@ -7,6 +7,7 @@ import { useWorkspace } from '@/store/workspace'
 import { useTaskDrawer } from '@/components/TaskDrawer'
 import { EmptyState, PageContainer } from '@/components/bits'
 import { buildTaskTimelineRange } from '@/lib/task-analytical-models'
+import { buildTimelineRows } from '@/lib/task-planning'
 
 function isoStart(task: Task) {
   return task.startDate ?? task.source?.startDate ?? task.dueDate
@@ -25,6 +26,7 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
   const scheduled = useMemo(() => tasks.filter((task) => task.dueDate), [tasks])
   const unscheduled = useMemo(() => tasks.filter((task) => !task.dueDate && task.status !== 'done'), [tasks])
   const range = useMemo(() => buildTaskTimelineRange(scheduled), [scheduled])
+  const rows = useMemo(() => buildTimelineRows(tasks, ws.projects), [tasks, ws.projects])
 
   useEffect(() => {
     if (!gesture) return
@@ -71,9 +73,6 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
   const dayWidth = timelineWidth / timelineDays
   const dates = Array.from({ length: timelineDays }, (_, index) => addDays(range.start, index))
   const todayIndex = differenceInCalendarDays(startOfDay(new Date()), range.start)
-  const groups = ws.projects.map((project) => ({ project, tasks: scheduled.filter((task) => task.projectId === project.id) })).filter((group) => group.tasks.length)
-  const noProject = scheduled.filter((task) => !task.projectId)
-  const rows = [...groups, ...(noProject.length ? [{ project: null, tasks: noProject }] : [])]
   const months = dates.reduce<Array<{ label: string; days: number }>>((result, date) => {
     const label = format(date, 'MMM yyyy')
     const previous = result.at(-1)

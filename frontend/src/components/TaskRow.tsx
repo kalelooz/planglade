@@ -87,9 +87,9 @@ export function TaskRow({
                 {showProject && field('project') && <ProjectChip project={project} className="pointer-events-auto inline-flex max-w-[120px] shrink items-center sm:max-w-[150px]" onClick={() => project && navigate(`/projects/${project.id}`)} />}
                 {blocked && !done && <BlockedIndicator className="shrink-0" />}
                 {blocking && <BlockingIndicator className="shrink-0" />}
-                {hasMobileStatus && <StatusBadge status={task.status} className="shrink-0" />}
-                {hasMobileDue && <DueBadge date={task.dueDate} done={done} className="max-w-full shrink-0 text-[12.5px]" />}
-                {hasMobilePriority && <PriorityBadge priority={task.priority} className={cn('inline-flex min-w-4 shrink-0 items-center justify-center', mutedPriority && 'text-muted-foreground')} />}
+                {hasMobileStatus && <StatusBadge status={task.status} className="shrink-0 lg:hidden" />}
+                {hasMobileDue && <DueBadge date={task.dueDate} done={done} className="max-w-full shrink-0 text-[12.5px] lg:hidden" />}
+                {hasMobilePriority && <PriorityBadge priority={task.priority} className={cn('inline-flex min-w-4 shrink-0 items-center justify-center lg:hidden', mutedPriority && 'text-muted-foreground')} />}
               </div>
             )}
           </div>
