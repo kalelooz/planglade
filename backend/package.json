@@ -49,6 +49,7 @@
     "typescript": "^5"
   },
   "overrides": {
+    "deepmerge-ts": "^8.0.2",
     "postcss": "^8.5.15",
     "gaxios": "^7.2.0",
     "retry-request": "^8.0.3",

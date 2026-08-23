@@ -39,6 +39,7 @@ const originalEnv = {
   PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
   PLANGLADE_STORAGE_PROVIDER: process.env.PLANGLADE_STORAGE_PROVIDER,
+  PLANGLADE_EMAIL_PROVIDER: process.env.PLANGLADE_EMAIL_PROVIDER,
   PLANGLADE_LOCAL_AUTH_ENABLED: process.env.PLANGLADE_LOCAL_AUTH_ENABLED,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
@@ -60,9 +61,7 @@ function setContractEnv(nodeEnv: "development" | "production", authMode = "dev")
   process.env.PLANGLADE_AUTH_MODE = authMode
   process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = authMode
   process.env.PLANGLADE_STORAGE_PROVIDER = "local"
-  delete process.env.PLANGLADE_AUTH_MODE
-  delete process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE
-  delete process.env.PLANGLADE_STORAGE_PROVIDER
+  delete process.env.PLANGLADE_EMAIL_PROVIDER
   delete process.env.PLANGLADE_LOCAL_AUTH_ENABLED
   delete process.env.NEXTAUTH_SECRET
   delete process.env.NEXTAUTH_URL
@@ -116,7 +115,7 @@ test("health returns JSON 503 when required configuration is unavailable", async
 test("health treats explicit local credentials as an available NextAuth provider", async () => {
   await withRestoredState(async () => {
     setContractEnv("production", "nextauth")
-    process.env.NEXTAUTH_SECRET = "test-secret"
+    process.env.NEXTAUTH_SECRET = "test-nextauth-secret-32-bytes-minimum-value"
     process.env.NEXTAUTH_URL = "https://planglade.test"
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "true"
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
@@ -141,7 +140,7 @@ test("health treats explicit local credentials as an available NextAuth provider
 test("health degrades safely for invalid local authentication configuration", async () => {
   await withRestoredState(async () => {
     setContractEnv("production", "nextauth")
-    process.env.NEXTAUTH_SECRET = "test-secret"
+    process.env.NEXTAUTH_SECRET = "test-nextauth-secret-32-bytes-minimum-value"
     process.env.NEXTAUTH_URL = "https://planglade.test"
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "invalid"
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
@@ -155,6 +154,27 @@ test("health degrades safely for invalid local authentication configuration", as
     assert.equal(payload.checks?.auth?.ready, false)
     assert.match(payload.checks?.auth?.errors?.join(" ") ?? "", /Invalid PLANGLADE_LOCAL_AUTH_ENABLED/)
     assert.doesNotMatch(body, /PLANGLADE_LOCAL_AUTH_ENABLED=invalid|secret=|stack/i)
+  })
+})
+
+test("health uses the shared production policy for email readiness", async () => {
+  await withRestoredState(async () => {
+    setContractEnv("production", "nextauth")
+    process.env.NEXTAUTH_SECRET = "test-nextauth-secret-32-bytes-minimum-value"
+    process.env.NEXTAUTH_URL = "https://planglade.test"
+    process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "true"
+    process.env.PLANGLADE_EMAIL_PROVIDER = "console"
+    db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
+
+    const response = await getHealth()
+    const payload = (await response.json()) as {
+      checks?: { email?: { ready?: boolean; provider?: string; errors?: string[] } }
+    }
+
+    assert.equal(response.status, 503)
+    assert.equal(payload.checks?.email?.ready, false)
+    assert.equal(payload.checks?.email?.provider, "console")
+    assert.match(payload.checks?.email?.errors?.join(" ") ?? "", /console.*production/i)
   })
 })
 

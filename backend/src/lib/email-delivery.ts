@@ -1,4 +1,5 @@
 import { readPlanGladeEnv } from "@/lib/env-config"
+import { evaluateEmailConfiguration } from "@/lib/production-config.mjs"
 
 type EmailProvider = "resend" | "console" | "disabled"
 
@@ -25,11 +26,10 @@ export type SendEmailResult =
     }
 
 function resolveEmailProvider(): EmailProvider {
-  const configured = (readPlanGladeEnv("EMAIL_PROVIDER") ?? "").trim().toLowerCase()
-  if (configured === "resend") return "resend"
-  if (configured === "console") return "console"
-  if (configured === "disabled") return "disabled"
-  return process.env.NODE_ENV === "production" ? "disabled" : "console"
+  const provider = evaluateEmailConfiguration(process.env, {
+    productionLike: process.env.NODE_ENV === "production",
+  }).provider
+  return provider === "invalid" ? "disabled" : provider
 }
 
 function escapeHtml(value: string) {
@@ -69,6 +69,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     }
   }
 
+  if (provider === "console" && process.env.NODE_ENV === "production") {
+    return {
+      ok: false,
+      provider,
+      error: "Console email delivery is disabled in production.",
+    }
+  }
+
   const from = resolveFromAddress()
 
   if (provider === "console") {
@@ -76,10 +84,10 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     console.info("[email-delivery:console]", {
       from: consoleFrom,
       to: normalizedTo,
-      subject: input.subject,
-      text: input.text,
-      html: input.html ?? textToHtml(input.text),
       replyTo: input.replyTo ?? null,
+      subjectLength: input.subject.length,
+      textLength: input.text.length,
+      hasHtml: input.html !== undefined,
     })
     return {
       ok: true,

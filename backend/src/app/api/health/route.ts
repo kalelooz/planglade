@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server"
 
-import { getAuthConfigErrors } from "@/lib/auth-config"
-import { getProviderCapabilityResult } from "@/lib/auth-provider-capabilities"
-import { getStorageConfigErrors } from "@/lib/storage"
+import { evaluateProductionConfiguration } from "@/lib/production-config.mjs"
 
 export async function GET() {
   try {
-    const authConfig = getAuthConfigErrors()
-    const { capabilities: providerCapabilities } = getProviderCapabilityResult()
+    const configuration = evaluateProductionConfiguration(process.env, {
+      productionLike: process.env.NODE_ENV === "production",
+    })
+    const authConfig = configuration.auth
+    const providerCapabilities = authConfig.providers
     const authProvidersConfigured = providerCapabilities.anyConfigured
-    const storageConfig = getStorageConfigErrors()
+    const storageConfig = configuration.storage
+    const emailConfig = configuration.email
     const isAuthReady =
       authConfig.mode !== "invalid" &&
       authConfig.errors.length === 0 &&
       (authConfig.mode !== "nextauth" || authProvidersConfigured)
     const isStorageReady = storageConfig.provider !== "invalid" && storageConfig.errors.length === 0
+    const isEmailReady = emailConfig.provider !== "invalid" && emailConfig.errors.length === 0
     let isDatabaseReady = false
     try {
       const { db } = await import("@/lib/db")
@@ -23,7 +26,7 @@ export async function GET() {
     } catch (error) {
       console.error("Health database check failed", error)
     }
-    const isReady = isAuthReady && isStorageReady && isDatabaseReady
+    const isReady = isAuthReady && isStorageReady && isEmailReady && isDatabaseReady
 
     return NextResponse.json(
       {
@@ -49,6 +52,11 @@ export async function GET() {
             ready: isStorageReady,
             provider: storageConfig.provider,
             errors: storageConfig.errors,
+          },
+          email: {
+            ready: isEmailReady,
+            provider: emailConfig.provider,
+            errors: emailConfig.errors,
           },
           database: {
             ready: isDatabaseReady,

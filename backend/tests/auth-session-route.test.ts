@@ -106,7 +106,7 @@ test("GET /auth/session reports nextauth provider misconfiguration", async () =>
   await runWithMocks(async () => {
     setEnv("PLANGLADE_AUTH_MODE", "nextauth")
     setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "nextauth")
-    setEnv("NEXTAUTH_SECRET", "test-secret")
+    setEnv("NEXTAUTH_SECRET", "test-nextauth-secret-with-at-least-thirty-two-bytes")
     setEnv("NEXTAUTH_URL", "http://localhost:3000")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))
@@ -125,7 +125,7 @@ test("GET /auth/session hides nextauth provider setup details in production", as
     setEnv("NODE_ENV", "production")
     setEnv("PLANGLADE_AUTH_MODE", "nextauth")
     setEnv("NEXT_PUBLIC_PLANGLADE_AUTH_MODE", "nextauth")
-    setEnv("NEXTAUTH_SECRET", "test-secret")
+    setEnv("NEXTAUTH_SECRET", "test-nextauth-secret-with-at-least-thirty-two-bytes")
     setEnv("NEXTAUTH_URL", "https://planglade.example")
 
     const response = await getAuthSession(new Request("http://localhost/api/auth/session"))

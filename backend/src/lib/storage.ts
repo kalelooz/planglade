@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 import { readPlanGladeEnv } from "@/lib/env-config"
+import { evaluateStorageConfiguration } from "@/lib/production-config.mjs"
 
 export const VALID_STORAGE_PROVIDERS = ["firebase", "local"] as const
 export type PlanGladeStorageProvider = (typeof VALID_STORAGE_PROVIDERS)[number]
@@ -23,61 +24,18 @@ type SignedStorageMethod = "upload" | "download"
 
 const DEFAULT_LOCAL_STORAGE_DIR = "storage/local-attachments"
 const RUNTIME_LOCAL_SIGNING_SECRET = randomBytes(32).toString("hex")
-
-function lower(value: string | undefined, fallback: string) {
-  return (value ?? fallback).toLowerCase()
-}
-
-function getDefaultStorageProvider() {
-  // Public self-host default is local storage (FIREBASE-SAAS-BOUNDARY-001).
-  // Firebase Storage is SaaS-only and requires an explicit opt-in via
-  // PLANGLADE_STORAGE_PROVIDER=firebase; it is never the default.
-  return "local"
-}
+const STORAGE_SIGNING_CONTEXT = "planglade:local-storage-signing:v1"
 
 export function getConfiguredStorageProvider(): PlanGladeStorageProvider | "invalid" {
-  const provider = lower(readPlanGladeEnv("STORAGE_PROVIDER"), getDefaultStorageProvider())
-  if ((VALID_STORAGE_PROVIDERS as readonly string[]).includes(provider)) {
-    return provider as PlanGladeStorageProvider
-  }
-  return "invalid"
+  return evaluateStorageConfiguration(process.env, {
+    productionLike: process.env.NODE_ENV === "production",
+  }).provider
 }
 
 export function getStorageConfigErrors() {
-  const provider = getConfiguredStorageProvider()
-  const errors: string[] = []
-
-  if (provider === "invalid") {
-    errors.push("Invalid PLANGLADE_STORAGE_PROVIDER. Use one of: firebase, local.")
-    return { provider, errors }
-  }
-
-  if (provider === "firebase") {
-    if (!process.env.FIREBASE_PROJECT_ID) {
-      errors.push("Missing FIREBASE_PROJECT_ID for firebase storage provider.")
-    }
-    if (!process.env.FIREBASE_STORAGE_BUCKET) {
-      errors.push("Missing FIREBASE_STORAGE_BUCKET for firebase storage provider.")
-    }
-  }
-
-  // Local file storage is supported as an explicit self-host opt-in, including
-  // in production. It is confined to PLANGLADE_LOCAL_STORAGE_DIR, rejects path
-  // traversal, and serves objects only through short-lived HMAC-signed URLs.
-  // A dedicated PLANGLADE_STORAGE_SIGNING_SECRET (or NEXTAUTH_SECRET) is
-  // required so signed URLs cannot be forged.
-  if (provider === "local" && process.env.NODE_ENV === "production") {
-    const hasSigningSecret = Boolean(
-      readPlanGladeEnv("STORAGE_SIGNING_SECRET") ?? process.env.NEXTAUTH_SECRET
-    )
-    if (!hasSigningSecret) {
-      errors.push(
-        "Missing PLANGLADE_STORAGE_SIGNING_SECRET (or NEXTAUTH_SECRET) for local storage URL signing."
-      )
-    }
-  }
-
-  return { provider, errors }
+  return evaluateStorageConfiguration(process.env, {
+    productionLike: process.env.NODE_ENV === "production",
+  })
 }
 
 function getStorageProviderOrThrow(): PlanGladeStorageProvider {
@@ -123,10 +81,18 @@ function getLocalMetaPath(filePath: string) {
 function getStorageSigningSecret() {
   const configuredSecret = readPlanGladeEnv("STORAGE_SIGNING_SECRET")
   if (configuredSecret) {
+    if (
+      process.env.NODE_ENV === "production" &&
+      configuredSecret === process.env.NEXTAUTH_SECRET
+    ) {
+      throw new Error("PLANGLADE_STORAGE_SIGNING_SECRET must not reuse NEXTAUTH_SECRET")
+    }
     return configuredSecret
   }
   if (process.env.NEXTAUTH_SECRET) {
-    return process.env.NEXTAUTH_SECRET
+    return createHmac("sha256", process.env.NEXTAUTH_SECRET)
+      .update(STORAGE_SIGNING_CONTEXT)
+      .digest("hex")
   }
   if (process.env.NODE_ENV === "production") {
     throw new Error("Missing PLANGLADE_STORAGE_SIGNING_SECRET for secure storage URL signing in production.")

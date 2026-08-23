@@ -107,10 +107,10 @@ test("FIREBASE-SAAS-BOUNDARY-001: validate-auth-config passes for a Firebase-fre
     NODE_ENV: "production",
     PLANGLADE_AUTH_MODE: "nextauth",
     NEXT_PUBLIC_PLANGLADE_AUTH_MODE: "nextauth",
-    NEXTAUTH_SECRET: "test-secret",
+    NEXTAUTH_SECRET: "test-nextauth-secret-with-at-least-thirty-two-bytes",
     NEXTAUTH_URL: "http://localhost:3000",
     PLANGLADE_STORAGE_PROVIDER: "local",
-    PLANGLADE_STORAGE_SIGNING_SECRET: "test-signing-secret",
+    PLANGLADE_STORAGE_SIGNING_SECRET: "test-storage-signing-secret-with-at-least-thirty-two-bytes",
     PLANGLADE_EMAIL_PROVIDER: "disabled",
     // Deliberately omit every FIREBASE_* / NEXT_PUBLIC_FIREBASE_* variable.
   }
@@ -125,10 +125,10 @@ test("FIREBASE-SAAS-BOUNDARY-001: validate-auth-config passes for a Firebase-fre
 test("FIREBASE-SAAS-BOUNDARY-001: validate-auth-config defaults production auth to nextauth", () => {
   const env: NodeJS.ProcessEnv = {
     NODE_ENV: "production",
-    NEXTAUTH_SECRET: "test-secret",
+    NEXTAUTH_SECRET: "test-nextauth-secret-with-at-least-thirty-two-bytes",
     NEXTAUTH_URL: "http://localhost:3000",
     PLANGLADE_STORAGE_PROVIDER: "local",
-    PLANGLADE_STORAGE_SIGNING_SECRET: "test-signing-secret",
+    PLANGLADE_STORAGE_SIGNING_SECRET: "test-storage-signing-secret-with-at-least-thirty-two-bytes",
     PLANGLADE_EMAIL_PROVIDER: "disabled",
   }
   assert.doesNotThrow(() => {
