@@ -18,16 +18,20 @@ describe('shared motion implementations', () => {
   })
 
   it('highlights Quick capture with a bounded reduced-motion-safe entrance', async () => {
-    const [shell, styles] = await Promise.all([
+    const [shell, styles, button] = await Promise.all([
       source('src/components/AppShell.tsx'),
       source('src/index.css'),
+      source('src/components/ui/button.tsx'),
     ])
 
     expect(shell).toContain('quick-capture-primary')
-    expect(shell).toContain('bg-primary')
+    expect(shell).toContain("import { Button } from '@/components/ui/button'")
+    expect(button).toContain('bg-primary')
     expect(styles).toContain('animation: quick-capture-attention 720ms')
     expect(styles).toContain('400ms 2')
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(styles).toContain('.quick-capture-primary::after')
+    expect(styles).not.toContain('animation-duration: 0.01ms')
   })
 
   it('keeps the dragged board card in an overlay with one measured insertion hole', async () => {

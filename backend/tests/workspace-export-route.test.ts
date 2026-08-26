@@ -75,9 +75,14 @@ function mockEmptyWorkspaceExport() {
 }
 
 function mockTransaction(tx: unknown) {
+  const transaction = tx as { project?: object }
   ;(db as unknown as { $transaction: unknown }).$transaction = (async <T>(
     fn: (transactionClient: unknown) => Promise<T>
-  ) => fn({ activityEvent: { create: async () => ({}) }, ...(tx as object) })) as typeof db.$transaction
+  ) => fn({
+    activityEvent: { create: async () => ({}) },
+    ...(tx as object),
+    project: { findMany: async () => [], ...transaction.project },
+  })) as typeof db.$transaction
 }
 
 test("GET /workspace/export requires a workspace admin", async () => {

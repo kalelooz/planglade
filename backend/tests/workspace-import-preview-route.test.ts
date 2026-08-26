@@ -213,8 +213,8 @@ test("POST /workspace/import-preview uses read-only duplicate checks and never w
 
     ;(db.project as typeof db.project).findMany = ((async (args: unknown) => {
       assert.deepEqual((args as { where: unknown; select: unknown }).where, { workspaceId: "workspace-1" })
-      assert.deepEqual((args as { where: unknown; select: unknown }).select, { name: true })
-      return [{ name: "Launch" }]
+      assert.deepEqual((args as { where: unknown; select: unknown }).select, { name: true, slug: true })
+      return [{ name: "Launch", slug: "launch" }]
     }) as unknown) as typeof db.project.findMany
     ;(db.workItem as typeof db.workItem).findMany = ((async () => [{ title: "Ship preview" }]) as unknown) as typeof db.workItem.findMany
     ;(db.note as typeof db.note).findMany = ((async () => [{ title: "Prep" }]) as unknown) as typeof db.note.findMany

@@ -66,14 +66,14 @@ jobs:
         env:
           DATABASE_URL: file:${{ runner.temp }}/planglade-release.db
           NEXTAUTH_URL: http://127.0.0.1:3000
-          NEXTAUTH_SECRET: release-check-only-secret
+          NEXTAUTH_SECRET: release-check-only-nextauth-secret-keep-out-of-production-2026
           NEXT_PUBLIC_PLANGLADE_AUTH_MODE: nextauth
           PLANGLADE_AUTH_MODE: nextauth
           PLANGLADE_EMAIL_PROVIDER: disabled
           PLANGLADE_LOCAL_AUTH_ENABLED: 'true'
           PLANGLADE_LOCAL_STORAGE_DIR: ${{ runner.temp }}/attachments
           PLANGLADE_STORAGE_PROVIDER: local
-          PLANGLADE_STORAGE_SIGNING_SECRET: release-check-only-storage-secret
+          PLANGLADE_STORAGE_SIGNING_SECRET: release-check-only-storage-secret-keep-out-of-production-2026
         run: |
           npm run lint
           npm run typecheck

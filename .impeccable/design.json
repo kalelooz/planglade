@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-26T14:00:00+03:00",
+  "title": "Design System: PlanGlade",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Workshop Ink",
+        "canonical": "hsl(240 8% 12%)",
+        "tonalRamp": ["hsl(240 8% 15%)", "hsl(240 7% 25%)", "hsl(240 6% 36%)", "hsl(240 5% 48%)", "hsl(240 5% 60%)", "hsl(240 5% 72%)", "hsl(240 5% 84%)", "hsl(240 5% 95%)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "hsl(0 0% 100%)",
+        "tonalRamp": ["hsl(0 0% 15%)", "hsl(0 0% 27%)", "hsl(0 0% 39%)", "hsl(0 0% 51%)", "hsl(0 0% 63%)", "hsl(0 0% 75%)", "hsl(0 0% 87%)", "hsl(0 0% 100%)"]
+      },
+      "soft-surface": {
+        "role": "neutral",
+        "displayName": "Soft Surface",
+        "canonical": "hsl(240 5% 96%)",
+        "tonalRamp": ["hsl(240 5% 15%)", "hsl(240 5% 27%)", "hsl(240 5% 39%)", "hsl(240 5% 51%)", "hsl(240 5% 63%)", "hsl(240 5% 75%)", "hsl(240 5% 87%)", "hsl(240 5% 96%)"]
+      },
+      "quiet-ink": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "hsl(240 4% 42%)",
+        "tonalRamp": ["hsl(240 4% 15%)", "hsl(240 4% 26%)", "hsl(240 4% 37%)", "hsl(240 4% 48%)", "hsl(240 4% 59%)", "hsl(240 4% 70%)", "hsl(240 4% 82%)", "hsl(240 4% 94%)"]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "hsl(240 5% 90%)",
+        "tonalRamp": ["hsl(240 5% 15%)", "hsl(240 5% 27%)", "hsl(240 5% 39%)", "hsl(240 5% 51%)", "hsl(240 5% 63%)", "hsl(240 5% 75%)", "hsl(240 5% 86%)", "hsl(240 5% 95%)"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Consequence Red",
+        "canonical": "hsl(0 72% 46%)",
+        "tonalRamp": ["hsl(0 62% 15%)", "hsl(0 66% 26%)", "hsl(0 70% 37%)", "hsl(0 72% 48%)", "hsl(0 72% 59%)", "hsl(0 68% 70%)", "hsl(0 58% 82%)", "hsl(0 48% 94%)"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Completion Green",
+        "canonical": "hsl(152 45% 32%)",
+        "tonalRamp": ["hsl(152 42% 15%)", "hsl(152 44% 26%)", "hsl(152 45% 37%)", "hsl(152 44% 48%)", "hsl(152 40% 59%)", "hsl(152 36% 70%)", "hsl(152 30% 82%)", "hsl(152 24% 94%)"]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Attention Amber",
+        "canonical": "hsl(32 85% 40%)",
+        "tonalRamp": ["hsl(32 70% 15%)", "hsl(32 78% 26%)", "hsl(32 84% 37%)", "hsl(32 85% 48%)", "hsl(32 82% 59%)", "hsl(32 74% 70%)", "hsl(32 62% 82%)", "hsl(32 48% 94%)"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Page title", "purpose": "One route-level heading." },
+      "body": { "displayName": "Body", "purpose": "Descriptions, guidance, and reading content." },
+      "label": { "displayName": "Operational label", "purpose": "Metadata, chips, counts, and compact controls." }
+    },
+    "shadows": [
+      { "name": "control-low", "value": "0 1px 2px hsl(var(--foreground) / 0.05)", "purpose": "Selected controls and compact overlays only." }
+    ],
+    "motion": [
+      { "name": "feedback", "value": "150ms ease-out", "purpose": "Immediate hover, focus, and press feedback." },
+      { "name": "menu-enter", "value": "190ms cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "Origin-aware menu arrival." },
+      { "name": "menu-exit", "value": "150ms cubic-bezier(0.25, 0.46, 0.45, 0.94)", "purpose": "Faster menu departure." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The strongest action in a local task group.",
+      "html": "<button class=\"ds-button-primary\">New task</button>",
+      "css": ".ds-button-primary{height:36px;padding:8px 16px;border:0;border-radius:6px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));font:500 14px/1.4 ui-sans-serif,system-ui,sans-serif;transition:background-color 150ms ease-out,transform 150ms ease-out}.ds-button-primary:hover{background:hsl(var(--primary)/.9)}.ds-button-primary:focus-visible{outline:3px solid hsl(var(--ring)/.5);outline-offset:2px}.ds-button-primary:active{transform:scale(.98)}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet navigation and secondary actions.",
+      "html": "<button class=\"ds-button-ghost\">Display</button>",
+      "css": ".ds-button-ghost{height:36px;padding:8px 12px;border:0;border-radius:6px;background:transparent;color:hsl(var(--muted-foreground));font:500 14px/1.4 ui-sans-serif,system-ui,sans-serif;transition:background-color 150ms ease-out,color 150ms ease-out}.ds-button-ghost:hover{background:hsl(var(--accent));color:hsl(var(--accent-foreground))}.ds-button-ghost:focus-visible{outline:3px solid hsl(var(--ring)/.5);outline-offset:2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Compact field with a stable focus treatment.",
+      "html": "<input class=\"ds-input\" value=\"Plan the next step\" />",
+      "css": ".ds-input{height:36px;padding:8px 12px;border:1px solid hsl(var(--input));border-radius:6px;background:hsl(var(--background));color:hsl(var(--foreground));font:400 14px/1.5 ui-sans-serif,system-ui,sans-serif}.ds-input:focus-visible{outline:3px solid hsl(var(--ring)/.5);outline-offset:1px}"
+    },
+    {
+      "name": "Selected Navigation",
+      "kind": "nav",
+      "description": "Quiet selected state with a narrow active marker.",
+      "html": "<a class=\"ds-nav-active\" href=\"#\">Tasks</a>",
+      "css": ".ds-nav-active{position:relative;display:flex;height:36px;align-items:center;padding:0 10px;border-radius:6px;background:hsl(var(--accent));color:hsl(var(--foreground));font:500 13.5px/1 ui-sans-serif,system-ui,sans-serif;text-decoration:none}.ds-nav-active:before{position:absolute;left:0;width:2px;height:16px;border-radius:999px;background:hsl(var(--foreground)/.7);content:\"\"}.ds-nav-active:focus-visible{outline:2px solid hsl(var(--sidebar-ring)/.6);outline-offset:2px}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "description": "A compact state label that pairs text with semantic color.",
+      "html": "<span class=\"ds-status\">In progress</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;padding:4px 6px;border:1px solid hsl(32 85% 40%/.15);border-radius:999px;background:hsl(32 85% 40%/.1);color:hsl(32 85% 32%);font:500 12.5px/1 ui-sans-serif,system-ui,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Workshop",
+    "overview": "PlanGlade should feel like a well-kept workbench: calm enough for sustained attention, dense enough for serious planning, and precise enough that users trust every control. The interface recedes behind the work. Brand character comes from disciplined spacing, crisp type, muted neutral surfaces, and small moments of confident feedback rather than decoration. This is an Operate interface. Scanability, keyboard access, touch ergonomics, and state clarity outrank spectacle.",
+    "keyCharacteristics": [
+      "Restrained neutral palette with semantic color used only for status and consequence.",
+      "Flat, information-led surfaces separated primarily by spacing and fine rules.",
+      "Compact desktop controls that expand their hit area for touch.",
+      "Fast, origin-aware motion that explains state and disappears under reduced motion.",
+      "Shared primitives before page-local control styling."
+    ],
+    "rules": [
+      { "name": "The Scarce Color Rule", "body": "A semantic hue must communicate state or consequence. It is not decoration.", "section": "colors" },
+      { "name": "The One-Read Rule", "body": "A user should distinguish page title, section title, item title, and metadata in one glance without relying on color.", "section": "typography" },
+      { "name": "The Work Before Chrome Rule", "body": "Navigation and controls establish context quickly, then yield visual space to task content.", "section": "layout" },
+      { "name": "The Flat-at-Rest Rule", "body": "Elevation communicates overlay, focus, or movement.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do begin with the approved-source protocol and the existing shared component layer.",
+      "Do preserve keyboard focus, semantic names, reduced-motion alternatives, and 44px touch targets.",
+      "Do use route-level code splitting for noncritical product surfaces.",
+      "Do test light, dark, 320px, 390px, tablet, and wide desktop layouts with real content."
+    ],
+    "donts": [
+      "Don't hand-roll buttons, inputs, empty states, shortcuts, sidebars, or overlays when the shared layer owns the pattern.",
+      "Don't use animated decoration, gradients, glass, or novelty components without a product-specific job.",
+      "Don't globally collapse every animation to a token duration; remove nonessential motion and preserve instantaneous state clarity intentionally.",
+      "Don't force every approved library into the product. Relevance, accessibility, licensing, and compatibility still decide what ships."
+    ]
+  }
+}

@@ -1,63 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 
-import { parseDateValue, parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
+import { parseJsonBody, requireWorkspaceRole, resolveRequestActorUserId, serverError } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
 import { IMPORT_LIMITS, importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
 import { tryAcquireWorkspaceImport } from "@/lib/workspace-import-lock"
-
-function toProjectStatus(value: string) {
-  const normalized = value.trim().toUpperCase().replace(/\s+/g, "_")
-  if (normalized === "ACTIVE") return "ACTIVE"
-  if (normalized === "IN_REVIEW") return "IN_REVIEW"
-  if (normalized === "ON_HOLD") return "ON_HOLD"
-  return "ARCHIVED"
-}
-
-function toProjectMode(value?: string) {
-  const normalized = value?.trim().toUpperCase().replace(/\s+/g, "_")
-  if (normalized === "SERVICE_DESK") return "SERVICE_DESK"
-  return "STANDARD"
-}
-
-function toWorkItemStatus(value: string) {
-  const normalized = value.trim().toUpperCase().replace(/\s+/g, "_")
-  if (normalized === "BACKLOG") return "BACKLOG"
-  if (normalized === "TODO") return "TODO"
-  if (normalized === "TO_DO") return "TODO"
-  if (normalized === "IN_PROGRESS") return "IN_PROGRESS"
-  if (normalized === "IN_REVIEW") return "IN_REVIEW"
-  if (normalized === "DONE") return "DONE"
-  return "BACKLOG"
-}
-
-function toWorkItemPriority(value: string) {
-  const normalized = value.trim().toUpperCase()
-  if (normalized === "LOW") return "LOW"
-  if (normalized === "MEDIUM") return "MEDIUM"
-  if (normalized === "HIGH") return "HIGH"
-  if (normalized === "URGENT") return "URGENT"
-  return "MEDIUM"
-}
-
-function toNoteVisibility(_value?: string): "PRIVATE" | "WORKSPACE" {
-  return "PRIVATE"
-}
-
-function toProjectDocStatus(value: "ACTIVE" | "ARCHIVED") {
-  return value
-}
-
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50)
-}
+import { buildWorkspaceImportPlan } from "@/lib/workspace-import-plan"
 
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, importLocalWorkspaceSchema, {
@@ -86,6 +36,14 @@ export async function POST(request: NextRequest) {
 
     try {
       const summary = await db.$transaction(async (tx) => {
+      const existingProjects = await tx.project.findMany({
+        where: { workspaceId },
+        select: { slug: true },
+      })
+      const importPlan = buildWorkspaceImportPlan(
+        { data: { projects, workItems, notes, projectDocs, savedViews } },
+        { projectSlugs: existingProjects.map((project) => project.slug) }
+      )
       const projectMap = new Map<string, string>()
       const workspaceMembers = await tx.workspaceMember.findMany({
         where: { workspaceId },
@@ -99,40 +57,38 @@ export async function POST(request: NextRequest) {
       let skippedNotes = 0
       let createdProjectDocs = 0
       let skippedProjectDocs = 0
-      let unlinkedProjectDocs = 0
       let createdSavedViews = 0
       let skippedSavedViews = 0
 
-      for (const project of projects) {
-        const slug = slugify(project.name || project.id || "project")
+      for (const project of importPlan.projects) {
         const upserted = await tx.project.upsert({
-          where: { workspaceId_slug: { workspaceId, slug } },
+          where: { workspaceId_slug: { workspaceId, slug: project.slug } },
           update: {
             name: project.name,
-            status: toProjectStatus(project.status),
-            mode: toProjectMode(project.mode),
+            status: project.status,
+            mode: project.mode,
             featureFlags: project.featureFlags,
-            dueDate: parseDateValue(project.due) ?? undefined,
-            color: project.accent,
+            dueDate: project.dueDate,
+            color: project.color,
           },
           create: {
             workspaceId,
             name: project.name,
-            slug,
-            status: toProjectStatus(project.status),
-            mode: toProjectMode(project.mode),
+            slug: project.slug,
+            status: project.status,
+            mode: project.mode,
             featureFlags: project.featureFlags,
-            dueDate: parseDateValue(project.due) ?? undefined,
-            color: project.accent,
+            dueDate: project.dueDate,
+            color: project.color,
             createdById: actorUserId,
           },
         })
-        projectMap.set(project.id, upserted.id)
+        projectMap.set(project.sourceId, upserted.id)
         createdProjects += 1
       }
 
-      for (const item of workItems) {
-        const projectId = item.project ? projectMap.get(item.project) : null
+      for (const item of importPlan.workItems) {
+        const projectId = item.sourceProjectId ? projectMap.get(item.sourceProjectId) : null
         const duplicate = await tx.workItem.findFirst({
           where: {
             workspaceId,
@@ -154,19 +110,19 @@ export async function POST(request: NextRequest) {
             description: item.description,
             checklist: item.checklist,
             noteIds: item.noteIds,
-            status: toWorkItemStatus(item.status),
-            isInbox: item.isInbox ?? toWorkItemStatus(item.status) === "BACKLOG",
-            priority: toWorkItemPriority(item.priority),
-            startDate: parseDateValue(item.start) ?? undefined,
-            dueDate: parseDateValue(item.due) ?? undefined,
+            status: item.status,
+            isInbox: item.isInbox,
+            priority: item.priority,
+            startDate: item.startDate,
+            dueDate: item.dueDate,
             createdById: actorUserId,
-            assigneeId: item.assignee && memberUserIds.has(item.assignee) ? item.assignee : undefined,
+            assigneeId: item.assigneeId && memberUserIds.has(item.assigneeId) ? item.assigneeId : undefined,
           },
         })
         createdWorkItems += 1
       }
 
-      for (const note of notes) {
+      for (const note of importPlan.notes) {
         const duplicate = await tx.note.findFirst({
           where: {
             ...buildNoteAccessWhere(workspaceId, actorUserId),
@@ -183,10 +139,10 @@ export async function POST(request: NextRequest) {
           data: {
             workspaceId,
             title: note.title,
-            body: note.body ?? note.excerpt ?? "",
-            visibility: toNoteVisibility(note.tag),
+            body: note.body,
+            visibility: note.visibility,
             pinned: false,
-            tags: note.tag ? [note.tag] : [],
+            tags: note.tags,
             createdById: actorUserId,
             updatedById: actorUserId,
           },
@@ -194,8 +150,8 @@ export async function POST(request: NextRequest) {
         createdNotes += 1
       }
 
-      for (const doc of projectDocs) {
-        const projectId = doc.project ? projectMap.get(doc.project) : null
+      for (const doc of importPlan.projectDocs) {
+        const projectId = doc.sourceProjectId ? projectMap.get(doc.sourceProjectId) : null
         const duplicate = await tx.projectDoc.findFirst({
           where: {
             workspaceId,
@@ -209,19 +165,14 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        if (doc.project && !projectId) {
-          unlinkedProjectDocs += 1
-        }
-
-        const status = toProjectDocStatus(doc.status)
         await tx.projectDoc.create({
           data: {
             workspaceId,
             projectId: projectId ?? undefined,
             title: doc.title,
-            body: doc.body ?? "",
-            status,
-            archivedAt: status === "ARCHIVED" ? parseDateValue(doc.archivedAt) ?? new Date() : undefined,
+            body: doc.body,
+            status: doc.status,
+            archivedAt: doc.status === "ARCHIVED" ? doc.archivedAt ?? new Date() : undefined,
             createdById: actorUserId,
             updatedById: actorUserId,
           },
@@ -229,8 +180,8 @@ export async function POST(request: NextRequest) {
         createdProjectDocs += 1
       }
 
-      for (const view of savedViews) {
-        const projectId = view.project ? projectMap.get(view.project) : null
+      for (const view of importPlan.savedViews) {
+        const projectId = view.sourceProjectId ? projectMap.get(view.sourceProjectId) : null
         const duplicate = await tx.savedView.findFirst({
           where: { workspaceId, createdById: actorUserId, name: view.name },
           select: { id: true },
@@ -279,7 +230,7 @@ export async function POST(request: NextRequest) {
           savedViews: skippedSavedViews,
         },
         warnings: {
-          projectDocsMissingProjects: unlinkedProjectDocs,
+          projectDocsMissingProjects: importPlan.relationIssues.projectDocsMissingProjects,
         },
       }
 

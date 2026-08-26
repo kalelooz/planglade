@@ -4,17 +4,16 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, SlidersHorizontal, Plus, ArrowUpDown, CheckSquare, X, Rows3,
 } from 'lucide-react'
-import { differenceInCalendarDays, parseISO, startOfDay } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
-import type { Task, TaskStatus } from '@/types'
+import type { TaskStatus } from '@/types'
 import { STATUS_LABELS, PRIORITY_LABELS } from '@/types'
 import { TaskRow } from '@/components/TaskRow'
 import { Board } from '@/pages/Board'
 import { TaskTimeline } from '@/pages/TaskTimeline'
 import { TASK_VIEW_CATALOG } from '@/lib/task-view-catalog'
 import { CountBadge, EmptyState, PageContainer } from '@/components/bits'
-import { isOverdue, isDueToday } from '@/lib/dates'
+import { buildTaskPlanningProjection, millisecondsUntilNextLocalDay } from '@/lib/task-planning'
 import {
   taskPresentationFromQuery,
   taskPresentationToQuery,
@@ -34,6 +33,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput,
 } from '@/components/ui/input-group'
+import { Button } from '@/components/ui/button'
 
 const QUICK_FILTERS: { key: QuickFilter; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -165,6 +165,7 @@ export default function Tasks() {
   const defaultApplied = useRef(false)
   const [newOpen, setNewOpen] = useState(false)
   const [newStatus, setNewStatus] = useState<TaskStatus>('planned')
+  const [planningDay, setPlanningDay] = useState(() => new Date())
   const newTaskRequested = ws.canMutateTasks && !!(location.state as { newTask?: boolean } | null)?.newTask
   const newTaskDialogOpen = newOpen || newTaskRequested
 
@@ -176,90 +177,24 @@ export default function Tasks() {
     if (defaultView) setSearchParams(taskPresentationToQuery(savedViewToPresentation(defaultView), defaultView.id), { replace: true })
   }, [savedViews.loading, savedViews.views, searchParams, setSearchParams])
 
-  const filtered = useMemo(() => {
-    const today = startOfDay(new Date())
-    let list = ws.tasks.filter((t) => !t.parentId)
-    if (!showCompleted) list = list.filter((t) => t.status !== 'done')
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      list = list.filter((t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
-    }
-    if (quick.size > 0) {
-      list = list.filter((t) => {
-        const checks: Record<QuickFilter, boolean> = {
-          today: isDueToday(t.dueDate),
-          upcoming: !!t.dueDate && differenceInCalendarDays(parseISO(t.dueDate), today) > 0,
-          overdue: isOverdue(t.dueDate, t.status === 'done'),
-          no_date: !t.dueDate,
-          blocked: ws.isBlocked(t),
-        }
-        return Array.from(quick).some((k) => checks[k])
-      })
-    }
-    if (projectFilter.size > 0) list = list.filter((t) => t.projectId && projectFilter.has(t.projectId))
-    if (priorityFilter.size > 0) list = list.filter((t) => priorityFilter.has(t.priority))
-    const prioRank = { high: 0, medium: 1, low: 2, none: 3 }
-    const sorted = [...list].sort((a, b) => {
-      switch (sort) {
-        case 'due':
-          return (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') || a.createdAt - b.createdAt
-        case 'priority':
-          return prioRank[a.priority] - prioRank[b.priority] || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
-        case 'created':
-          return b.createdAt - a.createdAt
-        case 'title':
-          return a.title.localeCompare(b.title)
-      }
-    })
-    return sorted
-  }, [ws, search, quick, projectFilter, priorityFilter, showCompleted, sort])
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setPlanningDay(new Date()),
+      millisecondsUntilNextLocalDay(planningDay),
+    )
+    return () => window.clearTimeout(timer)
+  }, [planningDay])
 
-  const groups = useMemo(() => {
-    if (group === 'none') return [{ key: 'all', label: '', tasks: filtered }]
-    const map = new Map<string, Task[]>()
-    const labelOf = (key: string) => {
-      if (group === 'project') return key === 'none' ? 'No project' : ws.getProject(key)?.name ?? 'No project'
-      if (group === 'status') return STATUS_LABELS[key as TaskStatus]
-      // due
-      if (key === 'overdue') return 'Overdue'
-      if (key === 'today') return 'Today'
-      if (key === 'week') return 'This week'
-      if (key === 'later') return 'Later'
-      return 'No date'
-    }
-    const keyOf = (t: Task) => {
-      if (group === 'project') return t.projectId ?? 'none'
-      if (group === 'status') return t.status
-      if (!t.dueDate) return 'none'
-      const d = differenceInCalendarDays(parseISO(t.dueDate), startOfDay(new Date()))
-      if (d < 0) return 'overdue'
-      if (d === 0) return 'today'
-      if (d <= 7) return 'week'
-      return 'later'
-    }
-    filtered.forEach((t) => {
-      const k = keyOf(t)
-      if (!map.has(k)) map.set(k, [])
-      map.get(k)!.push(t)
-    })
-    const order = group === 'due' ? ['overdue', 'today', 'week', 'later', 'none'] : group === 'status' ? ['backlog', 'planned', 'in_progress', 'in_review', 'blocked', 'done'] : Array.from(map.keys())
-    return order
-      .filter((k) => map.has(k))
-      .map((k) => ({ key: k, label: labelOf(k), tasks: map.get(k)! }))
-  }, [filtered, group, ws])
+  const projection = useMemo(() => buildTaskPlanningProjection({
+    tasks: ws.tasks,
+    projects: ws.projects,
+    presentation,
+    isBlocked: ws.isBlocked,
+    now: planningDay,
+  }), [planningDay, presentation, ws.isBlocked, ws.projects, ws.tasks])
+  const { tasks: filtered, groups, counts: taskCounts } = projection
 
   const activeFilterCount = quick.size + projectFilter.size + priorityFilter.size
-
-  const taskCounts = useMemo(() => {
-    const scope = ws.tasks.filter((task) => !task.parentId)
-    return [
-      { label: 'Open', value: scope.filter((task) => task.status !== 'done').length },
-      { label: 'Backlog', value: scope.filter((task) => task.status === 'backlog').length },
-      { label: 'In progress', value: scope.filter((task) => task.status === 'in_progress').length },
-      { label: 'In review', value: scope.filter((task) => task.status === 'in_review').length },
-      { label: 'Done', value: scope.filter((task) => task.status === 'done').length },
-    ]
-  }, [ws.tasks])
 
   const updatePresentation = (patch: Partial<TaskPresentation>, replace = false) => {
     setSearchParams(taskPresentationToQuery({ ...presentation, ...patch }, searchParams.get('saved')), { replace })
@@ -289,14 +224,14 @@ export default function Tasks() {
               <h1 className="pg-page-title">Tasks</h1>
               <p className="mt-0.5 text-sm text-muted-foreground">Plan, review, and present work from one place.</p>
             </div>
-            <button
+            <Button
               onClick={() => openNew()}
               disabled={!ws.canMutateTasks}
               title={!ws.canMutateTasks ? 'Task creation is unavailable in read-only mode' : undefined}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 shrink-0 gap-1.5 px-3 text-[13px] sm:h-9"
             >
               <Plus className="h-4 w-4" /> New task
-            </button>
+            </Button>
           </div>
 
           <dl className="mt-4 flex max-w-full flex-wrap gap-1.5 rounded-xl border border-border/50 bg-card/45 p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.03)]" aria-label="Task summary">
@@ -320,7 +255,7 @@ export default function Tasks() {
                     aria-selected={selected}
                     onClick={() => chooseBuiltInView(item.view)}
                     className={cn(
-                      'relative isolate inline-flex h-8 min-w-0 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[12px] transition-[color,transform] duration-200 active:scale-[0.96] sm:shrink-0',
+                      'relative isolate inline-flex h-11 min-w-0 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[12px] transition-[color,transform] duration-200 active:scale-[0.96] motion-reduce:active:scale-100 sm:h-8 sm:shrink-0',
                       selected ? 'text-background' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -336,7 +271,7 @@ export default function Tasks() {
                 )
               })}
             </div>
-            <InputGroup className="h-9 w-full min-w-[8.5rem] flex-1 border-input bg-background/80 shadow-none sm:w-[132px] sm:flex-none lg:h-8 xl:w-[160px]">
+            <InputGroup className="h-11 w-full min-w-[8.5rem] flex-1 border-input bg-background/80 shadow-none sm:h-9 sm:w-[132px] sm:flex-none lg:h-8 xl:w-[160px]">
             <InputGroupAddon className="pl-2.5 pr-0">
               <Search className="h-3.5 w-3.5" aria-hidden />
             </InputGroupAddon>
@@ -345,7 +280,7 @@ export default function Tasks() {
               onChange={(e) => updatePresentation({ search: e.target.value }, true)}
               placeholder="Search tasks"
               aria-label="Search tasks"
-              className="h-9 px-2 text-[13px] placeholder:text-muted-foreground/60 lg:h-8"
+              className="h-11 px-2 text-[13px] placeholder:text-muted-foreground/60 sm:h-9 lg:h-8"
             />
             {search && (
               <InputGroupButton type="button" size="icon-sm" onClick={() => updatePresentation({ search: '' })} aria-label="Clear search" className="mr-0.5 text-muted-foreground hover:text-foreground">
@@ -356,7 +291,7 @@ export default function Tasks() {
 
           <Popover>
             <PopoverTrigger asChild>
-              <button className={cn('inline-flex h-9 shrink-0 items-center gap-1 rounded-md border px-2 text-[13px] transition-colors lg:h-8', activeFilterCount > 0 ? 'border-foreground/30 bg-accent text-foreground' : 'border-input bg-background/80 text-muted-foreground hover:text-foreground')} aria-label="Filters">
+              <button className={cn('inline-flex h-11 shrink-0 items-center gap-1 rounded-md border px-2 text-[13px] transition-colors sm:h-9 lg:h-8', activeFilterCount > 0 ? 'border-foreground/30 bg-accent text-foreground' : 'border-input bg-background/80 text-muted-foreground hover:text-foreground')} aria-label="Filters">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filter
                 {activeFilterCount > 0 && <CountBadge count={activeFilterCount} label={`${activeFilterCount} active filters`} className="border-foreground bg-foreground text-background" />}
@@ -427,7 +362,7 @@ export default function Tasks() {
           </Popover>
 
           {(view === 'list' || view === 'board') && <Select value={sort} onValueChange={(v) => updatePresentation({ sort: v as SortKey })}>
-            <SelectTrigger className="h-9 w-auto shrink-0 gap-1 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-9 lg:h-8 lg:data-[size=default]:h-8" aria-label="Sort tasks">
+            <SelectTrigger className="h-11 w-auto shrink-0 gap-1 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9 lg:h-8 lg:data-[size=default]:h-8" aria-label="Sort tasks">
               <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -440,7 +375,7 @@ export default function Tasks() {
           </Select>}
 
           {view === 'list' && <Select value={group} onValueChange={(v) => updatePresentation({ group: v as GroupKey })}>
-              <SelectTrigger className="h-9 w-auto shrink-0 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-9 lg:h-8 lg:data-[size=default]:h-8" aria-label="Group tasks">
+              <SelectTrigger className="h-11 w-auto shrink-0 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9 lg:h-8 lg:data-[size=default]:h-8" aria-label="Group tasks">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -452,7 +387,7 @@ export default function Tasks() {
           </Select>}
 
           {(view === 'list' || view === 'board') && <Popover>
-            <PopoverTrigger asChild><button className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background/80 text-muted-foreground hover:text-foreground lg:h-8 lg:w-8" aria-label="Display options"><Rows3 className="h-3.5 w-3.5" /></button></PopoverTrigger>
+            <PopoverTrigger asChild><button className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-background/80 text-muted-foreground hover:text-foreground sm:size-9 lg:size-8" aria-label="Display options"><Rows3 className="h-3.5 w-3.5" /></button></PopoverTrigger>
             <PopoverContent align="start" className="w-48 p-2">
               <p className="px-2 pb-1 text-[12.5px] font-medium text-muted-foreground">Density</p>
               {(['comfortable', 'compact'] as const).map((density) => <button key={density} onClick={() => updatePresentation({ density })} className={cn('w-full rounded px-2 py-1.5 text-left text-[12px] capitalize hover:bg-accent', presentation.density === density && 'bg-accent font-medium')}>{density}</button>)}
@@ -462,7 +397,7 @@ export default function Tasks() {
             </PopoverContent>
           </Popover>}
 
-          <div className="ml-auto inline-flex min-h-9 shrink-0 select-none items-center gap-2 pl-1 text-[12.5px] text-muted-foreground lg:min-h-8">
+          <div className="ml-auto inline-flex min-h-11 shrink-0 select-none items-center gap-1 text-[12.5px] text-muted-foreground lg:min-h-8">
             <Switch checked={showCompleted} onCheckedChange={(checked) => updatePresentation({ showCompleted: checked })} aria-label="Show completed tasks" />
             Done
           </div>

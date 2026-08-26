@@ -13,6 +13,7 @@ import { useWorkspace } from '@/store/workspace'
 import { useTaskDrawer } from '@/components/TaskDrawer'
 import { PriorityBadge, DueBadge, BlockedIndicator, CountBadge } from '@/components/bits'
 import { getBoardDropPatch, placeBoardTask } from '@/lib/board-order'
+import { buildBoardColumns } from '@/lib/task-planning'
 
 type DragTarget = { status: TaskStatus; index: number }
 type PickupSnapshot = {
@@ -199,14 +200,7 @@ export function Board({
   )
 
   const boardTasks = dropPreview ?? tasks
-  const byStatus = useMemo(() => {
-    const m = new Map<TaskStatus, Task[]>()
-    statuses.forEach((s) => m.set(s, []))
-    ;[...boardTasks].sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.createdAt - b.createdAt).forEach((t) => {
-      m.get(t.status)?.push(t)
-    })
-    return m
-  }, [statuses, boardTasks])
+  const byStatus = useMemo(() => buildBoardColumns(boardTasks, statuses), [statuses, boardTasks])
 
   const activeTask = activeId ? ws.getTask(activeId) : undefined
   const setNextTarget = (next: DragTarget | null) => {

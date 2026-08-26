@@ -22,11 +22,11 @@ ENV NODE_ENV=production \
   PLANGLADE_AUTH_MODE=nextauth \
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE=nextauth \
   PLANGLADE_STORAGE_PROVIDER=local \
-  NEXTAUTH_URL=http://localhost:3000 \
-  NEXTAUTH_SECRET=docker-build-placeholder \
-  PLANGLADE_STORAGE_SIGNING_SECRET=docker-build-placeholder
+  NEXTAUTH_URL=http://localhost:3000
 
-RUN npm run db:generate && npm run build
+RUN export NEXTAUTH_SECRET="$(openssl rand -base64 48)" \
+  && npm run db:generate \
+  && npm run build
 
 FROM base AS migrator
 
@@ -47,10 +47,13 @@ ENV NODE_ENV=production \
   PORT=3000
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/validate-auth-config.mjs ./scripts/validate-auth-config.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/production-config.mjs ./src/lib/production-config.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/production-secret-policy.mjs ./src/lib/production-secret-policy.mjs
 RUN mkdir -p /app/db /app/storage/local-attachments \
   && chown -R nextjs:nodejs /app/db /app/storage
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node scripts/validate-auth-config.mjs && exec node server.js"]
