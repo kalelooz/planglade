@@ -33,12 +33,16 @@ FROM base AS migrator
 COPY package-lock.json /tmp/package-lock.json
 RUN npm init -y \
   && PRISMA_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/prisma'].version")" \
-  && npm install --omit=dev --no-save "prisma@$PRISMA_VERSION" \
+  && PRISMA_CLIENT_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/@prisma/client'].version")" \
+  && npm install --omit=dev --no-save "prisma@$PRISMA_VERSION" "@prisma/client@$PRISMA_CLIENT_VERSION" \
   && rm /tmp/package-lock.json
 COPY --chown=nextjs:nodejs prisma ./prisma
+COPY --chown=nextjs:nodejs scripts/migrate-normalized-auth-emails.mjs ./scripts/migrate-normalized-auth-emails.mjs
+COPY --chown=nextjs:nodejs src/lib/local-auth-email.mjs ./src/lib/local-auth-email.mjs
+RUN ./node_modules/.bin/prisma generate
 USER nextjs
 
-CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node scripts/migrate-normalized-auth-emails.mjs"]
 
 FROM base AS runner
 

@@ -2,6 +2,23 @@
 
 ## Active task
 
+### AUTH-001 — Backfill normalized emails and retire transitional authentication scans
+
+- Status: **PASS**
+- Requested: 2026-08-26
+- Scope: resolve public issue #89 with a fail-safe normalized-email data migration, remove both authentication-time transitional scans, and document self-host conflict recovery.
+- Acceptance: application and migration share the exact normalizer; invalid values, collisions, and inconsistent stored values block before mutation; valid null values backfill in one transaction; verification rejects any remaining null value; runtime authentication uses only the unique indexed lookup; focused integration coverage proves normalization, failures, rollback, completion, and scan removal.
+- Publication: the owner explicitly authorized this scoped fix and remote branch push on 2026-08-26.
+
+### Evidence
+
+- 2026-08-26: 19 focused authentication and normalized-email migration tests passed.
+- 2026-08-26: all 233 backend tests passed against an isolated prepared SQLite database.
+- 2026-08-26: backend lint, typecheck, production build, public/CI/docs/release checks, backend surface guard, and release backup/restore rehearsal passed.
+- 2026-08-26: release rehearsal backfilled and verified a legacy null `normalizedEmail`; rollback coverage proved a simulated second-row write failure preserved every null source row.
+- 2026-08-26: separate root-owned standards and issue-acceptance review found no remaining findings; authentication policy prohibited delegated review.
+- Visual verification: not applicable; this task changes only backend authentication, migration, tests, and operator guidance.
+
 ### UI-001 — Approved-resource UI remediation
 
 - Status: **PASS**

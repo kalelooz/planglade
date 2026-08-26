@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
 import { cp, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 await mkdir(path.join(root, '.runtime'), { recursive: true })
@@ -10,6 +12,7 @@ const rehearsalRoot = await mkdtemp(path.join(root, '.runtime', 'release-rehears
 const databasePath = path.join(rehearsalRoot, 'planglade.db')
 const attachmentRoot = path.join(rehearsalRoot, 'attachments')
 const backupRoot = path.join(rehearsalRoot, 'backup')
+const run = promisify(execFile)
 let database
 
 try {
@@ -35,6 +38,19 @@ try {
     .run('release-membership', 'release-workspace', 'release-owner', 'OWNER')
   database.prepare('INSERT INTO Project (id, workspaceId, name, slug, createdById, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')
     .run('restore-sentinel', 'release-workspace', 'Restore sentinel', 'restore-sentinel', 'release-owner', now)
+  database.close()
+  database = undefined
+
+  await run(process.execPath, ['scripts/migrate-normalized-auth-emails.mjs'], {
+    cwd: path.join(root, 'backend'),
+    env: { ...process.env, DATABASE_URL: `file:${databasePath.replaceAll('\\', '/')}` },
+  })
+
+  database = new DatabaseSync(databasePath, { readOnly: true })
+  assert.equal(
+    database.prepare("SELECT normalizedEmail FROM User WHERE id = 'release-owner'").get().normalizedEmail,
+    'release-rehearsal@example.invalid',
+  )
   database.close()
   database = undefined
 

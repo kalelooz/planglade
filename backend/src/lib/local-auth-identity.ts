@@ -24,10 +24,6 @@ function isUniqueConstraintError(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002"
 }
 
-function matchingTransitionalUsers<T extends { email: string }>(users: T[], normalizedEmail: string): T[] {
-  return users.filter((user) => normalizeEmail(user.email) === normalizedEmail)
-}
-
 export async function resolveVerifiedApplicationUser(identity: VerifiedIdentity): Promise<VerifiedApplicationUser | null> {
   const firebaseUid = identity.firebaseUid?.trim() || null
   const normalizedEmail = normalizeEmail(identity.email)
@@ -73,30 +69,6 @@ export async function resolveVerifiedApplicationUser(identity: VerifiedIdentity)
     }
   }
 
-  const transitionalUsers = matchingTransitionalUsers(
-    await db.user.findMany({ where: { normalizedEmail: null }, select: identityUserSelect }),
-    normalizedEmail,
-  )
-  if (transitionalUsers.length > 1) return null
-  if (transitionalUsers.length === 1) {
-    const transitional = transitionalUsers[0]
-    try {
-      return toVerifiedApplicationUser(await db.user.update({
-        where: { id: transitional.id },
-        data: {
-          normalizedEmail,
-          ...(firebaseUid ? { firebaseUid } : {}),
-          ...(identity.name !== undefined ? { name: identity.name } : {}),
-          ...(identity.image !== undefined ? { image: identity.image } : {}),
-        },
-        select: identityUserSelect,
-      }))
-    } catch (error) {
-      if (isUniqueConstraintError(error)) return null
-      throw error
-    }
-  }
-
   try {
     return toVerifiedApplicationUser(await db.user.create({
       data: { email, normalizedEmail, ...(firebaseUid ? { firebaseUid } : {}), name: identity.name, image: identity.image },
@@ -113,12 +85,5 @@ export async function resolveLegacyNextAuthUser(email: unknown): Promise<Verifie
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail) return null
   const existing = await db.user.findUnique({ where: { normalizedEmail }, select: identityUserSelect })
-  if (existing) return existing.authVersion === 0 ? toVerifiedApplicationUser(existing) : null
-  const transitionalUsers = matchingTransitionalUsers(
-    await db.user.findMany({ where: { normalizedEmail: null }, select: identityUserSelect }),
-    normalizedEmail,
-  )
-  return transitionalUsers.length === 1 && transitionalUsers[0].authVersion === 0
-    ? toVerifiedApplicationUser(transitionalUsers[0])
-    : null
+  return existing?.authVersion === 0 ? toVerifiedApplicationUser(existing) : null
 }

@@ -10,7 +10,7 @@ The root `compose.yml` runs:
 
 - `frontend`: the Vite SPA and Nginx gateway exposed on port 8080;
 - `backend`: the internal Next.js API, authentication, and setup service;
-- `migrate`: a one-shot `prisma migrate deploy` job;
+- `migrate`: a one-shot schema and normalized-email data migration job;
 - `planglade_data`: persistent SQLite data;
 - `planglade_attachments`: persistent local attachment files.
 
@@ -103,7 +103,11 @@ Before public exposure:
 SQLite is stored at `/app/db/planglade.db` in `planglade_data`. Attachments are
 stored in `planglade_attachments`. Back up and restore them together.
 
-Normal startup runs checked-in migrations automatically. Never run
+Normal startup runs checked-in schema migrations and the transactional
+normalized-email backfill automatically. Authentication starts only after both
+complete. If an invalid legacy address or normalization collision blocks an
+upgrade, keep the service stopped and follow the conflict procedure in the
+production migration guide. Never run
 `prisma db push`, `prisma migrate dev`, `prisma migrate reset`, or
 `docker compose down -v` against self-host data.
 

@@ -28,8 +28,15 @@ docker compose -f compose.yml ps -a
 docker compose -f compose.yml logs migrate
 ```
 
-The `migrate` service must exit with code 0. The backend waits for that result
-and must not start against a failed or partially migrated database.
+The `migrate` service first applies checked-in Prisma migrations, then runs the
+application-owned normalized-email migration. The backend waits for both steps
+to exit with code 0 and must not start against a failed or partially migrated
+database.
+
+The normalized-email step uses the same validation, trimming, and lowercasing
+rules as authentication. It checks every user before writing, backfills all
+valid legacy rows in one transaction, and verifies that no null
+`normalizedEmail` values remain. Re-running it is safe.
 
 Afterward, verify:
 
@@ -48,18 +55,51 @@ operator environment:
 
 ```bash
 npm run db:check:attachment-storage-keys --prefix backend
+npm run db:preflight:local-auth-emails --prefix backend
 npm run db:migrate:status --prefix backend
 npm run db:migrate:deploy --prefix backend
+npm run db:check:local-auth-emails --prefix backend
 ```
 
 Never print or paste `DATABASE_URL` or storage keys into logs or support issues.
 
+## Normalized-email conflicts
+
+The normalized-email preflight reports user IDs for invalid legacy addresses,
+normalization collisions, and any inconsistent existing normalized value. It
+does not change data. The migration uses the same preflight inside its
+transaction, so a reported conflict also leaves every `normalizedEmail`
+unchanged and prevents the backend from starting.
+
+If the migration reports a conflict:
+
+1. Keep PlanGlade stopped and preserve the verified pre-upgrade backup.
+2. Inspect the reported `User` rows by ID using a trusted SQLite administration
+   tool against the stopped database. Do not edit the backup.
+3. For an invalid address, replace `User.email` with the verified user's valid,
+   unique address. For a collision, establish which account owns each address
+   and give each retained user a distinct valid address. Do not guess identity
+   ownership and do not set `normalizedEmail` manually.
+4. If colliding rows represent one person, PlanGlade does not currently bundle
+   an account-merge operation. Restore the backup if necessary and resolve the
+   duplicate identity with a reviewed merge procedure before continuing.
+5. Re-run the preflight, deploy migration, and verification commands above.
+
+For the bundled image, the same read-only preflight can be run before normal
+startup with:
+
+```bash
+docker compose -f compose.yml run --rm migrate node scripts/migrate-normalized-auth-emails.mjs --preflight
+```
+
 ## Failure and rollback
 
 If a migration fails, stop application writes and inspect the migration log.
-Do not reset or delete the database volume. Restore the pre-upgrade database
-and attachment backup together, check out the earlier compatible PlanGlade
-version, rebuild, and start it.
+Do not reset or delete the database volume. A normalized-email validation or
+write failure leaves its email backfill transaction unchanged; correct the
+reported source data or restore the pre-upgrade database and attachment backup
+together, check out the earlier compatible PlanGlade version, rebuild, and
+start it.
 
 Forward-only schema changes may make a new database incompatible with an older
 binary. A source rollback without a compatible data restore is not guaranteed.

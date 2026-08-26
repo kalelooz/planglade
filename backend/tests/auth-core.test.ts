@@ -204,7 +204,6 @@ test("NextAuth resolves application users only from a verified Google profile em
   try {
     let createData: unknown
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
-    ;(db.user as typeof db.user).findMany = ((async () => []) as unknown) as typeof db.user.findMany
     ;(db.user as typeof db.user).create = ((async ({ data }) => {
       createData = data
       return { id: "user-1", email: data.email, name: data.name, image: data.image, authVersion: 0 }
@@ -236,7 +235,6 @@ test("NextAuth resolves application users only from a verified Google profile em
     assert.equal(user.authVersion, 0)
   } finally {
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
-    ;(db.user as typeof db.user).findMany = originalUserFindMany
     ;(db.user as typeof db.user).create = originalUserCreate
   }
 })
@@ -341,46 +339,24 @@ test("password hashes are salted and verify asynchronously", async () => {
   await assert.rejects(hashPassword("x".repeat(1025)), /Password is too long/)
 })
 
-test("verified identities use normalized email and backfill one transitional user", async () => {
+test("authentication never scans transitional users after the normalized-email migration", async () => {
   try {
-    const user = { id: "user-1", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
+    const created = { id: "user-1", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
+    let transitionalScans = 0
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
-    ;(db.user as typeof db.user).findMany = ((async () => [
-      { ...user, email: "Person@Example.com", normalizedEmail: null },
-    ]) as unknown) as typeof db.user.findMany
-    let updateData: unknown
-    ;(db.user as typeof db.user).update = ((async ({ data }) => {
-      updateData = data
-      return user
-    }) as unknown) as typeof db.user.update
+    ;(db.user as typeof db.user).findMany = ((async () => {
+      transitionalScans += 1
+      throw new Error("authentication must not scan users")
+    }) as unknown) as typeof db.user.findMany
+    ;(db.user as typeof db.user).create = ((async () => created) as unknown) as typeof db.user.create
 
-    const resolved = await resolveVerifiedApplicationUser({
-      email: " person@example.com ",
-      name: "Updated name",
-    })
-
-    assert.deepEqual(resolved, user)
-    assert.deepEqual(updateData, { normalizedEmail: "person@example.com", name: "Updated name" })
-  } finally {
-    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
-    ;(db.user as typeof db.user).findMany = originalUserFindMany
-    ;(db.user as typeof db.user).update = originalUserUpdate
-  }
-})
-
-test("ambiguous transitional and legacy identity matches fail closed", async () => {
-  try {
-    ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
-    ;(db.user as typeof db.user).findMany = ((async () => [
-      { id: "one", email: "person@example.com", normalizedEmail: null, authVersion: 0 },
-      { id: "two", email: "PERSON@example.com", normalizedEmail: null, authVersion: 0 },
-    ]) as unknown) as typeof db.user.findMany
-
-    assert.equal(await resolveVerifiedApplicationUser({ email: "person@example.com" }), null)
+    assert.deepEqual(await resolveVerifiedApplicationUser({ email: "person@example.com", name: "Person" }), created)
     assert.equal(await resolveLegacyNextAuthUser("person@example.com"), null)
+    assert.equal(transitionalScans, 0)
   } finally {
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
     ;(db.user as typeof db.user).findMany = originalUserFindMany
+    ;(db.user as typeof db.user).create = originalUserCreate
   }
 })
 
@@ -388,7 +364,6 @@ test("new verified users are created with canonical email and normalized email",
   try {
     const created = { id: "user-2", email: "person@example.com", name: "Person", image: null, authVersion: 0 }
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
-    ;(db.user as typeof db.user).findMany = ((async () => []) as unknown) as typeof db.user.findMany
     let createData: unknown
     ;(db.user as typeof db.user).create = ((async ({ data }) => {
       createData = data
@@ -407,7 +382,6 @@ test("new verified users are created with canonical email and normalized email",
     })
   } finally {
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
-    ;(db.user as typeof db.user).findMany = originalUserFindMany
     ;(db.user as typeof db.user).create = originalUserCreate
   }
 })
