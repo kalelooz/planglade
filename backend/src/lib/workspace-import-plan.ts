@@ -24,6 +24,7 @@ type WorkspaceImportSource = Pick<
 
 export type ExistingWorkspaceImportValues = {
   projects: string[]
+  projectSlugs: string[]
   tasks: string[]
   notes: string[]
   projectDocs: string[]
@@ -32,6 +33,7 @@ export type ExistingWorkspaceImportValues = {
 
 const EMPTY_EXISTING: ExistingWorkspaceImportValues = {
   projects: [],
+  projectSlugs: [],
   tasks: [],
   notes: [],
   projectDocs: [],
@@ -94,12 +96,29 @@ function slugify(input: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 50)
+    .replace(/-+$/g, "")
+}
+
+function reserveProjectSlug(input: string, index: number, usedSlugs: Set<string>) {
+  const base = slugify(input) || `project-${index + 1}`
+  let slug = base
+  let suffix = 2
+  while (usedSlugs.has(slug)) {
+    const ending = `-${suffix}`
+    const prefix = base.slice(0, 50 - ending.length).replace(/-+$/g, "") || "project"
+    slug = `${prefix}${ending}`
+    suffix += 1
+  }
+  usedSlugs.add(slug)
+  return slug
 }
 
 export function buildWorkspaceImportPlan(
   source: WorkspaceImportSource,
-  existing: ExistingWorkspaceImportValues = EMPTY_EXISTING
+  existing: Partial<ExistingWorkspaceImportValues> = EMPTY_EXISTING
 ) {
+  const existingValues = { ...EMPTY_EXISTING, ...existing }
+  const usedProjectSlugs = new Set(existingValues.projectSlugs.map(normalizeMatchValue))
   const importedProjectIds = new Set(source.data.projects.map((project) => project.id))
   const importedNoteIds = new Set(source.data.notes.map((note) => note.id))
   const relationCounts = {
@@ -120,11 +139,11 @@ export function buildWorkspaceImportPlan(
     ).length,
   }
   const duplicateCandidates = {
-    projects: countDuplicates(source.data.projects, existing.projects, (project) => project.name),
-    tasks: countDuplicates(source.data.workItems, existing.tasks, (item) => item.title),
-    notes: countDuplicates(source.data.notes, existing.notes, (note) => note.title),
-    projectDocs: countDuplicates(source.data.projectDocs, existing.projectDocs, (doc) => doc.title),
-    savedViews: countDuplicates(source.data.savedViews, existing.savedViews, (view) => view.name),
+    projects: countDuplicates(source.data.projects, existingValues.projects, (project) => project.name),
+    tasks: countDuplicates(source.data.workItems, existingValues.tasks, (item) => item.title),
+    notes: countDuplicates(source.data.notes, existingValues.notes, (note) => note.title),
+    projectDocs: countDuplicates(source.data.projectDocs, existingValues.projectDocs, (doc) => doc.title),
+    savedViews: countDuplicates(source.data.savedViews, existingValues.savedViews, (view) => view.name),
   }
   const warnings: WorkspaceImportWarning[] = []
   if (source.version && source.version !== SUPPORTED_EXPORT_VERSION) {
@@ -168,10 +187,10 @@ export function buildWorkspaceImportPlan(
     },
     duplicateCandidates,
     warnings,
-    projects: source.data.projects.map((project) => ({
+    projects: source.data.projects.map((project, index) => ({
       sourceId: project.id,
       name: project.name,
-      slug: slugify(project.name || project.id || "project"),
+      slug: reserveProjectSlug(project.name || project.id || "project", index, usedProjectSlugs),
       status: normalizeProjectStatus(project.status),
       mode: normalizeProjectMode(project.mode),
       featureFlags: project.featureFlags,

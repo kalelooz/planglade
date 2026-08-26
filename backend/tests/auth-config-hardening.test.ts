@@ -81,6 +81,19 @@ test("production validator rejects console email but permits disabled email", ()
   assert.match(consoleResult.stderr, /console.*production/i)
 })
 
+test("production validator reports every configuration error in one run", () => {
+  const result = runValidator({
+    NEXTAUTH_SECRET: "short",
+    PLANGLADE_STORAGE_PROVIDER: "unknown",
+    PLANGLADE_EMAIL_PROVIDER: "console",
+  })
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /NEXTAUTH_SECRET/i)
+  assert.match(result.stderr, /PLANGLADE_STORAGE_PROVIDER/i)
+  assert.match(result.stderr, /console.*production/i)
+})
+
 test("trusted proxy hop count rejects unsafe or ambiguous values", () => {
   for (const value of ["-1", "1.5", "eleven", "11"]) {
     const result = runValidator({ PLANGLADE_TRUST_PROXY_HOPS: value })

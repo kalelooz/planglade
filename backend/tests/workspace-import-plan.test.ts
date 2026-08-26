@@ -62,3 +62,31 @@ test("workspace import plan reports unsupported export versions without writes",
   assert.equal(plan.warnings.some((warning) => warning.code === "unsupported_export_version"), true)
   assert.equal(plan.counts.settings, 0)
 })
+
+test("workspace import plan reserves non-empty unique project slugs", () => {
+  const plan = buildWorkspaceImportPlan({
+    data: {
+      projects: [
+        { id: "project-a", name: "🚀", status: "active" },
+        { id: "project-b", name: "Launch Plan", status: "active" },
+        { id: "project-c", name: "Launch Plan", status: "active" },
+        { id: "project-d", name: `${"a".repeat(49)} b`, status: "active" },
+      ],
+      workItems: [],
+      notes: [],
+      projectDocs: [],
+      savedViews: [],
+    },
+  }, {
+    projectSlugs: ["project-1", "launch-plan"],
+  })
+
+  assert.deepEqual(plan.projects.map((project) => project.slug), [
+    "project-1-2",
+    "launch-plan-2",
+    "launch-plan-3",
+    "a".repeat(49),
+  ])
+  assert.equal(new Set(plan.projects.map((project) => project.slug)).size, 4)
+  assert.equal(plan.projects.every((project) => project.slug.length > 0 && project.slug.length <= 50), true)
+})

@@ -42,7 +42,7 @@ export function TaskRow({
   const selected = openTaskId === task.id
   const priorityOptions: Task['priority'][] = ws.supportsNoPriority ? ['high', 'medium', 'low', 'none'] : ['high', 'medium', 'low']
   const field = (name: string) => !visibleFields || visibleFields.has(name)
-  const hasMobileStatus = showStatus && field('status') && !done && task.status !== 'blocked'
+  const hasMobileStatus = listMobileLayout && showStatus && field('status') && !done && task.status !== 'blocked'
   const hasMobileDue = field('dueDate') && !!task.dueDate
   const hasMobilePriority = field('priority') && task.priority !== 'none'
 

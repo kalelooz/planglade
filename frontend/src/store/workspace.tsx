@@ -216,6 +216,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       const next = new Set(nextDependsOn)
       const additions = [...next].filter((blockerId) => !current.has(blockerId))
       const removals = [...current].filter((blockerId) => !next.has(blockerId))
+      let mutationError: string | null = null
       const relationFor = (blockerId: string) => relations.find((relation) =>
         (relation.relationType === 'BLOCKED_BY' && relation.sourceId === id && relation.targetId === blockerId) ||
         (relation.relationType === 'BLOCKS' && relation.sourceId === blockerId && relation.targetId === id),
@@ -229,13 +230,21 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
           const relation = relationFor(blockerId)
           if (relation) await deleteWorkItemRelation(workspaceId, relation.id)
         }
-        await invalidateRelations(workspaceId)
-        if (!opts?.silent) toast.success('Changes saved')
-        return true
       } catch (error) {
-        toast.error(mutationMessage(error))
+        mutationError = mutationMessage(error)
+      } finally {
+        try {
+          await invalidateRelations(workspaceId)
+        } catch (error) {
+          mutationError ??= mutationMessage(error)
+        }
+      }
+      if (mutationError) {
+        toast.error(mutationError)
         return false
       }
+      if (!opts?.silent) toast.success('Changes saved')
+      return true
     }
     if (patch.dependsOn !== undefined) {
       const { dependsOn: nextDependsOn, ...taskPatch } = patch

@@ -17,9 +17,6 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response
 
   const { workspaceId, mode, projects, workItems, notes, projectDocs, savedViews } = parsed.data
-  const importPlan = buildWorkspaceImportPlan({
-    data: { projects, workItems, notes, projectDocs, savedViews },
-  })
 
   try {
     const access = await requireWorkspaceRole(
@@ -39,6 +36,14 @@ export async function POST(request: NextRequest) {
 
     try {
       const summary = await db.$transaction(async (tx) => {
+      const existingProjects = await tx.project.findMany({
+        where: { workspaceId },
+        select: { slug: true },
+      })
+      const importPlan = buildWorkspaceImportPlan(
+        { data: { projects, workItems, notes, projectDocs, savedViews } },
+        { projectSlugs: existingProjects.map((project) => project.slug) }
+      )
       const projectMap = new Map<string, string>()
       const workspaceMembers = await tx.workspaceMember.findMany({
         where: { workspaceId },

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const [existingProjects, existingWorkItems, existingNotes, existingProjectDocs, existingSavedViews] = await Promise.all([
       db.project.findMany({
         where: { workspaceId: query.data.workspaceId },
-        select: { name: true },
+        select: { name: true, slug: true },
       }),
       db.workItem.findMany({
         where: { workspaceId: query.data.workspaceId },
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
     const plan = buildWorkspaceImportPlan(snapshot, {
       projects: existingProjects.map((project) => project.name),
+      projectSlugs: existingProjects.map((project) => project.slug),
       tasks: existingWorkItems.map((item) => item.title),
       notes: existingNotes.map((note) => note.title),
       projectDocs: existingProjectDocs.map((doc) => doc.title),

@@ -3,6 +3,7 @@ import {
   buildBoardColumns,
   buildTaskPlanningProjection,
   buildTimelineRows,
+  millisecondsUntilNextLocalDay,
 } from '@/lib/task-planning'
 import { DEFAULT_TASK_PRESENTATION } from '@/lib/task-views'
 import type { Project, Task, TaskStatus } from '@/types'
@@ -40,6 +41,11 @@ const task = (id: string, patch: Partial<Task> = {}): Task => ({
 })
 
 describe('task planning', () => {
+  it('schedules the next projection refresh at local midnight', () => {
+    expect(millisecondsUntilNextLocalDay(new Date(2026, 7, 23, 23, 59, 59, 500))).toBe(500)
+    expect(millisecondsUntilNextLocalDay(new Date(2026, 7, 23, 10, 0, 0, 0))).toBe(14 * 60 * 60 * 1000)
+  })
+
   it('projects filters, ordering, groups, and counts from one presentation', () => {
     const projects = [project('alpha', 'Alpha')]
     const tasks = [

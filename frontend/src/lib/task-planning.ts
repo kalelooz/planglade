@@ -26,6 +26,12 @@ const PRIORITY_RANK = { high: 0, medium: 1, low: 2, none: 3 } as const
 const STATUS_GROUP_ORDER: TaskStatus[] = ['backlog', 'planned', 'in_progress', 'in_review', 'blocked', 'done']
 const DUE_GROUP_ORDER = ['overdue', 'today', 'week', 'later', 'none'] as const
 
+export function millisecondsUntilNextLocalDay(now: Date) {
+  const nextDay = new Date(now)
+  nextDay.setHours(24, 0, 0, 0)
+  return nextDay.getTime() - now.getTime()
+}
+
 function dueDistance(task: Task, today: Date) {
   return task.dueDate ? differenceInCalendarDays(parseISO(task.dueDate), today) : null
 }

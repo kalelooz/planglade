@@ -50,3 +50,18 @@ test("production configuration rejects invalid auth, storage, email, and proxy s
   assert.match(errors, /console.*production/i)
   assert.match(errors, /PLANGLADE_TRUST_PROXY_HOPS/)
 })
+
+test("blank mode and provider values use their production defaults", () => {
+  const configuration = evaluateProductionConfiguration(productionEnv({
+    PLANGLADE_AUTH_MODE: "  ",
+    NEXT_PUBLIC_PLANGLADE_AUTH_MODE: "",
+    PLANGLADE_STORAGE_PROVIDER: " ",
+    PLANGLADE_EMAIL_PROVIDER: "",
+  }), { productionLike: true })
+
+  assert.equal(configuration.auth.mode, "nextauth")
+  assert.equal(configuration.auth.publicMode, "nextauth")
+  assert.equal(configuration.storage.provider, "local")
+  assert.equal(configuration.email.provider, "disabled")
+  assert.deepEqual(configuration.errors, [])
+})

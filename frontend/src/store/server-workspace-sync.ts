@@ -75,7 +75,10 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     mutationFn: ({ workspaceId: targetWorkspaceId, task, patch }: { workspaceId: string; task: BackendWorkItem; patch: TaskPatch }) => updateTask(targetWorkspaceId, task, patch),
     retry: false,
     onMutate: async ({ workspaceId: targetWorkspaceId, task, patch }) => {
-      await queryClient.cancelQueries({ queryKey: ['tasks', targetWorkspaceId] })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['tasks', targetWorkspaceId] }),
+        queryClient.cancelQueries({ queryKey: ['inbox', targetWorkspaceId] }),
+      ])
       const previousTasks = queryClient.getQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId])
       queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => optimisticallyPatchTask(current, task, patch))
       return { previousTasks }

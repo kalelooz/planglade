@@ -13,7 +13,7 @@ import { Board } from '@/pages/Board'
 import { TaskTimeline } from '@/pages/TaskTimeline'
 import { TASK_VIEW_CATALOG } from '@/lib/task-view-catalog'
 import { CountBadge, EmptyState, PageContainer } from '@/components/bits'
-import { buildTaskPlanningProjection } from '@/lib/task-planning'
+import { buildTaskPlanningProjection, millisecondsUntilNextLocalDay } from '@/lib/task-planning'
 import {
   taskPresentationFromQuery,
   taskPresentationToQuery,
@@ -165,6 +165,7 @@ export default function Tasks() {
   const defaultApplied = useRef(false)
   const [newOpen, setNewOpen] = useState(false)
   const [newStatus, setNewStatus] = useState<TaskStatus>('planned')
+  const [planningDay, setPlanningDay] = useState(() => new Date())
   const newTaskRequested = ws.canMutateTasks && !!(location.state as { newTask?: boolean } | null)?.newTask
   const newTaskDialogOpen = newOpen || newTaskRequested
 
@@ -176,12 +177,21 @@ export default function Tasks() {
     if (defaultView) setSearchParams(taskPresentationToQuery(savedViewToPresentation(defaultView), defaultView.id), { replace: true })
   }, [savedViews.loading, savedViews.views, searchParams, setSearchParams])
 
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setPlanningDay(new Date()),
+      millisecondsUntilNextLocalDay(planningDay),
+    )
+    return () => window.clearTimeout(timer)
+  }, [planningDay])
+
   const projection = useMemo(() => buildTaskPlanningProjection({
     tasks: ws.tasks,
     projects: ws.projects,
     presentation,
     isBlocked: ws.isBlocked,
-  }), [presentation, ws.isBlocked, ws.projects, ws.tasks])
+    now: planningDay,
+  }), [planningDay, presentation, ws.isBlocked, ws.projects, ws.tasks])
   const { tasks: filtered, groups, counts: taskCounts } = projection
 
   const activeFilterCount = quick.size + projectFilter.size + priorityFilter.size

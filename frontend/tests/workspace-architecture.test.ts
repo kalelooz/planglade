@@ -21,6 +21,7 @@ describe('workspace architecture', () => {
     const workspaceProvider = readFileSync(join(sourceRoot, 'store', 'workspace.tsx'), 'utf8')
     const serverSync = readFileSync(join(sourceRoot, 'store', 'server-workspace-sync.ts'), 'utf8')
     const board = readFileSync(join(sourceRoot, 'pages', 'Board.tsx'), 'utf8')
+    const taskRow = readFileSync(join(sourceRoot, 'components', 'TaskRow.tsx'), 'utf8')
 
     expect(productionSource).not.toMatch(/planglade:/)
     expect(productionSource).not.toMatch(/\breadOnly\s*:/)
@@ -29,7 +30,10 @@ describe('workspace architecture', () => {
     expect(workspaceProvider).toContain('createReferenceWorkspaceAdapter')
     expect(serverSync).toContain('useQuery')
     expect(serverSync).toContain('useMutation')
+    expect(serverSync).toContain("cancelQueries({ queryKey: ['inbox', targetWorkspaceId] })")
+    expect(workspaceProvider).toMatch(/finally \{\s+try \{\s+await invalidateRelations\(workspaceId\)/)
     expect(board).toContain('TASK_STATUS_ORDER')
+    expect(taskRow).toContain('const hasMobileStatus = listMobileLayout && showStatus')
     expect(existsSync(join(sourceRoot, 'store', 'use-api-workspace-queries.ts'))).toBe(false)
     expect(existsSync(join(sourceRoot, 'store', 'use-api-workspace-mutations.ts'))).toBe(false)
   })

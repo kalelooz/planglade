@@ -17,7 +17,8 @@ function readPublicPlanGladeEnv(env, name) {
 }
 
 function lower(value, fallback) {
-  return (value ?? fallback).toLowerCase()
+  const normalized = value?.trim()
+  return (normalized || fallback).toLowerCase()
 }
 
 function unique(errors) {
