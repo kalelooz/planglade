@@ -30,19 +30,24 @@ RUN export NEXTAUTH_SECRET="$(openssl rand -base64 48)" \
 
 FROM base AS migrator
 
+RUN apk add --no-cache su-exec
 COPY package-lock.json /tmp/package-lock.json
 RUN npm init -y \
   && PRISMA_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/prisma'].version")" \
   && PRISMA_CLIENT_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/@prisma/client'].version")" \
+  && DEEPMERGE_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/deepmerge-ts'].version")" \
+  && npm pkg set "overrides.deepmerge-ts=$DEEPMERGE_VERSION" \
   && npm install --omit=dev --no-save "prisma@$PRISMA_VERSION" "@prisma/client@$PRISMA_CLIENT_VERSION" \
   && rm /tmp/package-lock.json
 COPY --chown=nextjs:nodejs prisma ./prisma
 COPY --chown=nextjs:nodejs scripts/migrate-normalized-auth-emails.mjs ./scripts/migrate-normalized-auth-emails.mjs
 COPY --chown=nextjs:nodejs src/lib/local-auth-email.mjs ./src/lib/local-auth-email.mjs
+COPY --chown=root:root --chmod=755 scripts/run-migrations.sh ./scripts/run-migrations.sh
 RUN ./node_modules/.bin/prisma generate
-USER nextjs
+RUN mkdir -p /app/db && chown nextjs:nodejs /app/db
 
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node scripts/migrate-normalized-auth-emails.mjs"]
+ENTRYPOINT ["./scripts/run-migrations.sh"]
+CMD ["deploy"]
 
 FROM base AS runner
 

@@ -73,7 +73,7 @@ test("invalid legacy emails are reported before any row is mutated", async () =>
 test("normalization collisions are reported before any row is mutated", async () => {
   await client.user.createMany({
     data: [
-      { id: "collision-a", email: "person@example.com" },
+      { id: "collision-a", email: "person@example.com", normalizedEmail: "person@example.com" },
       { id: "collision-b", email: " PERSON@EXAMPLE.COM " },
       { id: "valid", email: "valid@example.com" },
     ],
@@ -83,7 +83,7 @@ test("normalization collisions are reported before any row is mutated", async ()
     migrateNormalizedAuthEmails(client),
     /Normalization collision for "person@example.com": user IDs "collision-a", "collision-b"/,
   )
-  assert.equal(await client.user.count({ where: { normalizedEmail: null } }), 3)
+  assert.equal(await client.user.count({ where: { normalizedEmail: null } }), 2)
 })
 
 test("database failures roll back every normalized-email update", async () => {

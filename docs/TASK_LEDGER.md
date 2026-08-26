@@ -12,10 +12,12 @@
 
 ### Evidence
 
-- 2026-08-26: 19 focused authentication and normalized-email migration tests passed.
-- 2026-08-26: all 233 backend tests passed against an isolated prepared SQLite database.
-- 2026-08-26: backend lint, typecheck, production build, public/CI/docs/release checks, backend surface guard, and release backup/restore rehearsal passed.
+- 2026-08-26: 30 focused authentication, normalized-email migration, and Docker packaging tests passed.
+- 2026-08-26: all 234 backend tests, all 111 frontend tests, and the authenticated browser integration suite passed.
+- 2026-08-26: lint, typecheck, both production builds, Prisma validation, public/CI/docs/release checks, backend surface guard, and release backup/restore rehearsal passed.
 - 2026-08-26: release rehearsal backfilled and verified a legacy null `normalizedEmail`; rollback coverage proved a simulated second-row write failure preserved every null source row.
+- 2026-08-26: the real Node 22/Alpine migrator image passed fresh named-volume creation, recovery of a deliberately root-owned existing volume, mixed-case/whitespace backfill, completed verification, invalid-email and indexed-collision blocking, and injected write-failure rollback with persisted rows inspected after each run; migration and operator commands executed as UID/GID 1001 after the ownership repair.
+- 2026-08-26: the second assurance pass corrected fresh-volume ownership and restored the lockfile's patched `deepmerge-ts` override in the migrator image; backend and built-image audits then reported zero vulnerabilities.
 - 2026-08-26: separate root-owned standards and issue-acceptance review found no remaining findings; authentication policy prohibited delegated review.
 - Visual verification: not applicable; this task changes only backend authentication, migration, tests, and operator guidance.
 

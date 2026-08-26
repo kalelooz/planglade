@@ -19,7 +19,9 @@ Do not use `prisma db push`, `prisma migrate dev`, `prisma migrate reset`, or
 
 ## Docker migration path
 
-Normal startup is the supported migration mechanism:
+After taking the stopped-state backup, keep the existing stack down so no old
+backend process can write while the data migration runs. Normal startup is the
+supported migration mechanism:
 
 ```bash
 docker compose -f compose.yml build

@@ -174,3 +174,15 @@ test("Docker validates runtime secrets before starting the standalone server", a
     /CMD \["sh", "-c", "node scripts\/validate-auth-config\.mjs && exec node server\.js"\]/
   )
 })
+
+test("Docker migrator owns its database mount and runs the normalized-email migration", async () => {
+  const dockerfile = await readFile("Dockerfile", "utf8")
+  const entrypoint = await readFile("scripts/run-migrations.sh", "utf8")
+  assert.match(dockerfile, /COPY[^\n]*migrate-normalized-auth-emails\.mjs/)
+  assert.match(dockerfile, /overrides\.deepmerge-ts=\$DEEPMERGE_VERSION/)
+  assert.match(dockerfile, /RUN mkdir -p \/app\/db && chown nextjs:nodejs \/app\/db/)
+  assert.match(dockerfile, /ENTRYPOINT \["\.\/scripts\/run-migrations\.sh"\]/)
+  assert.match(entrypoint, /chown -R nextjs:nodejs \/app\/db/)
+  assert.match(entrypoint, /exec su-exec nextjs:nodejs/)
+  assert.match(entrypoint, /prisma migrate deploy && node scripts\/migrate-normalized-auth-emails\.mjs/)
+})

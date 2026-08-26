@@ -126,10 +126,12 @@ docker compose -f compose.yml down
 
 For an update:
 
-1. Back up and verify both volumes.
-2. Review the changelog and environment changes.
-3. Pull or check out the intended version.
-4. Run:
+1. Stop PlanGlade with `docker compose -f compose.yml down`; this preserves the
+   named volumes and prevents writes during backup and migration.
+2. Back up and verify both volumes.
+3. Review the changelog and environment changes.
+4. Pull or check out the intended version.
+5. Run:
 
    ```bash
    docker compose -f compose.yml build
