@@ -29,5 +29,19 @@ export default defineConfig(({ mode }) => {
         { find: '@', replacement: path.resolve(__dirname, './src') },
       ],
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('/@radix-ui/') || id.includes('/cmdk/') || id.includes('/vaul/')) return 'ui-vendor'
+            if (id.includes('/framer-motion/') || id.includes('/motion-') || id.includes('/@dnd-kit/')) return 'motion-vendor'
+            if (id.includes('/@xyflow/') || id.includes('/d3-') || id.includes('/recharts/')) return 'visualization-vendor'
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router/') || id.includes('/@tanstack/')) return 'react-vendor'
+            return undefined
+          },
+        },
+      },
+    },
   }
 })

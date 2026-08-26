@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+
+async function expectTouchTarget(locator: Locator) {
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.width).toBeGreaterThanOrEqual(44)
+  expect(box!.height).toBeGreaterThanOrEqual(44)
+}
 
 test('reference mode stays independent from the backend', async ({ page }) => {
   const backendRequests: string[] = []
@@ -77,4 +84,21 @@ test('desktop task rows render metadata once', async ({ page }) => {
   await expect(row.getByText('Planned', { exact: true }).filter({ visible: true })).toHaveCount(1)
   await expect(row.locator('svg.lucide-calendar-days').filter({ visible: true })).toHaveCount(1)
   await expect(row.getByText('Medium priority', { exact: true }).filter({ visible: true })).toHaveCount(1)
+
+  for (const target of [
+    page.getByRole('button', { name: 'New task' }),
+    page.getByRole('tab', { name: 'List' }),
+    page.getByRole('tab', { name: 'Board' }),
+    page.getByRole('tab', { name: 'Timeline' }),
+    page.getByRole('textbox', { name: 'Search tasks' }),
+    page.getByRole('button', { name: 'Filters' }),
+    page.getByRole('combobox', { name: 'Sort tasks' }),
+    page.getByRole('combobox', { name: 'Group tasks' }),
+    page.getByRole('button', { name: 'Display options' }),
+    page.getByRole('switch', { name: 'Show completed tasks' }),
+    row.getByRole('checkbox', { name: 'Mark as done' }),
+    row.getByRole('button', { name: 'Personal Admin' }),
+  ]) {
+    await expectTouchTarget(target)
+  }
 })

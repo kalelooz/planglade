@@ -154,12 +154,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html:focus-within {
     scroll-behavior: auto !important;
   }
 }
@@ -195,7 +190,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu-surface, .menu-surface .menu-surface-item { animation: none; }
+  .menu-surface,
+  .menu-surface .menu-surface-item {
+    animation: none;
+  }
 }
 
 .quick-capture-primary {
@@ -221,6 +219,12 @@
   0% { opacity: 0; transform: scale(0.98); }
   38% { opacity: 0.62; transform: scale(1.025); }
   100% { opacity: 0; transform: scale(1.065); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-capture-primary::after {
+    animation: none;
+  }
 }
 
 /* Markdown preview */

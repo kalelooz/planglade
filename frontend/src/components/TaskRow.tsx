@@ -52,7 +52,7 @@ export function TaskRow({
         <div
           data-task-id={task.id}
           className={cn(
-            'group relative grid grid-cols-[32px_minmax(0,1fr)] items-start gap-x-3 rounded-md px-2.5 lg:grid-cols-[18px_minmax(0,1fr)_104px_28px]',
+            'group relative grid grid-cols-[44px_minmax(0,1fr)] items-start gap-x-2 rounded-md px-1.5 lg:grid-cols-[18px_minmax(0,1fr)_104px_28px] lg:gap-x-3 lg:px-2.5',
             compact ? 'py-2.5 lg:py-1' : 'py-2.5 lg:py-2',
             className,
           )}
@@ -66,7 +66,7 @@ export function TaskRow({
               selected ? 'bg-accent/80' : 'hover:bg-accent/60 focus-visible:bg-accent/60',
             )}
           />
-          <span className="relative z-10 flex h-6 items-start justify-center pt-0.5 [&>button]:size-6 lg:h-auto lg:justify-start lg:pt-0.5 lg:[&>button]:size-[18px]"><TaskCheckbox checked={done} onToggle={() => ws.toggleTask(task.id)} blocked={blocked && !done} /></span>
+          <span className="relative z-10 flex h-11 items-center justify-center [&>button]:size-11 lg:h-auto lg:justify-start lg:pt-0.5 lg:[&>button]:size-[18px]"><TaskCheckbox checked={done} onToggle={() => ws.toggleTask(task.id)} blocked={blocked && !done} /></span>
           <div className="relative z-10 min-w-0 pointer-events-none">
             <div className="flex items-start gap-2">
               <p className={cn('pg-item-title min-w-0 flex-1', done && 'line-through text-muted-foreground font-normal')}>
@@ -84,7 +84,7 @@ export function TaskRow({
                     {subsDone}/{subs.length} subtasks
                   </span>
                 )}
-                {showProject && field('project') && <ProjectChip project={project} className="pointer-events-auto inline-flex max-w-[120px] shrink items-center sm:max-w-[150px]" onClick={() => project && navigate(`/projects/${project.id}`)} />}
+                {showProject && field('project') && <ProjectChip project={project} className="pointer-events-auto inline-flex min-h-11 min-w-11 max-w-[120px] shrink items-center sm:max-w-[150px] lg:min-h-0 lg:min-w-0" onClick={() => project && navigate(`/projects/${project.id}`)} />}
                 {blocked && !done && <BlockedIndicator className="shrink-0" />}
                 {blocking && <BlockingIndicator className="shrink-0" />}
                 {hasMobileStatus && <StatusBadge status={task.status} className="shrink-0 lg:hidden" />}

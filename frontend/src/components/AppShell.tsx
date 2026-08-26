@@ -16,6 +16,9 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Kbd } from '@/components/ui/kbd'
 import { CountBadge } from '@/components/bits'
 import { PlanGladeMark } from '@/components/PlanGladeBrand'
 import { useAppCommands } from '@/store/app-commands'
@@ -40,9 +43,9 @@ function AppearanceMenu({ triggerClassName }: { triggerClassName?: string }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <button aria-label="Change appearance" className={cn('inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors', triggerClassName)}>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Change appearance" className={cn('text-muted-foreground hover:text-foreground', triggerClassName)}>
               <Icon className="h-4 w-4" />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="right">Appearance</TooltipContent>
@@ -86,10 +89,12 @@ function WorkspaceSwitcher({ collapsed = false, mobile = false }: { collapsed?: 
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
+                type="button"
+                variant="ghost"
                 aria-label={`Switch workspace. Current workspace: ${current?.name ?? ws.state.workspaceName}`}
                 className={cn(
-                  'flex min-w-0 items-center gap-2 rounded-md text-left transition-[background-color,color,transform] hover:bg-sidebar-accent active:scale-[0.96]',
+                  'min-w-0 justify-start gap-2 text-left hover:bg-sidebar-accent',
                   mobile ? 'h-11 flex-1 px-2' : 'h-11 w-full px-2',
                   collapsed && 'w-10 justify-center px-0',
                 )}
@@ -104,7 +109,7 @@ function WorkspaceSwitcher({ collapsed = false, mobile = false }: { collapsed?: 
                     <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                   </>
                 )}
-              </button>
+              </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
           {collapsed && <TooltipContent side="right">Switch workspace</TooltipContent>}
@@ -157,21 +162,21 @@ function WorkspaceSwitcher({ collapsed = false, mobile = false }: { collapsed?: 
               void createWorkspace()
             }}
           >
-            <input
+            <Input
               autoFocus
               value={name}
               onChange={(event) => setName(event.target.value)}
               aria-label="Workspace name"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/50"
+              className="h-9"
               placeholder="Workspace name"
             />
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setCreateOpen(false)} className="h-8 rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCreateOpen(false)} className="text-muted-foreground">
                 Cancel
-              </button>
-              <button type="submit" disabled={!validName || pending} className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-[background-color,transform] hover:bg-primary/90 active:scale-[0.96] disabled:opacity-40">
+              </Button>
+              <Button type="submit" size="sm" disabled={!validName || pending}>
                 {pending ? 'Creating...' : 'Create'}
-              </button>
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -264,27 +269,30 @@ export default function AppShell() {
           <div className={cn('px-2 pb-1', collapsed && 'px-2')}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
                   onClick={() => openCapture()}
                   disabled={!ws.canMutateTasks}
                   className={cn(
-                    'quick-capture-primary w-full inline-flex items-center gap-2 rounded-md bg-primary px-2.5 h-9 text-[13px] font-medium text-primary-foreground hover:bg-primary/90 active:scale-[0.96] transition-[background-color,transform] shadow-[0_1px_2px_hsl(var(--foreground)/0.12)]',
+                    'quick-capture-primary h-9 w-full justify-start gap-2 px-2.5 text-[13px] shadow-[0_1px_2px_hsl(var(--foreground)/0.12)]',
                     collapsed && 'justify-center px-0',
                   )}
                   aria-label={!ws.canMutateTasks ? 'Quick capture unavailable in read-only mode' : 'Quick capture'}
                 >
                   <Plus className="h-4 w-4 shrink-0" aria-hidden />
                   {!collapsed && <span>Quick capture</span>}
-                </button>
+                </Button>
               </TooltipTrigger>
               {collapsed && <TooltipContent side="right">Quick capture</TooltipContent>}
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
                   onClick={() => commands.dispatch('open-command-palette')}
                   className={cn(
-                    'mt-1.5 w-full inline-flex items-center gap-2 rounded-md px-2.5 h-8 text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/70 transition-colors',
+                    'mt-1.5 h-8 w-full justify-start gap-2 px-2.5 text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/70',
                     collapsed && 'justify-center px-0',
                   )}
                   aria-label="Search and commands"
@@ -293,10 +301,10 @@ export default function AppShell() {
                   {!collapsed && (
                     <>
                       <span>Search</span>
-                      <kbd className="ml-auto rounded border border-border bg-background px-1 py-px text-[12.5px] text-muted-foreground">⌘K</kbd>
+                      <Kbd className="ml-auto">⌘K</Kbd>
                     </>
                   )}
-                </button>
+                </Button>
               </TooltipTrigger>
               {collapsed && <TooltipContent side="right">Search (⌘K)</TooltipContent>}
             </Tooltip>
@@ -308,14 +316,17 @@ export default function AppShell() {
             <div className={cn('flex items-center', collapsed ? 'flex-col gap-1' : 'justify-between')}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigate('/settings')}
-                    className={cn('inline-flex items-center gap-2 rounded-md px-2 h-8 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent/70 transition-colors min-w-0', collapsed && 'justify-center px-0 w-8')}
+                    className={cn('h-8 min-w-0 justify-start gap-2 px-2 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent/70', collapsed && 'w-8 justify-center px-0')}
                     aria-label="Account"
                   >
                     <CircleUserRound className="h-4 w-4 shrink-0" aria-hidden />
                     {!collapsed && <span className="truncate">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected' : 'Local'}</span>}
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 {collapsed && <TooltipContent side="right">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected workspace' : 'Local prototype'}</TooltipContent>}
               </Tooltip>
@@ -338,9 +349,9 @@ export default function AppShell() {
                   <AppearanceMenu />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button onClick={toggleCollapse} aria-label="Collapse sidebar" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                      <Button type="button" variant="ghost" size="icon-sm" onClick={toggleCollapse} aria-label="Collapse sidebar" className="text-muted-foreground hover:text-foreground">
                         <PanelLeftClose className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">Collapse sidebar</TooltipContent>
                   </Tooltip>
@@ -365,9 +376,9 @@ export default function AppShell() {
                   <AppearanceMenu />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button onClick={toggleCollapse} aria-label="Expand sidebar" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                      <Button type="button" variant="ghost" size="icon-sm" onClick={toggleCollapse} aria-label="Expand sidebar" className="text-muted-foreground hover:text-foreground">
                         <PanelLeftOpen className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">Expand sidebar</TooltipContent>
                   </Tooltip>
@@ -381,9 +392,9 @@ export default function AppShell() {
         <div className="md:hidden fixed top-0 inset-x-0 z-40 h-14 border-b border-border bg-background/95 backdrop-blur-sm flex items-center gap-2 px-3">
           <Sheet open={mobileNavOpen} onOpenChange={(open) => setMobileNav({ open, path: location.pathname })}>
             <SheetTrigger asChild>
-              <button aria-label="Open navigation" className="inline-flex h-11 w-11 -ml-1.5 items-center justify-center rounded-md text-foreground hover:bg-accent transition-colors">
+              <Button type="button" variant="ghost" size="icon" aria-label="Open navigation" className="-ml-1.5 size-11 text-foreground">
                 <Menu className="h-5 w-5" />
-              </button>
+              </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] p-0 flex flex-col" aria-label="Navigation">
               <SheetHeader className="h-14 flex-row items-center space-y-0 border-b border-border pl-2 pr-12">
@@ -407,25 +418,30 @@ export default function AppShell() {
               </div>
             </SheetContent>
           </Sheet>
-          <button onClick={() => navigate('/')} className="flex items-center gap-2 min-w-0">
+          <Button type="button" variant="ghost" onClick={() => navigate('/')} className="h-11 min-w-0 justify-start gap-2 px-1">
             <span className="text-[14px] font-semibold truncate">{ws.state.workspaceName}</span>
-          </button>
+          </Button>
           <div className="ml-auto flex items-center gap-1">
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => commands.dispatch('open-command-palette')}
               aria-label="Search"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="size-11 text-muted-foreground hover:text-foreground"
             >
               <Search className="h-5 w-5" />
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              size="icon"
               onClick={() => openCapture()}
               disabled={!ws.canMutateTasks}
               aria-label={!ws.canMutateTasks ? 'Quick capture unavailable in read-only mode' : 'Quick capture'}
-              className="quick-capture-primary inline-flex h-11 w-11 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.96] transition-[background-color,transform]"
+              className="quick-capture-primary size-11"
             >
               <Plus className="h-5 w-5" />
-            </button>
+            </Button>
           </div>
         </div>
 
