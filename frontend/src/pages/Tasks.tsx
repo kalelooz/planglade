@@ -217,7 +217,7 @@ export default function Tasks() {
 
   return (
     <div className="flex w-full min-w-0 flex-col flex-1 min-h-0 overflow-x-hidden">
-      <PageContainer width="wide" className="pt-5 sm:pt-7">
+      <PageContainer width="standard" className="pt-5 sm:pt-7">
         <header className="mb-5">
           <div className="flex items-center gap-3">
             <div className="mr-auto">
@@ -407,57 +407,59 @@ export default function Tasks() {
 
       {/* Content */}
       {view === 'list' ? (
-        <PageContainer width="wide" className="pb-10">
-          {filtered.length === 0 ? (
-            <EmptyState
-              icon={<CheckSquare className="h-7 w-7" />}
-              title={search || activeFilterCount > 0 ? 'No tasks match' : 'No open tasks'}
-              hint={search || activeFilterCount > 0 ? 'Try widening the filters or search.' : 'Everything is done, or nothing exists yet. Capture something to get started.'}
-              action={
-                activeFilterCount > 0 ? (
-                  <button onClick={() => updatePresentation({ quick: [], projects: [], priorities: [], search: '' })} className="text-[13px] text-foreground underline underline-offset-4">
-                    Clear filters
-                  </button>
-                ) : undefined
-              }
-            />
-          ) : (
-            groups.map((g) => (
-              <section
-                key={g.key}
-                aria-labelledby={g.label ? `task-group-${g.key}` : undefined}
-                className={cn(
-                  'mb-5',
-                  group !== 'none' && 'overflow-hidden rounded-lg border border-border/60 bg-card/35',
-                )}
-              >
-                {g.label && (
-                  <h2
-                    id={`task-group-${g.key}`}
-                    className="flex min-h-10 items-center gap-2 border-b border-border/50 bg-muted/20 px-3 text-[12.5px] font-semibold uppercase text-foreground/75"
-                  >
-                    <span>{g.label}</span>
-                    <CountBadge count={g.tasks.length} label={`${g.tasks.length} tasks`} />
-                  </h2>
-                )}
-                <div className={cn('divide-y divide-border/50', group === 'none' && 'border-y border-border/60')}>
-                  <AnimatePresence initial={false}>
-                    {g.tasks.map((t) => (
-                      <motion.div
-                        key={t.id}
-                        initial={{ opacity: 0, y: -3 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -2 }}
-                        transition={{ duration: 0.16, ease: 'easeOut', layout: { duration: 0.18, ease: 'easeOut' } }}
-                      >
-                        <TaskRow task={t} showStatus listMobileLayout compact={presentation.density === 'compact'} visibleFields={new Set(presentation.fields)} />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </section>
-            ))
-          )}
+        <PageContainer width="standard" className="pb-10" data-task-list-region>
+          <div className="mx-auto w-full max-w-[960px]" data-task-list-surface>
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={<CheckSquare className="h-7 w-7" />}
+                title={search || activeFilterCount > 0 ? 'No tasks match' : 'No open tasks'}
+                hint={search || activeFilterCount > 0 ? 'Try widening the filters or search.' : 'Everything is done, or nothing exists yet. Capture something to get started.'}
+                action={
+                  activeFilterCount > 0 ? (
+                    <button onClick={() => updatePresentation({ quick: [], projects: [], priorities: [], search: '' })} className="text-[13px] text-foreground underline underline-offset-4">
+                      Clear filters
+                    </button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              groups.map((g) => (
+                <section
+                  key={g.key}
+                  aria-labelledby={g.label ? `task-group-${g.key}` : undefined}
+                  className={cn(
+                    'mb-5',
+                    group !== 'none' && 'overflow-hidden rounded-lg border border-border/60 bg-card/35',
+                  )}
+                >
+                  {g.label && (
+                    <h2
+                      id={`task-group-${g.key}`}
+                      className="flex min-h-10 items-center gap-2 border-b border-border/50 bg-muted/20 px-3 text-[12.5px] font-semibold uppercase text-foreground/75"
+                    >
+                      <span>{g.label}</span>
+                      <CountBadge count={g.tasks.length} label={`${g.tasks.length} tasks`} />
+                    </h2>
+                  )}
+                  <div className={cn('divide-y divide-border/50', group === 'none' && 'border-y border-border/60')}>
+                    <AnimatePresence initial={false}>
+                      {g.tasks.map((t) => (
+                        <motion.div
+                          key={t.id}
+                          initial={{ opacity: 0, y: -3 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={{ duration: 0.16, ease: 'easeOut', layout: { duration: 0.18, ease: 'easeOut' } }}
+                        >
+                          <TaskRow task={t} showStatus listMobileLayout compact={presentation.density === 'compact'} visibleFields={new Set(presentation.fields)} />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
         </PageContainer>
       ) : view === 'board' ? (
         <div className="flex w-full min-w-0 flex-1 min-h-0 flex-col overflow-hidden">

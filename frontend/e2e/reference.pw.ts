@@ -14,6 +14,26 @@ async function visibleBox(locator: Locator) {
   return box!
 }
 
+async function expectTaskGridCentered(row: Locator, fields: string[]) {
+  const rowBox = await visibleBox(row)
+  const boxes = await Promise.all(fields.map((field) => visibleBox(row.locator(`[data-task-field="${field}"]`))))
+
+  for (let index = 1; index < boxes.length; index += 1) {
+    expect(boxes[index].x - (boxes[index - 1].x + boxes[index - 1].width)).toBeGreaterThanOrEqual(0)
+  }
+
+  const first = boxes[0]
+  const last = boxes.at(-1)!
+  expect(Math.abs((first.x - rowBox.x) - (rowBox.x + rowBox.width - last.x - last.width))).toBeLessThanOrEqual(2)
+}
+
+async function expectInsideRow(row: Locator, target: Locator) {
+  const rowBox = await visibleBox(row)
+  const targetBox = await visibleBox(target)
+  expect(targetBox.x).toBeGreaterThanOrEqual(rowBox.x)
+  expect(targetBox.x + targetBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width)
+}
+
 test('reference mode stays independent from the backend', async ({ page }) => {
   const backendRequests: string[] = []
   const consoleErrors: string[] = []
@@ -102,10 +122,32 @@ test('desktop task rows render metadata once', async ({ page }) => {
   }
   expect(priorityCell.x + priorityCell.width - identityCell.x).toBeLessThanOrEqual(700)
 
+  const listRegion = await visibleBox(page.locator('[data-task-list-region]'))
+  const listSurface = await visibleBox(page.locator('[data-task-list-surface]'))
+  expect(listSurface.width).toBeLessThanOrEqual(960)
+  expect(Math.abs((listSurface.x - listRegion.x) - (listRegion.x + listRegion.width - listSurface.x - listSurface.width))).toBeLessThanOrEqual(1)
+  await expectTaskGridCentered(row, ['completion', 'identity', 'status', 'due-date', 'priority'])
+
   await page.mouse.click(statusCell.x + statusCell.width / 2, statusCell.y + statusCell.height / 2)
   await expect(page.getByLabel('Task details')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Task details')).toBeHidden()
+
+  await page.getByRole('button', { name: 'Display options' }).click()
+  for (const [label, field, remaining] of [
+    ['Status', 'status', ['completion', 'identity', 'due-date', 'priority']],
+    ['Due date', 'due-date', ['completion', 'identity', 'priority']],
+    ['Priority', 'priority', ['completion', 'identity']],
+  ] as const) {
+    await page.getByRole('checkbox', { name: label }).click()
+    await expect(row.locator(`[data-task-field="${field}"]`)).toHaveCount(0)
+    await expectTaskGridCentered(row, [...remaining])
+  }
+  for (const [label, field] of [['Status', 'status'], ['Due date', 'due-date'], ['Priority', 'priority']] as const) {
+    await page.getByRole('checkbox', { name: label }).click()
+    await expect(row.locator(`[data-task-field="${field}"]`)).toHaveCount(1)
+  }
+  await page.keyboard.press('Escape')
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
@@ -113,6 +155,9 @@ test('desktop task rows render metadata once', async ({ page }) => {
   await expect(row.getByText('Planned', { exact: true }).filter({ visible: true })).toHaveCount(1)
   await expect(row.locator('svg.lucide-calendar-days').filter({ visible: true })).toHaveCount(1)
   await expect(row.getByText('Medium priority', { exact: true }).filter({ visible: true })).toHaveCount(1)
+  await expectInsideRow(row, row.getByText('Planned', { exact: true }).filter({ visible: true }))
+  await expectInsideRow(row, row.locator('svg.lucide-calendar-days').filter({ visible: true }))
+  await expectInsideRow(row, row.locator('svg[aria-label="Medium priority"]').filter({ visible: true }))
 
   for (const target of [
     page.getByRole('button', { name: 'New task' }),

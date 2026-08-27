@@ -18,6 +18,13 @@
 
 ## Completed tasks
 
+### UI-003 — Proportional Tasks work surface
+
+- Status: **PASS**
+- Requested: 2026-08-27
+- Scope: balance the Tasks list around the available canvas so task metadata stays easy to follow while left, middle, and right whitespace and row dividers remain proportional across desktop, tablet, and mobile widths.
+- Evidence: the desktop list now caps at 960px inside a centered 1200px Tasks region; at 1728×920 the row metadata cluster measured 646px with exactly 157px on both sides. The 1024×768 and 390×844 layouts rendered without horizontal overflow, warnings, or errors, and mobile status, due date, and priority now wrap fully inside each row. The reference browser check removes status, due-date, and priority columns in turn and proves every remaining grid stays ordered and centered. Frontend typecheck, lint, all 117 tests, the 3-test reference browser suite, the reference production build, and the Impeccable layout detector passed. The independent review's two confirmed findings—mobile clipping and missing dynamic-column coverage—were corrected in one bounded pass. Three retained screenshots are under `artifacts/verification/UI-003/`, and the final wide capture replaced the published Tasks image. Calendar and Connections remain unchanged.
+
 ### UI-002 — Calibrated task-list metadata columns
 
 - Status: **PASS**
