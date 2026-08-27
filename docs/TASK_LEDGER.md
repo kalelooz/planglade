@@ -18,6 +18,13 @@
 
 ## Completed tasks
 
+### DOC-001 — README home screenshot framing
+
+- Status: **PASS**
+- Requested: 2026-08-27
+- Scope: replace the oversized desktop home screenshot with a current, sanitized reference-mode browser capture that keeps the navigation and dashboard visually connected.
+- Evidence: the real public application was captured at 1728×920 from the canonical reference-mode launch; the sidebar-to-dashboard gutter is 32px, the README image path is unchanged, and no synthetic UI image was committed.
+
 ### UI-001 — Approved-resource UI remediation
 
 - Status: **PASS**
