@@ -202,7 +202,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     const task = byId.get(id)
     const inboxItem = inboxById.get(id)
     const source = task?.source ?? inboxItem?.source
-    const supported = ['title', 'description', 'projectId', 'startDate', 'dueDate', 'labelIds', 'status', 'priority', 'beforeId', 'dependsOn']
+    const supported = ['title', 'description', 'projectId', 'startDate', 'dueDate', 'labelIds', 'status', 'priority', 'assigneeId', 'beforeId', 'dependsOn']
     if (!taskMutationsAllowed) {
       toast('Read-only demo mode', { description: 'No changes were saved.' })
       return Promise.resolve(false)

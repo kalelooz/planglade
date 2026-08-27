@@ -24,6 +24,7 @@ import { relativeLabel, timeAgo } from '@/lib/dates'
 import { useQuery } from '@tanstack/react-query'
 import { getTaskHistory } from '@/lib/api/tasks'
 import { useAppCommands } from '@/store/app-commands'
+import { TaskComments } from '@/components/TaskComments'
 
 interface TaskDrawerCtx {
   openTask: (id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => void
@@ -229,7 +230,6 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
   const subtasks = ws.subtasksOf(task.id)
   const blockers = ws.blockersOf(task)
   const parent = ws.getTask(task.parentId)
-  const assignee = ws.state.people.find((p) => p.id === task.assigneeId)
   const depCandidates = ws.tasks.filter(
     (t) => t.id !== task.id && !t.parentId && t.status !== 'done' && !task.dependsOn.includes(t.id),
   )
@@ -379,14 +379,22 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
               )}
             </div>
           </Field>
-          {assignee && (
-            <Field label="Waiting on">
-              <span className="inline-flex items-center gap-1.5 text-sm px-2 -ml-2 h-8">
+          <Field label="Assignee">
+            <Select
+              value={task.assigneeId ?? 'unassigned'}
+              disabled={!canEdit || ws.taskMutationPending}
+              onValueChange={(value) => void ws.updateTask(task.id, { assigneeId: value === 'unassigned' ? null : value })}
+            >
+              <SelectTrigger aria-label="Assignee" className="h-11 w-auto max-w-full border-0 bg-transparent px-2 -ml-2 text-sm shadow-none hover:bg-accent/60 focus:ring-1 data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8">
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
-                {assignee.name}
-              </span>
-            </Field>
-          )}
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {ws.state.people.map((person) => <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="Labels">
             <div className="flex flex-wrap gap-1 py-1">
               {ws.state.labels.map((l) => {
@@ -417,6 +425,16 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
             </div>
           </Field>
         </div>
+
+        {ws.mode.kind === 'server' && ws.workspaceId && task.source && <>
+          <Separator />
+          <TaskComments
+            workspaceId={ws.workspaceId}
+            taskId={task.id}
+            members={ws.state.people}
+            canComment={canEdit}
+          />
+        </>}
 
         <Separator />
         <div className="px-5 py-4">
