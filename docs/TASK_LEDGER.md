@@ -18,6 +18,13 @@
 
 ## Completed tasks
 
+### DOC-002 — README Tasks screenshot framing
+
+- Status: **PASS**
+- Requested: 2026-08-27
+- Scope: replace only the first “A closer look” image with a current, sanitized Tasks-page browser capture and leave the Calendar and Connections images unchanged.
+- Evidence: the real public application was captured at 1728×920 from the canonical reference-mode Tasks route; the sidebar-to-content gutter is 32px, the README image path is unchanged, and no synthetic UI image was committed.
+
 ### DOC-001 — README home screenshot framing
 
 - Status: **PASS**
