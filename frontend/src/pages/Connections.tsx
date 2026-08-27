@@ -23,6 +23,7 @@ import { zoomPanAtPoint } from "@/lib/graph-zoom";
 import { useWorkspace } from "@/store/workspace";
 import { useTaskDrawer } from "@/components/TaskDrawer";
 import { PageContainer } from "@/components/bits";
+import { workspaceNotePath, workspaceProjectPath } from "@/lib/workspace-routes";
 
 type NodeType = "project" | "task" | "note" | "person" | "label";
 type EdgeType =
@@ -595,8 +596,8 @@ function Connections() {
   }, [zoomBy]);
   const openNode = (node: GraphNode, trigger?: HTMLElement) => {
     if (node.type === "task") openTask(node.refId, trigger);
-    else if (node.type === "project") navigate(`/projects/${node.refId}`);
-    else if (node.type === "note") navigate(`/notes?note=${node.refId}`);
+    else if (node.type === "project") navigate(workspaceProjectPath(node.refId));
+    else if (node.type === "note") navigate(workspaceNotePath(node.refId));
   };
   const open = () => {
     if (selected) openNode(selected, selectedTrigger.current ?? undefined);

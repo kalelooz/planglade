@@ -23,16 +23,17 @@ import { NotificationCenter } from '@/components/NotificationCenter'
 import { CountBadge } from '@/components/bits'
 import { PlanGladeMark } from '@/components/PlanGladeBrand'
 import { useAppCommands } from '@/store/app-commands'
+import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 
 const NAV = [
-  { name: 'Home', path: '/', icon: Home },
-  { name: 'Inbox', path: '/inbox', icon: Inbox },
-  { name: 'Tasks', path: '/tasks', icon: CheckSquare },
-  { name: 'Projects', path: '/projects', icon: FolderOpen },
-  { name: 'Notes', path: '/notes', icon: StickyNote },
-  { name: 'Calendar', path: '/calendar', icon: CalendarDays },
-  { name: 'Connections', path: '/connections', icon: Waypoints },
-  { name: 'Settings', path: '/settings', icon: SettingsIcon },
+  { name: 'Home', path: WORKSPACE_PATHS.home, icon: Home },
+  { name: 'Inbox', path: WORKSPACE_PATHS.inbox, icon: Inbox },
+  { name: 'Tasks', path: WORKSPACE_PATHS.tasks, icon: CheckSquare },
+  { name: 'Projects', path: WORKSPACE_PATHS.projects, icon: FolderOpen },
+  { name: 'Notes', path: WORKSPACE_PATHS.notes, icon: StickyNote },
+  { name: 'Calendar', path: WORKSPACE_PATHS.calendar, icon: CalendarDays },
+  { name: 'Connections', path: WORKSPACE_PATHS.connections, icon: Waypoints },
+  { name: 'Settings', path: WORKSPACE_PATHS.settings, icon: SettingsIcon },
 ]
 
 function AppearanceMenu({ triggerClassName }: { triggerClassName?: string }) {
@@ -195,7 +196,7 @@ function NavItems({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?:
         <NavLink
           key={item.path}
           to={item.path}
-          end={item.path === '/'}
+          end={item.path === WORKSPACE_PATHS.home}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
@@ -321,7 +322,7 @@ export default function AppShell() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate('/settings')}
+                    onClick={() => navigate(WORKSPACE_PATHS.settings)}
                     className={cn('h-8 min-w-0 flex-1 shrink justify-start gap-2 overflow-hidden px-2 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent/70', collapsed && 'w-8 flex-none justify-center px-0')}
                     aria-label="Account"
                   >
@@ -419,7 +420,7 @@ export default function AppShell() {
               </div>
             </SheetContent>
           </Sheet>
-          <Button type="button" variant="ghost" onClick={() => navigate('/')} className="h-11 min-w-0 justify-start gap-2 px-1">
+          <Button type="button" variant="ghost" onClick={() => navigate(WORKSPACE_PATHS.home)} className="h-11 min-w-0 justify-start gap-2 px-1">
             <span className="text-[14px] font-semibold truncate">{ws.state.workspaceName}</span>
           </Button>
           <div className="ml-auto flex items-center gap-1">

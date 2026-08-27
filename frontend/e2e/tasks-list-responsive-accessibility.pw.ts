@@ -48,7 +48,7 @@ test('Tasks List keeps full metadata clear and touch targets reachable', async (
 
     for (const [width, height] of [[320, 844], [390, 844], [768, 1024], [1024, 768], [1440, 900]] as const) {
       await page.setViewportSize({ width, height })
-      await page.goto('/tasks')
+      await page.goto('/app/tasks')
       const taskButton = page.getByRole('button', { name: `Task: ${title}` })
       await expect(taskButton).toBeVisible()
       const row = taskButton.locator('..')
@@ -77,7 +77,7 @@ test('Tasks List keeps full metadata clear and touch targets reachable', async (
     }
 
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/tasks')
+    await page.goto('/app/tasks')
     const taskButton = page.getByRole('button', { name: `Task: ${title}` })
     const row = taskButton.locator('..')
     const checkbox = row.getByRole('checkbox', { name: 'Mark as done' })
@@ -91,7 +91,7 @@ test('Tasks List keeps full metadata clear and touch targets reachable', async (
 
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })
     await page.setViewportSize({ width: 320, height: 844 })
-    await page.goto('/tasks')
+    await page.goto('/app/tasks')
     await page.evaluate(() => document.documentElement.classList.add('dark'))
     await expect(page.getByRole('button', { name: `Task: ${title}` })).toBeVisible()
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches && document.documentElement.classList.contains('dark'))).toBeTruthy()

@@ -7,7 +7,7 @@ test('captures, persists, and converts one Inbox item without a fake task', asyn
   const runId = `Inbox browser ${Date.now()}`
   let created: WorkItem | undefined
   try {
-    await page.goto('/inbox')
+    await page.goto('/app/inbox')
     const input = page.getByLabel('Capture to inbox')
     await input.fill(runId)
     const create = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/work-items')
@@ -23,7 +23,7 @@ test('captures, persists, and converts one Inbox item without a fake task', asyn
     await page.getByRole('button', { name: `Convert "${runId}" to task` }).click()
     expect((await patch).status()).toBe(200)
     await expect(page.getByText(runId, { exact: true })).toHaveCount(0)
-    await page.goto('/tasks')
+    await page.goto('/app/tasks')
     await expect(page.getByText(runId, { exact: true })).toBeVisible()
   } finally {
     if (created) {
@@ -42,7 +42,7 @@ test('keeps confirmed Inbox state when capture or conversion is rejected and blo
   let captureRequests = 0
   let releaseCapture: (() => void) | undefined
   try {
-    await page.goto('/inbox')
+    await page.goto('/app/inbox')
     await expect(page.getByText(existingTitle, { exact: true })).toBeVisible()
     await page.route('**/api/work-items', async (route) => {
       if (route.request().method() === 'POST') {
@@ -78,10 +78,10 @@ test('keeps confirmed Inbox state when capture or conversion is rejected and blo
 
 test('search fields accept values and expose a named clear button', async ({ page }) => {
   const surfaces = [
-    ['/tasks', 'Search tasks'],
-    ['/projects', 'Search projects'],
-    ['/notes', 'Search notes'],
-    ['/connections', 'Find a node'],
+    ['/app/tasks', 'Search tasks'],
+    ['/app/projects', 'Search projects'],
+    ['/app/notes', 'Search notes'],
+    ['/app/connections', 'Find a node'],
   ] as const
 
   for (const [route, label] of surfaces) {
@@ -110,7 +110,7 @@ test('Inbox rows keep mobile controls reachable without horizontal overflow', as
   try {
     for (const width of [1280, 1024, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 844 })
-      await page.goto('/inbox')
+      await page.goto('/app/inbox')
 
       const row = page.getByText(title, { exact: true }).locator('xpath=../..')
       await expect(row).toBeVisible()
@@ -141,7 +141,7 @@ test('Inbox rows keep mobile controls reachable without horizontal overflow', as
     }
 
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/inbox')
+    await page.goto('/app/inbox')
     const row = page.getByText(title, { exact: true }).locator('xpath=../..')
     const checkbox = row.getByRole('checkbox', { name: `Select "${title}"` })
     const project = row.getByRole('combobox', { name: 'Assign project' })
@@ -156,7 +156,7 @@ test('Inbox rows keep mobile controls reachable without horizontal overflow', as
 
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })
     await page.evaluate(() => document.documentElement.classList.add('dark'))
-    await page.goto('/inbox')
+    await page.goto('/app/inbox')
     await expect(page.getByText(title, { exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
     await page.evaluate(() => document.documentElement.classList.remove('dark'))

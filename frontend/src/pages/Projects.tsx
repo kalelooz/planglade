@@ -16,6 +16,7 @@ import { isValidProjectSlug, projectSlugFromName } from '@/lib/project-slug'
 import { ProjectColorField, ProjectDateField, ProjectIconField } from '@/components/ProjectFields'
 import { DEFAULT_PROJECT_COLOR } from '@/lib/project-fields'
 import { DEFAULT_PROJECT_ICON, inferProjectIcon, projectIcon, type ProjectIconName } from '@/lib/project-icons'
+import { workspaceProjectPath } from '@/lib/workspace-routes'
 
 export default function Projects() {
   const ws = useWorkspace()
@@ -100,7 +101,7 @@ export default function Projects() {
     setColor(DEFAULT_PROJECT_COLOR)
     setIcon(DEFAULT_PROJECT_ICON)
     setIconEdited(false)
-    navigate(`/projects/${p.id}`)
+    navigate(workspaceProjectPath(p.id))
   }
 
   return (
@@ -180,7 +181,7 @@ export default function Projects() {
             return (
               <button
                 key={p.id}
-                onClick={() => { ws.pushRecent({ type: 'project', id: p.id }); navigate(`/projects/${p.id}`) }}
+                onClick={() => { ws.pushRecent({ type: 'project', id: p.id }); navigate(workspaceProjectPath(p.id)) }}
                 className="w-full text-left px-2 sm:px-3 py-3 hover:bg-accent/50 transition-colors rounded-md group"
               >
                 <div className="flex items-center gap-3 min-w-0">

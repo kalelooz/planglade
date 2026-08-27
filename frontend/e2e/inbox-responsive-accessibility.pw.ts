@@ -24,7 +24,7 @@ test('Inbox responsive accessibility stays clear at mobile widths', async ({ pag
   try {
     for (const [width, height] of [[1440, 900], [390, 844], [320, 844]] as const) {
       await page.setViewportSize({ width, height })
-      await page.goto('/inbox')
+      await page.goto('/app/inbox')
       const titleNode = page.getByText(title, { exact: true })
       await expect(titleNode).toBeVisible()
       const row = titleNode.locator('xpath=../..')
@@ -73,7 +73,7 @@ test('Inbox responsive accessibility stays clear at mobile widths', async ({ pag
     await page.evaluate(() => document.documentElement.classList.add('dark'))
     for (const [width, height] of [[390, 844], [320, 844]] as const) {
       await page.setViewportSize({ width, height })
-      await page.goto('/inbox')
+      await page.goto('/app/inbox')
       await expect(page.getByText(title, { exact: true })).toBeVisible()
       expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches && document.documentElement.classList.contains('dark'))).toBeTruthy()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth && document.body.scrollWidth <= window.innerWidth)).toBeTruthy()
@@ -112,7 +112,7 @@ test('Inbox desktop project column contains long names without crossing controls
 
     for (const [width, height] of [[1024, 768], [1280, 800], [1440, 900]] as const) {
       await page.setViewportSize({ width, height })
-      await page.goto('/inbox')
+      await page.goto('/app/inbox')
       const titleNode = page.getByText(title, { exact: true })
       await expect(titleNode).toBeVisible()
       const row = titleNode.locator('xpath=../..')

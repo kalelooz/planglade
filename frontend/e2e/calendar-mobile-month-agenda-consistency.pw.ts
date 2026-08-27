@@ -53,7 +53,7 @@ test('Calendar mobile agenda follows the selected month and preserves navigation
 
     for (const [width, height] of [[320, 844], [390, 844], [768, 1024], [1024, 768], [1440, 900]] as const) {
       await page.setViewportSize({ width, height })
-      await page.goto('/calendar')
+      await page.goto('/app/calendar')
       await expect(page.getByText(currentMonthLabel, { exact: true })).toBeVisible()
       await selectFixtureProject(page, projectName)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth && document.body.scrollWidth <= window.innerWidth)).toBeTruthy()
@@ -69,7 +69,7 @@ test('Calendar mobile agenda follows the selected month and preserves navigation
     }
 
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/calendar')
+    await page.goto('/app/calendar')
     await selectFixtureProject(page, projectName)
     const nextButton = page.getByRole('button', { name: 'Next month' })
     const previousButton = page.getByRole('button', { name: 'Previous month' })
@@ -111,7 +111,7 @@ test('Calendar mobile agenda follows the selected month and preserves navigation
     await todayButton.focus()
     await page.keyboard.press('Enter')
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })
-    await page.goto('/calendar')
+    await page.goto('/app/calendar')
     await selectFixtureProject(page, projectName)
     await expect(page.getByText(currentTitle, { exact: true })).toBeVisible()
     await page.evaluate(() => document.documentElement.classList.add('dark'))

@@ -111,16 +111,21 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
+      - name: Run landing browser suite
+        run: npm run test:e2e:landing --prefix frontend
+
       - name: Run authenticated integration suite
         env:
           PLANGLADE_E2E_BACKEND_DIR: ${{ github.workspace }}/backend
         run: npm run test:e2e:integration --prefix frontend
 
-      - name: Upload integration failure artifacts
+      - name: Upload browser failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: integration-failure-${{ github.run_id }}
-          path: frontend/test-results/vite-integration
+          name: browser-failure-${{ github.run_id }}
+          path: |
+            frontend/test-results/vite-landing
+            frontend/test-results/vite-integration
           if-no-files-found: ignore
           retention-days: 7

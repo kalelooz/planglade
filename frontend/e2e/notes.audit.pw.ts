@@ -21,7 +21,7 @@ test('audits Notes responsive, semantic, motion, and focus behavior', async ({ p
   try {
     for (const [width, height] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [320, 844]] as const) {
       await page.setViewportSize({ width, height })
-      await page.goto(`/notes?note=${note.id}`)
+      await page.goto(`/app/notes?note=${note.id}`)
       await expect(page.getByLabel('Note title')).toBeVisible()
       const audit = await page.evaluate(() => ({
         viewport: [window.innerWidth, window.innerHeight],
@@ -52,13 +52,13 @@ test('audits Notes responsive, semantic, motion, and focus behavior', async ({ p
     }
 
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto(`/notes?note=${note.id}`)
+    await page.goto(`/app/notes?note=${note.id}`)
     await page.evaluate(() => document.documentElement.classList.add('dark'))
     await expect(page.locator('html')).toHaveClass(/dark/)
     await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 390)
 
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.goto(`/notes?note=${note.id}`)
+    await page.goto(`/app/notes?note=${note.id}`)
     await page.getByRole('button', { name: 'Delete note' }).focus()
     await page.keyboard.press('Enter')
     await expect(page.getByRole('alertdialog')).toBeVisible()

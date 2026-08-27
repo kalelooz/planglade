@@ -8,7 +8,7 @@ test('creates, persists, edits, and exposes a project through shared selectors',
   const slug = `project-browser-${Date.now()}`
   let created: Project | undefined
   try {
-    await page.goto('/projects')
+    await page.goto('/app/projects')
     await page.getByRole('button', { name: /new project/i }).click()
     await page.getByLabel('Name').fill(runId)
     await page.getByLabel('Project URL slug').fill(slug)
@@ -19,12 +19,12 @@ test('creates, persists, edits, and exposes a project through shared selectors',
     created = (await createdResponse.json() as { project: Project }).project
     await expect(page.getByRole('heading', { name: runId })).toBeVisible()
 
-    await page.goto('/tasks')
+    await page.goto('/app/tasks')
     await page.getByRole('button', { name: 'New task' }).click()
     await page.getByRole('combobox', { name: 'Project' }).click()
     await expect(page.getByRole('option', { name: runId, exact: true })).toBeVisible()
 
-    await page.goto(`/projects/${created.id}`)
+    await page.goto(`/app/projects/${created.id}`)
     await page.getByRole('button', { name: 'Edit project' }).click()
     await page.getByLabel('Name').fill(`${runId} renamed`)
     await page.getByLabel('Project status').click()
@@ -35,7 +35,7 @@ test('creates, persists, edits, and exposes a project through shared selectors',
     await expect(page.getByRole('heading', { name: `${runId} renamed` })).toBeVisible()
     await page.reload()
     await expect(page.getByRole('heading', { name: `${runId} renamed` })).toBeVisible()
-    await page.goto('/projects')
+    await page.goto('/app/projects')
     await expect(page.getByText(`${runId} renamed`, { exact: true })).toBeVisible()
   } finally {
     if (created) {

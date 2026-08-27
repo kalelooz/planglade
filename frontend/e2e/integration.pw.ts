@@ -35,7 +35,7 @@ function taskPatch(page: Page, matches: Record<string, unknown>) {
 }
 
 async function openTaskDrawer(page: Page, title: string) {
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   await page.getByRole('button', { name: `Task: ${title}` }).click()
   await expect(page.getByLabel('Task details')).toBeVisible()
 }
@@ -67,7 +67,7 @@ test('workspace entry enables an authenticated member and preserves access after
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/auth/login')
   await page.getByRole('link', { name: 'Continue to workspace' }).press('Enter')
-  await expect(page).toHaveURL('/')
+  await expect(page).toHaveURL('/app')
   await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
@@ -108,7 +108,7 @@ test('workspace onboarding enables only valid input and refreshes the session af
   await expect(continueButton).toBeEnabled()
   await continueButton.press('Enter')
   await expect(creation).resolves.toBeTruthy()
-  await expect(page).toHaveURL('/')
+  await expect(page).toHaveURL('/app')
 })
 
 test('authenticated API mode reads protected workspace data through Vite', async ({ page }) => {
@@ -123,9 +123,9 @@ test('authenticated API mode reads protected workspace data through Vite', async
     if (request.failure()?.errorText.toLowerCase().includes('cors')) corsFailures.push(request.url())
   })
 
-  await page.goto('/')
+  await page.goto('/app')
   await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   await expect(page.getByText(fixture.projectName, { exact: true }).first()).toBeVisible()
   await expect(page.getByText(fixture.taskTitle, { exact: true })).toBeVisible()
   expect(directBackendRequests).toEqual([])
@@ -135,50 +135,50 @@ test('authenticated API mode reads protected workspace data through Vite', async
 
 test('primary, compatibility, back, and home navigation remain wired', async ({ page }) => {
   const destinations = [
-    ['Home', '/'],
-    ['Inbox', '/inbox'],
-    ['Tasks', '/tasks'],
-    ['Projects', '/projects'],
-    ['Notes', '/notes'],
-    ['Calendar', '/calendar'],
-    ['Connections', '/connections'],
-    ['Settings', '/settings'],
+    ['Home', '/app'],
+    ['Inbox', '/app/inbox'],
+    ['Tasks', '/app/tasks'],
+    ['Projects', '/app/projects'],
+    ['Notes', '/app/notes'],
+    ['Calendar', '/app/calendar'],
+    ['Connections', '/app/connections'],
+    ['Settings', '/app/settings'],
   ] as const
 
-  await page.goto('/')
+  await page.goto('/app')
   for (const [name, path] of destinations.slice(1)) {
     await page.getByLabel('Sidebar').getByRole('link', { name }).click()
     await expect(page).toHaveURL(path)
     await expect(page.locator('main')).toBeVisible()
   }
   await page.getByLabel('Sidebar').getByRole('link', { name: 'Home' }).click()
-  await expect(page).toHaveURL('/')
+  await expect(page).toHaveURL('/app')
 
-  await page.goto('/app/tasks?view=board')
-  await expect(page).toHaveURL('/tasks?view=board')
+  await page.goto('/tasks?view=board')
+  await expect(page).toHaveURL('/app/tasks?view=board')
   await page.goto('/missing-page')
   await expect(page.getByRole('heading', { name: 'This path does not lead to a PlanGlade page.' })).toBeVisible()
   await page.getByRole('button', { name: 'Go back' }).click()
-  await expect(page).toHaveURL('/tasks?view=board')
+  await expect(page).toHaveURL('/app/tasks?view=board')
   await page.goto('/missing-page')
   await page.getByRole('link', { name: 'Go home' }).click()
   await expect(page).toHaveURL('/')
 })
 
 test('Tasks view tabs keep their selected semantic state while switching views', async ({ page }) => {
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   const list = page.getByRole('tab', { name: 'List' })
   const board = page.getByRole('tab', { name: 'Board' })
   await expect(list).toHaveAttribute('aria-selected', 'true')
   await board.click()
-  await expect(page).toHaveURL('/tasks?view=board')
+  await expect(page).toHaveURL('/app/tasks?view=board')
   await expect(board).toHaveAttribute('aria-selected', 'true')
 })
 
 test('Tasks creates a server-backed task that persists after refresh', async ({ page }) => {
   const fixture = await runtime()
   const title = `Created task ${fixture.runId}`
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   await page.getByRole('button', { name: 'New task' }).click()
   await page.getByRole('dialog').getByLabel('Task title').fill(title)
   const created = page.waitForResponse((response) =>
@@ -193,7 +193,7 @@ test('Tasks creates a server-backed task that persists after refresh', async ({ 
 
 test('Connections renders authenticated Notes and normalized task relationships', async ({ page }) => {
   const fixture = await runtime()
-  await page.goto('/')
+  await page.goto('/app')
   const noteTitle = `Connections note ${fixture.runId}`
   const parentTitle = `Connections parent ${fixture.runId}`
   const childTitle = `Connections child ${fixture.runId}`
@@ -245,7 +245,7 @@ test('Connections renders authenticated Notes and normalized task relationships'
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
-  await page.goto('/connections')
+  await page.goto('/app/connections')
   await expect(page.getByText(noteTitle, { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'List' }).click()
   const relationships = page.getByRole('region', { name: 'Relationship list' })
@@ -276,7 +276,7 @@ test('Quick Capture creates one persisted backend Inbox item', async ({ page }) 
   const fixture = await runtime()
   const title = `Quick Capture ${fixture.runId}`
   const consoleErrors = collectConsoleErrors(page)
-  await page.goto('/')
+  await page.goto('/app')
   await page.getByLabel('Quick capture to inbox').fill(title)
   const response = page.waitForResponse((candidate) =>
     new URL(candidate.url()).pathname === '/api/work-items' && candidate.request().method() === 'POST',
@@ -286,7 +286,7 @@ test('Quick Capture creates one persisted backend Inbox item', async ({ page }) 
   expect(created.status()).toBe(201)
   await expect(created.json()).resolves.toMatchObject({ workItem: { title, status: 'BACKLOG' } })
 
-  await page.goto('/inbox')
+  await page.goto('/app/inbox')
   await expect(page.getByText(title, { exact: true })).toHaveCount(1)
   await page.reload()
   await expect(page.getByText(title, { exact: true })).toHaveCount(1)
@@ -301,7 +301,7 @@ test('Quick Capture keeps the dialog open when the server rejects the save', asy
     }
     await route.continue()
   })
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   await page.getByRole('button', { name: 'Quick capture' }).click()
 
   const dialog = page.getByRole('dialog', { name: 'Capture something' })
@@ -469,7 +469,7 @@ test('Task drawer selectors, date, and completion persist with truthful failure 
 test('List completion can be reopened and completed again, then survives refresh', async ({ page }) => {
   const fixture = await runtime()
   const title = `Final title ${fixture.runId}`
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
 
   const row = page.locator('[data-task-id]').filter({ has: page.getByRole('button', { name: `Task: ${title} (done)` }) })
   await row.getByRole('button', { name: `Task: ${title} (done)` }).press('Enter')
@@ -493,7 +493,7 @@ test('List completion can be reopened and completed again, then survives refresh
 test('Board preserves IN_REVIEW in its dedicated column and restores rejected status changes', async ({ page }) => {
   const fixture = await runtime()
   const title = fixture.reviewTaskTitle
-  await page.goto('/tasks?view=board')
+  await page.goto('/app/tasks?view=board')
   const source = await rawTask(page, fixture.workspaceId, title) as { id: string; status: string } | undefined
   if (!source) throw new Error('Review fixture task was not seeded')
 
@@ -506,7 +506,7 @@ test('Board preserves IN_REVIEW in its dedicated column and restores rejected st
   await expect(page.getByRole('combobox', { name: 'Status' })).toContainText('In Review')
   await page.keyboard.press('Escape')
   await expect(card.getByRole('button', { name: `Task card: ${title}` })).toBeFocused()
-  await page.goto('/tasks?view=board')
+  await page.goto('/app/tasks?view=board')
 
   const failStatus = async (route: Route) => {
     const request = route.request()
@@ -541,7 +541,7 @@ test('Board preserves IN_REVIEW in its dedicated column and restores rejected st
 test('Board keyboard drag moves a task between columns and persists', async ({ page }) => {
   const fixture = await runtime()
   const title = fixture.reviewTaskTitle
-  await page.goto('/tasks?view=board')
+  await page.goto('/app/tasks?view=board')
   const source = await rawTask(page, fixture.workspaceId, title) as { id: string } | undefined
   if (!source) throw new Error('Review fixture task was not seeded')
 
@@ -572,7 +572,7 @@ test('Board keyboard drag moves a task between columns and persists', async ({ p
 test('Board drag moves a task between supported columns and persists after refresh', async ({ page }) => {
   const fixture = await runtime()
   const title = fixture.reviewTaskTitle
-  await page.goto('/tasks?view=board')
+  await page.goto('/app/tasks?view=board')
   const source = await rawTask(page, fixture.workspaceId, title) as { id: string } | undefined
   if (!source) throw new Error('Review fixture task was not seeded')
 
@@ -600,7 +600,7 @@ test('Board drag moves a task between supported columns and persists after refre
 })
 
 test('Settings signs out through the authenticated backend', async ({ page }) => {
-  await page.goto('/settings')
+  await page.goto('/app/settings')
   const signOut = page.waitForResponse((response) =>
     response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/auth/signout',
   )
@@ -611,7 +611,7 @@ test('Settings signs out through the authenticated backend', async ({ page }) =>
 })
 
 test('core surfaces keep the document within desktop, tablet, and mobile widths', async ({ page }) => {
-  const routes = ['/', '/inbox', '/tasks?view=board', '/calendar', '/projects', '/connections', '/settings']
+  const routes = ['/app', '/app/inbox', '/app/tasks?view=board', '/app/calendar', '/app/projects', '/app/connections', '/app/settings']
   for (const viewport of [{ width: 1280, height: 720 }, { width: 768, height: 844 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)
     for (const route of routes) {
@@ -636,7 +636,7 @@ test('signed-out API mode exposes no fixture data and sends no mutation', async 
 
   try {
     expect(await context.cookies()).toEqual([])
-    await page.goto('/')
+    await page.goto('/app')
     await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
     await expect(page.getByText(fixture.taskTitle, { exact: true })).toHaveCount(0)
     expect(taskMutations).toBe(0)

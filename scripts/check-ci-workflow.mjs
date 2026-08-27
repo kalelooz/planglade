@@ -16,6 +16,7 @@ const requiredCommands = [
   'npm test',
   'npm run build',
   'npm exec --prefix backend -- prisma validate --schema backend/prisma/schema.prisma',
+  'npm run test:e2e:landing --prefix frontend',
   'npm run test:e2e:integration --prefix frontend',
 ]
 

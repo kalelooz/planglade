@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { normalizeWorkspaceDestination } from '@/lib/auth-destination'
 import { submitNextAuthSignIn, type AuthProvider } from '@/lib/next-auth-client'
+import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 
 type SetupStatus = 'checking' | 'available' | 'configuration-required' | 'unavailable'
 
@@ -117,7 +118,7 @@ export default function AuthLogin() {
             <div className="rounded-lg border border-border bg-muted/65 p-4">
               <p className="text-sm font-medium">This installation is ready for its owner.</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">Create one local account, name the workspace, and save the recovery codes.</p>
-              <Button asChild size="lg" className="mt-4 w-full"><Link to={destination === '/' ? '/setup' : `/setup?next=${encodeURIComponent(destination)}`}>Start setup</Link></Button>
+              <Button asChild size="lg" className="mt-4 w-full"><Link to={destination === WORKSPACE_PATHS.home ? '/setup' : `/setup?next=${encodeURIComponent(destination)}`}>Start setup</Link></Button>
             </div>
           ) : setupStatus === 'configuration-required' ? (
             <div role="alert" className="rounded-md border border-border bg-muted px-3 py-3 text-sm"><p className="font-medium">First-time setup needs installation configuration.</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Run <code className="font-mono text-foreground">npm run setup:local</code>, restart PlanGlade, then return here.</p></div>

@@ -44,21 +44,21 @@ test('reference mode stays independent from the backend', async ({ page }) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
 
-  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await page.goto('/app', { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('PlanGlade Public Alpha', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('Draft alpha announcement post', { exact: true })).toBeVisible()
   const capture = page.getByLabel('Quick capture to inbox')
   await capture.fill('Reference harness capture')
   await capture.press('Enter')
   await expect(capture).toHaveValue('')
-  await page.goto('/inbox')
+  await page.goto('/app/inbox')
   await expect(page.getByText('Reference harness capture', { exact: true })).toBeVisible()
   expect(backendRequests).toEqual([])
   expect(consoleErrors).toEqual([])
 })
 
 test('Quick Capture examples fill the input and saving closes the dialog', async ({ page }) => {
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   await page.getByRole('button', { name: 'Quick capture' }).click()
 
   const dialog = page.getByRole('dialog', { name: 'Capture something' })
@@ -74,7 +74,7 @@ test('Quick Capture examples fill the input and saving closes the dialog', async
 })
 
 test('primary product surfaces pass axe and Settings radios support native keyboard navigation', async ({ page }) => {
-  await page.goto('/settings')
+  await page.goto('/app/settings')
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
 
   const missingLabelTargets = await page.locator('[aria-labelledby]').evaluateAll((elements) => elements.flatMap((element) =>
@@ -96,7 +96,7 @@ test('primary product surfaces pass axe and Settings radios support native keybo
   await nextRadio.press('ArrowLeft')
   await expect(checkedRadio).toBeChecked()
 
-  for (const [path, heading] of [['/settings', 'Settings'], ['/tasks', 'Tasks'], ['/connections', 'Connections']] as const) {
+  for (const [path, heading] of [['/app/settings', 'Settings'], ['/app/tasks', 'Tasks'], ['/app/connections', 'Connections']] as const) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
@@ -110,7 +110,7 @@ test('primary product surfaces pass axe and Settings radios support native keybo
 
 test('desktop task rows render metadata once', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   await page.getByRole('tab', { name: 'List' }).click()
   await expect(page.getByText('Show completed', { exact: true })).toBeVisible()
   await page.getByRole('textbox', { name: 'Search tasks' }).fill("Renew driver's license")

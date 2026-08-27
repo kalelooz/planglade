@@ -1,4 +1,10 @@
-const ENTRY_PATHS = new Set(['/auth/login', '/login', '/setup', '/onboarding'])
+import {
+  WORKSPACE_PATHS,
+  canonicalizeLegacyWorkspaceLocation,
+  withPreservedLocation,
+} from './workspace-routes'
+
+const ENTRY_PATHS = new Set(['/auth/login', '/login', '/setup', '/onboarding', '/invite/review'])
 
 function hasControlCharacters(value: string) {
   return [...value].some((character) => {
@@ -7,7 +13,7 @@ function hasControlCharacters(value: string) {
   })
 }
 
-export function normalizeWorkspaceDestination(value: string | null | undefined, fallback = '/') {
+export function normalizeWorkspaceDestination(value: string | null | undefined, fallback = WORKSPACE_PATHS.home) {
   if (
     !value ||
     !value.startsWith('/') ||
@@ -21,7 +27,9 @@ export function normalizeWorkspaceDestination(value: string | null | undefined, 
     const parsed = new URL(value, 'http://planglade.local')
     const entryPath = parsed.pathname.length > 1 ? parsed.pathname.replace(/\/+$/, '') : parsed.pathname
     if (parsed.origin !== 'http://planglade.local' || ENTRY_PATHS.has(entryPath)) return fallback
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    if (entryPath === '/') return withPreservedLocation(WORKSPACE_PATHS.home, parsed)
+    return canonicalizeLegacyWorkspaceLocation(parsed.pathname, parsed.search, parsed.hash) ??
+      `${parsed.pathname}${parsed.search}${parsed.hash}`
   } catch {
     return fallback
   }

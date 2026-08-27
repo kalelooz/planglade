@@ -14,7 +14,8 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "test:e2e:integration": "node e2e/run-integration.mjs",
-    "test:e2e:reference": "node e2e/run-reference.mjs"
+    "test:e2e:reference": "node e2e/run-reference.mjs",
+    "test:e2e:landing": "node e2e/run-landing.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
