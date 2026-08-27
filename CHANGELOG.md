@@ -7,6 +7,12 @@ releases are documented below.
 
 ## Unreleased
 
+### Changed
+
+- Calibrated the desktop Tasks list so task identity, status, due date, and
+  priority remain in a compact, aligned scan band instead of spanning the
+  entire viewport.
+
 ## [0.2.0] - 2026-08-09
 
 First public self-host preview.
