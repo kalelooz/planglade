@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 async function expectTarget(locator: ReturnType<import('@playwright/test').Page['getByRole']>) {
-  const box = await locator.boundingBox()
-  expect(box && box.width >= 44 && box.height >= 44).toBeTruthy()
+  await expect.poll(async () => {
+    const box = await locator.boundingBox()
+    return Math.min(box?.width ?? 0, box?.height ?? 0)
+  }).toBeGreaterThanOrEqual(44)
 }
 
 test('Tasks keeps narrow controls reachable without document overflow', async ({ page }) => {

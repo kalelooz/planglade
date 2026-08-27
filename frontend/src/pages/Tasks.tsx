@@ -228,7 +228,7 @@ export default function Tasks() {
               onClick={() => openNew()}
               disabled={!ws.canMutateTasks}
               title={!ws.canMutateTasks ? 'Task creation is unavailable in read-only mode' : undefined}
-              className="h-11 shrink-0 gap-1.5 px-3 text-[13px] sm:h-9"
+              className="h-11 shrink-0 gap-1.5 px-3 text-[13px] lg:h-9"
             >
               <Plus className="h-4 w-4" /> New task
             </Button>
@@ -255,7 +255,7 @@ export default function Tasks() {
                     aria-selected={selected}
                     onClick={() => chooseBuiltInView(item.view)}
                     className={cn(
-                      'relative isolate inline-flex h-11 min-w-0 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[12px] transition-[color,transform] duration-200 active:scale-[0.96] motion-reduce:active:scale-100 sm:h-8 sm:shrink-0',
+                      'relative isolate inline-flex h-11 min-w-0 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[12px] transition-[color,transform] duration-200 active:scale-[0.96] motion-reduce:active:scale-100 sm:shrink-0 lg:h-8',
                       selected ? 'text-background' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -271,7 +271,7 @@ export default function Tasks() {
                 )
               })}
             </div>
-            <InputGroup className="h-11 w-full min-w-[8.5rem] flex-1 border-input bg-background/80 shadow-none sm:h-9 sm:w-[132px] sm:flex-none lg:h-8 xl:w-[160px]">
+            <InputGroup className="h-11 w-full min-w-[8.5rem] flex-1 border-input bg-background/80 shadow-none sm:w-[132px] sm:flex-none lg:h-8 xl:w-[160px]">
             <InputGroupAddon className="pl-2.5 pr-0">
               <Search className="h-3.5 w-3.5" aria-hidden />
             </InputGroupAddon>
@@ -280,7 +280,7 @@ export default function Tasks() {
               onChange={(e) => updatePresentation({ search: e.target.value }, true)}
               placeholder="Search tasks"
               aria-label="Search tasks"
-              className="h-11 px-2 text-[13px] placeholder:text-muted-foreground/60 sm:h-9 lg:h-8"
+              className="h-11 px-2 text-[13px] placeholder:text-muted-foreground/60 lg:h-8"
             />
             {search && (
               <InputGroupButton type="button" size="icon-sm" onClick={() => updatePresentation({ search: '' })} aria-label="Clear search" className="mr-0.5 text-muted-foreground hover:text-foreground">
@@ -291,7 +291,7 @@ export default function Tasks() {
 
           <Popover>
             <PopoverTrigger asChild>
-              <button className={cn('inline-flex h-11 shrink-0 items-center gap-1 rounded-md border px-2 text-[13px] transition-colors sm:h-9 lg:h-8', activeFilterCount > 0 ? 'border-foreground/30 bg-accent text-foreground' : 'border-input bg-background/80 text-muted-foreground hover:text-foreground')} aria-label="Filters">
+              <button className={cn('inline-flex h-11 shrink-0 items-center gap-1 rounded-md border px-2 text-[13px] transition-colors lg:h-8', activeFilterCount > 0 ? 'border-foreground/30 bg-accent text-foreground' : 'border-input bg-background/80 text-muted-foreground hover:text-foreground')} aria-label="Filters">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filter
                 {activeFilterCount > 0 && <CountBadge count={activeFilterCount} label={`${activeFilterCount} active filters`} className="border-foreground bg-foreground text-background" />}
@@ -362,7 +362,7 @@ export default function Tasks() {
           </Popover>
 
           {(view === 'list' || view === 'board') && <Select value={sort} onValueChange={(v) => updatePresentation({ sort: v as SortKey })}>
-            <SelectTrigger className="h-11 w-auto shrink-0 gap-1 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9 lg:h-8 lg:data-[size=default]:h-8" aria-label="Sort tasks">
+            <SelectTrigger className="h-11 w-auto shrink-0 gap-1 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8" aria-label="Sort tasks">
               <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -375,7 +375,7 @@ export default function Tasks() {
           </Select>}
 
           {view === 'list' && <Select value={group} onValueChange={(v) => updatePresentation({ group: v as GroupKey })}>
-              <SelectTrigger className="h-11 w-auto shrink-0 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9 lg:h-8 lg:data-[size=default]:h-8" aria-label="Group tasks">
+              <SelectTrigger className="h-11 w-auto shrink-0 border-input bg-background/80 px-2 text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8" aria-label="Group tasks">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -387,7 +387,7 @@ export default function Tasks() {
           </Select>}
 
           {(view === 'list' || view === 'board') && <Popover>
-            <PopoverTrigger asChild><button className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-background/80 text-muted-foreground hover:text-foreground sm:size-9 lg:size-8" aria-label="Display options"><Rows3 className="h-3.5 w-3.5" /></button></PopoverTrigger>
+            <PopoverTrigger asChild><button className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-background/80 text-muted-foreground hover:text-foreground lg:size-8" aria-label="Display options"><Rows3 className="h-3.5 w-3.5" /></button></PopoverTrigger>
             <PopoverContent align="start" className="w-48 p-2">
               <p className="px-2 pb-1 text-[12.5px] font-medium text-muted-foreground">Density</p>
               {(['comfortable', 'compact'] as const).map((density) => <button key={density} onClick={() => updatePresentation({ density })} className={cn('w-full rounded px-2 py-1.5 text-left text-[12px] capitalize hover:bg-accent', presentation.density === density && 'bg-accent font-medium')}>{density}</button>)}

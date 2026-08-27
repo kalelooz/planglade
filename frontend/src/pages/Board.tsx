@@ -14,6 +14,7 @@ import { useTaskDrawer } from '@/components/TaskDrawer'
 import { PriorityBadge, DueBadge, BlockedIndicator, CountBadge } from '@/components/bits'
 import { getBoardDropPatch, placeBoardTask } from '@/lib/board-order'
 import { buildBoardColumns } from '@/lib/task-planning'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type DragTarget = { status: TaskStatus; index: number }
 type PickupSnapshot = {
@@ -89,6 +90,27 @@ function BoardCard({ task, overlay, collapsed, density = 'comfortable', visibleF
           {field('priority') && <PriorityBadge priority={task.priority} className="shrink-0" />}
         </div>
       </div>
+      {!overlay && !collapsed && (
+        <div className="relative z-20 mt-2 lg:hidden" onPointerDown={(event) => event.stopPropagation()}>
+          <Select
+            value={task.status}
+            disabled={!ws.canMutateTasks || ws.taskMutationPending}
+            onValueChange={(status) => void ws.updateTask(task.id, { status: status as TaskStatus })}
+          >
+            <SelectTrigger
+              aria-label={`Move ${task.title} to status`}
+              className="h-11 w-full border-input bg-background/80 text-[13px] data-[size=default]:h-11"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TASK_STATUS_ORDER.filter((status) => ws.supportsBlockedStatus || status !== 'blocked').map((status) => (
+                <SelectItem key={status} value={status}>{STATUS_LABELS[status]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   )
 }
