@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 async function expectTarget(locator: ReturnType<import('@playwright/test').Page['getByRole']>) {
-  const box = await locator.boundingBox()
-  expect(box && box.width >= 44 && box.height >= 44).toBeTruthy()
+  await expect.poll(async () => {
+    const box = await locator.boundingBox()
+    return Math.min(box?.width ?? 0, box?.height ?? 0)
+  }).toBeGreaterThanOrEqual(44)
 }
 
 test('Tasks keeps narrow controls reachable without document overflow', async ({ page }) => {
@@ -32,7 +34,11 @@ test('Tasks keeps narrow controls reachable without document overflow', async ({
     if (width <= 768) {
       await expectTarget(page.getByRole('button', { name: /Add task to/ }).first())
       await expectTarget(page.getByRole('button', { name: /Task card:/ }).first())
-      await expectTarget(page.getByRole('combobox', { name: /Move .* to status/ }).first())
+      const statusSelect = page.getByRole('combobox', { name: /Move .* to status/ }).first()
+      await expectTarget(statusSelect)
+      await statusSelect.click()
+      await expectTarget(page.getByRole('option').first())
+      await page.keyboard.press('Escape')
     }
   }
 
