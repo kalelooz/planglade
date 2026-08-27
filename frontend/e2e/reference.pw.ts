@@ -57,6 +57,22 @@ test('reference mode stays independent from the backend', async ({ page }) => {
   expect(consoleErrors).toEqual([])
 })
 
+test('Quick Capture examples fill the input and saving closes the dialog', async ({ page }) => {
+  await page.goto('/tasks')
+  await page.getByRole('button', { name: 'Quick capture' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Capture something' })
+  const input = dialog.getByRole('textbox', { name: 'Capture text' })
+  await dialog.getByRole('button', { name: 'Send homepage draft tomorrow' }).click()
+
+  await expect(input).toHaveValue('Send homepage draft tomorrow')
+  await expect(dialog.getByText('Ready for Inbox')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Save to Inbox' }).click()
+  await expect(dialog).toBeHidden()
+  await page.getByRole('link', { name: /Inbox/ }).click()
+  await expect(page.getByText('Send homepage draft', { exact: true }).first()).toBeVisible()
+})
+
 test('primary product surfaces pass axe and Settings radios support native keyboard navigation', async ({ page }) => {
   await page.goto('/settings')
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
@@ -96,6 +112,7 @@ test('desktop task rows render metadata once', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/tasks')
   await page.getByRole('tab', { name: 'List' }).click()
+  await expect(page.getByText('Show completed', { exact: true })).toBeVisible()
   await page.getByRole('textbox', { name: 'Search tasks' }).fill("Renew driver's license")
   await expect(page.locator('[data-task-id]')).toHaveCount(1)
 
