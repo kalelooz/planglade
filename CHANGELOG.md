@@ -9,9 +9,9 @@ releases are documented below.
 
 ### Changed
 
-- Calibrated the desktop Tasks list so task identity, status, due date, and
-  priority remain in a compact, aligned scan band instead of spanning the
-  entire viewport.
+- Calibrated the desktop Tasks list so its compact metadata columns sit inside
+  a centered, responsive work surface with balanced gutters and shorter
+  dividers instead of spanning the entire viewport.
 
 ## [0.2.0] - 2026-08-09
 

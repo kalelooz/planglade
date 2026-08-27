@@ -21,7 +21,7 @@ describe('responsive readability', () => {
     expect(productionSource).not.toMatch(/text-\[(?:[89](?:\.\d+)?|1[01](?:\.\d+)?)px\]/)
   })
 
-  it('gives data-heavy pages room while preserving reading-width pages', () => {
+  it('gives data-heavy pages room while preserving focused work and reading widths', () => {
     const bits = readFileSync(join(sourceRoot, 'components', 'bits.tsx'), 'utf8')
     const home = readFileSync(join(sourceRoot, 'pages', 'Home.tsx'), 'utf8')
     const inbox = readFileSync(join(sourceRoot, 'pages', 'Inbox.tsx'), 'utf8')
@@ -31,7 +31,8 @@ describe('responsive readability', () => {
     expect(bits).toContain("reading: 'mx-auto max-w-[900px]")
     expect(home).toContain('<PageContainer width="wide"')
     expect(inbox).toContain('<PageContainer width="wide"')
-    expect(tasks).toContain('<PageContainer width="wide" className="pb-10">')
+    expect(tasks).toContain('<PageContainer width="standard" className="pb-10" data-task-list-region>')
+    expect(tasks).toContain('className="mx-auto w-full max-w-[960px]" data-task-list-surface')
     expect(tasks).toContain("['comfortable', 'compact'] as const")
   })
 })
