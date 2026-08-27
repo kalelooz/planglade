@@ -8,6 +8,12 @@ async function expectTouchTarget(locator: Locator) {
   expect(box!.height).toBeGreaterThanOrEqual(44)
 }
 
+async function visibleBox(locator: Locator) {
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  return box!
+}
+
 test('reference mode stays independent from the backend', async ({ page }) => {
   const backendRequests: string[] = []
   const consoleErrors: string[] = []
@@ -71,12 +77,35 @@ test('desktop task rows render metadata once', async ({ page }) => {
   await page.goto('/tasks')
   await page.getByRole('tab', { name: 'List' }).click()
   await page.getByRole('textbox', { name: 'Search tasks' }).fill("Renew driver's license")
+  await expect(page.locator('[data-task-id]')).toHaveCount(1)
 
-  const row = page.getByText("Renew driver's license", { exact: true }).locator('xpath=../../..')
+  const row = page.getByText("Renew driver's license", { exact: true }).locator('xpath=ancestor::*[@data-task-id][1]')
   await expect(row).toBeVisible()
   await expect(row.getByText('Planned', { exact: true }).filter({ visible: true })).toHaveCount(1)
   await expect(row.locator('svg.lucide-calendar-days').filter({ visible: true })).toHaveCount(1)
   await expect(row.getByText('Medium priority', { exact: true }).filter({ visible: true })).toHaveCount(1)
+
+  const identityCell = await visibleBox(row.locator('[data-task-field="identity"]'))
+  const titleText = await visibleBox(row.locator('[data-task-field="title"]'))
+  const statusCell = await visibleBox(row.locator('[data-task-field="status"]'))
+  const dueCell = await visibleBox(row.locator('[data-task-field="due-date"]'))
+  const priorityCell = await visibleBox(row.locator('[data-task-field="priority"]'))
+  const desktopCells = [identityCell, statusCell, dueCell, priorityCell]
+
+  expect(identityCell.width).toBeLessThanOrEqual(320)
+  expect(statusCell.x - (titleText.x + titleText.width)).toBeLessThanOrEqual(240)
+  for (let index = 1; index < desktopCells.length; index += 1) {
+    const previous = desktopCells[index - 1]
+    const current = desktopCells[index]
+    expect(current.x - (previous.x + previous.width)).toBeGreaterThanOrEqual(0)
+    expect(current.x - (previous.x + previous.width)).toBeLessThanOrEqual(24)
+  }
+  expect(priorityCell.x + priorityCell.width - identityCell.x).toBeLessThanOrEqual(700)
+
+  await page.mouse.click(statusCell.x + statusCell.width / 2, statusCell.y + statusCell.height / 2)
+  await expect(page.getByLabel('Task details')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByLabel('Task details')).toBeHidden()
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router'
 import { cn } from '@/lib/utils'
 import type { Task } from '@/types'
@@ -45,14 +46,25 @@ export function TaskRow({
   const hasMobileStatus = listMobileLayout && showStatus && field('status') && !done && task.status !== 'blocked'
   const hasMobileDue = field('dueDate') && !!task.dueDate
   const hasMobilePriority = field('priority') && task.priority !== 'none'
+  const listDesktopColumns = [
+    '18px',
+    'minmax(280px, min(20rem, 45vw))',
+    field('status') ? '96px' : null,
+    field('dueDate') ? '104px' : null,
+    field('priority') ? '28px' : null,
+  ].filter(Boolean).join(' ')
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
           data-task-id={task.id}
+          style={listMobileLayout ? { '--task-list-columns': listDesktopColumns } as CSSProperties : undefined}
           className={cn(
-            'group relative grid grid-cols-[44px_minmax(0,1fr)] items-start gap-x-2 rounded-md px-1.5 lg:grid-cols-[18px_minmax(0,1fr)_104px_28px] lg:gap-x-3 lg:px-2.5',
+            'group relative grid grid-cols-[44px_minmax(0,1fr)] items-start gap-x-2 rounded-md px-1.5 lg:gap-x-3 lg:px-2.5',
+            listMobileLayout
+              ? 'lg:justify-start lg:gap-x-5 lg:[grid-template-columns:var(--task-list-columns)]'
+              : 'lg:grid-cols-[18px_minmax(0,1fr)_104px_28px]',
             compact ? 'py-2.5 lg:py-1' : 'py-2.5 lg:py-2',
             className,
           )}
@@ -67,12 +79,12 @@ export function TaskRow({
             )}
           />
           <span className="relative z-10 flex h-11 items-center justify-center [&>button]:size-11 lg:h-auto lg:justify-start lg:pt-0.5 lg:[&>button]:size-[18px]"><TaskCheckbox checked={done} onToggle={() => ws.toggleTask(task.id)} blocked={blocked && !done} /></span>
-          <div className="relative z-10 min-w-0 pointer-events-none">
+          <div className="relative z-10 min-w-0 pointer-events-none" data-task-field={listMobileLayout ? 'identity' : undefined}>
             <div className="flex items-start gap-2">
               <p className={cn('pg-item-title min-w-0 flex-1', done && 'line-through text-muted-foreground font-normal')}>
-                {task.title}
+                <span data-task-field={listMobileLayout ? 'title' : undefined}>{task.title}</span>
               </p>
-              {showStatus && field('status') && !done && task.status !== 'blocked' && <StatusBadge status={task.status} className={cn('mt-0.5 shrink-0', listMobileLayout && 'hidden lg:inline-flex')} />}
+              {showStatus && field('status') && !listMobileLayout && !done && task.status !== 'blocked' && <StatusBadge status={task.status} className="mt-0.5 shrink-0" />}
             </div>
             {(subs.length > 0 || showProject || (blocked && !done) || blocking || hasMobileStatus || hasMobileDue || hasMobilePriority) && (
               <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-[12.5px] leading-4 text-muted-foreground lg:flex-wrap">
@@ -93,12 +105,21 @@ export function TaskRow({
               </div>
             )}
           </div>
-          <div className="relative z-10 hidden items-center overflow-hidden lg:col-auto lg:flex lg:pt-0.5">
-            {field('dueDate') && <DueBadge date={task.dueDate} done={done} className="justify-start w-full" />}
-          </div>
-          <div className="relative z-10 hidden items-center justify-start lg:col-auto lg:flex lg:pt-0.5">
-            {field('priority') && <PriorityBadge priority={task.priority} className={mutedPriority ? 'text-muted-foreground' : undefined} />}
-          </div>
+          {listMobileLayout && field('status') && (
+            <div className="pointer-events-none relative z-10 hidden items-center lg:flex lg:pt-0.5" data-task-field="status">
+              {showStatus && !done && task.status !== 'blocked' && <StatusBadge status={task.status} />}
+            </div>
+          )}
+          {field('dueDate') && (
+            <div className="pointer-events-none relative z-10 hidden items-center overflow-hidden lg:col-auto lg:flex lg:pt-0.5" data-task-field={listMobileLayout ? 'due-date' : undefined}>
+              <DueBadge date={task.dueDate} done={done} className="w-full justify-start" />
+            </div>
+          )}
+          {field('priority') && (
+            <div className="pointer-events-none relative z-10 hidden items-center justify-start lg:col-auto lg:flex lg:pt-0.5" data-task-field={listMobileLayout ? 'priority' : undefined}>
+              <PriorityBadge priority={task.priority} className={mutedPriority ? 'text-muted-foreground' : undefined} />
+            </div>
+          )}
         </div>
       </ContextMenuTrigger>
       {ws.canMutateTasks && <ContextMenuContent className="w-52">

@@ -18,6 +18,13 @@
 
 ## Completed tasks
 
+### UI-002 — Calibrated task-list metadata columns
+
+- Status: **PASS**
+- Requested: 2026-08-27
+- Scope: reduce desktop eye travel by keeping task identity, status, due date, and priority in adjacent aligned columns while preserving the existing mobile metadata layout and interactions.
+- Evidence: `npm run test:e2e:reference --prefix frontend` passed all 3 reference-browser tests. The real Tasks page rendered without horizontal overflow at 1728×920, 1024×768, and 390×844; its desktop identity-to-status text gap measured 121px, adjacent metadata columns measured 20px apart, and the complete scan band measured 608px. Clicking the status area opened task details. Three retained local screenshots are under `artifacts/verification/UI-002/`; the 1728×920 capture replaced the published Tasks image. Calendar and Connections were not changed.
+
 ### DOC-002 — README Tasks screenshot framing
 
 - Status: **PASS**
