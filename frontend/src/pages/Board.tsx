@@ -105,7 +105,7 @@ function BoardCard({ task, overlay, collapsed, density = 'comfortable', visibleF
             </SelectTrigger>
             <SelectContent>
               {TASK_STATUS_ORDER.filter((status) => ws.supportsBlockedStatus || status !== 'blocked').map((status) => (
-                <SelectItem key={status} value={status}>{STATUS_LABELS[status]}</SelectItem>
+                <SelectItem key={status} value={status} className="min-h-11 lg:min-h-0">{STATUS_LABELS[status]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
