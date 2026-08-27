@@ -397,9 +397,9 @@ export default function Tasks() {
             </PopoverContent>
           </Popover>}
 
-          <div className="ml-auto inline-flex min-h-11 shrink-0 select-none items-center gap-1 text-[12.5px] text-muted-foreground lg:min-h-8">
+          <div className="ml-auto inline-flex min-h-11 shrink-0 select-none items-center gap-2 rounded-md border border-input bg-background/80 px-2.5 text-[12.5px] font-medium text-foreground/80 lg:min-h-8">
+            <span>Show completed</span>
             <Switch checked={showCompleted} onCheckedChange={(checked) => updatePresentation({ showCompleted: checked })} aria-label="Show completed tasks" />
-            Done
           </div>
         </div>
         </header>

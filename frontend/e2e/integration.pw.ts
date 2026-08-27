@@ -293,6 +293,27 @@ test('Quick Capture creates one persisted backend Inbox item', async ({ page }) 
   expect(consoleErrors).toEqual([])
 })
 
+test('Quick Capture keeps the dialog open when the server rejects the save', async ({ page }) => {
+  await page.route('**/api/work-items', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ contentType: 'application/json', status: 503, body: '{"error":"Temporary"}' })
+      return
+    }
+    await route.continue()
+  })
+  await page.goto('/tasks')
+  await page.getByRole('button', { name: 'Quick capture' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Capture something' })
+  const input = dialog.getByRole('textbox', { name: 'Capture text' })
+  await input.fill('Keep this capture on server failure')
+  await dialog.getByRole('button', { name: 'Save to Inbox' }).click()
+
+  await expect(dialog).toBeVisible()
+  await expect(input).toHaveValue('Keep this capture on server failure')
+  await expect(page.getByText('PlanGlade is temporarily unavailable.')).toBeVisible()
+})
+
 test('Task drawer keeps the newest debounced title when an older save settles late', async ({ page }) => {
   const fixture = await runtime()
   const firstTitle = `First title ${fixture.runId}`

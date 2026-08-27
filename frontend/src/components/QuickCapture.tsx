@@ -1,10 +1,9 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { CalendarDays, CircleHelp, Flag, FolderOpen, Inbox as InboxIcon } from 'lucide-react'
-import { useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData } from '@/store/workspace'
+import { CalendarDays, Flag, FolderOpen, Inbox as InboxIcon, WandSparkles } from 'lucide-react'
+import { useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData, useWorkspaceIdentity } from '@/store/workspace'
 import { parseCaptureInput, relativeLabel } from '@/lib/dates'
 
 interface QuickCaptureCtx {
@@ -19,8 +18,8 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
   const { canMutateTasks } = useWorkspaceCapabilities()
+  const { mode } = useWorkspaceIdentity()
   const { projects } = useWorkspaceData()
   const { capture } = useWorkspaceActions()
 
@@ -51,7 +50,7 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
       priority: parsed.priority,
     })
     setSaving(false)
-    if (saved) {
+    if (saved || mode.kind === 'reference') {
       setOpen(false)
       setValue('')
     }
@@ -60,44 +59,12 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
   return (
     <Ctx.Provider value={{ openCapture }}>
       {children}
-      <Dialog open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setHelpOpen(false) }}>
-        <DialogContent className="sm:max-w-[480px] top-[20%] translate-y-0">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="top-[16%] translate-y-0 sm:max-w-[520px]">
           <DialogHeader>
-            <div className="flex items-center gap-1.5 pr-8">
-              <DialogTitle className="text-base">Capture something</DialogTitle>
-              <Popover open={helpOpen} onOpenChange={setHelpOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Show capture examples"
-                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-8"
-                  >
-                    <CircleHelp className="h-4 w-4" aria-hidden />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" sideOffset={6} className="w-[min(20rem,calc(100vw-2rem))] p-3">
-                  <div className="mb-2">
-                    <p className="text-[12px] font-semibold text-foreground">Capture examples</p>
-                    <p className="mt-0.5 text-[12.5px] leading-4 text-muted-foreground">Click one to try it. Dates, priorities, and project tags are organized automatically.</p>
-                  </div>
-                  <div className="space-y-1">
-                    {examples.map((example) => (
-                      <button
-                        key={example}
-                        type="button"
-                        onClick={() => { setValue(example); setHelpOpen(false) }}
-                        className="min-h-11 w-full rounded-md px-2 py-1.5 text-left text-[12px] leading-4 text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
-                      >
-                        {example}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 border-t border-border pt-2 text-[12.5px] leading-4 text-muted-foreground">Try dates like “today,” “in 3 days,” or “next Monday.” Priorities also accept p1, p2, and p3.</p>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <DialogDescription className="sr-only">
-              Quickly save a task. You can organize it later.
+            <DialogTitle className="text-base">Capture something</DialogTitle>
+            <DialogDescription className="max-w-[46ch] text-pretty">
+              Write naturally. PlanGlade can pull out a date, priority, and project before saving it to Inbox.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -112,36 +79,58 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
               onChange={(e) => setValue(e.target.value)}
               placeholder="e.g. Send homepage draft tomorrow #Client high priority"
               aria-label="Capture text"
-              className="h-auto w-full border-0 bg-transparent px-0 py-1 text-[15px] shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-0"
+              className="h-11 w-full bg-background px-3 text-[15px] placeholder:text-muted-foreground/75"
             />
+            {!value.trim() && (
+              <div className="mt-3 rounded-lg border border-border/70 bg-muted/35 p-2.5">
+                <p className="flex items-center gap-1.5 px-1 text-[12.5px] font-medium text-foreground">
+                  <WandSparkles className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                  Try an example
+                </p>
+                <div className="mt-1.5 space-y-0.5">
+                  {examples.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => setValue(example)}
+                      className="min-h-11 w-full rounded-md px-2 py-1.5 text-left text-[13px] leading-5 text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {parsed.inferred && value.trim() && (
-              <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-live="polite">
-                <span className="text-[12.5px] text-muted-foreground mr-1">Will save:</span>
-                <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground max-w-[220px]">
+              <div className="mt-3 rounded-lg border border-border/70 bg-muted/35 p-2.5" aria-live="polite">
+                <p className="text-[12.5px] font-medium text-foreground">Ready for Inbox</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex max-w-[260px] items-center gap-1 rounded-md bg-secondary px-2 py-1 text-[12.5px] text-secondary-foreground">
                   <InboxIcon className="h-3 w-3 shrink-0" />
                   <span className="truncate">{parsed.text}</span>
                 </span>
                 {parsed.dueDate && (
-                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-[12.5px] text-secondary-foreground">
                     <CalendarDays className="h-3 w-3" /> {relativeLabel(parsed.dueDate)}
                   </span>
                 )}
                 {parsed.priority !== 'none' && (
-                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground capitalize">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-[12.5px] text-secondary-foreground capitalize">
                     <Flag className="h-3 w-3" /> {parsed.priority}
                   </span>
                 )}
                 {parsedProject && (
-                  <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[12.5px] text-secondary-foreground max-w-[160px]">
+                  <span className="inline-flex max-w-[180px] items-center gap-1 rounded-md bg-secondary px-2 py-1 text-[12.5px] text-secondary-foreground">
                     <FolderOpen className="h-3 w-3 shrink-0" />
                     <span className="truncate">{parsedProject.name}</span>
                   </span>
                 )}
+                </div>
               </div>
             )}
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-[12.5px] text-muted-foreground hidden sm:block">
-                Try “tomorrow”, “next Friday”, “p1”, or “#project”
+              <p className="hidden max-w-[28ch] text-[12.5px] leading-4 text-muted-foreground sm:block">
+                Try “tomorrow”, “next Friday”, “p1”, or “#project”.
               </p>
               <div className="flex gap-2 ml-auto">
                 <Button
