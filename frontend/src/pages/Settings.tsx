@@ -12,6 +12,7 @@ import type { ThemeMode, PriorityDisplay } from '@/types'
 import { seedWorkspace } from '@/data/seed'
 import { getWorkspaceExport } from '@/lib/api/workspace'
 import { importWorkspace, parseWorkspaceImport, previewWorkspaceImport, type WorkspaceImportSnapshot } from '@/lib/api/imports'
+import { TeamSettings } from '@/components/TeamSettings'
 
 function ChoiceRow<T extends string>({
   label,
@@ -192,6 +193,13 @@ export default function Settings() {
           </div>
         </div>
       </section>
+
+      {serverBacked && ws.workspaceId && (
+        <section aria-labelledby="s-team" className="mb-8">
+          <SectionHeader id="s-team" title="Team" />
+          <TeamSettings workspaceId={ws.workspaceId} canManage={ws.canManageWorkspace} />
+        </section>
+      )}
 
       {/* Appearance */}
       <section aria-labelledby="s-appearance" className="mb-8">

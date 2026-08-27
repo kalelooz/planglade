@@ -18,6 +18,7 @@ const Connections = lazy(() => import('@/pages/Connections'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const WorkspaceEntry = lazy(() => import('@/pages/WorkspaceEntry'))
 const AuthLogin = lazy(() => import('@/pages/AuthLogin'))
+const InvitationReview = lazy(() => import('@/pages/InvitationReview'))
 const Setup = lazy(() => import('@/pages/Setup'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -71,6 +72,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/auth/login" element={<DeferredRoute><AuthLogin /></DeferredRoute>} />
+      <Route path="/invite/review" element={<DeferredRoute><InvitationReview /></DeferredRoute>} />
       <Route path="/login" element={<RedirectWithSearch to="/auth/login" />} />
       <Route path="/setup" element={<DeferredRoute><Setup /></DeferredRoute>} />
       <Route path="/onboarding" element={<DeferredRoute><WorkspaceEntry /></DeferredRoute>} />

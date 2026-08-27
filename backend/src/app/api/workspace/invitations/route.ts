@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
       }
       const expiresAt = buildInviteExpiry(policy.inviteExpiryDays)
       const token = buildInviteToken()
-      const inviteUrl = `${request.nextUrl.origin}/login?inviteToken=${token}`
+      const inviteUrl = `${request.nextUrl.origin}/invite/review?inviteToken=${token}`
       const selectedTemplate = resolveInviteTemplateFromPolicy({
         templateKey: entry.templateKey ?? "default",
         policyEmailSubjectTemplate:

@@ -26,7 +26,6 @@ export default function AuthLogin() {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search])
   const destination = normalizeWorkspaceDestination(params.get('next'))
   const inviteToken = params.get('inviteToken')
-  const autoAccept = params.get('autoAccept') === '1'
   const [setupStatus, setSetupStatus] = useState<SetupStatus>('checking')
   const [providers, setProviders] = useState<AuthProvider[]>([])
   const [sessionAvailable, setSessionAvailable] = useState(false)
@@ -34,7 +33,6 @@ export default function AuthLogin() {
   const [password, setPassword] = useState('')
   const [pendingProvider, setPendingProvider] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [inviteNotice, setInviteNotice] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -57,29 +55,10 @@ export default function AuthLogin() {
     return () => controller.abort()
   }, [])
 
-  useEffect(() => {
-    if (!inviteToken || !autoAccept) return
-    const controller = new AbortController()
-    setInviteNotice('Accepting invitation…')
-    void fetch('/api/workspace/invitations/accept', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: inviteToken }),
-      signal: controller.signal,
-    }).then(async (response) => {
-      const payload = await response.json().catch(() => ({})) as { error?: string }
-      if (response.ok) window.location.assign(destination)
-      else if (response.status !== 403) setInviteNotice(payload.error ?? 'Invitation could not be accepted.')
-      else setInviteNotice('Sign in to accept this workspace invitation.')
-    }).catch(() => !controller.signal.aborted && setInviteNotice('Invitation could not be accepted right now.'))
-    return () => controller.abort()
-  }, [autoAccept, destination, inviteToken])
-
   const credentials = providers.find((provider) => provider.type === 'credentials')
   const oauthProviders = providers.filter((provider) => provider.type === 'oauth')
   const callbackUrl = inviteToken
-    ? `/auth/login?inviteToken=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(destination)}&autoAccept=1`
+    ? `/invite/review?inviteToken=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(destination)}`
     : destination
 
   async function signInWithCredentials(event: FormEvent<HTMLFormElement>) {
@@ -143,14 +122,14 @@ export default function AuthLogin() {
           ) : setupStatus === 'configuration-required' ? (
             <div role="alert" className="rounded-md border border-border bg-muted px-3 py-3 text-sm"><p className="font-medium">First-time setup needs installation configuration.</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Run <code className="font-mono text-foreground">npm run setup:local</code>, restart PlanGlade, then return here.</p></div>
           ) : sessionAvailable ? (
-            <Button asChild size="lg" className="w-full"><Link to={destination}>Continue to workspace</Link></Button>
+            <Button asChild size="lg" className="w-full"><Link to={callbackUrl}>{inviteToken ? 'Review invitation' : 'Continue to workspace'}</Link></Button>
           ) : (
             <div className="space-y-5">
               {credentials && (
                 <form className="space-y-4" onSubmit={signInWithCredentials}>
                   <div><label htmlFor="login-email" className="text-sm font-medium">Email</label><Input ref={emailRef} id="login-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={320} required aria-invalid={Boolean(error)} aria-describedby={error ? 'sign-in-error' : undefined} className="mt-1 h-11 bg-muted/45" /></div>
                   <div><label htmlFor="login-password" className="text-sm font-medium">Password</label><Input id="login-password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={128} required aria-invalid={Boolean(error)} aria-describedby={error ? 'sign-in-error' : undefined} className="mt-1 h-11 bg-muted/45" /></div>
-                  <Button type="submit" size="lg" className="w-full" disabled={Boolean(pendingProvider)}>{pendingProvider === credentials.id && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}{pendingProvider === credentials.id ? 'Signing in…' : inviteToken ? 'Sign in and accept invitation' : 'Sign in'}</Button>
+                  <Button type="submit" size="lg" className="w-full" disabled={Boolean(pendingProvider)}>{pendingProvider === credentials.id && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}{pendingProvider === credentials.id ? 'Signing in…' : inviteToken ? 'Sign in to review invitation' : 'Sign in'}</Button>
                 </form>
               )}
               {credentials && oauthProviders.length > 0 && <div className="flex items-center gap-3" aria-hidden="true"><span className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">or</span><span className="h-px flex-1 bg-border" /></div>}
@@ -164,7 +143,7 @@ export default function AuthLogin() {
             </div>
           )}
           <p id="sign-in-error" role={error ? 'alert' : undefined} className={error ? 'mt-3 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive' : 'sr-only'}>{error}</p>
-          {inviteToken && <p role="status" className="mt-3 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">{inviteNotice ?? 'Sign in to accept your workspace invitation.'}</p>}
+          {inviteToken && <p role="status" className="mt-3 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">Signing in does not accept the invitation. You will review the workspace and role before deciding.</p>}
           <p className="mt-5 text-xs leading-5 text-muted-foreground">{setupStatus === 'available' ? 'The setup token stays on this machine and is used only to claim the first owner account.' : credentials ? 'Your password is verified by this PlanGlade installation.' : 'Sign-in availability is controlled by this installation.'}</p>
         </div>
       </div>

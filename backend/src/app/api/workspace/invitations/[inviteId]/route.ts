@@ -143,7 +143,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const token = buildInviteToken()
     const customMessage = parsed.data.customMessage ?? invite.customMessage ?? ""
     const requestedTemplateKey = parsed.data.templateKey ?? invite.templateKey ?? "default"
-    const inviteUrl = `${request.nextUrl.origin}/login?inviteToken=${token}`
+    const inviteUrl = `${request.nextUrl.origin}/invite/review?inviteToken=${token}`
 
     const selectedTemplate = resolveInviteTemplateFromPolicy({
       templateKey: requestedTemplateKey,

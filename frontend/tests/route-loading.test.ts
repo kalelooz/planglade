@@ -7,7 +7,7 @@ const viteConfig = readFileSync(fileURLToPath(new URL('../vite.config.ts', impor
 
 describe('route loading', () => {
   it('loads product pages through route-level dynamic imports', () => {
-    for (const page of ['Home', 'Inbox', 'Tasks', 'Projects', 'ProjectDetail', 'Notes', 'CalendarPage', 'Connections', 'Settings', 'WorkspaceEntry', 'AuthLogin', 'Setup', 'NotFound']) {
+    for (const page of ['Home', 'Inbox', 'Tasks', 'Projects', 'ProjectDetail', 'Notes', 'CalendarPage', 'Connections', 'Settings', 'WorkspaceEntry', 'AuthLogin', 'InvitationReview', 'Setup', 'NotFound']) {
       expect(app).toContain(`lazy(() => import('@/pages/${page}'))`)
       expect(app).not.toMatch(new RegExp(`import ${page} from ['"]@/pages/${page}['"]`))
     }

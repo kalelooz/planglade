@@ -78,6 +78,7 @@ export type CreateTaskInput = {
   dueDate?: string | null
   startDate?: string | null
   parentId?: string | null
+  assigneeId?: string | null
   isInbox?: boolean
 }
 
@@ -92,6 +93,7 @@ export function createTask(input: CreateTaskInput, signal?: AbortSignal) {
     ...(input.dueDate ? { dueDate: isoDate(input.dueDate) } : {}),
     ...(input.startDate ? { startDate: isoDate(input.startDate) } : {}),
     ...(input.parentId ? { parentId: input.parentId } : {}),
+    ...(input.assigneeId ? { assigneeId: input.assigneeId } : {}),
     ...(input.isInbox ? { isInbox: true } : {}),
   }, workItemResponseSchema, signal).then((response) => response.workItem)
 }
@@ -104,6 +106,7 @@ export function updateTask(workspaceId: string, task: BackendWorkItem, patch: Ta
   if (patch.dueDate !== undefined) body.dueDate = isoDate(patch.dueDate)
   if (patch.startDate !== undefined) body.startDate = isoDate(patch.startDate)
   if (patch.labelIds !== undefined) body.labelIds = patch.labelIds
+  if (patch.assigneeId !== undefined) body.assigneeId = patch.assigneeId
   if (patch.status !== undefined && patch.status !== 'blocked') {
     body.status = backendStatus[patch.status]
     body.completedAt = patch.status === 'done' ? new Date().toISOString() : null
@@ -123,6 +126,7 @@ export function optimisticallyPatchTask(tasks: BackendWorkItem[], task: BackendW
     ...(patch.position !== undefined ? { position: patch.position } : {}),
     ...(patch.dueDate !== undefined ? { dueDate: isoDate(patch.dueDate) } : {}),
     ...(patch.startDate !== undefined ? { startDate: isoDate(patch.startDate) } : {}),
+    ...(patch.assigneeId !== undefined ? { assigneeId: patch.assigneeId } : {}),
     ...(patch.beforeId !== undefined ? { position: placed.find((candidate) => candidate.id === task.id)?.position ?? item.position } : {}),
   } : item)
 }

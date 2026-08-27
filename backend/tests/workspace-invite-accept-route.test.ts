@@ -25,6 +25,17 @@ async function runWithMocks(fn: () => Promise<void>) {
   }
 }
 
+test("POST /workspace/invitations/accept requires explicit confirmation", async () => {
+  const request = new Request("http://localhost/api/workspace/invitations/accept", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token: "test-test-test-test-01" }),
+  }) as unknown as NextRequest
+
+  const response = await acceptWorkspaceInvite(request)
+  assert.equal(response.status, 400)
+})
+
 test("POST /workspace/invitations/accept blocks invite acceptance when email mismatches", async () => {
   await runWithMocks(async () => {
     ;(db.user as typeof db.user).findUnique = ((async () => ({
@@ -60,7 +71,7 @@ test("POST /workspace/invitations/accept blocks invite acceptance when email mis
         "content-type": "application/json",
         "x-planglade-user-id": "user-1",
       },
-      body: JSON.stringify({ token: "test-test-test-test-01" }),
+      body: JSON.stringify({ token: "test-test-test-test-01", confirmed: true }),
     }) as unknown as NextRequest
 
     const response = await acceptWorkspaceInvite(request)
@@ -107,7 +118,7 @@ test("POST /workspace/invitations/accept returns 410 and expires stale invite", 
         "content-type": "application/json",
         "x-planglade-user-id": "user-1",
       },
-      body: JSON.stringify({ token: "tok-expired-1234567890" }),
+      body: JSON.stringify({ token: "tok-expired-1234567890", confirmed: true }),
     }) as unknown as NextRequest
 
     const response = await acceptWorkspaceInvite(request)
@@ -154,7 +165,7 @@ test("POST /workspace/invitations/accept rejects a persisted OWNER invite", asyn
         "content-type": "application/json",
         "x-planglade-user-id": "user-1",
       },
-      body: JSON.stringify({ token: "owner-test-test-token-01" }),
+      body: JSON.stringify({ token: "owner-test-test-token-01", confirmed: true }),
     }) as unknown as NextRequest
 
     const response = await acceptWorkspaceInvite(request)

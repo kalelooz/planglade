@@ -263,6 +263,11 @@ export const updateWorkspaceInvitePolicySchema = z.object({
 
 export const acceptWorkspaceInviteSchema = z.object({
   token: z.string().trim().min(20).max(256),
+  confirmed: z.literal(true),
+})
+
+export const previewWorkspaceInviteSchema = z.object({
+  token: z.string().trim().min(20).max(256),
 })
 
 export const updateWorkspaceMemberSchema = z.object({
@@ -580,4 +585,5 @@ export type OnboardingWorkspaceInput = z.infer<typeof onboardingWorkspaceSchema>
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>
 export type UpdateWorkspaceInviteInput = z.infer<typeof updateWorkspaceInviteSchema>
 export type AcceptWorkspaceInviteInput = z.infer<typeof acceptWorkspaceInviteSchema>
+export type PreviewWorkspaceInviteInput = z.infer<typeof previewWorkspaceInviteSchema>
 export type UpdateWorkspaceInvitePolicyInput = z.infer<typeof updateWorkspaceInvitePolicySchema>

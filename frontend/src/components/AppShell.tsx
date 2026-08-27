@@ -19,6 +19,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Kbd } from '@/components/ui/kbd'
+import { NotificationCenter } from '@/components/NotificationCenter'
 import { CountBadge } from '@/components/bits'
 import { PlanGladeMark } from '@/components/PlanGladeBrand'
 import { useAppCommands } from '@/store/app-commands'
@@ -313,7 +314,7 @@ export default function AppShell() {
           <NavItems collapsed={collapsed} />
 
           <div className={cn('border-t border-sidebar-border p-2 space-y-1', collapsed && 'items-center flex flex-col')}>
-            <div className={cn('flex items-center', collapsed ? 'flex-col gap-1' : 'justify-between')}>
+            <div className={cn('flex min-w-0 items-center', collapsed ? 'flex-col gap-1' : 'justify-between')}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -321,7 +322,7 @@ export default function AppShell() {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate('/settings')}
-                    className={cn('h-8 min-w-0 justify-start gap-2 px-2 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent/70', collapsed && 'w-8 justify-center px-0')}
+                    className={cn('h-8 min-w-0 flex-1 shrink justify-start gap-2 overflow-hidden px-2 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent/70', collapsed && 'w-8 flex-none justify-center px-0')}
                     aria-label="Account"
                   >
                     <CircleUserRound className="h-4 w-4 shrink-0" aria-hidden />
@@ -331,7 +332,7 @@ export default function AppShell() {
                 {collapsed && <TooltipContent side="right">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected workspace' : 'Local prototype'}</TooltipContent>}
               </Tooltip>
               {!collapsed && (
-                <div className="flex items-center">
+                <div className="flex shrink-0 items-center">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <a
@@ -444,6 +445,15 @@ export default function AppShell() {
             </Button>
           </div>
         </div>
+
+        {ws.mode.kind === 'server' && (
+          <div className="fixed right-[108px] top-1.5 z-50 md:right-3 md:top-2.5">
+            <NotificationCenter
+              workspaceId={ws.workspaceId}
+              onOpenTask={(taskId) => commands.dispatch('open-task', { taskId })}
+            />
+          </div>
+        )}
 
         {/* Main */}
         <div className={cn('min-h-dvh flex-1 min-w-0 flex flex-col', collapsed ? 'md:pl-[60px]' : 'md:pl-[228px]')}>
