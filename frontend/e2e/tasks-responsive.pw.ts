@@ -15,7 +15,7 @@ test('Tasks keeps narrow controls reachable without document overflow', async ({
 
   for (const width of [1280, 1024, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 844 })
-    await page.goto('/tasks')
+    await page.goto('/app/tasks')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
 
     if (width <= 768) {
@@ -43,7 +43,7 @@ test('Tasks keeps narrow controls reachable without document overflow', async ({
   }
 
   await page.setViewportSize({ width: 320, height: 844 })
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   const task = page.getByRole('button', { name: /Task:/ }).first()
   await task.press('Enter')
   await expectTarget(page.getByRole('button', { name: 'Close' }))
@@ -58,7 +58,7 @@ test('Tasks keeps narrow controls reachable without document overflow', async ({
 
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })
   await page.setViewportSize({ width: 320, height: 844 })
-  await page.goto('/tasks')
+  await page.goto('/app/tasks')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
   expect(consoleErrors).toEqual([])
 })

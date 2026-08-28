@@ -72,7 +72,7 @@ export default async function setupIntegration() {
       const login = await fetch('/api/auth/callback/credentials', {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ callbackUrl: '/', csrfToken: csrf.csrfToken, email, json: 'true', password }),
+        body: new URLSearchParams({ callbackUrl: '/app', csrfToken: csrf.csrfToken, email, json: 'true', password }),
       })
       if (!login.ok) throw new Error(`Credentials login returned ${login.status}`)
       const session = await request('/api/auth/session') as { workspace: { id: string } }

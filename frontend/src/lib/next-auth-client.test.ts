@@ -7,15 +7,15 @@ describe('NextAuth sign-in requests', () => {
   it('posts credentials with a fresh CSRF token and the requested destination', async () => {
     const fetchImpl = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'csrf-token' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'http://localhost/tasks' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'http://localhost/app/tasks' }), { status: 200 }))
 
     await expect(submitNextAuthSignIn(
       credentials,
-      '/tasks',
+      '/app/tasks',
       { email: 'owner@example.com', password: 'correct horse' },
       fetchImpl,
       'http://localhost',
-    )).resolves.toBe('http://localhost/tasks')
+    )).resolves.toBe('http://localhost/app/tasks')
 
     expect(fetchImpl).toHaveBeenNthCalledWith(1, '/api/auth/csrf', { credentials: 'include', cache: 'no-store' })
     expect(fetchImpl).toHaveBeenNthCalledWith(2, '/api/auth/callback/credentials', expect.objectContaining({
@@ -25,7 +25,7 @@ describe('NextAuth sign-in requests', () => {
         email: 'owner@example.com',
         password: 'correct horse',
         csrfToken: 'csrf-token',
-        callbackUrl: '/tasks',
+        callbackUrl: '/app/tasks',
         json: 'true',
       }),
     }))
@@ -36,6 +36,6 @@ describe('NextAuth sign-in requests', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'csrf-token' }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'http://localhost/auth/login?error=CredentialsSignin' }), { status: 200 }))
 
-    await expect(submitNextAuthSignIn(credentials, '/', {}, fetchImpl, 'http://localhost')).resolves.toBeNull()
+    await expect(submitNextAuthSignIn(credentials, '/app', {}, fetchImpl, 'http://localhost')).resolves.toBeNull()
   })
 })

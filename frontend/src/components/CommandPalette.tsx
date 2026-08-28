@@ -12,6 +12,12 @@ import { useQuickCapture } from '@/components/QuickCapture'
 import { useTaskDrawer } from '@/components/TaskDrawer'
 import { TASK_VIEW_CATALOG } from '@/lib/task-view-catalog'
 import { useAppCommands } from '@/store/app-commands'
+import {
+  WORKSPACE_PATHS,
+  workspaceNotePath,
+  workspaceProjectPath,
+  workspaceTasksPath,
+} from '@/lib/workspace-routes'
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
@@ -56,14 +62,14 @@ export function CommandPalette() {
   }
 
   const pages = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Inbox', path: '/inbox', icon: Inbox },
-    { name: 'Tasks', path: '/tasks', icon: CheckSquare },
-    { name: 'Projects', path: '/projects', icon: FolderOpen },
-    { name: 'Notes', path: '/notes', icon: StickyNote },
-    { name: 'Calendar', path: '/calendar', icon: CalendarDays },
-    { name: 'Connections', path: '/connections', icon: Waypoints },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Home', path: WORKSPACE_PATHS.home, icon: Home },
+    { name: 'Inbox', path: WORKSPACE_PATHS.inbox, icon: Inbox },
+    { name: 'Tasks', path: WORKSPACE_PATHS.tasks, icon: CheckSquare },
+    { name: 'Projects', path: WORKSPACE_PATHS.projects, icon: FolderOpen },
+    { name: 'Notes', path: WORKSPACE_PATHS.notes, icon: StickyNote },
+    { name: 'Calendar', path: WORKSPACE_PATHS.calendar, icon: CalendarDays },
+    { name: 'Connections', path: WORKSPACE_PATHS.connections, icon: Waypoints },
+    { name: 'Settings', path: WORKSPACE_PATHS.settings, icon: Settings },
   ]
 
   const recents = useMemo(
@@ -96,10 +102,10 @@ export function CommandPalette() {
           {ws.canMutateTasks && <CommandItem onSelect={() => { close(false); openCapture() }}>
             <Plus className="mr-2 h-4 w-4" /> Capture to Inbox
           </CommandItem>}
-          {ws.canMutateTasks && <CommandItem onSelect={() => { close(false); navigate('/tasks', { state: { newTask: true } }) }}>
+          {ws.canMutateTasks && <CommandItem onSelect={() => { close(false); navigate(WORKSPACE_PATHS.tasks, { state: { newTask: true } }) }}>
             <CheckSquare className="mr-2 h-4 w-4" /> Create task
           </CommandItem>}
-          {ws.canMutateNotes && <CommandItem onSelect={() => { close(false); navigate('/notes', { state: { newNote: true } }) }}>
+          {ws.canMutateNotes && <CommandItem onSelect={() => { close(false); navigate(WORKSPACE_PATHS.notes, { state: { newNote: true } }) }}>
             <StickyNote className="mr-2 h-4 w-4" /> Create note
           </CommandItem>}
           <CommandItem onSelect={() => { ws.updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); close(false) }}>
@@ -124,7 +130,7 @@ export function CommandPalette() {
         <CommandGroup heading="Task views">
           {TASK_VIEW_CATALOG.map((item) => {
             const Icon = item.icon
-            return <CommandItem key={item.view} onSelect={() => go(`/tasks${item.view === 'list' ? '' : `?view=${item.view}`}`)}>
+            return <CommandItem key={item.view} onSelect={() => go(item.view === 'list' ? WORKSPACE_PATHS.tasks : workspaceTasksPath({ view: item.view }))}>
               <Icon className="mr-2 h-4 w-4" /> Open {item.label} view
             </CommandItem>
           })}
@@ -139,8 +145,8 @@ export function CommandPalette() {
                   onSelect={() => {
                     close(false)
                     if (r.kind === 'task') openTask(r.id)
-                    else if (r.kind === 'project') navigate(`/projects/${r.id}`)
-                    else navigate(`/notes?note=${r.id}`)
+                    else if (r.kind === 'project') navigate(workspaceProjectPath(r.id))
+                    else navigate(workspaceNotePath(r.id))
                   }}
                 >
                   <Clock className="mr-2 h-4 w-4" /> {r.label}
@@ -159,14 +165,14 @@ export function CommandPalette() {
         </CommandGroup>
         <CommandGroup heading="Projects">
           {ws.projects.map((p) => (
-            <CommandItem key={p.id} value={`project ${p.name}`} onSelect={() => go(`/projects/${p.id}`)}>
+            <CommandItem key={p.id} value={`project ${p.name}`} onSelect={() => go(workspaceProjectPath(p.id))}>
               <FolderOpen className="mr-2 h-4 w-4 opacity-60" /> {p.name}
             </CommandItem>
           ))}
         </CommandGroup>
         <CommandGroup heading="Notes">
           {ws.notes.map((n) => (
-            <CommandItem key={n.id} value={`note ${n.title}`} onSelect={() => go(`/notes?note=${n.id}`)}>
+            <CommandItem key={n.id} value={`note ${n.title}`} onSelect={() => go(workspaceNotePath(n.id))}>
               <StickyNote className="mr-2 h-4 w-4 opacity-60" /> {n.title}
             </CommandItem>
           ))}

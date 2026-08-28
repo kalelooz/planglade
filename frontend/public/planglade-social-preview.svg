@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">PlanGlade</title>
+  <desc id="description">PlanGlade mark with the words Your work, without the work of managing it.</desc>
+  <rect width="1200" height="630" fill="#faf8f3"/>
+  <path d="M80 64H1120M80 566H1120" stroke="#d8d2c7" stroke-width="2"/>
+  <g transform="translate(80 112)">
+    <rect width="96" height="96" rx="21" fill="#18181b"/>
+    <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5" transform="translate(12 12) scale(3)">
+      <path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"/>
+      <path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"/>
+      <path d="M5 21h14"/>
+    </g>
+  </g>
+  <text x="200" y="171" fill="#18181b" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="42" font-weight="650" letter-spacing="-1.2">PlanGlade</text>
+  <text x="80" y="292" fill="#66636b" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="21" font-weight="700" letter-spacing="3.8">CALM PROJECT PLANNING</text>
+  <text x="80" y="382" fill="#18181b" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="62" font-weight="650" letter-spacing="-2.8">Your work, without the work</text>
+  <text x="80" y="454" fill="#18181b" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="62" font-weight="650" letter-spacing="-2.8">of managing it.</text>
+  <text x="80" y="526" fill="#66636b" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="24">One task. List, board, timeline, calendar, and connections.</text>
+</svg>

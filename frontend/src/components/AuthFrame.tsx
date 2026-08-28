@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ArrowLeft, Inbox, ListTodo, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router'
 import { PlanGladeBrand } from '@/components/PlanGladeBrand'
+import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 
 export function AuthFrame({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   return (
@@ -11,7 +12,7 @@ export function AuthFrame({ children, compact = false }: { children: ReactNode; 
           <PlanGladeBrand />
           <div className={compact ? 'mt-8' : 'my-auto py-10'}>{children}</div>
           {!compact && (
-            <Link to="/" className="inline-flex min-h-11 w-fit items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+            <Link to={WORKSPACE_PATHS.home} className="inline-flex min-h-11 w-fit items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
               <ArrowLeft className="size-3.5" aria-hidden="true" />
               Back to workspace
             </Link>

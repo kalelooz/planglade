@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router'
 import { useAppCommands } from '@/store/app-commands'
 import { createReferenceWorkspaceAdapter } from '@/store/reference-workspace-adapter'
 import { useServerWorkspaceSync } from '@/store/server-workspace-sync'
+import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 import {
   WorkspaceContexts,
   type TaskPatch,
@@ -391,7 +392,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       const created = await createWorkspaceMutation.mutateAsync({ name: name.trim() })
       localStorage.setItem(ACTIVE_WORKSPACE_KEY, created.id)
       toast.success('Workspace created')
-      window.location.assign('/')
+      window.location.assign(WORKSPACE_PATHS.home)
       return true
     } catch {
       toast.error('Workspace could not be created. Please try again.')
@@ -434,7 +435,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     switchWorkspace: (nextWorkspaceId) => {
       if (nextWorkspaceId === workspaceId) return
       localStorage.setItem(ACTIVE_WORKSPACE_KEY, nextWorkspaceId)
-      window.location.assign('/')
+      window.location.assign(WORKSPACE_PATHS.home)
     },
     createWorkspace: createNewWorkspace,
     canManageWorkspace,
@@ -695,7 +696,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         }
         commit((s) => ({ ...s, inbox: [item, ...s.inbox] }))
         toast.success('Captured to Inbox', {
-          action: { label: 'View', onClick: () => navigate('/inbox') },
+          action: { label: 'View', onClick: () => navigate(WORKSPACE_PATHS.inbox) },
         })
         return null
       },

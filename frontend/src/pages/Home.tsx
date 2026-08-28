@@ -15,6 +15,7 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { WORKSPACE_PATHS, workspaceNotePath, workspaceProjectPath } from '@/lib/workspace-routes'
 
 export default function Home() {
   const ws = useWorkspace()
@@ -94,21 +95,21 @@ export default function Home() {
     {
       label: 'Capture your first task',
       detail: 'Put one real item in Inbox. You can organize it later.',
-      href: '/inbox',
+      href: WORKSPACE_PATHS.inbox,
       action: 'Open Inbox',
       complete: ws.tasks.length + ws.inbox.length > 0,
     },
     {
       label: 'Create a project',
       detail: 'Give related tasks and notes a shared home.',
-      href: '/projects',
+      href: WORKSPACE_PATHS.projects,
       action: 'Open Projects',
       complete: ws.projects.length > 0,
     },
     {
       label: 'Write a note',
       detail: 'Keep context beside the work it supports.',
-      href: '/notes',
+      href: WORKSPACE_PATHS.notes,
       action: 'Open Notes',
       complete: ws.notes.length > 0,
     },
@@ -266,7 +267,7 @@ export default function Home() {
               collapsed={!showProjects}
               onToggle={() => setShowProjects((v) => !v)}
               action={
-                <Link to="/projects" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
+                <Link to={WORKSPACE_PATHS.projects} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
                   All projects <ArrowRight className="h-3 w-3" />
                 </Link>
               }
@@ -279,7 +280,7 @@ export default function Home() {
                   return (
                     <button
                       key={p.id}
-                      onClick={() => navigate(`/projects/${p.id}`)}
+                      onClick={() => navigate(workspaceProjectPath(p.id))}
                       className="w-full text-left px-2 py-2.5 hover:bg-accent/60 transition-colors rounded-md"
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -308,7 +309,7 @@ export default function Home() {
               title="Inbox"
               count={ws.inbox.length}
               action={
-                <Link to="/inbox" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
+                <Link to={WORKSPACE_PATHS.inbox} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
                   Open <ArrowRight className="h-3 w-3" />
                 </Link>
               }
@@ -318,13 +319,13 @@ export default function Home() {
             ) : (
               <div className="border-y border-border/60 divide-y divide-border/60">
                 {ws.inbox.slice(0, 3).map((i) => (
-                  <Link key={i.id} to="/inbox" className="block px-2 py-2 hover:bg-accent/60 transition-colors rounded-md">
+                  <Link key={i.id} to={WORKSPACE_PATHS.inbox} className="block px-2 py-2 hover:bg-accent/60 transition-colors rounded-md">
                     <p className="pg-item-title truncate">{i.text}</p>
                     <p className="pg-meta mt-0.5">{timeAgo(i.createdAt)}</p>
                   </Link>
                 ))}
                 {ws.inbox.length > 3 && (
-                  <Link to="/inbox" className="block px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={WORKSPACE_PATHS.inbox} className="block px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                     +{ws.inbox.length - 3} more to organize
                   </Link>
                 )}
@@ -337,7 +338,7 @@ export default function Home() {
             <SectionHeader
               title="Recent notes"
               action={
-                <Link to="/notes" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
+                <Link to={WORKSPACE_PATHS.notes} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
                   All notes <ArrowRight className="h-3 w-3" />
                 </Link>
               }
@@ -349,7 +350,7 @@ export default function Home() {
                 {recentNotes.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => navigate(`/notes?note=${n.id}`)}
+                    onClick={() => navigate(workspaceNotePath(n.id))}
                     className="w-full text-left px-2 py-2 hover:bg-accent/60 transition-colors rounded-md"
                   >
                     <p className="pg-item-title truncate">{n.title}</p>
@@ -373,8 +374,8 @@ export default function Home() {
                     key={`${r.type}-${r.id}`}
                     onClick={() => {
                       if (r.type === 'task') openTask(r.id)
-                      else if (r.type === 'project') navigate(`/projects/${r.id}`)
-                      else navigate(`/notes?note=${r.id}`)
+                      else if (r.type === 'project') navigate(workspaceProjectPath(r.id))
+                      else navigate(workspaceNotePath(r.id))
                     }}
                     className="w-full text-left px-2 py-2 hover:bg-accent/60 transition-colors rounded-md flex items-center gap-2"
                   >

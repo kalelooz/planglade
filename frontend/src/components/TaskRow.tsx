@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/context-menu'
 import { daysFromToday } from '@/lib/dates'
 import { CheckCheck, CalendarDays, Flag, FolderInput, Trash2 } from 'lucide-react'
+import { workspaceProjectPath } from '@/lib/workspace-routes'
 
 export function TaskRow({
   task,
@@ -96,7 +97,7 @@ export function TaskRow({
                     {subsDone}/{subs.length} subtasks
                   </span>
                 )}
-                {showProject && field('project') && <ProjectChip project={project} className="pointer-events-auto inline-flex min-h-11 min-w-11 max-w-[120px] shrink items-center sm:max-w-[150px] lg:min-h-0 lg:min-w-0" onClick={() => project && navigate(`/projects/${project.id}`)} />}
+                {showProject && field('project') && <ProjectChip project={project} className="pointer-events-auto inline-flex min-h-11 min-w-11 max-w-[120px] shrink items-center sm:max-w-[150px] lg:min-h-0 lg:min-w-0" onClick={() => project && navigate(workspaceProjectPath(project.id))} />}
                 {blocked && !done && <BlockedIndicator className="shrink-0" />}
                 {blocking && <BlockingIndicator className="shrink-0" />}
                 {hasMobileStatus && <StatusBadge status={task.status} className="shrink-0 lg:hidden" />}

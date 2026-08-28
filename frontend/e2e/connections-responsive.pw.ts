@@ -8,7 +8,7 @@ async function expectTarget(locator: ReturnType<import('@playwright/test').Page[
 test('Connections keeps graph controls and List navigation usable at narrow widths', async ({ page }, testInfo) => {
   for (const width of [1280, 1024, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 844 })
-    await page.goto('/connections')
+    await page.goto('/app/connections')
     expect(await page.evaluate(() => {
       const measure = (selector: string) => {
         const element = document.querySelector<HTMLElement>(selector)

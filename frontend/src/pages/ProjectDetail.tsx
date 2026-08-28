@@ -19,6 +19,7 @@ import { isValidProjectSlug, projectSlugFromName } from '@/lib/project-slug'
 import { ProjectColorField, ProjectDateField, ProjectIconField } from '@/components/ProjectFields'
 import { DEFAULT_PROJECT_COLOR, editableProjectColor } from '@/lib/project-fields'
 import { inferProjectIcon, projectIcon, type ProjectIconName } from '@/lib/project-icons'
+import { WORKSPACE_PATHS, workspaceNotePath } from '@/lib/workspace-routes'
 
 function ProjectCalendar({ tasks }: { tasks: Task[] }) {
   const today = startOfDay(new Date())
@@ -142,7 +143,7 @@ export default function ProjectDetail() {
           title="Project not found"
           hint="It may have been removed."
           action={
-            <Link to="/projects" className="text-[13px] underline underline-offset-4">Back to projects</Link>
+            <Link to={WORKSPACE_PATHS.projects} className="text-[13px] underline underline-offset-4">Back to projects</Link>
           }
         />
       </PageContainer>
@@ -196,12 +197,12 @@ export default function ProjectDetail() {
     if (!deleted) return
     setConfirmDelete(false)
     setEditOpen(false)
-    navigate('/projects', { replace: true })
+    navigate(WORKSPACE_PATHS.projects, { replace: true })
   }
 
   return (
     <PageContainer width="wide" className="py-6 sm:py-8">
-      <button onClick={() => navigate('/projects')} className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors mb-3 -ml-1 px-1 py-0.5 rounded">
+      <button onClick={() => navigate(WORKSPACE_PATHS.projects)} className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors mb-3 -ml-1 px-1 py-0.5 rounded">
         <ArrowLeft className="h-3.5 w-3.5" /> All projects
       </button>
 
@@ -365,7 +366,7 @@ export default function ProjectDetail() {
         <div className="mt-6">
           {ws.canMutateNotes && <div className="flex justify-end mb-3">
             <button
-              onClick={() => { void ws.addNote({ title: 'Untitled note', projectId: project.id }).then((note) => note && navigate(`/notes?note=${note.id}`)) }}
+              onClick={() => { void ws.addNote({ title: 'Untitled note', projectId: project.id }).then((note) => note && navigate(workspaceNotePath(note.id))) }}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" /> New note
@@ -376,7 +377,7 @@ export default function ProjectDetail() {
           ) : (
             <div className="border-y border-border/60 divide-y divide-border/60">
               {notes.map((n) => (
-                <button key={n.id} onClick={() => navigate(`/notes?note=${n.id}`)} className="w-full text-left px-2 py-2.5 hover:bg-accent/60 rounded-md transition-colors">
+                <button key={n.id} onClick={() => navigate(workspaceNotePath(n.id))} className="w-full text-left px-2 py-2.5 hover:bg-accent/60 rounded-md transition-colors">
                   <p className="pg-item-title truncate">{n.title}</p>
                   <p className="pg-meta mt-0.5 truncate">
                     {/* eslint-disable-next-line no-useless-escape */}

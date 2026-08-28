@@ -96,8 +96,8 @@ State any skipped command and why in the pull request.
   role/capability permission.
 - Never trust client-provided user or workspace IDs as identity.
 - Never render untrusted HTML or expose secrets and internal storage keys.
-- Keep user-facing task routes named `Tasks` and `/tasks`; `work-items` remains
-  an internal API term.
+- Keep user-facing task routes named `Tasks` and `/app/tasks`; `work-items`
+  remains an internal API term.
 - Every visible action must work, be clearly disabled, or be removed.
 - Update user and operator documentation when behavior changes.
 

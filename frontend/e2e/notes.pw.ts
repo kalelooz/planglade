@@ -9,7 +9,7 @@ test('creates, persists, and deletes an authenticated note', async ({ page }) =>
   let created: Note | undefined
 
   try {
-    await page.goto('/notes')
+    await page.goto('/app/notes')
     const create = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/notes')
     await page.getByLabel('New note', { exact: true }).click()
     const createResponse = await create
@@ -56,7 +56,7 @@ test('keeps a note draft when the authenticated save is temporarily unavailable'
 
   try {
     await page.route(`**/api/notes/${created.id}**`, async (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Unavailable' }) }))
-    await page.goto(`/notes?note=${created.id}`)
+    await page.goto(`/app/notes?note=${created.id}`)
     const input = page.getByLabel('Note content (Markdown)')
     await input.fill('Keep this local draft')
     await input.blur()
