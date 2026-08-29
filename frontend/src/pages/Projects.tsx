@@ -111,7 +111,7 @@ export default function Projects() {
           <h1 className="pg-page-title">Projects</h1>
           <p className="pg-page-kicker">{ws.projects.filter((p) => p.status === 'active').length} active</p>
         </div>
-        <InputGroup className="h-8 w-[160px] border-input bg-card shadow-none sm:w-[200px]">
+        <InputGroup className="h-11 w-full lg:h-8 lg:w-[200px] border-input bg-card shadow-none sm:w-[200px]">
           <InputGroupAddon className="pl-2.5 pr-0">
             <Search className="h-3.5 w-3.5" aria-hidden />
           </InputGroupAddon>
@@ -120,16 +120,16 @@ export default function Projects() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search projects"
             aria-label="Search projects"
-            className="h-8 px-2 text-[13px] placeholder:text-muted-foreground/60"
+            className="h-11 px-2 text-[13px] placeholder:text-muted-foreground lg:h-8"
           />
           {search && (
-            <InputGroupButton type="button" size="icon-sm" onClick={() => setSearch('')} aria-label="Clear search" className="mr-0.5 text-muted-foreground hover:text-foreground">
+            <InputGroupButton type="button" size="icon-sm" onClick={() => setSearch('')} aria-label="Clear search" className="mr-0.5 size-11 text-muted-foreground hover:text-foreground lg:size-7">
               <X className="h-3 w-3" />
             </InputGroupButton>
           )}
         </InputGroup>
         <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-          <SelectTrigger className="h-8 w-auto text-[13px] border-input bg-card" aria-label="Filter by status">
+          <SelectTrigger className="h-11 w-auto border-input bg-card text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8" aria-label="Filter by status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -140,7 +140,7 @@ export default function Projects() {
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
-          <SelectTrigger className="h-8 w-auto text-[13px] border-input bg-card" aria-label="Sort projects">
+          <SelectTrigger className="h-11 w-auto border-input bg-card text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8" aria-label="Sort projects">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -151,7 +151,7 @@ export default function Projects() {
         </Select>
         <button
           onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex h-11 items-center gap-1.5 px-3 lg:h-9 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" /> New project
         </button>
@@ -212,7 +212,7 @@ export default function Projects() {
                   </div>
                 </div>
                 {recentNote && (
-                  <p className="text-[12.5px] text-muted-foreground/80 mt-1 truncate pl-0">
+                  <p className="text-[12.5px] text-muted-foreground mt-1 truncate pl-0">
                     Latest note: {recentNote.title} · {timeAgo(recentNote.updatedAt)}
                   </p>
                 )}
@@ -249,7 +249,7 @@ export default function Projects() {
                   if (!iconEdited) setIcon(inferProjectIcon(nextName))
                 }}
                 placeholder="e.g. Autumn workshop series"
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 h-9 text-[14px] outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
+                className="mt-1 h-11 w-full rounded-md border border-input bg-transparent px-3 text-[14px] lg:h-9 outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
               />
             </div>
             <div>
@@ -264,7 +264,7 @@ export default function Projects() {
                 placeholder="e.g. autumn-workshop-series"
                 pattern="[a-z0-9-]{2,50}"
                 required
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 h-9 text-[14px] outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
+                className="mt-1 h-11 w-full rounded-md border border-input bg-transparent px-3 text-[14px] lg:h-9 outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
               />
             </div>
             <div>
@@ -275,7 +275,7 @@ export default function Projects() {
                 onChange={(e) => setDesc(e.target.value)}
                 placeholder="What is this project about?"
                 rows={2}
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-[14px] outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60 resize-none"
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-[14px] outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground resize-none"
               />
             </div>
             <fieldset>
@@ -292,7 +292,7 @@ export default function Projects() {
             <div>
               <label htmlFor="np-status" className="text-[12px] text-muted-foreground">Status</label>
               <Select value={createStatus} onValueChange={(value) => setCreateStatus(value as Exclude<ProjectStatus, 'completed'>)}>
-                <SelectTrigger id="np-status" className="mt-1 h-9 w-full text-[13px] border-input bg-card" aria-label="Project status">
+                <SelectTrigger id="np-status" className="mt-1 h-11 w-full border-input bg-card text-[13px] data-[size=default]:h-11 lg:h-9 lg:data-[size=default]:h-9" aria-label="Project status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -301,10 +301,10 @@ export default function Projects() {
               </Select>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setCreateOpen(false)} className="h-8 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <button type="button" onClick={() => setCreateOpen(false)} className="h-11 rounded-md px-3 lg:h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                 Cancel
               </button>
-              <button type="submit" disabled={saving} aria-busy={saving} className="h-8 px-3 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
+              <button type="submit" disabled={saving} aria-busy={saving} className="h-11 rounded-md px-3 lg:h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
                 {saving ? 'Creating…' : 'Create project'}
               </button>
             </div>

@@ -68,11 +68,11 @@ function renderToken(token: Token): ReactNode {
       return (token as Tokens.HTML).text
     case 'checkbox': {
       const checkbox = token as Tokens.Checkbox
-      return <input type="checkbox" checked={checkbox.checked} disabled readOnly aria-hidden="true" tabIndex={-1} />
+      return <input type="checkbox" checked={checkbox.checked} disabled readOnly aria-label={checkbox.checked ? 'Completed task item' : 'Incomplete task item'} />
     }
     case 'list': {
       const list = token as Tokens.List
-      const items = list.items.map((item, index) => <li key={index}>{renderTokens(item.tokens)}</li>)
+      const items = list.items.map((item, index) => <li key={index} className={item.task ? 'md-task-list-item' : undefined}>{renderTokens(item.tokens)}</li>)
       return list.ordered
         ? <ol start={typeof list.start === 'number' ? list.start : undefined}>{items}</ol>
         : <ul>{items}</ul>

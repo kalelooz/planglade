@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -87,7 +88,6 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
     lastNoteId.current = note.id
     lastSaved.current = { title: note.title, content: note.content }
     // The editor keeps a local draft; switching notes must replace that draft immediately.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitle(note.title)
     setContentDraft(note.content)
     setSaveState('idle')
@@ -260,7 +260,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <Tabs value={editorMode} onValueChange={(value) => canEdit && setMode(value as 'edit' | 'read')} className="flex h-full min-h-0 flex-col gap-0">
       {/* header */}
       <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 border-b border-border flex-wrap">
         {onBack && (
@@ -278,19 +278,18 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
           className="flex-1 min-w-[140px] bg-transparent text-[15px] font-semibold outline-none rounded px-1 -ml-1 focus:bg-accent/40"
         />
         <div className="flex items-center gap-1">
-          {canEdit && <div role="tablist" aria-label="Editor mode" className="inline-flex rounded-md border border-border bg-card p-0.5">
+          {canEdit && <TabsList aria-label="Editor mode" className="h-auto rounded-md border border-border bg-card p-0.5">
             {([['edit', Pencil, 'Edit'], ['read', Eye, 'Read']] as const).map(([m, Icon, label]) => (
-              <button
+              <TabsTrigger
                 key={m}
-                role="tab"
-                aria-selected={mode === m}
-                onClick={() => setMode(m)}
-                className={cn('inline-flex items-center gap-1 rounded px-2 h-7 text-[12px] transition-colors', mode === m ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground hover:text-foreground')}
+                value={m}
+                aria-label={label}
+                className="h-11 flex-none gap-1 rounded border-0 bg-transparent px-2 text-[12px] font-normal shadow-none text-muted-foreground hover:text-foreground data-[state=active]:bg-accent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none lg:h-7 dark:data-[state=active]:bg-accent"
               >
-                <Icon className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{label}</span>
-              </button>
+                <Icon className="h-3.5 w-3.5" aria-hidden /> <span className="hidden sm:inline">{label}</span>
+              </TabsTrigger>
             ))}
-          </div>}
+          </TabsList>}
           {canEdit && <Tooltip>
             <TooltipTrigger asChild>
               <button onClick={selectionToTask} aria-label="Convert selection to task" className="h-11 w-11 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
@@ -328,12 +327,12 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
         {canEdit && <span aria-live="polite">{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? (!title.trim() ? 'A note needs a title before it can be saved.' : 'Could not save. Your edits are still here.') : ''}</span>}
       </div>
 
-      {/* toolbar */}
-      {editorMode === 'edit' && (
+      <TabsContent value="edit" className="m-0 flex min-h-0 flex-1 flex-col">
+        {/* toolbar */}
         <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-3 py-1.5" role="toolbar" aria-label="Formatting">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={undo} disabled={historyState.noteId !== note.id || !historyState.canUndo} aria-label="Undo" className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 transition-colors">
+              <button onClick={undo} disabled={historyState.noteId !== note.id || !historyState.canUndo} aria-label="Undo" className="inline-flex h-11 w-11 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 lg:h-7 lg:w-7">
                 <Undo2 className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
@@ -341,7 +340,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={redo} disabled={historyState.noteId !== note.id || !historyState.canRedo} aria-label="Redo" className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 transition-colors">
+              <button onClick={redo} disabled={historyState.noteId !== note.id || !historyState.canRedo} aria-label="Redo" className="inline-flex h-11 w-11 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 lg:h-7 lg:w-7">
                 <Redo2 className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
@@ -351,7 +350,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
           {formattingTools.map((t) => (
             <Tooltip key={t.label}>
               <TooltipTrigger asChild>
-                <button onClick={() => runFormattingTool(t.id)} aria-label={t.label} className="h-7 w-7 shrink-0 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                <button onClick={() => runFormattingTool(t.id)} aria-label={t.label} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:h-7 lg:w-7">
                   <t.icon className="h-3.5 w-3.5" />
                 </button>
               </TooltipTrigger>
@@ -359,10 +358,6 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
             </Tooltip>
           ))}
         </div>
-      )}
-
-      {/* content */}
-      {editorMode === 'edit' ? (
         <textarea
           ref={taRef}
           value={content}
@@ -371,10 +366,17 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
           onKeyDown={onKeyDown}
           aria-label="Note content (Markdown)"
           placeholder="Start writing. Markdown works here."
-          className="flex-1 w-full max-w-[960px] mx-auto resize-none bg-transparent px-4 sm:px-5 py-4 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/50 font-mono min-h-[300px]"
+          className="flex-1 w-full max-w-[960px] mx-auto resize-none bg-transparent px-4 sm:px-5 py-4 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground font-mono min-h-[300px]"
         />
+      </TabsContent>
+      {canEdit ? (
+        <TabsContent value="read" className="m-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 scrollbar-thin sm:px-5">
+          <div className="mx-auto w-full max-w-[960px]">
+            <Markdown content={content} />
+          </div>
+        </TabsContent>
       ) : (
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 scrollbar-thin sm:px-5">
           <div className="mx-auto w-full max-w-[960px]">
             <Markdown content={content} />
           </div>
@@ -395,12 +397,12 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
                 id="ct-title"
                 value={convert.text}
                 onChange={(e) => setConvert((c) => ({ ...c, text: e.target.value }))}
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 h-9 text-[14px] outline-none focus:ring-1 focus:ring-ring"
+                className="mt-1 h-11 w-full rounded-md border border-input bg-transparent px-3 lg:h-9 text-[14px] outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div className="flex gap-2 flex-wrap">
               <Select value={convProject} onValueChange={setConvProject}>
-                <SelectTrigger className="h-8 text-[13px] w-auto min-w-[130px]" aria-label="Project">
+                <SelectTrigger className="h-11 w-auto text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8 min-w-[130px]" aria-label="Project">
                   <SelectValue placeholder="No project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -412,7 +414,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
               </Select>
               <Popover>
                 <PopoverTrigger asChild>
-                  <button className="h-8 px-2.5 rounded-md border border-input text-[13px] hover:bg-accent transition-colors">
+                  <button className="h-11 rounded-md border px-2.5 lg:h-8 border-input text-[13px] hover:bg-accent transition-colors">
                     {convDate ? relativeLabel(convDate) : 'No date'}
                   </button>
                 </PopoverTrigger>
@@ -421,7 +423,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
                 </PopoverContent>
               </Popover>
               <Select value={convPriority} onValueChange={(v) => setConvPriority(v as Priority)}>
-                <SelectTrigger className="h-8 text-[13px] w-auto" aria-label="Priority">
+                <SelectTrigger className="h-11 w-auto text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8" aria-label="Priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -433,10 +435,10 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
               </Select>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setConvert((c) => ({ ...c, open: false }))} className="h-8 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <button onClick={() => setConvert((c) => ({ ...c, open: false }))} className="h-11 rounded-md px-3 lg:h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                 Cancel
               </button>
-              <button onClick={doConvert} disabled={!convert.text.trim()} className="h-8 px-3 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
+              <button onClick={doConvert} disabled={!convert.text.trim()} className="h-11 rounded-md px-3 lg:h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
                 Create task
               </button>
             </div>
@@ -458,7 +460,7 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>}
-    </div>
+    </Tabs>
   )
 }
 
@@ -534,14 +536,14 @@ export default function Notes() {
                 aria-label="New note"
                 aria-busy={creating}
                 disabled={creating}
-                className="h-9 w-9 rounded-md bg-primary text-primary-foreground inline-flex items-center justify-center hover:bg-primary/90 transition-colors"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-primary lg:h-9 lg:w-9 text-primary-foreground inline-flex items-center justify-center hover:bg-primary/90 transition-colors"
               >
                 <Plus className="h-4 w-4" />
               </button>}
             </header>
             {!ws.canMutateNotes && <p className="mb-3 text-xs text-muted-foreground">Notes are read-only in this workspace.</p>}
             <div className="mb-2">
-              <InputGroup className="h-8 border-input bg-card shadow-none">
+              <InputGroup className="h-11 border-input lg:h-8 bg-card shadow-none">
                 <InputGroupAddon className="pl-2.5 pr-0">
                   <Search className="h-3.5 w-3.5" aria-hidden />
                 </InputGroupAddon>
@@ -550,7 +552,7 @@ export default function Notes() {
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search notes"
                   aria-label="Search notes"
-                  className="h-8 px-2 text-[13px] placeholder:text-muted-foreground/60"
+                  className="h-11 px-2 text-[13px] placeholder:text-muted-foreground lg:h-8"
                 />
                 {search && (
                   <InputGroupButton type="button" size="icon-sm" onClick={() => setSearch('')} aria-label="Clear search" className="mr-0.5 text-muted-foreground hover:text-foreground">
@@ -560,7 +562,7 @@ export default function Notes() {
               </InputGroup>
             </div>
             <Select value={scope} onValueChange={setScope}>
-              <SelectTrigger className="h-8 w-full text-[13px] border-input bg-card" aria-label="Filter notes by project">
+              <SelectTrigger className="h-11 w-full border-input bg-card text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8" aria-label="Filter notes by project">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -582,7 +584,7 @@ export default function Notes() {
                   onClick={() => openNote(n.id)}
                   aria-current={active?.id === n.id}
                   className={cn(
-                    'w-full text-left rounded-md px-2.5 py-2 transition-colors mb-0.5',
+                    'mb-0.5 min-h-11 w-full rounded-md px-2.5 py-2 text-left transition-colors',
                     active?.id === n.id ? 'bg-accent' : 'hover:bg-accent/50',
                   )}
                 >
@@ -611,7 +613,7 @@ export default function Notes() {
                   <button
                     onClick={() => { void createNote() }}
                     disabled={creating}
-                    className="h-8 px-3 rounded-md text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className="h-11 rounded-md px-3 lg:h-8 text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     {creating ? 'Creating…' : 'New note'}
                   </button>

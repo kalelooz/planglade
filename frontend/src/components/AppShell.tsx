@@ -471,7 +471,7 @@ export default function AppShell() {
           </main>
         </div>
       </div>
-      <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
+      <Toaster theme={ws.state.settings.theme} position="bottom-right" toastOptions={{ duration: 4000 }} />
     </TooltipProvider>
   )
 }

@@ -24,6 +24,7 @@ import { useWorkspace } from "@/store/workspace";
 import { useTaskDrawer } from "@/components/TaskDrawer";
 import { PageContainer } from "@/components/bits";
 import { workspaceNotePath, workspaceProjectPath } from "@/lib/workspace-routes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type NodeType = "project" | "task" | "note" | "person" | "label";
 type EdgeType =
@@ -189,7 +190,7 @@ function GraphNodeView({
         opacity: dimmed ? 0.28 : 1,
       }}
       aria-label={`Select ${node.type}: ${node.label}${node.meta ? `. ${node.meta}` : ""}`}
-      className="absolute flex items-center gap-2 rounded-md border border-border bg-card px-3 text-left shadow-sm transition-[border-color,box-shadow,opacity,transform] hover:-translate-y-0.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="absolute flex items-center gap-2 rounded-md border border-border bg-card px-3 text-left shadow-sm transition-[border-color,box-shadow,opacity,transform] hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border bg-accent"
@@ -629,12 +630,12 @@ function Connections() {
         </header>
       </PageContainer>
       <PageContainer width="canvas" className="flex min-h-0 min-w-0 flex-1 flex-col pb-6">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+        <Tabs value={showList ? "list" : "map"} onValueChange={(value) => setShowList(value === "list")} className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-lg border border-border bg-card">
           <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b bg-background px-3 py-2">
             <label className="relative w-64 max-w-full">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
-                aria-label="Search Connections graph"
+                aria-label="Find a node"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search graph"
@@ -694,7 +695,7 @@ function Connections() {
               <button
                 type="button"
                 onClick={() => fit()}
-                aria-label="Fit graph to view"
+                aria-label="Fit all nodes"
                 className="h-11 w-11 rounded border lg:h-8 lg:w-8"
               >
                 <Maximize2 className="mx-auto h-4 w-4" />
@@ -728,36 +729,16 @@ function Connections() {
                 <Plus className="mx-auto h-4 w-4" />
               </button>
             </div>
-            <div
-              role="tablist"
-              aria-label="View mode"
-              className="flex rounded border p-0.5"
-            >
-              <button
-                role="tab"
-                aria-selected={!showList}
-                onClick={() => setShowList(false)}
-                className={cn(
-                  "h-8 rounded px-2 text-xs",
-                  !showList && "bg-accent",
-                )}
-              >
+            <TabsList aria-label="View mode" className="h-auto rounded border bg-transparent p-0.5">
+              <TabsTrigger value="map" className="h-11 flex-none rounded border-0 bg-transparent px-2 text-xs font-normal shadow-none data-[state=active]:bg-accent data-[state=active]:shadow-none lg:h-8 dark:data-[state=active]:bg-accent">
                 Map
-              </button>
-              <button
-                role="tab"
-                aria-selected={showList}
-                onClick={() => setShowList(true)}
-                className={cn(
-                  "h-8 rounded px-2 text-xs",
-                  showList && "bg-accent",
-                )}
-              >
+              </TabsTrigger>
+              <TabsTrigger value="list" className="h-11 flex-none rounded border-0 bg-transparent px-2 text-xs font-normal shadow-none data-[state=active]:bg-accent data-[state=active]:shadow-none lg:h-8 dark:data-[state=active]:bg-accent">
                 List
-              </button>
-            </div>
+              </TabsTrigger>
+            </TabsList>
           </div>
-          {showList ? (
+          <TabsContent value="list" className="m-0 min-h-0 flex-1">
             <section
               data-connections-list
               aria-label="Relationship list"
@@ -786,7 +767,7 @@ function Connections() {
                         select(row.from, event.currentTarget);
                         openNode(row.from, event.currentTarget);
                       }}
-                      className="rounded font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex min-h-11 items-center rounded font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring lg:min-h-0"
                     >
                       {row.from.label}
                     </button>
@@ -796,7 +777,7 @@ function Connections() {
                         select(row.to, event.currentTarget);
                         openNode(row.to, event.currentTarget);
                       }}
-                      className="rounded font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex min-h-11 items-center rounded font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring lg:min-h-0"
                     >
                       {row.to.label}
                     </button>
@@ -804,8 +785,9 @@ function Connections() {
                 ))}
               </ul>
             </section>
-          ) : (
-            <div className="grid min-h-0 flex-1 grid-rows-[minmax(28rem,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1">
+          </TabsContent>
+          <TabsContent value="map" className="m-0 min-h-0 flex-1">
+            <div className="grid min-h-0 h-full grid-rows-[minmax(28rem,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1">
               {/* Pointer panning is supplementary; the adjacent list exposes the same relationships and actions to keyboard users. */}
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
               <div
@@ -871,12 +853,12 @@ function Connections() {
                   ))}
                 </div>
                 <div
-                  className="absolute left-0 top-0 origin-top-left"
+                  className="absolute left-0 top-0 origin-top-left transition-transform duration-150 ease-out motion-reduce:transition-none"
                   style={{
                     width: canvasWidth,
                     height: CANVAS_H,
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transition: dragging ? "none" : "transform 120ms ease-out",
+                    transition: dragging ? "none" : undefined,
                   }}
                 >
                   <svg
@@ -1026,7 +1008,7 @@ function Connections() {
                           <li key={node.id}>
                             <button
                               onClick={() => select(node)}
-                              className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-accent"
+                              className="min-h-11 w-full rounded px-2 py-1.5 text-left text-xs hover:bg-accent lg:min-h-0"
                             >
                               {node.label}
                             </button>
@@ -1054,8 +1036,8 @@ function Connections() {
                 )}
               </aside>
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </PageContainer>
     </div>
   );
