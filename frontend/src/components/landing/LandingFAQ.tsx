@@ -44,7 +44,7 @@ export function TrustAndOpenSource() {
           <div>
             <p className="landing-kicker">OPEN SOURCE</p>
             <h2 id="open-source-title" className="landing-section-title mt-3">Read the source. Run it yourself. Help improve the workshop.</h2>
-            <p className="landing-section-copy mt-4">The public PlanGlade repository contains the complete self-hosted product and user-facing documentation. It is available under the GNU Affero General Public License v3.0.</p>
+            <p className="landing-section-copy mt-4">The public PlanGlade repository contains the complete self-hosted product and user-facing documentation. It is available under the MIT License.</p>
           </div>
           <div className="flex flex-col items-start gap-3 lg:items-end">
             <Button asChild size="lg" className="min-h-11 px-5">

@@ -150,4 +150,4 @@ attachment directory; failure traces are retained for seven days.
 
 ## License
 
-PlanGlade is available under the [GNU Affero General Public License v3.0](./LICENSE).
+PlanGlade is available under the [MIT License](./LICENSE).
