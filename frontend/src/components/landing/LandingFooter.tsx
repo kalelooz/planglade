@@ -18,7 +18,7 @@ export function LandingFooter() {
         </nav>
       </div>
       <div className="landing-shell flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--landing-rule))] py-4 text-xs leading-5 text-[hsl(var(--landing-quiet))]">
-        <p>PlanGlade is available under GNU AGPL v3.0.</p>
+        <p>PlanGlade is available under the MIT License.</p>
         {landingEdition.legalLinks.length > 0 && (
           <nav aria-label="Legal links" className="flex flex-wrap gap-4">
             {landingEdition.legalLinks.map((link) => <a key={link.href} href={link.href} className="underline underline-offset-4">{link.label}</a>)}

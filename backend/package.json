@@ -2,7 +2,7 @@
   "name": "planglade",
   "version": "0.2.0",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "packageManager": "npm@11.6.2",
   "engines": {
     "node": ">=20.9.0",

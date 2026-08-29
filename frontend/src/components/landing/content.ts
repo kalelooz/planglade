@@ -29,7 +29,7 @@ export const landingFaqItems = [
   {
     question: 'Can I self-host PlanGlade?',
     answer:
-      'Yes. The open-source edition is available under GNU AGPL v3.0, with setup guidance in the public repository.',
+      'Yes. The open-source edition is available under the MIT License, with setup guidance in the public repository.',
   },
   {
     question: 'Does PlanGlade currently support teams?',

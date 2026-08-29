@@ -9,6 +9,7 @@ releases are documented below.
 
 ### Changed
 
+- Relicensed PlanGlade from GNU AGPL v3.0 to the MIT License.
 - Calibrated the desktop Tasks list so its compact metadata columns sit inside
   a centered, responsive work surface with balanced gutters and shorter
   dividers instead of spanning the entire viewport.
