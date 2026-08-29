@@ -1,12 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AtSign, Bell, CircleDot, MessageCircle, RefreshCw, UserRound } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getNotifications, markNotificationsRead, type Notification } from '@/lib/api/notifications'
+import {
+  beginNotificationMarkRead,
+  completeNotificationMarkRead,
+  createNotificationMarkReadRequest,
+  failNotificationMarkRead,
+  initialNotificationMarkReadState,
+  retryNotificationMarkRead,
+  type NotificationMarkReadRequest,
+  type NotificationMarkReadState,
+} from '@/lib/notification-mark-read'
 
 export type NotificationCenterProps = {
   workspaceId: string | null
@@ -40,6 +51,8 @@ function NotificationGlyph({ type }: { type: Notification['type'] }) {
 export function NotificationCenter({ workspaceId, onOpenTask }: NotificationCenterProps) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [markReadState, setMarkReadState] = useState(initialNotificationMarkReadState)
+  const markReadStateRef = useRef(markReadState)
   const query = useQuery({
     queryKey: notificationsKey(workspaceId ?? 'none'),
     queryFn: ({ signal }) => getNotifications(workspaceId!, 20, signal),
@@ -47,22 +60,62 @@ export function NotificationCenter({ workspaceId, onOpenTask }: NotificationCent
     refetchInterval: workspaceId ? 60_000 : false,
     retry: false,
   })
+
+  const updateMarkReadState = (update: (current: NotificationMarkReadState) => NotificationMarkReadState) => {
+    const current = markReadStateRef.current
+    const next = update(current)
+    if (next === current) return false
+    markReadStateRef.current = next
+    setMarkReadState(next)
+    return true
+  }
+
   const markReadMutation = useMutation({
-    mutationFn: (notificationIds?: string[]) => markNotificationsRead(workspaceId!, notificationIds),
+    mutationFn: ({ workspaceId: submittedWorkspaceId, notificationIds, lastReadAt }: NotificationMarkReadRequest) =>
+      markNotificationsRead(submittedWorkspaceId, notificationIds, lastReadAt),
     retry: false,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: notificationsKey(workspaceId ?? 'none') }),
+    onSuccess: (_result, request) => {
+      updateMarkReadState((current) => completeNotificationMarkRead(current, request))
+      return queryClient.invalidateQueries({ queryKey: notificationsKey(request.workspaceId) })
+    },
+    onError: (_error, request) => {
+      updateMarkReadState((current) => failNotificationMarkRead(current, request))
+      toast.error('Notification status could not be updated. Try again from Notifications.')
+    },
   })
+
+  const resetMarkReadMutation = markReadMutation.reset
+  useEffect(() => {
+    resetMarkReadMutation()
+    markReadStateRef.current = initialNotificationMarkReadState
+    setMarkReadState(initialNotificationMarkReadState)
+  }, [workspaceId, resetMarkReadMutation])
 
   const notifications = query.data?.notifications ?? []
   const unreadCount = query.data?.unreadCount ?? 0
   const unreadLabel = unreadCount > 0 ? `${unreadCount} unread` : 'No unread notifications'
 
+  const markRead = (notificationIds?: string[]) => {
+    if (!workspaceId) return
+    const request = createNotificationMarkReadRequest(workspaceId, notifications, notificationIds)
+    if (!request) return
+    const started = updateMarkReadState((current) => beginNotificationMarkRead(current, request))
+    if (started) markReadMutation.mutate(request)
+  }
+
   const openNotification = (notification: Notification) => {
-    if (notification.isUnread && !markReadMutation.isPending) markReadMutation.mutate([notification.id])
+    if (notification.isUnread) markRead([notification.id])
     if (notification.workItemId) {
       onOpenTask(notification.workItemId)
       setOpen(false)
     }
+  }
+
+  const retryMarkRead = () => {
+    const request = markReadStateRef.current.failedRequest
+    if (!request || request.workspaceId !== workspaceId) return
+    const started = updateMarkReadState(retryNotificationMarkRead)
+    if (started) markReadMutation.mutate(request)
   }
 
   return (
@@ -87,13 +140,22 @@ export function NotificationCenter({ workspaceId, onOpenTask }: NotificationCent
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => markReadMutation.mutate(undefined)}
-            disabled={!workspaceId || unreadCount === 0 || markReadMutation.isPending}
+            onClick={() => markRead()}
+            disabled={!workspaceId || unreadCount === 0 || Boolean(markReadState.pendingRequest || markReadState.failedRequest)}
             className="h-11 shrink-0 px-2.5 text-[12px] lg:h-8"
           >
             Mark all read
           </Button>
         </div>
+
+        {markReadState.failedRequest?.workspaceId === workspaceId && (
+          <div role="alert" className="flex items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-3 py-2.5">
+            <p className="text-xs leading-5 text-destructive">Unread status was not updated.</p>
+            <Button type="button" variant="ghost" size="sm" onClick={retryMarkRead} disabled={Boolean(markReadState.pendingRequest)} className="h-9 shrink-0 px-2.5 text-xs">
+              <RefreshCw className="size-3.5" aria-hidden="true" /> Retry
+            </Button>
+          </div>
+        )}
 
         {query.isLoading ? (
           <div role="status" aria-label="Loading notifications" className="space-y-3 p-3">
@@ -124,7 +186,7 @@ export function NotificationCenter({ workspaceId, onOpenTask }: NotificationCent
                     {notification.isUnread && <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
                   </span>
                   <span className="mt-0.5 block line-clamp-2 text-[12.5px] leading-5 text-muted-foreground">{notification.body}</span>
-                  <time dateTime={notification.createdAt} className="mt-1 block text-xs text-muted-foreground/80">{formatDate(notification.createdAt)}</time>
+                  <time dateTime={notification.createdAt} className="mt-1 block text-xs text-muted-foreground">{formatDate(notification.createdAt)}</time>
                 </span>
               </button>
             ))}

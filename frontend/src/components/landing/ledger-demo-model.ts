@@ -6,8 +6,8 @@ const demoProjects = ['Client Refresh']
 
 export type DemoTask = {
   title: string
-  project: string
-  due: string
+  project: string | null
+  due: string | null
   state: 'Inbox'
 }
 
@@ -18,13 +18,15 @@ function parserReadyInput(value: string) {
   )
 }
 
-export function parseLandingDemoInput(value: string): DemoTask {
+export function parseLandingDemoInput(value: string): DemoTask | null {
   const parsed = parseCaptureInput(parserReadyInput(value), demoProjects)
+  const title = parsed.text.trim()
+  if (!title) return null
 
   return {
-    title: parsed.text || 'Send homepage draft to Mara',
-    project: parsed.projectName ?? 'Client Refresh',
-    due: parsed.dueDate ? relativeLabel(parsed.dueDate) : 'Tomorrow',
+    title,
+    project: parsed.projectName,
+    due: parsed.dueDate ? relativeLabel(parsed.dueDate) : null,
     state: 'Inbox',
   }
 }

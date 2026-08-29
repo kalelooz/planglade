@@ -34,11 +34,20 @@ export function getNotifications(workspaceId: string, limit?: number, signal?: A
   )
 }
 
-export function markNotificationsRead(workspaceId: string, notificationIds?: string[], signal?: AbortSignal) {
+export function markNotificationsRead(
+  workspaceId: string,
+  notificationIds?: string[],
+  lastReadAt?: string,
+  signal?: AbortSignal,
+) {
   return sendJson(
     '/api/notifications',
     'POST',
-    { workspaceId, ...(notificationIds !== undefined ? { notificationIds } : {}) },
+    {
+      workspaceId,
+      ...(notificationIds !== undefined ? { notificationIds } : {}),
+      ...(lastReadAt !== undefined ? { lastReadAt } : {}),
+    },
     z.object({ markedReadAt: z.string() }).passthrough(),
     signal,
   )

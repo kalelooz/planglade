@@ -42,19 +42,37 @@ describe('collaboration API clients', () => {
       .mockResolvedValueOnce(Response.json({ comment }, { status: 201 }))
       .mockResolvedValueOnce(Response.json(feed))
       .mockResolvedValueOnce(Response.json({ markedReadAt: '2026-08-01T10:05:00.000Z' }))
+      .mockResolvedValueOnce(Response.json({ markedReadAt: '2026-08-01T10:06:00.000Z' }))
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(getWorkItemComments('workspace 1', 'task/1')).resolves.toEqual([comment])
     await expect(createWorkItemComment('workspace 1', 'task/1', { body: 'Ready' })).resolves.toEqual(comment)
     await expect(getNotifications('workspace 1', 10)).resolves.toEqual(feed)
     await expect(markNotificationsRead('workspace 1', ['notification-1'])).resolves.toEqual({ markedReadAt: '2026-08-01T10:05:00.000Z' })
+    await expect(markNotificationsRead('workspace 1', undefined, '2026-08-01T10:06:00.000Z')).resolves.toEqual({ markedReadAt: '2026-08-01T10:06:00.000Z' })
 
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
       '/api/work-items/task%2F1/comments?workspaceId=workspace%201',
       '/api/work-items/task%2F1/comments?workspaceId=workspace%201',
       '/api/notifications?workspaceId=workspace%201&limit=10',
       '/api/notifications',
+      '/api/notifications',
     ])
+    expect(JSON.parse(fetchMock.mock.calls[4]?.[1].body)).toEqual({
+      workspaceId: 'workspace 1',
+      lastReadAt: '2026-08-01T10:06:00.000Z',
+    })
+  })
+
+  it('treats gone invitation previews and acceptances as unavailable', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ code: 'INVITATION_EXPIRED' }, { status: 410 }))
+      .mockResolvedValueOnce(Response.json({ code: 'INVITATION_EXPIRED' }, { status: 410 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const token = 'invite-review-token-123456'
+    await expect(previewWorkspaceInvite(token)).rejects.toMatchObject({ kind: 'not_found', status: 410 })
+    await expect(acceptWorkspaceInvite(token)).rejects.toMatchObject({ kind: 'not_found', status: 410 })
   })
 
   it('previews an invitation before sending explicit acceptance', async () => {

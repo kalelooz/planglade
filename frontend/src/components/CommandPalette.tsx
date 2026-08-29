@@ -18,9 +18,11 @@ import {
   workspaceProjectPath,
   workspaceTasksPath,
 } from '@/lib/workspace-routes'
+import { commandPaletteItemValue, selectCommandPaletteResults, selectRecentCommandItems } from '@/lib/command-palette-results'
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const navigate = useNavigate()
   const ws = useWorkspace()
   const { openCapture } = useQuickCapture()
@@ -30,6 +32,7 @@ export function CommandPalette() {
 
   const close = (restoreFocus = true) => {
     setOpen(false)
+    setQuery('')
     if (restoreFocus) requestAnimationFrame(() => openerRef.current?.focus())
   }
 
@@ -39,7 +42,10 @@ export function CommandPalette() {
         e.preventDefault()
         openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
         setOpen((wasOpen) => {
-          if (wasOpen) requestAnimationFrame(() => openerRef.current?.focus())
+          if (wasOpen) {
+            setQuery('')
+            requestAnimationFrame(() => openerRef.current?.focus())
+          }
           return !wasOpen
         })
       }
@@ -73,7 +79,7 @@ export function CommandPalette() {
   ]
 
   const recents = useMemo(
-    () =>
+    () => selectRecentCommandItems(
       ws.state.recents
         .map((r) => {
           if (r.type === 'task') {
@@ -88,14 +94,19 @@ export function CommandPalette() {
           return n ? { kind: 'note' as const, id: r.id, label: n.title } : null
         })
         .filter((r): r is { kind: 'task' | 'project' | 'note'; id: string; label: string } => !!r),
+    ),
     [ws],
+  )
+  const results = useMemo(
+    () => selectCommandPaletteResults({ query, tasks: ws.tasks, projects: ws.projects, notes: ws.notes }),
+    [query, ws.notes, ws.projects, ws.tasks],
   )
 
   const theme = ws.state.settings.theme
 
   return (
     <CommandDialog open={open} onOpenChange={(next) => next ? setOpen(true) : close()} className="border-border/80 bg-popover">
-      <CommandInput placeholder="Type a command or search…" />
+      <CommandInput value={query} onValueChange={setQuery} placeholder="Type a command or search…" />
       <CommandList>
         <CommandEmpty>Nothing found. Try a different search.</CommandEmpty>
         <CommandGroup heading="Actions">
@@ -157,22 +168,22 @@ export function CommandPalette() {
         )}
         <CommandSeparator />
         <CommandGroup heading="Tasks">
-          {ws.tasks.filter((t) => t.status !== 'done' && !t.parentId).slice(0, 30).map((t) => (
-            <CommandItem key={t.id} value={`task ${t.title}`} onSelect={() => { close(false); openTask(t.id) }}>
+          {results.tasks.map((t) => (
+            <CommandItem key={t.id} value={commandPaletteItemValue('task', t.title)} onSelect={() => { close(false); openTask(t.id) }}>
               <CheckSquare className="mr-2 h-4 w-4 opacity-60" /> {t.title}
             </CommandItem>
           ))}
         </CommandGroup>
         <CommandGroup heading="Projects">
-          {ws.projects.map((p) => (
-            <CommandItem key={p.id} value={`project ${p.name}`} onSelect={() => go(workspaceProjectPath(p.id))}>
+          {results.projects.map((p) => (
+            <CommandItem key={p.id} value={commandPaletteItemValue('project', p.name)} onSelect={() => go(workspaceProjectPath(p.id))}>
               <FolderOpen className="mr-2 h-4 w-4 opacity-60" /> {p.name}
             </CommandItem>
           ))}
         </CommandGroup>
         <CommandGroup heading="Notes">
-          {ws.notes.map((n) => (
-            <CommandItem key={n.id} value={`note ${n.title}`} onSelect={() => go(workspaceNotePath(n.id))}>
+          {results.notes.map((n) => (
+            <CommandItem key={n.id} value={commandPaletteItemValue('note', n.title)} onSelect={() => go(workspaceNotePath(n.id))}>
               <StickyNote className="mr-2 h-4 w-4 opacity-60" /> {n.title}
             </CommandItem>
           ))}
