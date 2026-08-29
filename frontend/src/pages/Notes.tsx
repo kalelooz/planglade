@@ -73,25 +73,12 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const undoStack = useRef<string[]>([])
   const redoStack = useRef<string[]>([])
-  const lastNoteId = useRef(note.id)
   const lastSaved = useRef({ title: note.title, content: note.content })
   const latestDraft = useRef({ title: note.title, content: note.content })
 
   useEffect(() => {
     latestDraft.current = { title, content }
   }, [content, title])
-
-  useEffect(() => {
-    if (lastNoteId.current === note.id) return
-    undoStack.current = []
-    redoStack.current = []
-    lastNoteId.current = note.id
-    lastSaved.current = { title: note.title, content: note.content }
-    // The editor keeps a local draft; switching notes must replace that draft immediately.
-    setTitle(note.title)
-    setContentDraft(note.content)
-    setSaveState('idle')
-  }, [note.content, note.id, note.title])
 
   const saveDraft = useCallback(async () => {
     const draft = latestDraft.current
@@ -602,7 +589,7 @@ export default function Notes() {
         {/* editor pane */}
         <div className={cn('flex-1 min-w-0 min-h-0 flex-col', showEditor ? 'flex' : 'hidden md:flex')}>
           {active ? (
-            <NoteEditor note={active} onBack={() => setSearchParams({}, { replace: true })} />
+            <NoteEditor key={active.id} note={active} onBack={() => setSearchParams({}, { replace: true })} />
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <EmptyState

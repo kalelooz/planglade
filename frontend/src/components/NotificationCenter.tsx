@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AtSign, Bell, CircleDot, MessageCircle, RefreshCw, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
@@ -48,7 +48,11 @@ function NotificationGlyph({ type }: { type: Notification['type'] }) {
   return <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
 }
 
-export function NotificationCenter({ workspaceId, onOpenTask }: NotificationCenterProps) {
+export function NotificationCenter(props: NotificationCenterProps) {
+  return <ScopedNotificationCenter key={props.workspaceId ?? 'none'} {...props} />
+}
+
+function ScopedNotificationCenter({ workspaceId, onOpenTask }: NotificationCenterProps) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [markReadState, setMarkReadState] = useState(initialNotificationMarkReadState)
@@ -83,13 +87,6 @@ export function NotificationCenter({ workspaceId, onOpenTask }: NotificationCent
       toast.error('Notification status could not be updated. Try again from Notifications.')
     },
   })
-
-  const resetMarkReadMutation = markReadMutation.reset
-  useEffect(() => {
-    resetMarkReadMutation()
-    markReadStateRef.current = initialNotificationMarkReadState
-    setMarkReadState(initialNotificationMarkReadState)
-  }, [workspaceId, resetMarkReadMutation])
 
   const notifications = query.data?.notifications ?? []
   const unreadCount = query.data?.unreadCount ?? 0
