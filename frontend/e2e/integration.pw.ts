@@ -260,7 +260,7 @@ test('Connections renders authenticated Notes and normalized task relationships'
   await expect(relationships.getByRole('button', { name: fixture.taskTitle }).first()).toBeFocused()
 
   await page.getByRole('tab', { name: 'Map' }).click()
-  await page.getByRole('textbox', { name: 'Search Connections graph' }).fill(noteTitle)
+  await page.getByRole('textbox', { name: 'Find a node' }).fill(noteTitle)
   const noteNode = page.getByRole('button', { name: new RegExp(`^Select note: ${noteTitle}`) })
   await expect(noteNode).toBeVisible()
   await noteNode.press('Enter')

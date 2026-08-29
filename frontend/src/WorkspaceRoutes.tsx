@@ -7,6 +7,7 @@ import { TaskDrawerProvider } from '@/components/TaskDrawer'
 import { CommandPalette } from '@/components/CommandPalette'
 import AppShell from '@/components/AppShell'
 import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const Home = lazy(() => import('@/pages/Home'))
 const Inbox = lazy(() => import('@/pages/Inbox'))
@@ -35,22 +36,24 @@ function DeferredRoute({ children }: { children: ReactNode }) {
 
 function WorkspaceApp() {
   return (
-    <AppCommandsProvider>
-      <WorkspaceProvider>
-        <QuickCaptureProvider>
-          <TaskDrawerProvider>
-            <a
-              href="#main"
-              className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:px-3 focus:py-2 focus:text-sm"
-            >
-              Skip to content
-            </a>
-            <Outlet />
-            <CommandPalette />
-          </TaskDrawerProvider>
-        </QuickCaptureProvider>
-      </WorkspaceProvider>
-    </AppCommandsProvider>
+    <TooltipProvider delayDuration={350}>
+      <AppCommandsProvider>
+        <WorkspaceProvider>
+          <QuickCaptureProvider>
+            <TaskDrawerProvider>
+              <a
+                href="#main"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:px-3 focus:py-2 focus:text-sm"
+              >
+                Skip to content
+              </a>
+              <Outlet />
+              <CommandPalette />
+            </TaskDrawerProvider>
+          </QuickCaptureProvider>
+        </WorkspaceProvider>
+      </AppCommandsProvider>
+    </TooltipProvider>
   )
 }
 
