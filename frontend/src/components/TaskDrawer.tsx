@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
@@ -25,6 +25,16 @@ import { useQuery } from '@tanstack/react-query'
 import { getTaskHistory } from '@/lib/api/tasks'
 import { useAppCommands } from '@/store/app-commands'
 import { TaskComments } from '@/components/TaskComments'
+import { createAutosaveDraftController } from '@/lib/autosave-draft-controller'
+import {
+  clearSubmittedCommentDraft,
+  commentDraftBody,
+  createTaskCommentDraftMap,
+  updateCommentDraft,
+  type TaskCommentDraftMap,
+  type TaskCommentScope,
+  type TaskCommentSubmission,
+} from '@/lib/task-comment-draft'
 
 interface TaskDrawerCtx {
   openTask: (id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => void
@@ -39,18 +49,51 @@ export const useTaskDrawer = () => useContext(Ctx)
 export function TaskDrawerProvider({ children }: { children: React.ReactNode }) {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [drawerNonModal, setDrawerNonModal] = useState(false)
+  const [commentDrafts, setCommentDrafts] = useState<TaskCommentDraftMap>(createTaskCommentDraftMap)
   const originRef = useRef<HTMLElement | null>(null)
+  const flushDraftsRef = useRef<(() => Promise<boolean>) | null>(null)
+  const transitionGeneration = useRef(0)
   const { getTask } = useWorkspace()
   const commands = useAppCommands()
 
-  const openTask = useCallback((id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => {
-    originRef.current = origin ?? (document.activeElement as HTMLElement | null)
-    setDrawerNonModal(options?.nonModal ?? false)
-    setOpenTaskId(id)
+  const transitionTask = useCallback((apply: () => void) => {
+    const generation = ++transitionGeneration.current
+    const flush = flushDraftsRef.current
+    if (!flush) {
+      apply()
+      return
+    }
+    void flush().then((saved) => {
+      if (!saved || transitionGeneration.current !== generation) return
+      flushDraftsRef.current = null
+      apply()
+    })
   }, [])
+  const openTask = useCallback((id: string, origin?: HTMLElement | null, options?: { nonModal?: boolean }) => {
+    transitionTask(() => {
+      originRef.current = origin ?? (document.activeElement as HTMLElement | null)
+      setDrawerNonModal(options?.nonModal ?? false)
+      setOpenTaskId(id)
+    })
+  }, [transitionTask])
   const closeTask = useCallback(() => {
-    setOpenTaskId(null)
-    setDrawerNonModal(false)
+    transitionTask(() => {
+      setOpenTaskId(null)
+      setDrawerNonModal(false)
+      window.setTimeout(() => originRef.current?.focus?.(), 60)
+    })
+  }, [transitionTask])
+  const navigateTask = useCallback((id: string) => {
+    transitionTask(() => setOpenTaskId(id))
+  }, [transitionTask])
+  const registerDraftFlush = useCallback((flush: (() => Promise<boolean>) | null) => {
+    flushDraftsRef.current = flush
+  }, [])
+  const changeCommentDraft = useCallback((scope: TaskCommentScope, body: string) => {
+    setCommentDrafts((current) => updateCommentDraft(current, scope, body))
+  }, [])
+  const clearSubmittedDraft = useCallback((submission: TaskCommentSubmission) => {
+    setCommentDrafts((current) => clearSubmittedCommentDraft(current, submission))
   }, [])
 
   useEffect(() => {
@@ -59,9 +102,14 @@ export function TaskDrawerProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     return commands.subscribe('task-deleted', ({ taskId }) => {
-      if (taskId === openTaskId) closeTask()
+      if (taskId !== openTaskId) return
+      transitionGeneration.current += 1
+      flushDraftsRef.current = null
+      setOpenTaskId(null)
+      setDrawerNonModal(false)
+      window.setTimeout(() => originRef.current?.focus?.(), 60)
     })
-  }, [closeTask, commands, openTaskId])
+  }, [commands, openTaskId])
 
   useEffect(() => {
     if (!openTaskId || drawerNonModal) return
@@ -88,10 +136,7 @@ export function TaskDrawerProvider({ children }: { children: React.ReactNode }) 
         modal={!drawerNonModal}
         open={!!openTaskId}
         onOpenChange={(open) => {
-          if (!open) {
-            closeTask()
-            window.setTimeout(() => originRef.current?.focus?.(), 60)
-          }
+          if (!open) closeTask()
         }}
       >
         <SheetContent
@@ -105,7 +150,15 @@ export function TaskDrawerProvider({ children }: { children: React.ReactNode }) 
           }}
         >
           {task ? (
-            <TaskDrawerBody task={task} onNavigateTask={(id) => setOpenTaskId(id)} />
+            <TaskDrawerBody
+              key={task.id}
+              task={task}
+              commentDrafts={commentDrafts}
+              onCommentDraftChange={changeCommentDraft}
+              onCommentDraftSubmitted={clearSubmittedDraft}
+              onNavigateTask={navigateTask}
+              onDraftFlushChange={registerDraftFlush}
+            />
           ) : (
             <div className="p-6 text-sm text-muted-foreground">This task no longer exists.</div>
           )}
@@ -125,93 +178,63 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function useAutosaveDraft({
-  taskId,
   serverValue,
   canEdit,
   save,
   valid = () => true,
   normalize = (value) => value,
+  invalidMessage,
 }: {
-  taskId: string
   serverValue: string
   canEdit: boolean
   save: (value: string) => Promise<boolean>
   valid?: (value: string) => boolean
   normalize?: (value: string) => string
+  invalidMessage?: string
 }) {
-  const [value, setValue] = useState(serverValue)
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const dirtyRef = useRef(false)
-  const taskIdRef = useRef(taskId)
-  const valueRef = useRef(value)
   const saveRef = useRef(save)
   const validRef = useRef(valid)
   const normalizeRef = useRef(normalize)
   saveRef.current = save
   validRef.current = valid
   normalizeRef.current = normalize
+  const [controller] = useState(() => createAutosaveDraftController({
+    initialValue: serverValue,
+    canEdit,
+    save: (value) => saveRef.current(value),
+    valid: (value) => validRef.current(value),
+    normalize: (value) => normalizeRef.current(value),
+    invalidMessage,
+  }))
+  const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
 
-  useEffect(() => {
-    valueRef.current = value
-  }, [value])
-
-  useEffect(() => {
-    if (taskIdRef.current !== taskId) {
-      taskIdRef.current = taskId
-      dirtyRef.current = false
-      valueRef.current = serverValue
-      setValue(serverValue)
-      setError(null)
-      setSaving(false)
-      return
-    }
-    if (!dirtyRef.current) {
-      valueRef.current = serverValue
-      setValue(serverValue)
-    }
-  }, [serverValue, taskId])
-
-  useEffect(() => {
-    const savedValue = normalizeRef.current(value)
-    if (!canEdit || !validRef.current(value) || savedValue === serverValue) {
-      if (savedValue === serverValue) {
-        dirtyRef.current = false
-        setError(null)
-      }
-      return
-    }
-    const savedTaskId = taskId
-    const savedDraft = value
-    const timer = window.setTimeout(() => {
-      setSaving(true)
-      void saveRef.current(savedValue).then((saved) => {
-        if (taskIdRef.current !== savedTaskId || valueRef.current !== savedDraft) return
-        setSaving(false)
-        if (!saved) setError('This change was not saved. Edit again to retry.')
-      })
-    }, 450)
-    return () => window.clearTimeout(timer)
-  }, [canEdit, serverValue, taskId, value])
+  useEffect(() => controller.setCanEdit(canEdit), [canEdit, controller])
+  useEffect(() => controller.syncServerValue(serverValue), [controller, serverValue])
+  useEffect(() => () => { void controller.flush() }, [controller])
 
   return {
-    error,
-    saving,
-    setValue: (next: string) => {
-      dirtyRef.current = true
-      setError(null)
-      setValue(next)
-    },
-    value,
-    reset: () => {
-      dirtyRef.current = false
-      setError(null)
-      setValue(serverValue)
-    },
+    ...snapshot,
+    flush: controller.flush,
+    reset: controller.reset,
+    setValue: controller.edit,
   }
 }
 
-function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: (id: string) => void }) {
+function TaskDrawerBody({
+  task,
+  commentDrafts,
+  onCommentDraftChange,
+  onCommentDraftSubmitted,
+  onNavigateTask,
+  onDraftFlushChange,
+}: {
+  task: Task
+  commentDrafts: TaskCommentDraftMap
+  onCommentDraftChange: (scope: TaskCommentScope, body: string) => void
+  onCommentDraftSubmitted: (submission: TaskCommentSubmission) => void
+  onNavigateTask: (id: string) => void
+  onDraftFlushChange: (flush: (() => Promise<boolean>) | null) => void
+}) {
   const ws = useWorkspace()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [newSub, setNewSub] = useState('')
@@ -238,20 +261,30 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
   const blocking = !done && ws.tasks.some((candidate) => candidate.status !== 'done' && candidate.dependsOn.includes(task.id))
   const blockedTasks = ws.tasks.filter((candidate) => candidate.status !== 'done' && candidate.dependsOn.includes(task.id))
   const canEdit = ws.canMutateTasks
+  const commentScope = ws.workspaceId ? { workspaceId: ws.workspaceId, taskId: task.id } : null
   const titleDraft = useAutosaveDraft({
-    taskId: task.id,
     serverValue: task.title,
     canEdit,
     save: (value) => ws.updateTask(task.id, { title: value }, { silent: true }),
     valid: (value) => Boolean(value.trim()),
     normalize: (value) => value.trim(),
+    invalidMessage: 'Task title cannot be empty.',
   })
   const descriptionDraft = useAutosaveDraft({
-    taskId: task.id,
     serverValue: task.description,
     canEdit,
     save: (value) => ws.updateTask(task.id, { description: value }, { silent: true }),
   })
+  const flushTitleDraft = titleDraft.flush
+  const flushDescriptionDraft = descriptionDraft.flush
+  const flushDrafts = useCallback(async () => {
+    const results = await Promise.all([flushTitleDraft(), flushDescriptionDraft()])
+    return results.every(Boolean)
+  }, [flushDescriptionDraft, flushTitleDraft])
+  useEffect(() => {
+    onDraftFlushChange(flushDrafts)
+    return () => onDraftFlushChange(null)
+  }, [flushDrafts, onDraftFlushChange])
 
   return (
     <>
@@ -267,6 +300,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
               value={titleDraft.value}
               readOnly={!canEdit}
               onChange={(e) => titleDraft.setValue(e.target.value)}
+              onBlur={() => { void titleDraft.flush() }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
                 if (e.key === 'Escape') titleDraft.reset()
@@ -426,13 +460,16 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
           </Field>
         </div>
 
-        {ws.mode.kind === 'server' && ws.workspaceId && task.source && <>
+        {ws.mode.kind === 'server' && commentScope && task.source && <>
           <Separator />
           <TaskComments
-            workspaceId={ws.workspaceId}
-            taskId={task.id}
+            workspaceId={commentScope.workspaceId}
+            taskId={commentScope.taskId}
             members={ws.state.people}
             canComment={canEdit}
+            draftBody={commentDraftBody(commentDrafts, commentScope)}
+            onDraftChange={(body) => onCommentDraftChange(commentScope, body)}
+            onDraftSubmitted={onCommentDraftSubmitted}
           />
         </>}
 
@@ -443,6 +480,7 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
             value={descriptionDraft.value}
             readOnly={!canEdit}
             onChange={(e) => descriptionDraft.setValue(e.target.value)}
+            onBlur={() => { void descriptionDraft.flush() }}
             aria-label="Task notes"
             aria-invalid={descriptionDraft.error ? true : undefined}
             aria-describedby={descriptionDraft.error ? 'task-notes-save-error' : undefined}
@@ -487,8 +525,9 @@ function TaskDrawerBody({ task, onNavigateTask }: { task: Task; onNavigateTask: 
               e.preventDefault()
               const v = newSub.trim()
               if (!v) return
-              ws.addTask({ title: v, projectId: task.projectId, parentId: task.id, status: 'planned', priority: task.priority })
-              setNewSub('')
+              void ws.addTask({ title: v, projectId: task.projectId, parentId: task.id, status: 'planned', priority: task.priority }).then((created) => {
+                if (created) setNewSub((current) => current.trim() === v ? '' : current)
+              })
             }}
             className="mt-1.5 flex items-center gap-2"
           >

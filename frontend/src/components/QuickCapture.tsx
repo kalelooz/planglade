@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CalendarDays, Flag, FolderOpen, Inbox as InboxIcon, WandSparkles } from 'lucide-react'
-import { useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData, useWorkspaceIdentity } from '@/store/workspace'
+import { useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData } from '@/store/workspace'
 import { parseCaptureInput, relativeLabel } from '@/lib/dates'
+import { useSubmissionLifecycle } from '@/lib/use-submission-lifecycle'
 
 interface QuickCaptureCtx {
   openCapture: (seed?: string) => void
@@ -17,19 +18,17 @@ export const useQuickCapture = () => useContext(Ctx)
 export function QuickCaptureProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
-  const [saving, setSaving] = useState(false)
+  const { invalidate, pending: saving, submit } = useSubmissionLifecycle()
   const { canMutateTasks } = useWorkspaceCapabilities()
-  const { mode } = useWorkspaceIdentity()
   const { projects } = useWorkspaceData()
   const { capture } = useWorkspaceActions()
 
   const openCapture = useCallback((s?: string) => {
-    if (!canMutateTasks) {
-      return
-    }
+    if (!canMutateTasks) return
+    invalidate()
     setValue(s ?? '')
     setOpen(true)
-  }, [canMutateTasks])
+  }, [canMutateTasks, invalidate])
 
   const projectNames = useMemo(() => projects.map((p) => p.name), [projects])
   const parsed = useMemo(() => parseCaptureInput(value, projectNames), [value, projectNames])
@@ -42,24 +41,34 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
   ]
 
   const save = async () => {
-    if (!parsed.text.trim()) return
-    setSaving(true)
-    const saved = await capture(parsed.text.trim(), {
-      projectId: parsedProject?.id ?? null,
-      dueDate: parsed.dueDate,
-      priority: parsed.priority,
-    })
-    setSaving(false)
-    if (saved || mode.kind === 'reference') {
-      setOpen(false)
-      setValue('')
+    const text = parsed.text.trim()
+    if (!text) return
+    const input = {
+      text,
+      meta: {
+        projectId: parsedProject?.id ?? null,
+        dueDate: parsed.dueDate,
+        priority: parsed.priority,
+      },
     }
+    await submit(
+      input,
+      (submission) => capture(submission.text, submission.meta),
+      Boolean,
+      () => {
+        setOpen(false)
+        setValue('')
+      },
+    )
   }
 
   return (
     <Ctx.Provider value={{ openCapture }}>
       {children}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(nextOpen) => {
+        if (nextOpen !== open) invalidate()
+        setOpen(nextOpen)
+      }}>
         <DialogContent className="top-[16%] translate-y-0 sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle className="text-base">Capture something</DialogTitle>
@@ -76,7 +85,10 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
             <Input
               autoFocus
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => {
+                invalidate()
+                setValue(e.target.value)
+              }}
               placeholder="e.g. Send homepage draft tomorrow #Client high priority"
               aria-label="Capture text"
               className="h-11 w-full bg-background px-3 text-[15px] placeholder:text-muted-foreground/75"
@@ -92,7 +104,10 @@ export function QuickCaptureProvider({ children }: { children: React.ReactNode }
                     <button
                       key={example}
                       type="button"
-                      onClick={() => setValue(example)}
+                      onClick={() => {
+                        invalidate()
+                        setValue(example)
+                      }}
                       className="min-h-11 w-full rounded-md px-2 py-1.5 text-left text-[13px] leading-5 text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
                     >
                       {example}

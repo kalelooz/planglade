@@ -56,7 +56,7 @@ export interface WorkspaceData {
 export interface WorkspaceActions {
   updateSettings: (patch: Partial<AppSettings>) => void
   setWorkspaceName: (name: string) => Promise<boolean> | void
-  capture: (text: string, meta?: { projectId?: string | null; dueDate?: string | null; priority?: Priority }) => Promise<Task | null>
+  capture: (text: string, meta?: { projectId?: string | null; dueDate?: string | null; priority?: Priority }) => Promise<boolean>
   updateInboxItem: (id: string, patch: Partial<InboxItem>) => void
   dismissInboxItem: (id: string) => void
   convertInboxItem: (id: string) => Promise<Task | null>
@@ -74,7 +74,7 @@ export interface WorkspaceActions {
   updateProject: (id: string, patch: ProjectMutationPatch) => Promise<boolean>
   deleteProject: (id: string) => Promise<boolean>
   pushRecent: (item: Omit<RecentItem, 'at'>) => void
-  resetWorkspace: () => void
+  resetWorkspace: () => Promise<boolean>
   exportJson: () => string
   signOut: () => void
 }

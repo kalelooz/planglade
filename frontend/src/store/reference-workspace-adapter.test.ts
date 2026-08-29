@@ -23,7 +23,8 @@ describe('reference workspace adapter', () => {
     adapter.save({ ...fixture(), workspaceName: 'Saved' })
     expect(adapter.load().workspaceName).toBe('Saved')
     expect(adapter.reset().workspaceName).toBe('Local')
-    expect(values.size).toBe(0)
+    expect(adapter.load().workspaceName).toBe('Local')
+    expect(values.size).toBe(1)
   })
 
   it('rejects partial persisted state before the provider reads required fields', () => {
