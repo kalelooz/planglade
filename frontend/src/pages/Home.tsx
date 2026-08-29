@@ -16,13 +16,14 @@ import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { WORKSPACE_PATHS, workspaceNotePath, workspaceProjectPath } from '@/lib/workspace-routes'
+import { useSubmissionLifecycle } from '@/lib/use-submission-lifecycle'
 
 export default function Home() {
   const ws = useWorkspace()
   const navigate = useNavigate()
   const { openTask } = useTaskDrawer()
   const [captureText, setCaptureText] = useState('')
-  const [captureSaving, setCaptureSaving] = useState(false)
+  const { invalidate: invalidateCapture, pending: captureSaving, submit: submitCaptureOperation } = useSubmissionLifecycle()
   const [showUpcoming, setShowUpcoming] = useState(true)
   const [showProjects, setShowProjects] = useState(true)
   const hideCompleted = ws.state.settings.hideHomeCompleted
@@ -80,13 +81,15 @@ export default function Home() {
   )
 
   const submitCapture = async () => {
-    if (!ws.canMutateTasks || captureSaving) return
-    const v = captureText.trim()
-    if (!v) return
-    setCaptureSaving(true)
-    const saved = await ws.capture(v)
-    setCaptureSaving(false)
-    if (saved || ws.mode.kind === 'reference') setCaptureText('')
+    if (!ws.canMutateTasks) return
+    const text = captureText.trim()
+    if (!text) return
+    await submitCaptureOperation(
+      { text },
+      (submission) => ws.capture(submission.text),
+      Boolean,
+      () => setCaptureText(''),
+    )
   }
 
   const hour = new Date().getHours()
@@ -148,7 +151,10 @@ export default function Home() {
           <InboxIcon className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
           <Input
             value={captureText}
-            onChange={(e) => setCaptureText(e.target.value)}
+            onChange={(e) => {
+              invalidateCapture()
+              setCaptureText(e.target.value)
+            }}
             onKeyDown={(e) => e.key === 'Enter' && submitCapture()}
             disabled={!ws.canMutateTasks || captureSaving}
             placeholder={ws.canMutateTasks ? 'Capture something - organize it later' : 'Task capture is read-only in API mode'}

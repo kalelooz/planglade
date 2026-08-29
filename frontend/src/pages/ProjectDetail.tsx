@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, FolderOpen, Plus, StickyNote, Flag, Trash2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { addDays, format, parseISO, startOfDay } from 'date-fns'
 import { useWorkspace } from '@/store/workspace'
 import { PROJECT_STATUS_LABELS, type ProjectStatus, type Task } from '@/types'
@@ -20,6 +19,9 @@ import { ProjectColorField, ProjectDateField, ProjectIconField } from '@/compone
 import { DEFAULT_PROJECT_COLOR, editableProjectColor } from '@/lib/project-fields'
 import { inferProjectIcon, projectIcon, type ProjectIconName } from '@/lib/project-icons'
 import { WORKSPACE_PATHS, workspaceNotePath } from '@/lib/workspace-routes'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+const PROJECT_TABS = ['overview', 'tasks', 'notes', 'calendar'] as const
 
 function ProjectCalendar({ tasks }: { tasks: Task[] }) {
   const today = startOfDay(new Date())
@@ -83,7 +85,7 @@ function ProjectCalendar({ tasks }: { tasks: Task[] }) {
           </div>
         )}
         {weeks < 12 && (
-          <button onClick={() => setWeeks((w) => w + 4)} className="mt-3 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors px-2">
+          <button onClick={() => setWeeks((w) => w + 4)} className="mt-3 min-h-11 px-2 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground lg:min-h-0">
             Show further out
           </button>
         )}
@@ -122,7 +124,8 @@ export default function ProjectDetail() {
   const [savingProject, setSavingProject] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deletingProject, setDeletingProject] = useState(false)
-  const tab = searchParams.get('tab') ?? 'overview'
+  const tabParam = searchParams.get('tab')
+  const tab = PROJECT_TABS.find((value) => value === tabParam) ?? 'overview'
 
   useEffect(() => {
     if (project) ws.pushRecent({ type: 'project', id: project.id })
@@ -154,10 +157,11 @@ export default function ProjectDetail() {
   const done = tasks.filter((t) => t.status === 'done')
 
   const addTask = () => {
-    const v = newTaskTitle.trim()
-    if (!v) return
-    ws.addTask({ title: v, projectId: project.id, status: 'planned' })
-    setNewTaskTitle('')
+    const value = newTaskTitle.trim()
+    if (!value) return
+    void ws.addTask({ title: value, projectId: project.id, status: 'planned' }).then((created) => {
+      if (created) setNewTaskTitle((current) => current.trim() === value ? '' : current)
+    })
   }
   const openEdit = () => {
     setDraftName(project.name)
@@ -202,7 +206,7 @@ export default function ProjectDetail() {
 
   return (
     <PageContainer width="wide" className="py-6 sm:py-8">
-      <button onClick={() => navigate(WORKSPACE_PATHS.projects)} className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors mb-3 -ml-1 px-1 py-0.5 rounded">
+      <button onClick={() => navigate(WORKSPACE_PATHS.projects)} className="inline-flex min-h-11 items-center gap-1.5 text-[12.5px] lg:min-h-0 text-muted-foreground hover:text-foreground transition-colors mb-3 -ml-1 px-1 py-0.5 rounded">
         <ArrowLeft className="h-3.5 w-3.5" /> All projects
       </button>
 
@@ -222,7 +226,7 @@ export default function ProjectDetail() {
               </p>
             )}
           </div>
-          {ws.canMutateTasks && <button onClick={openEdit} className="h-8 px-3 rounded-md border border-input bg-card text-[13px] hover:bg-accent transition-colors">Edit project</button>}
+          {ws.canMutateTasks && <button onClick={openEdit} className="h-11 rounded-md border border-input px-3 lg:h-8 bg-card text-[13px] hover:bg-accent transition-colors">Edit project</button>}
         </div>
       </header>
 
@@ -267,11 +271,11 @@ export default function ProjectDetail() {
               </div>
             </details>
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setConfirmDelete(true)} className="mr-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm text-destructive transition-colors hover:bg-destructive/10" disabled={savingProject || deletingProject}>
+              <button type="button" onClick={() => setConfirmDelete(true)} className="mr-auto inline-flex h-11 items-center lg:h-8 gap-1.5 rounded-md px-2 text-sm text-destructive transition-colors hover:bg-destructive/10" disabled={savingProject || deletingProject}>
                 <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete project
               </button>
-              <button type="button" onClick={() => setEditOpen(false)} className="h-8 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">Cancel</button>
-              <button type="submit" disabled={savingProject} aria-busy={savingProject} className="h-8 px-3 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">{savingProject ? 'Saving…' : 'Save changes'}</button>
+              <button type="button" onClick={() => setEditOpen(false)} className="h-11 rounded-md px-3 lg:h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">Cancel</button>
+              <button type="submit" disabled={savingProject} aria-busy={savingProject} className="h-11 rounded-md px-3 lg:h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">{savingProject ? 'Saving…' : 'Save changes'}</button>
             </div>
           </form>
         </DialogContent>
@@ -294,32 +298,24 @@ export default function ProjectDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div>
-        <div role="tablist" aria-label="Project sections" className="flex gap-1 border-b border-border">
-          {(['overview', 'tasks', 'notes', 'calendar'] as const).map((t) => (
-            <button
+      <Tabs value={tab} onValueChange={(value) => setSearchParams({ tab: value }, { replace: true })} className="gap-0">
+        <TabsList aria-label="Project sections" className="flex h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
+          {PROJECT_TABS.map((t) => (
+            <TabsTrigger
               key={t}
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setSearchParams({ tab: t }, { replace: true })}
-              className={cn(
-                'px-3 pb-2 pt-1 text-[13px] capitalize border-b-2 -mb-px transition-colors',
-                tab === t
-                  ? 'border-foreground text-foreground font-medium'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
+              value={t}
+              className="-mb-px h-11 flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 pb-2 pt-1 text-[13px] font-normal capitalize text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none lg:h-8 dark:data-[state=active]:bg-transparent"
             >
               {t}
               {t === 'tasks' && open.length > 0 && <CountBadge className="ml-1.5" count={open.length} label={`${open.length} open tasks`} />}
               {t === 'notes' && notes.length > 0 && <CountBadge className="ml-1.5" count={notes.length} label={`${notes.length} notes`} />}
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
+        </TabsList>
 
-        {tab === 'overview' && <div className="mt-6"><TaskOverview tasks={tasks} /></div>}
+        <TabsContent value="overview" className="mt-6"><TaskOverview tasks={tasks} /></TabsContent>
 
-        {tab === 'tasks' && (
-        <div className="mt-6">
+        <TabsContent value="tasks" className="mt-6">
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -333,7 +329,7 @@ export default function ProjectDetail() {
               onChange={(e) => setNewTaskTitle(e.target.value)}
               placeholder={`Add a task to ${project.name}`}
               aria-label="Add a task to this project"
-              className="flex-1 bg-transparent h-10 text-[14px] outline-none placeholder:text-muted-foreground/60"
+              className="flex-1 bg-transparent h-10 text-[14px] outline-none placeholder:text-muted-foreground"
             />
           </form>
           {tasks.length === 0 ? (
@@ -359,15 +355,13 @@ export default function ProjectDetail() {
               )}
             </>
           )}
-        </div>
-        )}
+        </TabsContent>
 
-        {tab === 'notes' && (
-        <div className="mt-6">
+        <TabsContent value="notes" className="mt-6">
           {ws.canMutateNotes && <div className="flex justify-end mb-3">
             <button
               onClick={() => { void ws.addNote({ title: 'Untitled note', projectId: project.id }).then((note) => note && navigate(workspaceNotePath(note.id))) }}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="inline-flex h-11 items-center gap-1.5 px-3 lg:h-8 rounded-md text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" /> New note
             </button>
@@ -377,7 +371,7 @@ export default function ProjectDetail() {
           ) : (
             <div className="border-y border-border/60 divide-y divide-border/60">
               {notes.map((n) => (
-                <button key={n.id} onClick={() => navigate(workspaceNotePath(n.id))} className="w-full text-left px-2 py-2.5 hover:bg-accent/60 rounded-md transition-colors">
+                <button key={n.id} onClick={() => navigate(workspaceNotePath(n.id))} className="min-h-11 w-full px-2 py-2.5 text-left hover:bg-accent/60 rounded-md transition-colors">
                   <p className="pg-item-title truncate">{n.title}</p>
                   <p className="pg-meta mt-0.5 truncate">
                     {/* eslint-disable-next-line no-useless-escape */}
@@ -387,15 +381,12 @@ export default function ProjectDetail() {
               ))}
             </div>
           )}
-        </div>
-        )}
+        </TabsContent>
 
-        {tab === 'calendar' && (
-        <div className="mt-6">
+        <TabsContent value="calendar" className="mt-6">
           <ProjectCalendar tasks={tasks} />
-        </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </PageContainer>
   )
 }

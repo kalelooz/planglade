@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Search, SlidersHorizontal, Plus, ArrowUpDown, CheckSquare, X, Rows3,
 } from 'lucide-react'
@@ -34,6 +34,7 @@ import {
   InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput,
 } from '@/components/ui/input-group'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const QUICK_FILTERS: { key: QuickFilter; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -80,7 +81,7 @@ function NewTaskDialog({
               dueDate: dueDate || null,
             })
             setSaving(false)
-            if (saved || ws.mode.kind === 'reference') onOpenChange(false)
+            if (saved) onOpenChange(false)
           }}
           className="space-y-3"
         >
@@ -90,11 +91,11 @@ function NewTaskDialog({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What needs doing?"
             aria-label="Task title"
-            className="w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground/60 py-1"
+            className="w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground py-1"
           />
           <div className="flex gap-2 flex-wrap">
             <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="h-8 text-[13px] w-auto min-w-[130px]" aria-label="Project">
+              <SelectTrigger className="h-11 text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8 w-auto min-w-[130px]" aria-label="Project">
                 <SelectValue placeholder="No project" />
               </SelectTrigger>
               <SelectContent>
@@ -105,7 +106,7 @@ function NewTaskDialog({
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)} disabled={saving}>
-              <SelectTrigger className="h-8 text-[13px] w-auto" aria-label="Status">
+              <SelectTrigger className="h-11 text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8 w-auto" aria-label="Status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -115,7 +116,7 @@ function NewTaskDialog({
               </SelectContent>
             </Select>
             <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)} disabled={saving}>
-              <SelectTrigger className="h-8 text-[13px] w-auto" aria-label="Priority">
+              <SelectTrigger className="h-11 text-[13px] data-[size=default]:h-11 lg:h-8 lg:data-[size=default]:h-8 w-auto" aria-label="Priority">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -132,15 +133,15 @@ function NewTaskDialog({
                 onChange={(e) => setDueDate(e.target.value)}
                 disabled={saving}
                 aria-label="Due date"
-                className="h-8 rounded-md border border-input bg-card px-2 text-[13px] text-foreground outline-none focus:ring-1 focus:ring-ring"
+                className="h-11 rounded-md border border-input bg-card px-2 lg:h-8 text-[13px] text-foreground outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" disabled={saving} onClick={() => onOpenChange(false)} className="h-8 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40">
+            <button type="button" disabled={saving} onClick={() => onOpenChange(false)} className="h-11 rounded-md px-3 lg:h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40">
               Cancel
             </button>
-            <button type="submit" disabled={!title.trim() || saving} aria-busy={saving} className="h-8 px-3 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
+            <button type="submit" disabled={!title.trim() || saving} aria-busy={saving} className="h-11 rounded-md px-3 lg:h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
               {saving ? 'Creating…' : 'Create task'}
             </button>
           </div>
@@ -152,6 +153,7 @@ function NewTaskDialog({
 
 export default function Tasks() {
   const ws = useWorkspace()
+  const reducedMotion = useReducedMotion()
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -193,6 +195,7 @@ export default function Tasks() {
     now: planningDay,
   }), [planningDay, presentation, ws.isBlocked, ws.projects, ws.tasks])
   const { tasks: filtered, groups, counts: taskCounts } = projection
+  const visibleFields = new Set(presentation.fields)
 
   const activeFilterCount = quick.size + projectFilter.size + priorityFilter.size
 
@@ -216,7 +219,7 @@ export default function Tasks() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col flex-1 min-h-0 overflow-x-hidden">
+    <Tabs value={view} onValueChange={(value) => chooseBuiltInView(value as TaskView)} className="flex w-full min-w-0 flex-col flex-1 min-h-0 gap-0 overflow-x-hidden">
       <PageContainer width="standard" className="pt-5 sm:pt-7">
         <header className="mb-5">
           <div className="flex items-center gap-3">
@@ -244,18 +247,16 @@ export default function Tasks() {
           </dl>
 
           <div className="mt-4 flex min-w-0 flex-wrap items-center gap-1.5 overflow-x-hidden rounded-2xl border border-border/60 bg-card/80 p-1.5 shadow-[0_1px_2px_hsl(var(--foreground)/0.04),0_12px_32px_hsl(var(--foreground)/0.035)] backdrop-blur">
-            <div className="grid w-full flex-none grid-cols-3 gap-1 sm:w-auto sm:flex sm:shrink-0 sm:items-center" role="tablist" aria-label="Task view">
+            <TabsList className="grid h-auto w-full flex-none grid-cols-3 gap-1 rounded-none bg-transparent p-0 sm:w-auto sm:flex sm:shrink-0 sm:items-center" aria-label="Task view">
               {TASK_VIEW_CATALOG.map((item) => {
                 const Icon = item.icon
                 const selected = view === item.view
                 return (
-                  <button
+                  <TabsTrigger
                     key={item.view}
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => chooseBuiltInView(item.view)}
+                    value={item.view}
                     className={cn(
-                      'relative isolate inline-flex h-11 min-w-0 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[12px] transition-[color,transform] duration-200 active:scale-[0.96] motion-reduce:active:scale-100 sm:shrink-0 lg:h-8',
+                      'relative isolate h-11 min-w-0 flex-none overflow-hidden rounded-xl border-0 bg-transparent px-1.5 text-[12px] font-normal shadow-none transition-[color,transform] duration-200 active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 sm:shrink-0 lg:h-8 data-[state=active]:bg-transparent data-[state=active]:text-background data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent',
                       selected ? 'text-background' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -263,14 +264,14 @@ export default function Tasks() {
                       <motion.span
                         layoutId="task-view-active-pill"
                         className="absolute inset-0 rounded-xl bg-foreground shadow-[0_6px_18px_hsl(var(--foreground)/0.16)]"
-                        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }}
+                        transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }}
                       />
                     )}
                     <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden /> <span className="relative z-10 truncate">{item.label}</span>
-                  </button>
+                  </TabsTrigger>
                 )
               })}
-            </div>
+            </TabsList>
             <InputGroup className="h-11 w-full min-w-[8.5rem] flex-1 border-input bg-background/80 shadow-none sm:w-[132px] sm:flex-none lg:h-8 xl:w-[160px]">
             <InputGroupAddon className="pl-2.5 pr-0">
               <Search className="h-3.5 w-3.5" aria-hidden />
@@ -280,10 +281,10 @@ export default function Tasks() {
               onChange={(e) => updatePresentation({ search: e.target.value }, true)}
               placeholder="Search tasks"
               aria-label="Search tasks"
-              className="h-11 px-2 text-[13px] placeholder:text-muted-foreground/60 lg:h-8"
+              className="h-11 px-2 text-[13px] placeholder:text-muted-foreground lg:h-8"
             />
             {search && (
-              <InputGroupButton type="button" size="icon-sm" onClick={() => updatePresentation({ search: '' })} aria-label="Clear search" className="mr-0.5 text-muted-foreground hover:text-foreground">
+              <InputGroupButton type="button" size="icon-sm" onClick={() => updatePresentation({ search: '' })} aria-label="Clear search" className="mr-0.5 size-11 text-muted-foreground hover:text-foreground lg:size-7">
                 <X className="h-3 w-3" />
               </InputGroupButton>
             )}
@@ -406,7 +407,7 @@ export default function Tasks() {
       </PageContainer>
 
       {/* Content */}
-      {view === 'list' ? (
+      <TabsContent value="list" className="m-0">
         <PageContainer width="standard" className="pb-10" data-task-list-region>
           <div className="mx-auto w-full max-w-[960px]" data-task-list-surface>
             {filtered.length === 0 ? (
@@ -446,12 +447,13 @@ export default function Tasks() {
                       {g.tasks.map((t) => (
                         <motion.div
                           key={t.id}
-                          initial={{ opacity: 0, y: -3 }}
+                          initial={reducedMotion ? false : { opacity: 0, y: -3 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -2 }}
-                          transition={{ duration: 0.16, ease: 'easeOut', layout: { duration: 0.18, ease: 'easeOut' } }}
+                          exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -2 }}
+                          transition={reducedMotion ? { duration: 0 } : { duration: 0.16, ease: 'easeOut', layout: { duration: 0.18, ease: 'easeOut' } }}
+                          className="motion-reduce:transform-none"
                         >
-                          <TaskRow task={t} showStatus listMobileLayout compact={presentation.density === 'compact'} visibleFields={new Set(presentation.fields)} />
+                          <TaskRow task={t} showStatus listMobileLayout compact={presentation.density === 'compact'} visibleFields={visibleFields} />
                         </motion.div>
                       ))}
                     </AnimatePresence>
@@ -461,19 +463,21 @@ export default function Tasks() {
             )}
           </div>
         </PageContainer>
-      ) : view === 'board' ? (
+      </TabsContent>
+      <TabsContent value="board" className="m-0 flex min-h-0 flex-1 flex-col">
         <div className="flex w-full min-w-0 flex-1 min-h-0 flex-col overflow-hidden">
           {filtered.length === 0 ? (
             <PageContainer width="wide">
               <EmptyState icon={<CheckSquare className="h-7 w-7" />} title="No tasks match" hint="Try widening the filters." />
             </PageContainer>
           ) : (
-            <Board tasks={filtered} onAddTask={(s) => openNew(s)} density={presentation.density} visibleFields={new Set(presentation.fields)} />
+            <Board tasks={filtered} onAddTask={(s) => openNew(s)} density={presentation.density} visibleFields={visibleFields} />
           )}
         </div>
-      ) : (
+      </TabsContent>
+      <TabsContent value="timeline" className="m-0">
         <TaskTimeline tasks={filtered} />
-      )}
+      </TabsContent>
 
       <NewTaskDialog
         key={`${newTaskDialogOpen}-${newStatus}`}
@@ -484,6 +488,6 @@ export default function Tasks() {
         }}
         defaultStatus={newStatus}
       />
-    </div>
+    </Tabs>
   )
 }

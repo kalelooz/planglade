@@ -27,4 +27,18 @@ describe('task mutation queue', () => {
       { id: 'task-1', patch: { status: 'planned' } },
     ])
   })
+
+  it('continues a task queue after a failed mutation', async () => {
+    const run = vi.fn()
+      .mockRejectedValueOnce(new Error('failed save'))
+      .mockResolvedValueOnce(true)
+    const queue = createTaskMutationQueue(run)
+
+    const failed = queue('task-1', { status: 'done' })
+    const recovered = queue('task-1', { status: 'planned' })
+
+    await expect(failed).rejects.toThrow('failed save')
+    await expect(recovered).resolves.toBe(true)
+    expect(run).toHaveBeenCalledTimes(2)
+  })
 })

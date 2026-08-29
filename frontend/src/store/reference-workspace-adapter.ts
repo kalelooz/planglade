@@ -22,12 +22,13 @@ function isWorkspaceState(value: unknown): value is WorkspaceState {
 export interface ReferenceWorkspaceAdapter {
   load(): WorkspaceState
   save(state: WorkspaceState): void
+  fresh(): WorkspaceState
   reset(): WorkspaceState
   nextId(prefix: string): string
 }
 
 export function createReferenceWorkspaceAdapter(
-  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
+  storage: Pick<Storage, 'getItem' | 'setItem'>,
   createSeed: () => WorkspaceState = seedWorkspace,
 ): ReferenceWorkspaceAdapter {
   return {
@@ -46,9 +47,13 @@ export function createReferenceWorkspaceAdapter(
     save(state) {
       storage.setItem(STORAGE_KEY, JSON.stringify(state))
     },
-    reset() {
-      storage.removeItem(STORAGE_KEY)
+    fresh() {
       return createSeed()
+    },
+    reset() {
+      const state = createSeed()
+      storage.setItem(STORAGE_KEY, JSON.stringify(state))
+      return state
     },
     nextId(prefix) {
       return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`

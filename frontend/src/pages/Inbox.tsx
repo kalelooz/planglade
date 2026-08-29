@@ -17,6 +17,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import type { InboxItem, Priority } from '@/types'
+import { useSubmissionLifecycle } from '@/lib/use-submission-lifecycle'
 
 function InboxRow({
   item,
@@ -39,7 +40,7 @@ function InboxRow({
     >
       <SelectTrigger
         aria-label="Assign project"
-        className="h-8 min-w-0 max-w-[128px] data-[size=default]:h-8 overflow-hidden rounded-md border-0 bg-transparent px-1.5 text-[12.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden"
+        className="h-11 min-w-0 max-w-[128px] overflow-hidden rounded-md lg:h-8 data-[size=default]:h-11 lg:data-[size=default]:h-8 border-0 bg-transparent px-1.5 text-[12.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden"
       >
         <FolderOpen className="h-3.5 w-3.5 shrink-0" />
         <span className="min-w-0 truncate"><SelectValue placeholder="Project" /></span>
@@ -61,8 +62,8 @@ function InboxRow({
             <button
               aria-label="Set due date"
               className={cn(
-                'inline-flex h-8 max-w-[112px] items-center gap-1 rounded-md px-1.5 text-[12.5px] transition-colors hover:bg-accent',
-                item.dueDate ? 'text-foreground' : 'text-muted-foreground/70',
+                'inline-flex h-11 max-w-[112px] items-center lg:h-8 gap-1 rounded-md px-1.5 text-[12.5px] transition-colors hover:bg-accent',
+                item.dueDate ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
               <CalendarDays className="h-3.5 w-3.5 shrink-0" />
@@ -87,7 +88,7 @@ function InboxRow({
     <Select value={item.priority} onValueChange={(v) => ws.updateInboxItem(item.id, { priority: v as Priority })}>
       <SelectTrigger
         aria-label="Set priority"
-        className={cn('h-8 max-w-[90px] data-[size=default]:h-8 overflow-hidden rounded-md border-0 bg-transparent px-1.5 text-[12.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden', priorityStyles[item.priority])}
+        className={cn('h-11 max-w-[90px] overflow-hidden rounded-md lg:h-8 data-[size=default]:h-11 lg:data-[size=default]:h-8 border-0 bg-transparent px-1.5 text-[12.5px] shadow-none hover:bg-accent focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--ring))] [&>svg:last-child]:hidden', priorityStyles[item.priority])}
       >
         <Flag className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden truncate sm:inline"><SelectValue /></span>
@@ -113,7 +114,7 @@ function InboxRow({
             })
           }}
           aria-label={`Convert "${item.text}" to task`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground transition-[background-color,transform] hover:bg-primary/90 active:scale-[0.96] sm:w-auto sm:px-2.5 sm:gap-1.5 sm:text-[12px] sm:font-medium"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-primary lg:h-9 lg:w-9 text-primary-foreground transition-[background-color,transform] hover:bg-primary/90 active:scale-[0.96] sm:w-auto sm:px-2.5 sm:gap-1.5 sm:text-[12px] sm:font-medium"
         >
           <CheckSquare className="h-3.5 w-3.5 shrink-0" />
           <span className="hidden sm:inline truncate">Convert</span>
@@ -129,7 +130,7 @@ function InboxRow({
         <button
           onClick={() => setConfirmDismiss(true)}
           aria-label={`Dismiss "${item.text}"`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors lg:h-9 lg:w-9 hover:bg-accent hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -162,12 +163,12 @@ function InboxRow({
       className={cn(
         'group grid items-start gap-x-2.5 px-3 py-3 transition-colors sm:gap-x-3',
         selectable
-          ? 'grid-cols-[28px_minmax(0,1fr)_auto] sm:grid-cols-[24px_minmax(0,1fr)_auto]'
+          ? 'grid-cols-[44px_minmax(0,1fr)_auto] lg:grid-cols-[24px_minmax(0,1fr)_auto]'
           : 'grid-cols-[minmax(0,1fr)_auto]',
         selected ? 'bg-accent/70' : 'hover:bg-accent/40',
       )}
     >
-      {selectable && <label className="inline-flex h-8 items-center justify-center pt-0.5">
+      {selectable && <label className="inline-flex h-11 w-11 items-center justify-center pt-0.5 lg:h-8 lg:w-auto">
         <input
           type="checkbox"
           checked={selected}
@@ -209,7 +210,7 @@ export default function Inbox() {
   const canBulkEdit = ws.canMutateTasks
   const [text, setText] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [saving, setSaving] = useState(false)
+  const { invalidate: invalidateCapture, pending: saving, submit: submitCapture } = useSubmissionLifecycle()
   const [confirmBulkDismiss, setConfirmBulkDismiss] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -227,16 +228,17 @@ export default function Inbox() {
   const clearSelection = () => setSelected(new Set())
 
   const capture = () => {
-    const v = text.trim()
-    if (!v) return
-    setSaving(true)
-    void ws.capture(v).then((task) => {
-      setSaving(false)
-      if (task) {
+    const value = text.trim()
+    if (!value) return
+    void submitCapture(
+      { text: value },
+      (submission) => ws.capture(submission.text),
+      Boolean,
+      () => {
         setText('')
         inputRef.current?.focus()
-      }
-    })
+      },
+    )
   }
 
   const selectedIds = useMemo(() => Array.from(selected).filter((id) => items.some((i) => i.id === id)), [selected, items])
@@ -263,10 +265,13 @@ export default function Inbox() {
           <Input
             ref={inputRef}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              invalidateCapture()
+              setText(e.target.value)
+            }}
             placeholder="What's on your mind?"
             aria-label="Capture to inbox"
-            className="flex-1 h-11 border-0 bg-transparent px-0 text-[14px] shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-0"
+            className="flex-1 h-11 border-0 bg-transparent px-0 text-[14px] shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
           />
           {text.trim() && (
             <Button type="submit" size="sm" variant="ghost" disabled={saving} aria-busy={saving} className="h-11 lg:h-8 px-2 text-[13px] font-medium text-foreground disabled:opacity-50">
@@ -330,7 +335,7 @@ export default function Inbox() {
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-[0_1px_2px_hsl(240_8%_10%/0.04)]">
           <div className="flex min-h-10 items-center gap-3 border-b border-border bg-muted/30 px-3 py-2">
-            {canBulkEdit && <label className="inline-flex h-6 items-center justify-center">
+            {canBulkEdit && <label className="inline-flex h-11 w-11 items-center justify-center lg:h-6 lg:w-auto">
               <input
                 type="checkbox"
                 checked={allSelected}

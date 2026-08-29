@@ -244,7 +244,8 @@
 .md-preview th { @apply border-b border-border text-left py-1.5 pr-4 font-medium text-muted-foreground; }
 .md-preview td { @apply border-b border-border/60 py-1.5 pr-4 align-top; }
 .md-preview hr { @apply my-4 border-border; }
-.md-preview input[type="checkbox"] { @apply mr-1.5 align-middle; }
+.md-preview .md-task-list-item { list-style: none; }
+.md-preview input[type="checkbox"] { @apply mr-1.5 align-middle accent-foreground; }
 .md-preview u { @apply underline underline-offset-2; }
 
 /* Marketing landing page: scoped to avoid changing workspace density or behavior. */

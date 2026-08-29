@@ -8,7 +8,7 @@ import { acceptWorkspaceInvite, previewWorkspaceInvite, type WorkspaceInviteRevi
 import { ApiError } from '@/lib/api/errors'
 import { normalizeWorkspaceDestination } from '@/lib/auth-destination'
 
-type ReviewState = 'loading' | 'ready' | 'authentication-required' | 'unavailable'
+type ReviewState = 'loading' | 'ready' | 'authentication-required' | 'unavailable' | 'temporary-error'
 type ReviewResult = { token: string; state: Exclude<ReviewState, 'loading'>; review: WorkspaceInviteReview | null }
 
 function roleDescription(role: WorkspaceInviteReview['role']) {
@@ -23,8 +23,9 @@ export default function InvitationReview() {
   const inviteToken = params.get('inviteToken')
   const destination = normalizeWorkspaceDestination(params.get('next'))
   const [result, setResult] = useState<ReviewResult | null>(null)
+  const [previewAttempt, setPreviewAttempt] = useState(0)
   const [accepting, setAccepting] = useState(false)
-  const [acceptError, setAcceptError] = useState(false)
+  const [acceptError, setAcceptError] = useState<'temporary' | 'unavailable' | null>(null)
   const state: ReviewState = result?.token === inviteToken ? result.state : inviteToken ? 'loading' : 'unavailable'
   const review = result?.token === inviteToken ? result.review : null
   const loginHref = inviteToken
@@ -38,24 +39,34 @@ export default function InvitationReview() {
       .then((preview) => setResult({ token: inviteToken, state: 'ready', review: preview }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        setResult({
-          token: inviteToken,
-          state: error instanceof ApiError && error.kind === 'unauthenticated' ? 'authentication-required' : 'unavailable',
-          review: null,
-        })
+        const state = error instanceof ApiError && error.kind === 'unauthenticated'
+          ? 'authentication-required'
+          : !(error instanceof ApiError) || error.kind === 'temporary' || error.kind === 'unknown'
+            ? 'temporary-error'
+            : 'unavailable'
+        setResult({ token: inviteToken, state, review: null })
       })
     return () => controller.abort()
-  }, [inviteToken])
+  }, [inviteToken, previewAttempt])
+
+  function retryPreview() {
+    setResult(null)
+    setPreviewAttempt((attempt) => attempt + 1)
+  }
 
   async function accept() {
     if (!inviteToken || accepting || review?.alreadyAccepted) return
     setAccepting(true)
-    setAcceptError(false)
+    setAcceptError(null)
     try {
       await acceptWorkspaceInvite(inviteToken)
       window.location.assign(destination)
-    } catch {
-      setAcceptError(true)
+    } catch (error) {
+      setAcceptError(
+        !(error instanceof ApiError) || error.kind === 'temporary' || error.kind === 'unknown'
+          ? 'temporary'
+          : 'unavailable',
+      )
       setAccepting(false)
     }
   }
@@ -73,6 +84,14 @@ export default function InvitationReview() {
           <div className="mt-8 rounded-lg border border-border bg-card p-5">
             <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 text-muted-foreground" /><div><p className="text-sm font-semibold">Sign in to review safely</p><p className="mt-1 text-sm leading-6 text-muted-foreground">Use the exact email address that received the invitation. Signing in still does not accept it.</p></div></div>
             <Button asChild size="lg" className="mt-5 w-full"><Link to={loginHref}>Sign in to review invitation</Link></Button>
+          </div>
+        )}
+
+        {state === 'temporary-error' && (
+          <div role="alert" className="mt-8 rounded-lg border border-border bg-muted/45 p-5">
+            <p className="text-sm font-semibold">This invitation could not be checked</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">PlanGlade could not reach the invitation service. Your access has not changed.</p>
+            <Button type="button" className="mt-5 h-11 w-full" onClick={retryPreview}>Try again</Button>
           </div>
         )}
 
@@ -96,7 +115,7 @@ export default function InvitationReview() {
             {review.customMessage && <div className="border-t border-border bg-muted/20 px-5 py-4"><p className="text-xs font-medium text-muted-foreground">Message from the inviter</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6">{review.customMessage}</p></div>}
             <div className="border-t border-border p-5">
               <p className="text-xs leading-5 text-muted-foreground">Access is granted only after you press Accept invitation. If this was sent by mistake, choose Not now.</p>
-              {acceptError && <p role="alert" className="mt-3 text-sm text-destructive">The invitation could not be accepted. It may have changed or expired.</p>}
+              {acceptError && <p role="alert" className="mt-3 text-sm text-destructive">{acceptError === 'temporary' ? 'The invitation service could not be reached. Try accepting again.' : 'The invitation could not be accepted. It may have changed or expired.'}</p>}
               <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button asChild variant="outline" className="h-11 sm:h-9"><Link to="/auth/login">Not now</Link></Button>{review.alreadyAccepted ? <Button asChild className="h-11 sm:h-9"><Link to={destination}>Continue to workspace</Link></Button> : <Button type="button" className="h-11 sm:h-9" disabled={accepting} onClick={() => void accept()}>{accepting && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}{accepting ? 'Joining…' : 'Accept invitation'}</Button>}</div>
             </div>
           </div>

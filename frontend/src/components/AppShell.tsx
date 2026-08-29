@@ -14,7 +14,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -254,7 +254,7 @@ export default function AppShell() {
   const toggleCollapse = () => setCollapsed((c) => !c)
 
   return (
-    <TooltipProvider delayDuration={350}>
+    <>
       <div className="min-h-dvh bg-background flex">
         {/* Desktop sidebar */}
         <aside
@@ -471,7 +471,7 @@ export default function AppShell() {
           </main>
         </div>
       </div>
-      <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
-    </TooltipProvider>
+      <Toaster theme={ws.state.settings.theme} position="bottom-right" toastOptions={{ duration: 4000 }} />
+    </>
   )
 }

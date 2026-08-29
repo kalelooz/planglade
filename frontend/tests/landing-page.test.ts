@@ -46,6 +46,8 @@ describe('marketing landing page', () => {
     expect(landing).toContain('<Dialog open={open}')
     expect(landing).toContain('<Tabs defaultValue="List"')
     expect(landing).toContain('<form onSubmit={captureTask}')
+    expect(landing).toContain('disabled={!captureText.trim()}')
+    expect(landing).toContain('if (!nextTask) return')
     expect(landing).toContain('parseCaptureInput(parserReadyInput(value), demoProjects)')
     expect(landing).toContain("state: 'Inbox'")
     expect(landing).not.toContain('task.assignee')
@@ -59,6 +61,29 @@ describe('marketing landing page', () => {
       due: 'Tomorrow',
       state: 'Inbox',
     })
+  })
+
+  it('does not fabricate structure for arbitrary or empty demo input', () => {
+    expect(parseLandingDemoInput('Buy milk')).toEqual({
+      title: 'Buy milk',
+      project: null,
+      due: null,
+      state: 'Inbox',
+    })
+    expect(parseLandingDemoInput('')).toBeNull()
+    expect(parseLandingDemoInput('   ')).toBeNull()
+  })
+
+  it('conditions every relationship view on parsed project and date data', async () => {
+    const ledger = await source('src/components/landing/LedgerDemo.tsx')
+
+    expect(ledger).toContain("task.project ?? 'No project'")
+    expect(ledger).toContain("task.due ?? 'No date'")
+    expect(ledger).toContain('No date set — not placed on the timeline.')
+    expect(ledger).toContain('No date set — not placed on the calendar.')
+    expect(ledger).toContain('No project or date connections yet.')
+    expect(ledger).toContain('{task.project && <path')
+    expect(ledger).toContain('{task.due && <path')
   })
 
   it('keeps the product film out of the document until the dialog opens', async () => {

@@ -34,6 +34,9 @@ const safe = true
     expect(html).toContain('href="https://example.test/path"')
     expect(html).toContain('type="checkbox"')
     expect(html).toContain('disabled=""')
+    expect(html).toContain('aria-label="Completed task item"')
+    expect(html).toContain('class="md-task-list-item"')
+    expect(html).not.toContain('aria-hidden="true"')
   })
 
   it('renders raw active HTML as text instead of browser elements', () => {

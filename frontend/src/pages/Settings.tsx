@@ -50,8 +50,8 @@ function ChoiceRow<T extends string>({
             <span
               className={
                 value === o.value
-                  ? 'inline-flex h-7 items-center rounded bg-accent px-2.5 text-[12.5px] font-medium text-foreground transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2'
-                  : 'inline-flex h-7 items-center rounded px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2'
+                  ? 'inline-flex h-11 items-center lg:h-7 rounded bg-accent px-2.5 text-[12.5px] font-medium text-foreground transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2'
+                  : 'inline-flex h-11 items-center lg:h-7 rounded px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2'
               }
             >
               {o.label}
@@ -70,6 +70,7 @@ export default function Settings() {
   const [exportPreview, setExportPreview] = useState('')
   const [exportPending, setExportPending] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+  const [resetPending, setResetPending] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [importPending, setImportPending] = useState(false)
   const [importSnapshot, setImportSnapshot] = useState<WorkspaceImportSnapshot | null>(null)
@@ -180,12 +181,12 @@ export default function Settings() {
                 onChange={(e) => setName(e.target.value)}
                 aria-label="Workspace name"
                 disabled={serverBacked && !ws.canManageWorkspace}
-                className="h-8 w-[180px] rounded-md border border-input bg-card px-2.5 text-[13px] outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+                className="h-11 w-[180px] rounded-md lg:h-8 border border-input bg-card px-2.5 text-[13px] outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
               />
               <button
                 onClick={() => name.trim() && void ws.setWorkspaceName(name.trim())}
                 disabled={!name.trim() || name.trim() === ws.state.workspaceName || (serverBacked && !ws.canManageWorkspace)}
-                className="h-8 px-3 rounded-md text-[13px] bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
+                className="h-11 px-3 rounded-md lg:h-8 text-[13px] bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
               >
                 Save
               </button>
@@ -257,10 +258,10 @@ export default function Settings() {
               </p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => void previewExport()} disabled={exportPending} className="h-8 px-3 rounded-md border border-input text-[13px] hover:bg-accent transition-colors disabled:opacity-40">
+              <button onClick={() => void previewExport()} disabled={exportPending} className="h-11 px-3 rounded-md lg:h-8 border border-input text-[13px] hover:bg-accent transition-colors disabled:opacity-40">
                 {exportPending ? 'Loading...' : 'Preview'}
               </button>
-              <button onClick={() => void download()} disabled={exportPending} className="h-8 px-3 rounded-md text-[13px] bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-40">
+              <button onClick={() => void download()} disabled={exportPending} className="h-11 px-3 rounded-md lg:h-8 text-[13px] bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-40">
                 <Download className="h-3.5 w-3.5" /> Download
               </button>
             </div>
@@ -273,7 +274,7 @@ export default function Settings() {
               </p>
               {importError && <p role="alert" className="mt-1 max-w-md text-pretty text-[12px] text-destructive">{importError}</p>}
             </div>
-            <label className="h-8 px-3 rounded-md border border-input text-[13px] hover:bg-accent transition-colors inline-flex items-center gap-1.5 cursor-pointer has-[:disabled]:opacity-40 has-[:disabled]:cursor-not-allowed">
+            <label className="h-11 px-3 rounded-md lg:h-8 border border-input text-[13px] hover:bg-accent transition-colors inline-flex items-center gap-1.5 cursor-pointer has-[:disabled]:opacity-40 has-[:disabled]:cursor-not-allowed">
               <Upload className="h-3.5 w-3.5" /> {importPending ? 'Checking…' : 'Choose file'}
               <input
                 type="file"
@@ -291,7 +292,7 @@ export default function Settings() {
             </div>
             <button
               onClick={() => setResetOpen(true)}
-              className="h-8 px-3 rounded-md text-[13px] text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors inline-flex items-center gap-1.5"
+              className="h-11 px-3 rounded-md lg:h-8 text-[13px] text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors inline-flex items-center gap-1.5"
             >
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </button>
@@ -305,7 +306,7 @@ export default function Settings() {
         <div className="border-y border-border/60 divide-y divide-border/60">
           <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <CircleUserRound className="h-8 w-8 text-muted-foreground/60" aria-hidden />
+              <CircleUserRound className="h-8 w-8 text-muted-foreground" aria-hidden />
               <div>
                 <p className="pg-item-title">{ws.state.userName}</p>
                 <p className="pg-meta mt-0.5 text-pretty">
@@ -315,7 +316,7 @@ export default function Settings() {
             </div>
             <button
               onClick={() => ws.signOut()}
-              className="h-8 px-3 rounded-md border border-input text-[13px] hover:bg-accent transition-colors inline-flex items-center gap-1.5"
+              className="h-11 px-3 rounded-md lg:h-8 border border-input text-[13px] hover:bg-accent transition-colors inline-flex items-center gap-1.5"
             >
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
@@ -338,10 +339,10 @@ export default function Settings() {
             {exportPreview.length > 4000 && '\n…'}
           </pre>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setExportOpen(false)} className="h-8 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            <button onClick={() => setExportOpen(false)} className="h-11 px-3 rounded-md lg:h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
               Close
             </button>
-            <button onClick={() => void download()} disabled={exportPending} className="h-8 px-3 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-40">
+            <button onClick={() => void download()} disabled={exportPending} className="h-11 px-3 rounded-md lg:h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-40">
               <Download className="h-3.5 w-3.5" /> Download
             </button>
           </div>
@@ -372,7 +373,9 @@ export default function Settings() {
       </AlertDialog>
 
       {/* Reset confirm */}
-      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+      <AlertDialog open={resetOpen} onOpenChange={(open) => {
+        if (!resetPending) setResetOpen(open)
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Reset the workspace?</AlertDialogTitle>
@@ -381,15 +384,23 @@ export default function Settings() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep my data</AlertDialogCancel>
+            <AlertDialogCancel disabled={resetPending}>Keep my data</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                ws.resetWorkspace()
-                setName(seedWorkspace().workspaceName)
+              disabled={resetPending}
+              onClick={async (event) => {
+                event.preventDefault()
+                if (resetPending) return
+                setResetPending(true)
+                const saved = await ws.resetWorkspace()
+                setResetPending(false)
+                if (saved) {
+                  setName(seedWorkspace().workspaceName)
+                  setResetOpen(false)
+                }
               }}
             >
-              Reset everything
+              {resetPending ? 'Resetting…' : 'Reset everything'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

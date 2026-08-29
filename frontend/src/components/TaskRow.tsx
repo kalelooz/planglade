@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router'
 import { cn } from '@/lib/utils'
 import type { Task } from '@/types'
@@ -12,6 +12,10 @@ import {
 import { daysFromToday } from '@/lib/dates'
 import { CheckCheck, CalendarDays, Flag, FolderInput, Trash2 } from 'lucide-react'
 import { workspaceProjectPath } from '@/lib/workspace-routes'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export function TaskRow({
   task,
@@ -43,6 +47,9 @@ export function TaskRow({
   const blocking = !done && ws.tasks.some((candidate) => candidate.status !== 'done' && candidate.dependsOn.includes(task.id))
   const selected = openTaskId === task.id
   const priorityOptions: Task['priority'][] = ws.supportsNoPriority ? ['high', 'medium', 'low', 'none'] : ['high', 'medium', 'low']
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const taskButtonRef = useRef<HTMLButtonElement>(null)
   const field = (name: string) => !visibleFields || visibleFields.has(name)
   const hasMobileStatus = listMobileLayout && showStatus && field('status') && !done && task.status !== 'blocked'
   const hasMobileDue = field('dueDate') && !!task.dueDate
@@ -55,7 +62,15 @@ export function TaskRow({
     field('priority') ? '28px' : null,
   ].filter(Boolean).join(' ')
 
-  return (
+  const removeTask = async () => {
+    if (deleting || ws.taskMutationPending) return
+    setDeleting(true)
+    const deleted = await ws.deleteTask(task.id)
+    setDeleting(false)
+    if (deleted) setConfirmDelete(false)
+  }
+
+  return (<>
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
@@ -71,6 +86,7 @@ export function TaskRow({
           )}
         >
           <button
+            ref={taskButtonRef}
             type="button"
             onClick={(event) => openTask(task.id, event.currentTarget)}
             aria-label={`Task: ${task.title}${done ? ' (done)' : ''}${blocked && !done ? ' (blocked)' : ''}`}
@@ -165,11 +181,30 @@ export function TaskRow({
         </ContextMenuSub>
         {ws.canMutateTasks && <>
           <ContextMenuSeparator />
-          <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => void ws.deleteTask(task.id)} disabled={ws.taskMutationPending}>
+          <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirmDelete(true)} disabled={deleting || ws.taskMutationPending}>
             <Trash2 className="mr-2 h-4 w-4" /> Delete task
           </ContextMenuItem>
         </>}
       </ContextMenuContent>}
     </ContextMenu>
-  )
+    <AlertDialog open={confirmDelete} onOpenChange={(open) => { if (!deleting) setConfirmDelete(open) }}>
+      <AlertDialogContent onCloseAutoFocus={(event) => { event.preventDefault(); taskButtonRef.current?.focus() }}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete “{task.title}”?</AlertDialogTitle>
+          <AlertDialogDescription>This task will be permanently removed. This action cannot be undone.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Keep task</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={deleting || ws.taskMutationPending}
+            aria-busy={deleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={(event) => { event.preventDefault(); void removeTask() }}
+          >
+            {deleting ? 'Deleting…' : 'Delete task'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>)
 }

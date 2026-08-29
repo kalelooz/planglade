@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type FormEvent } from 'react'
+import { useId, useMemo, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageCircle, RefreshCw, Send } from 'lucide-react'
 
@@ -7,12 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { createWorkItemComment, getWorkItemComments, type WorkItemComment } from '@/lib/api/comments'
+import {
+  taskCommentInvalidationKeys,
+  type TaskCommentSubmission,
+} from '@/lib/task-comment-draft'
 
 export type TaskCommentsProps = {
   workspaceId: string
   taskId: string
   members: Array<{ id: string; name: string; role: string }>
   canComment: boolean
+  draftBody: string
+  onDraftChange: (body: string) => void
+  onDraftSubmitted: (submission: TaskCommentSubmission) => void
 }
 
 const commentsKey = (workspaceId: string, taskId: string) => ['task-comments', workspaceId, taskId] as const
@@ -31,23 +38,36 @@ function displayDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
-export function TaskComments({ workspaceId, taskId, members, canComment }: TaskCommentsProps) {
+export function TaskComments({
+  workspaceId,
+  taskId,
+  members,
+  canComment,
+  draftBody,
+  onDraftChange,
+  onDraftSubmitted,
+}: TaskCommentsProps) {
   const queryClient = useQueryClient()
   const composerId = useId()
-  const [body, setBody] = useState('')
+  const body = draftBody
   const query = useQuery({
     queryKey: commentsKey(workspaceId, taskId),
     queryFn: ({ signal }) => getWorkItemComments(workspaceId, taskId, signal),
     retry: false,
   })
   const mutation = useMutation({
-    mutationFn: (value: string) => createWorkItemComment(workspaceId, taskId, { body: value }),
+    mutationFn: (submission: TaskCommentSubmission) => createWorkItemComment(
+      submission.workspaceId,
+      submission.taskId,
+      { body: submission.body },
+    ),
     retry: false,
-    onSuccess: async () => {
-      setBody('')
+    onSuccess: async (_comment, submission) => {
+      onDraftSubmitted(submission)
+      const [submittedCommentsKey, submittedNotificationsKey] = taskCommentInvalidationKeys(submission)
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: commentsKey(workspaceId, taskId) }),
-        queryClient.invalidateQueries({ queryKey: ['notifications', workspaceId] }),
+        queryClient.invalidateQueries({ queryKey: submittedCommentsKey }),
+        queryClient.invalidateQueries({ queryKey: submittedNotificationsKey }),
       ])
     },
   })
@@ -57,7 +77,7 @@ export function TaskComments({ workspaceId, taskId, members, canComment }: TaskC
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const value = body.trim()
-    if (canComment && value && !mutation.isPending) mutation.mutate(value)
+    if (canComment && value && !mutation.isPending) mutation.mutate({ workspaceId, taskId, body: value })
   }
 
   return (
@@ -99,7 +119,7 @@ export function TaskComments({ workspaceId, taskId, members, canComment }: TaskC
       {canComment ? (
         <form onSubmit={submit} className="mt-4 border-t border-border/60 pt-3">
           <label htmlFor={composerId} className="sr-only">Write a comment</label>
-          <Textarea id={composerId} value={body} onChange={(event) => setBody(event.target.value)} placeholder="Add a comment…" maxLength={5000} rows={3} disabled={mutation.isPending} className="min-h-24 resize-y bg-background/60 text-sm" />
+          <Textarea id={composerId} value={body} onChange={(event) => onDraftChange(event.target.value)} placeholder="Add a comment…" maxLength={5000} rows={3} disabled={mutation.isPending} className="min-h-24 resize-y bg-background/60 text-sm" />
           <div className="mt-2 flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-[12px] text-muted-foreground">{handles.length > 0 ? `Mention ${handles.map((handle) => `@${handle}`).join(', ')}` : ''}</p>
             <Button type="submit" size="sm" disabled={!body.trim() || mutation.isPending} className="h-11 shrink-0 px-3 lg:h-8"><Send className="size-3.5" />{mutation.isPending ? 'Posting…' : 'Comment'}</Button>

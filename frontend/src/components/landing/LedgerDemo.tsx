@@ -12,8 +12,8 @@ const demoViews = ['List', 'Board', 'Timeline', 'Calendar', 'Connections'] as co
 function TaskMeta({ task }: { task: DemoTask }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[hsl(var(--landing-quiet))]">
-      <span className="inline-flex items-center gap-1"><FolderOpen className="size-3" aria-hidden="true" />{task.project}</span>
-      <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden="true" />{task.due}</span>
+      <span className="inline-flex items-center gap-1"><FolderOpen className="size-3" aria-hidden="true" />{task.project ?? 'No project'}</span>
+      <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden="true" />{task.due ?? 'No date'}</span>
     </div>
   )
 }
@@ -63,10 +63,16 @@ function TimelineView({ task }: { task: DemoTask }) {
         </div>
         <div className="grid min-h-28 grid-cols-[11rem_repeat(4,1fr)] items-center">
           <span className="px-3 text-xs font-medium">{task.title}</span>
-          <span className="h-full border-l border-[hsl(var(--landing-rule))]" aria-hidden="true" />
-          <span className="relative flex h-full items-center border-l border-[hsl(var(--landing-rule))] px-1"><span className="w-full rounded-md bg-[hsl(var(--landing-ink))] px-2 py-2 text-center text-xs font-medium text-[hsl(var(--landing-paper))]">Due tomorrow</span></span>
-          <span className="h-full border-l border-[hsl(var(--landing-rule))]" aria-hidden="true" />
-          <span className="h-full border-l border-[hsl(var(--landing-rule))]" aria-hidden="true" />
+          {task.due ? (
+            <>
+              <span className="h-full border-l border-[hsl(var(--landing-rule))]" aria-hidden="true" />
+              <span className="relative flex h-full items-center border-l border-[hsl(var(--landing-rule))] px-1"><span className="w-full rounded-md bg-[hsl(var(--landing-ink))] px-2 py-2 text-center text-xs font-medium text-[hsl(var(--landing-paper))]">Due {task.due.toLowerCase()}</span></span>
+              <span className="h-full border-l border-[hsl(var(--landing-rule))]" aria-hidden="true" />
+              <span className="h-full border-l border-[hsl(var(--landing-rule))]" aria-hidden="true" />
+            </>
+          ) : (
+            <span className="col-span-4 border-l border-[hsl(var(--landing-rule))] px-4 text-center text-xs text-[hsl(var(--landing-quiet))]">No date set — not placed on the timeline.</span>
+          )}
         </div>
       </div>
     </div>
@@ -78,37 +84,48 @@ function CalendarView({ task }: { task: DemoTask }) {
     <div className="landing-view-frame overflow-x-auto">
       <table className="w-full min-w-[32rem] table-fixed text-left" aria-label="Calendar view preview">
         <thead><tr>{['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day) => <th key={day} scope="col" className="border-b border-r border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-soft))] px-2 py-2 text-xs font-medium text-[hsl(var(--landing-quiet))] last:border-r-0">{day}</th>)}</tr></thead>
-        <tbody><tr className="h-32 align-top">{['18', '19', '20', '21', '22'].map((date, index) => <td key={date} className="border-r border-[hsl(var(--landing-rule))] p-2 last:border-r-0"><span className="text-xs text-[hsl(var(--landing-quiet))]">{date}</span>{index === 1 && <span className="mt-2 block rounded-md bg-[hsl(var(--landing-ink))] px-2 py-1.5 text-xs leading-4 text-[hsl(var(--landing-paper))]">{task.title}</span>}</td>)}</tr></tbody>
+        <tbody><tr className="h-32 align-top">{['18', '19', '20', '21', '22'].map((date, index) => <td key={date} className="border-r border-[hsl(var(--landing-rule))] p-2 last:border-r-0"><span className="text-xs text-[hsl(var(--landing-quiet))]">{date}</span>{task.due && index === 1 && <span className="mt-2 block rounded-md bg-[hsl(var(--landing-ink))] px-2 py-1.5 text-xs leading-4 text-[hsl(var(--landing-paper))]">{task.title}</span>}</td>)}</tr></tbody>
       </table>
+      {!task.due && <p className="border-t border-[hsl(var(--landing-rule))] px-3 py-2 text-center text-xs text-[hsl(var(--landing-quiet))]">No date set — not placed on the calendar.</p>}
     </div>
   )
 }
 
 function ConnectionsView({ task }: { task: DemoTask }) {
+  const caption = task.project && task.due
+    ? <>The same task connects {task.project} with its {task.due.toLowerCase()} due date.</>
+    : task.project
+      ? <>The task connects to {task.project}; no date connection is shown.</>
+      : task.due
+        ? <>The task connects to its {task.due.toLowerCase()} due date; no project connection is shown.</>
+        : <>No project or date connections yet.</>
+
   return (
     <figure className="landing-view-frame p-3" aria-labelledby="connections-preview-caption">
       <div className="relative mx-auto h-44 max-w-xl" aria-hidden="true">
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 560 176" fill="none">
-          <path d="M280 88 C230 88 214 45 150 45" stroke="currentColor" strokeOpacity=".35" strokeWidth="2" />
-          <path d="M280 88 C330 88 346 131 410 131" stroke="currentColor" strokeOpacity=".35" strokeWidth="2" />
+          {task.project && <path d="M280 88 C230 88 214 45 150 45" stroke="currentColor" strokeOpacity=".35" strokeWidth="2" />}
+          {task.due && <path d="M280 88 C330 88 346 131 410 131" stroke="currentColor" strokeOpacity=".35" strokeWidth="2" />}
         </svg>
         <div className="absolute left-1/2 top-1/2 w-48 -translate-x-1/2 -translate-y-1/2 rounded-md border-2 border-[hsl(var(--landing-ink))] bg-[hsl(var(--landing-paper))] p-3 text-center text-xs font-medium">{task.title}</div>
-        <div className="absolute left-2 top-4 w-36 rounded-md border border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-soft))] p-3 text-center text-xs"><span className="block text-xs uppercase tracking-[0.12em] text-[hsl(var(--landing-quiet))]">Project</span>{task.project}</div>
-        <div className="absolute bottom-3 right-2 w-32 rounded-md border border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-soft))] p-3 text-center text-xs"><span className="block text-xs uppercase tracking-[0.12em] text-[hsl(var(--landing-quiet))]">Due</span>{task.due}</div>
+        {task.project && <div className="absolute left-2 top-4 w-36 rounded-md border border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-soft))] p-3 text-center text-xs"><span className="block text-xs uppercase tracking-[0.12em] text-[hsl(var(--landing-quiet))]">Project</span>{task.project}</div>}
+        {task.due && <div className="absolute bottom-3 right-2 w-32 rounded-md border border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-soft))] p-3 text-center text-xs"><span className="block text-xs uppercase tracking-[0.12em] text-[hsl(var(--landing-quiet))]">Due</span>{task.due}</div>}
       </div>
-      <figcaption id="connections-preview-caption" className="flex items-center justify-center gap-1.5 text-center text-xs text-[hsl(var(--landing-quiet))]"><Link2 className="size-3" aria-hidden="true" />The same task connects {task.project} with its {task.due.toLowerCase()} due date.</figcaption>
+      <figcaption id="connections-preview-caption" className="flex items-center justify-center gap-1.5 text-center text-xs text-[hsl(var(--landing-quiet))]"><Link2 className="size-3" aria-hidden="true" />{caption}</figcaption>
     </figure>
   )
 }
 
 export function LedgerDemo() {
   const [captureText, setCaptureText] = useState(LANDING_DEMO_INPUT)
-  const [task, setTask] = useState<DemoTask>(() => parseLandingDemoInput(LANDING_DEMO_INPUT))
+  const [task, setTask] = useState<DemoTask>(() => parseLandingDemoInput(LANDING_DEMO_INPUT)!)
   const [captureVersion, setCaptureVersion] = useState(0)
 
   function captureTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setTask(parseLandingDemoInput(captureText))
+    const nextTask = parseLandingDemoInput(captureText)
+    if (!nextTask) return
+    setTask(nextTask)
     setCaptureVersion((version) => version + 1)
   }
 
@@ -123,7 +140,7 @@ export function LedgerDemo() {
             onChange={(event) => setCaptureText(event.target.value)}
             className="min-h-11 min-w-0 flex-1 rounded-md border border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-paper))] px-3 text-base text-[hsl(var(--landing-ink))] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-[hsl(var(--landing-ink))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--landing-paper))] sm:text-sm"
           />
-          <button type="submit" className="min-h-11 cursor-pointer rounded-md bg-[hsl(var(--landing-ink))] px-4 text-sm font-medium text-[hsl(var(--landing-paper))]">Capture</button>
+          <button type="submit" disabled={!captureText.trim()} className="min-h-11 cursor-pointer rounded-md bg-[hsl(var(--landing-ink))] px-4 text-sm font-medium text-[hsl(var(--landing-paper))] disabled:cursor-not-allowed disabled:opacity-40">Capture</button>
         </div>
       </form>
 

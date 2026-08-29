@@ -46,7 +46,7 @@ function BoardCard({ task, overlay, collapsed, density = 'comfortable', visibleF
       data-task-id={task.id}
       data-drag-source={collapsed || undefined}
       className={cn(
-        'group relative rounded-md border border-border bg-card select-none transition-[border-color,box-shadow,background-color,transform] duration-150',
+        'group relative rounded-md border border-border bg-card select-none transition-[border-color,box-shadow,background-color,transform] duration-150 motion-reduce:transition-none',
         density === 'compact' ? 'p-2.5' : 'p-3',
         selected ? 'border-foreground/25 bg-accent/40' : 'hover:border-input hover:bg-accent/20 hover:shadow-[0_2px_8px_hsl(240_8%_10%/0.06)]',
         isDragging && 'opacity-40',
@@ -177,7 +177,7 @@ function BoardColumn({
           <div data-slotwrap aria-hidden style={{ height: holeHeight }} />
         )}
         {tasks.length === 0 && (
-          <p className="text-[12.5px] text-muted-foreground/70 text-center py-6 border border-dashed border-border rounded-md">
+          <p className="rounded-md border border-dashed border-border py-6 text-center text-[12.5px] text-muted-foreground">
             Nothing here
           </p>
         )}

@@ -26,27 +26,23 @@ function chipTone(t: Task): { bg: string; text: string; dot: string } {
   return { bg: 'bg-secondary', text: 'text-secondary-foreground', dot: 'bg-muted-foreground/50' }
 }
 
-function TaskChip({ task, overlay, active, onOpen }: { task: Task; overlay?: boolean; active?: boolean; onOpen: (e: React.MouseEvent<HTMLDivElement>) => void }) {
+function TaskChip({ task, overlay, active, onOpen }: { task: Task; overlay?: boolean; active?: boolean; onOpen: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `chip-${task.id}` })
   const tone = chipTone(task)
   return (
-    <div
+    <button
+      type="button"
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
       {...listeners}
       {...attributes}
-      role="button"
-      tabIndex={0}
-      aria-label={`Task: ${task.title}. Drag to reschedule.`}
+      aria-label={`Task: ${task.title}. Press to open. Drag with a pointer to reschedule.`}
       aria-pressed={active}
       onClick={(e) => {
         if (!isDragging) onOpen(e)
       }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onOpen(e as unknown as React.MouseEvent<HTMLDivElement>)
-      }}
       className={cn(
-        'w-full cursor-grab select-none truncate rounded px-1.5 py-[3px] text-left text-[12.5px] leading-tight transition-[background-color,color,box-shadow,transform] active:cursor-grabbing',
+        'min-h-11 w-full cursor-grab select-none truncate rounded px-1.5 py-[3px] text-left lg:min-h-0 text-[12.5px] leading-tight transition-[background-color,color,box-shadow,transform] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:transition-none',
         active ? 'bg-foreground text-background shadow-[0_0_0_1px_hsl(var(--foreground)),0_6px_18px_hsl(var(--foreground)/0.12)]' : [tone.bg, tone.text],
         isDragging && 'opacity-40',
         overlay && 'shadow-[0_6px_18px_hsl(240_8%_10%/0.18)]',
@@ -54,7 +50,7 @@ function TaskChip({ task, overlay, active, onOpen }: { task: Task; overlay?: boo
     >
       <span className={cn('inline-block h-1.5 w-1.5 rounded-full mr-1.5 align-middle shrink-0', tone.dot)} aria-hidden />
       {task.title}
-    </div>
+    </button>
   )
 }
 
@@ -74,7 +70,7 @@ function DayCell({
   selected: boolean
   maxVisible: number
   onOpenDay: () => void
-  onOpenTask: (task: Task, event: React.MouseEvent<HTMLDivElement>) => void
+  onOpenTask: (task: Task, event: React.MouseEvent<HTMLButtonElement>) => void
   activeTaskId: string | null
 }) {
   const iso = format(date, 'yyyy-MM-dd')
@@ -96,7 +92,7 @@ function DayCell({
       <span
         className={cn(
           'inline-flex h-5 w-5 items-center justify-center rounded-full text-[12.5px] mb-0.5 self-start',
-          isToday(date) ? 'bg-foreground text-background font-semibold' : inMonth ? 'text-foreground/80' : 'text-muted-foreground/60',
+          isToday(date) ? 'bg-foreground text-background font-semibold' : inMonth ? 'text-foreground/80' : 'text-muted-foreground',
         )}
       >
         {format(date, 'd')}
@@ -118,7 +114,7 @@ function DayCell({
             onOpenDay()
           }}
           aria-label={`Show all ${tasks.length} tasks for ${format(date, 'MMMM d')}`}
-          className="mt-auto inline-flex min-h-6 w-fit items-center gap-1 rounded-[5px] border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-left text-[12.5px] font-medium tabular-nums text-sky-700 transition-[background-color,color,border-color,transform] hover:border-sky-500/30 hover:bg-sky-500/15 active:scale-[0.96] dark:text-sky-300"
+          className="mt-auto inline-flex min-h-11 w-fit items-center lg:min-h-6 gap-1 rounded-[5px] border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-left text-[12.5px] font-medium tabular-nums text-sky-700 transition-[background-color,color,border-color,transform] hover:border-sky-500/30 hover:bg-sky-500/15 active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:text-sky-300"
         >
           <span className="font-semibold">{tasks.length}</span>
           <span>{tasks.length === 1 ? 'task' : 'tasks'}</span>
@@ -251,18 +247,18 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
             </div>
             <div className="flex items-center gap-1">
               {!isMobile && <div className="mr-2 inline-flex rounded-md border border-border bg-card p-0.5" aria-label="Calendar range">
-                {(['month', 'week'] as const).map((mode) => <button key={mode} onClick={() => setCalendarMode(mode)} aria-pressed={calendarMode === mode} className={cn('h-7 rounded px-2 text-[12.5px] capitalize text-muted-foreground hover:text-foreground', calendarMode === mode && 'bg-accent font-medium text-foreground')}>{mode}</button>)}
+                {(['month', 'week'] as const).map((mode) => <button key={mode} onClick={() => setCalendarMode(mode)} aria-pressed={calendarMode === mode} className={cn('h-11 rounded px-2 text-[12.5px] capitalize lg:h-7 text-muted-foreground hover:text-foreground', calendarMode === mode && 'bg-accent font-medium text-foreground')}>{mode}</button>)}
               </div>}
-              <button onClick={() => changeMonth(-1)} aria-label={calendarMode === 'month' ? 'Previous month' : 'Previous week'} className="h-8 w-8 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <button onClick={() => changeMonth(-1)} aria-label={calendarMode === 'month' ? 'Previous month' : 'Previous week'} className="inline-flex size-11 rounded-md lg:size-8 items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <span className="text-[14px] font-medium min-w-[110px] text-center" aria-live="polite">{calendarMode === 'month' ? format(month, 'MMMM yyyy') : `${format(weeks[0], 'MMM d')}–${format(weeks[6], 'MMM d')}`}</span>
-              <button onClick={() => changeMonth(1)} aria-label={calendarMode === 'month' ? 'Next month' : 'Next week'} className="h-8 w-8 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <button onClick={() => changeMonth(1)} aria-label={calendarMode === 'month' ? 'Next month' : 'Next week'} className="inline-flex size-11 rounded-md lg:size-8 items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                 <ChevronRight className="h-4 w-4" />
               </button>
               <button
                 onClick={goToToday}
-                className="h-8 px-2.5 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="h-11 rounded-md px-2.5 text-[12.5px] lg:h-8 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 Today
               </button>
@@ -331,7 +327,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                 <button
                   onClick={() => setShowUnscheduled((v) => !v)}
                   aria-expanded={showUnscheduled}
-                  className="text-[12.5px] text-muted-foreground hover:text-foreground transition-colors px-1 py-0.5 rounded"
+                  className="min-h-11 rounded px-1 py-0.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground lg:min-h-0"
                 >
                   {showUnscheduled ? '▾' : '▸'} No date set ({unscheduled.length})
                 </button>
@@ -345,7 +341,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                           key={t.id}
                           onClick={(e) => openTask(t.id, e.currentTarget)}
                           className={cn(
-                            'pg-item-title w-full truncate px-3.5 py-2 text-left transition-colors hover:bg-accent/50',
+                            'pg-item-title min-h-11 w-full truncate px-3.5 py-2 text-left transition-colors hover:bg-accent/50',
                             openTaskId === t.id && 'bg-foreground text-background hover:bg-foreground',
                           )}
                         >
@@ -435,7 +431,7 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                         onClick={(event) => {
                           openTask(task.id, event.currentTarget, { nonModal: true })
                         }}
-                        className="group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-[background-color,border-color,transform] hover:border-border hover:bg-accent/55 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                        className="group flex min-h-11 w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-[background-color,border-color,transform] hover:border-border hover:bg-accent/55 active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                       >
                         <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', tone.dot)} aria-hidden />
                         <span className="min-w-0 flex-1">

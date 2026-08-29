@@ -218,6 +218,7 @@ describe('API client', () => {
     expect(apiErrorKind(409, 'ONBOARDING_REQUIRED')).toBe('onboarding_required')
     expect(apiErrorKind(403)).toBe('forbidden')
     expect(apiErrorKind(404)).toBe('not_found')
+    expect(apiErrorKind(410)).toBe('not_found')
     expect(apiErrorKind(409)).toBe('conflict')
     expect(apiErrorKind(422)).toBe('validation')
     expect(apiErrorKind(503)).toBe('temporary')

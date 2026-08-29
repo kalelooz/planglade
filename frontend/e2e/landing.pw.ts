@@ -44,6 +44,45 @@ test('desktop landing explains the product without loading the workspace', async
     await expect(demo.getByText(taskTitle, { exact: true }).first()).toBeVisible()
   }
 
+  await capture.fill('Buy milk')
+  const captureButton = demo.getByRole('button', { name: 'Capture' })
+  await captureButton.click()
+
+  await demo.getByRole('tab', { name: 'List' }).click()
+  const listPreview = demo.getByLabel('List view preview')
+  await expect(listPreview.getByText('Buy milk', { exact: true })).toBeVisible()
+  await expect(listPreview.getByText('No project', { exact: true })).toBeVisible()
+  await expect(listPreview.getByText('No date', { exact: true })).toBeVisible()
+
+  await demo.getByRole('tab', { name: 'Board' }).click()
+  const boardPreview = demo.getByLabel('Board view preview')
+  await expect(boardPreview.getByText('Buy milk', { exact: true })).toBeVisible()
+  await expect(boardPreview.getByText('No project', { exact: true })).toBeVisible()
+  await expect(boardPreview.getByText('No date', { exact: true })).toBeVisible()
+
+  await demo.getByRole('tab', { name: 'Timeline' }).click()
+  const timelinePreview = demo.getByLabel('Timeline view preview')
+  await expect(timelinePreview.getByText('Buy milk', { exact: true })).toBeVisible()
+  await expect(timelinePreview.getByText('No date set — not placed on the timeline.')).toBeVisible()
+  await expect(timelinePreview.getByText('Due tomorrow')).toHaveCount(0)
+
+  await demo.getByRole('tab', { name: 'Calendar' }).click()
+  const calendarPreview = demo.getByRole('table', { name: 'Calendar view preview' })
+  await expect(calendarPreview.getByText('Buy milk', { exact: true })).toHaveCount(0)
+  await expect(demo.getByText('No date set — not placed on the calendar.')).toBeVisible()
+
+  await demo.getByRole('tab', { name: 'Connections' }).click()
+  const connectionsPreview = demo.locator('figure[aria-labelledby="connections-preview-caption"]')
+  await expect(connectionsPreview.getByText('No project or date connections yet.')).toBeVisible()
+  await expect(connectionsPreview.getByText('Project', { exact: true })).toHaveCount(0)
+  await expect(connectionsPreview.getByText('Due', { exact: true })).toHaveCount(0)
+
+  await capture.fill('   ')
+  await expect(captureButton).toBeDisabled()
+  await capture.press('Enter')
+  await expect(demo.locator('.landing-demo-structured')).toContainText('Buy milk')
+  await expect(demo.getByText('No task text', { exact: true })).toHaveCount(0)
+
   await page.getByRole('button', { name: 'Is PlanGlade an AI product?' }).click()
   await expect(page.getByText('No. The current product focuses on direct, predictable planning tools.')).toBeVisible()
 
@@ -95,8 +134,21 @@ test('mobile navigation, reduced motion, and page width remain usable', async ({
   expect(failures.consoleErrors).toEqual([])
 })
 
-test('non-marketing routes are marked noindex', async ({ page }) => {
+test('non-marketing and unknown routes clear landing discovery metadata', async ({ page }) => {
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow')
   await expect(page).toHaveTitle('Sign in · PlanGlade')
+
+  for (const path of ['/unknown', '/app/unknown']) {
+    await page.goto(path, { waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveTitle('Page not found · PlanGlade')
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow')
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0)
+    await expect(page.locator('meta[property="og:title"]')).toHaveCount(0)
+    await expect(page.locator('meta[name="twitter:title"]')).toHaveCount(0)
+  }
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow')
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'PlanGlade — Calm personal project planning')
 })

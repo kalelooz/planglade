@@ -11,12 +11,15 @@ export function createTaskMutationQueue<TPatch, TResult = boolean>(run: (id: str
     const current = pending.get(id)
     if (current?.key === key) return current.promise
 
-    const previous = current?.promise ?? Promise.resolve(undefined as TResult)
+    const previous = current?.promise
+      ? current.promise.then(() => undefined, () => undefined)
+      : Promise.resolve()
     const promise = previous.then(() => run(id, patch))
     pending.set(id, { key, promise })
-    void promise.finally(() => {
+    const cleanup = () => {
       if (pending.get(id)?.promise === promise) pending.delete(id)
-    })
+    }
+    void promise.then(cleanup, cleanup)
     return promise
   }
 }

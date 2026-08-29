@@ -120,7 +120,7 @@ export function TeamSettings({ workspaceId, canManage }: TeamSettingsProps) {
         <div className="flex flex-wrap items-center gap-3 border-b border-border/60 px-3 py-3 sm:px-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2"><Users className="size-4 text-muted-foreground" /><p className="text-sm font-semibold">People with workspace access</p></div>
-            <p className="mt-1 text-xs text-muted-foreground">{members.data?.length ?? 0} members · access is managed by this installation</p>
+            <p className="mt-1 text-xs text-muted-foreground">{members.isLoading ? 'Loading members…' : members.isError ? 'Member count unavailable' : `${members.data?.length ?? 0} members · access is managed by this installation`}</p>
           </div>
           {canManage && <Button type="button" size="sm" className="h-11 sm:h-9" onClick={() => setInviteOpen(true)}><UserPlus className="size-4" /> Invite people</Button>}
         </div>
@@ -128,7 +128,9 @@ export function TeamSettings({ workspaceId, canManage }: TeamSettingsProps) {
         {members.isLoading ? (
           <p className="px-4 py-6 text-sm text-muted-foreground" role="status">Loading team…</p>
         ) : members.isError ? (
-          <div className="flex items-center justify-between gap-3 px-4 py-5"><p className="text-sm text-destructive" role="alert">Team access could not be loaded.</p><Button variant="outline" size="sm" onClick={() => void members.refetch()}><RefreshCw className="size-3.5" /> Retry</Button></div>
+          <div className="flex items-center justify-between gap-3 px-4 py-5"><p className="text-sm text-destructive" role="alert">Team access could not be loaded.</p><Button variant="outline" size="sm" className="h-11 sm:h-9" onClick={() => void members.refetch()}><RefreshCw className="size-3.5" /> Retry</Button></div>
+        ) : (members.data?.length ?? 0) === 0 ? (
+          <p className="px-4 py-5 text-sm text-muted-foreground">No workspace members were returned.</p>
         ) : (
           <div className="divide-y divide-border/60">
             {(members.data ?? []).map((member) => {
@@ -154,20 +156,47 @@ export function TeamSettings({ workspaceId, canManage }: TeamSettingsProps) {
         )}
       </div>
 
-      {canManage && (invites.data?.length ?? 0) > 0 && (
+      {canManage && (
         <div className="mt-3 overflow-hidden rounded-lg border border-border/60">
           <div className="flex items-center gap-2 border-b border-border/60 bg-muted/25 px-4 py-2.5"><Mail className="size-4 text-muted-foreground" /><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Pending invitations</p></div>
-          <div className="divide-y divide-border/60">
-            {invites.data?.map((invite) => <div key={invite.id} className="flex min-w-0 flex-wrap items-center gap-2 px-4 py-3">
-              <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{invite.email}</p><p className="text-xs text-muted-foreground">{roleLabel(invite.role)} · expires {new Date(invite.expiresAt).toLocaleDateString()}</p></div>
-              <Button variant="ghost" size="sm" className="h-11 sm:h-9" disabled={inviteAction.isPending} onClick={() => inviteAction.mutate({ inviteId: invite.id, action: 'resend' })}>Resend</Button>
-              <Button variant="ghost" size="sm" className="h-11 text-destructive hover:text-destructive sm:h-9" disabled={inviteAction.isPending} onClick={() => inviteAction.mutate({ inviteId: invite.id, action: 'revoke' })}>Revoke</Button>
-            </div>)}
-          </div>
+          {invites.isError && invites.data !== undefined && (
+            <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-3"><p className="text-xs text-muted-foreground" role="status">Invitations could not be refreshed. Showing the last loaded results.</p><Button variant="ghost" size="sm" className="h-11 sm:h-9" onClick={() => void invites.refetch()}><RefreshCw className="size-3.5" /> Retry</Button></div>
+          )}
+          {invites.isLoading ? (
+            <p className="px-4 py-4 text-sm text-muted-foreground" role="status">Loading invitations…</p>
+          ) : invites.isError && invites.data === undefined ? (
+            <div className="flex items-center justify-between gap-3 px-4 py-4"><p className="text-sm text-destructive" role="alert">Pending invitations could not be loaded.</p><Button variant="outline" size="sm" className="h-11 sm:h-9" onClick={() => void invites.refetch()}><RefreshCw className="size-3.5" /> Retry</Button></div>
+          ) : (invites.data?.length ?? 0) === 0 ? (
+            <p className="px-4 py-4 text-sm text-muted-foreground">No pending invitations.</p>
+          ) : (
+            <div className="divide-y divide-border/60">
+              {invites.data?.map((invite) => <div key={invite.id} className="flex min-w-0 flex-wrap items-center gap-2 px-4 py-3">
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{invite.email}</p><p className="text-xs text-muted-foreground">{roleLabel(invite.role)} · expires {new Date(invite.expiresAt).toLocaleDateString()}</p></div>
+                <Button variant="ghost" size="sm" className="h-11 sm:h-9" disabled={inviteAction.isPending} onClick={() => inviteAction.mutate({ inviteId: invite.id, action: 'resend' })}>Resend</Button>
+                <Button variant="ghost" size="sm" className="h-11 text-destructive hover:text-destructive sm:h-9" disabled={inviteAction.isPending} onClick={() => inviteAction.mutate({ inviteId: invite.id, action: 'revoke' })}>Revoke</Button>
+              </div>)}
+            </div>
+          )}
         </div>
       )}
 
-      {canManage && (events.data?.length ?? 0) > 0 && <details className="mt-3 rounded-lg border border-border/60 px-4 py-3"><summary className="cursor-pointer text-sm font-medium">Recent team activity</summary><ol className="mt-3 space-y-2 border-l border-border/60 pl-4">{events.data?.map((event) => <li key={event.id} className="text-xs leading-5 text-muted-foreground"><span className="text-foreground">{event.summary}</span><span className="ml-2 inline-flex items-center gap-1"><Clock3 className="size-3" />{new Date(event.createdAt).toLocaleString()}</span></li>)}</ol></details>}
+      {canManage && (
+        <details className="mt-3 rounded-lg border border-border/60 px-4 py-3">
+          <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium sm:min-h-0 sm:py-0">Recent team activity</summary>
+          {events.isError && events.data !== undefined && (
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-muted/30 px-3 py-2"><p className="text-xs text-muted-foreground" role="status">Activity could not be refreshed. Showing the last loaded results.</p><Button variant="ghost" size="sm" className="h-11 sm:h-9" onClick={() => void events.refetch()}><RefreshCw className="size-3.5" /> Retry</Button></div>
+          )}
+          {events.isLoading ? (
+            <p className="mt-3 text-xs text-muted-foreground" role="status">Loading activity…</p>
+          ) : events.isError && events.data === undefined ? (
+            <div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs text-destructive" role="alert">Recent activity could not be loaded.</p><Button variant="outline" size="sm" className="h-11 sm:h-9" onClick={() => void events.refetch()}><RefreshCw className="size-3.5" /> Retry</Button></div>
+          ) : (events.data?.length ?? 0) === 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">No recent team activity.</p>
+          ) : (
+            <ol className="mt-3 space-y-2 border-l border-border/60 pl-4">{events.data?.map((event) => <li key={event.id} className="text-xs leading-5 text-muted-foreground"><span className="text-foreground">{event.summary}</span><span className="ml-2 inline-flex items-center gap-1"><Clock3 className="size-3" />{new Date(event.createdAt).toLocaleString()}</span></li>)}</ol>
+          )}
+        </details>
+      )}
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>

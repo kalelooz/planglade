@@ -14,10 +14,12 @@ import { adaptNote, adaptProject, adaptTask, buildApiWorkspaceState } from '@/li
 import { toApiError } from '@/lib/api/errors'
 import { createTaskMutationQueue } from '@/lib/task-mutation-queue'
 import { placeBoardTask } from '@/lib/board-order'
+import { indexTasksByParent } from '@/lib/task-parent-index'
 import { authLoginHref, currentWorkspaceDestination } from '@/lib/auth-destination'
 import { useNavigate } from 'react-router'
 import { useAppCommands } from '@/store/app-commands'
 import { createReferenceWorkspaceAdapter } from '@/store/reference-workspace-adapter'
+import { createReferenceWorkspaceCommandQueue, type ReferenceWorkspaceCommand } from '@/store/reference-workspace-command-queue'
 import { useServerWorkspaceSync } from '@/store/server-workspace-sync'
 import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 import {
@@ -136,22 +138,34 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       return next
     })
   }, [settingsQuery.data])
+  const apiState = useMemo(() => {
+    if (!sessionQuery.data || !projectsQuery.data || !tasksQuery.data || !inboxQuery.data) return null
+    return buildApiWorkspaceState(
+      sessionQuery.data,
+      projectsQuery.data,
+      tasksQuery.data,
+      inboxQuery.data,
+      notesQuery.data ?? [],
+      relationsQuery.data ?? [],
+      settings,
+    )
+  }, [inboxQuery.data, notesQuery.data, projectsQuery.data, relationsQuery.data, sessionQuery.data, settings, tasksQuery.data])
+  const tasksByParent = useMemo(() => indexTasksByParent(apiState?.tasks ?? []), [apiState])
   const error = sessionQuery.error ?? projectsQuery.error ?? tasksQuery.error ?? inboxQuery.error
   if (error) return <BootstrapState error={error} />
-  if (!sessionQuery.data || !projectsQuery.data || !tasksQuery.data || !inboxQuery.data) return <BootstrapState />
+  if (!sessionQuery.data || !projectsQuery.data || !tasksQuery.data || !inboxQuery.data || !apiState) return <BootstrapState />
 
   const session = sessionQuery.data
   const currentWorkspaceRole = session.workspaces?.find((workspace) => workspace.id === workspaceId)?.role ?? 'MEMBER'
   const taskMutationsAllowed = canMutateTasksForAuthMode(session.authMode) && currentWorkspaceRole !== 'VIEWER'
   const canManageWorkspace = currentWorkspaceRole === 'OWNER' || currentWorkspaceRole === 'ADMIN'
-  const notes = notesQuery.data ?? []
   const relations = relationsQuery.data ?? []
   const connectionsData = {
     notes: notesQuery.isError ? 'error' : notesQuery.isSuccess ? 'ready' : 'loading',
     relations: relationsQuery.isError ? 'error' : relationsQuery.isSuccess ? 'ready' : 'loading',
     relationLimitReached: relationsQuery.isSuccess && relationsQuery.data.length === 500,
   } as const
-  const state = buildApiWorkspaceState(session, projectsQuery.data, tasksQuery.data, inboxQuery.data, notes, relations, settings)
+  const state = apiState
   const { projects, tasks } = state
   const byId = new Map(tasks.map((task) => [task.id, task]))
   const inboxById = new Map(state.inbox.map((item) => [item.id, item]))
@@ -457,7 +471,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     getTask: (id) => id ? byId.get(id) : undefined,
     getProject: (id) => id ? projects.find((project) => project.id === id) : undefined,
     getNote: (id) => id ? state.notes.find((note) => note.id === id) : undefined,
-    subtasksOf: (taskId) => tasks.filter((task) => task.parentId === taskId),
+    subtasksOf: (taskId) => tasksByParent.get(taskId) ?? [],
     isBlocked: (task) => task.status !== 'done' && (task.status === 'blocked' || task.dependsOn.some((id) => byId.get(id)?.status !== 'done')),
     blockersOf: (task) => task.dependsOn.map((id) => byId.get(id)).filter((item): item is Task => !!item),
     projectProgress: (projectId) => {
@@ -478,7 +492,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     capture: async (text, meta) => {
       const created = await addApiTask({ title: text, projectId: meta?.projectId, dueDate: meta?.dueDate, priority: meta?.priority, status: 'backlog' }, true)
       if (created) toast.success('Captured to Inbox')
-      return created
+      return Boolean(created)
     },
     updateInboxItem: (id, patch) => {
       if (!inboxById.has(id)) return
@@ -526,7 +540,10 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     updateProject: updateApiProject,
     deleteProject: deleteApiProjectFromWorkspace,
     pushRecent: () => undefined,
-    resetWorkspace: notifyReadOnly,
+    resetWorkspace: async () => {
+      notifyReadOnly()
+      return false
+    },
     exportJson: () => JSON.stringify(state, null, 2),
     signOut: async () => {
       try {
@@ -551,23 +568,16 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
 
 function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode }) {
   const adapter = useMemo(() => createReferenceWorkspaceAdapter(localStorage), [])
-  const [state, setState] = useState<WorkspaceState>(() => adapter.load())
-  const first = useRef(true)
+  const [initialState] = useState<WorkspaceState>(() => adapter.load())
+  const [state, setState] = useState(initialState)
+  const commandQueue = useMemo(
+    () => createReferenceWorkspaceCommandQueue(initialState, (next) => adapter.save(next), setState),
+    [adapter, initialState],
+  )
   const commands = useAppCommands()
   const navigate = useNavigate()
+  const tasksByParent = useMemo(() => indexTasksByParent(state.tasks), [state.tasks])
   useTheme(state.settings.theme)
-
-  useEffect(() => {
-    if (first.current) {
-      first.current = false
-      return
-    }
-    try {
-      adapter.save(state)
-    } catch {
-      /* storage full or unavailable — prototype continues in memory */
-    }
-  }, [adapter, state])
 
   const api = useMemo<WorkspaceApi>(() => {
     const byId = new Map(state.tasks.map((t) => [t.id, t]))
@@ -576,12 +586,24 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       task.status !== 'done' &&
       (task.status === 'blocked' || task.dependsOn.some((d) => byId.get(d)?.status !== 'done'))
 
-    const commit = (fn: (s: WorkspaceState) => WorkspaceState) => setState((s) => fn(s))
+    const runCommand = async <TResult,>(
+      command: ReferenceWorkspaceCommand<TResult>,
+      fallback: TResult,
+      errorMessage = 'This change could not be saved. Try again.',
+    ) => {
+      try {
+        return await commandQueue(command)
+      } catch {
+        toast.error(errorMessage)
+        return fallback
+      }
+    }
 
     const hist = (text: string) => ({ at: Date.now(), text })
 
-    const addTask = (partial: Partial<Task> & { title: string }): Task => {
-      const task: Task = {
+    const createTask = (partial: Partial<Task> & { title: string }): Task => {
+      const now = Date.now()
+      return {
         id: adapter.nextId('tsk'),
         title: partial.title,
         description: partial.description ?? '',
@@ -594,53 +616,62 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         related: partial.related ?? [],
         labelIds: partial.labelIds ?? [],
         assigneeId: partial.assigneeId ?? null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        completedAt: partial.status === 'done' ? Date.now() : null,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: partial.status === 'done' ? now : null,
         history: [hist('Created')],
       }
-      commit((s) => ({ ...s, tasks: [...s.tasks, task] }))
-      return task
     }
 
-    const updateTask = (id: string, patch: TaskPatch, opts?: { silent?: boolean }) => {
+    const addTask = (partial: Partial<Task> & { title: string }) => {
+      const task = createTask(partial)
+      return runCommand((s) => ({ state: { ...s, tasks: [...s.tasks, task] }, result: task }), null)
+    }
+
+    const updateTask = async (id: string, patch: TaskPatch, opts?: { silent?: boolean }) => {
       const { beforeId, ...taskPatch } = patch
-      commit((s) => {
+      const saved = await runCommand((s) => {
         const current = s.tasks.find((task) => task.id === id)
-        const placed = beforeId !== undefined && current
+        if (!current) return { state: s, result: false }
+        const placed = beforeId !== undefined
           ? placeBoardTask(s.tasks, id, taskPatch.status ?? current.status, beforeId)
           : s.tasks
+        const now = Date.now()
         return {
-          ...s,
-          tasks: placed.map((t) => {
-            if (t.id !== id) return t
-            const events = [] as { at: number; text: string }[]
-            if (taskPatch.status && taskPatch.status !== t.status) {
-              if (taskPatch.status === 'done') events.push(hist('Marked done'))
-              else if (t.status === 'done') events.push(hist('Reopened'))
-              else events.push(hist(`Moved to ${taskPatch.status.replace('_', ' ')}`))
-            }
-            if (taskPatch.dueDate !== undefined && taskPatch.dueDate !== t.dueDate) {
-              events.push(hist(taskPatch.dueDate ? `Due date set to ${relativeLabel(taskPatch.dueDate)}` : 'Due date cleared'))
-            }
-            if (taskPatch.priority && taskPatch.priority !== t.priority) events.push(hist(`Priority set to ${taskPatch.priority}`))
-            if (taskPatch.projectId !== undefined && taskPatch.projectId !== t.projectId) {
-              const pr = s.projects.find((p) => p.id === taskPatch.projectId)
-              events.push(hist(taskPatch.projectId ? `Moved to ${pr?.name ?? 'project'}` : 'Removed from project'))
-            }
-            const done = taskPatch.status === 'done'
-            const reopened = t.status === 'done' && taskPatch.status && taskPatch.status !== 'done'
-            return {
-              ...t,
-              ...taskPatch,
-              updatedAt: Date.now(),
-              completedAt: done ? Date.now() : reopened ? null : t.completedAt,
-              history: [...t.history, ...events].slice(-30),
-            }
-          }),
+          state: {
+            ...s,
+            tasks: placed.map((t) => {
+              if (t.id !== id) return t
+              const events = [] as { at: number; text: string }[]
+              if (taskPatch.status && taskPatch.status !== t.status) {
+                if (taskPatch.status === 'done') events.push(hist('Marked done'))
+                else if (t.status === 'done') events.push(hist('Reopened'))
+                else events.push(hist(`Moved to ${taskPatch.status.replace('_', ' ')}`))
+              }
+              if (taskPatch.dueDate !== undefined && taskPatch.dueDate !== t.dueDate) {
+                events.push(hist(taskPatch.dueDate ? `Due date set to ${relativeLabel(taskPatch.dueDate)}` : 'Due date cleared'))
+              }
+              if (taskPatch.priority && taskPatch.priority !== t.priority) events.push(hist(`Priority set to ${taskPatch.priority}`))
+              if (taskPatch.projectId !== undefined && taskPatch.projectId !== t.projectId) {
+                const project = s.projects.find((item) => item.id === taskPatch.projectId)
+                events.push(hist(taskPatch.projectId ? `Moved to ${project?.name ?? 'project'}` : 'Removed from project'))
+              }
+              const done = taskPatch.status === 'done'
+              const reopened = t.status === 'done' && taskPatch.status && taskPatch.status !== 'done'
+              return {
+                ...t,
+                ...taskPatch,
+                updatedAt: now,
+                completedAt: done ? now : reopened ? null : t.completedAt,
+                history: [...t.history, ...events].slice(-30),
+              }
+            }),
+          },
+          result: true,
         }
-      })
-      if (!opts?.silent) toast.success('Changes saved')
+      }, false)
+      if (saved && !opts?.silent) toast.success('Changes saved')
+      return saved
     }
 
     const apiObj: WorkspaceApi = {
@@ -671,7 +702,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       getTask: (idv) => (idv ? byId.get(idv) : undefined),
       getProject: (idv) => (idv ? state.projects.find((p) => p.id === idv) : undefined),
       getNote: (idv) => (idv ? state.notes.find((n) => n.id === idv) : undefined),
-      subtasksOf: (taskId) => state.tasks.filter((t) => t.parentId === taskId),
+      subtasksOf: (taskId) => tasksByParent.get(taskId) ?? [],
       isBlocked,
       blockersOf: (task) => task.dependsOn.map((d) => byId.get(d)).filter((t): t is Task => !!t),
       projectProgress: (projectId) => {
@@ -679,10 +710,13 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         return { done: ts.filter((t) => t.status === 'done').length, total: ts.length }
       },
 
-      updateSettings: (patch) => commit((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
-      setWorkspaceName: (name) => {
-        commit((s) => ({ ...s, workspaceName: name }))
-        toast.success('Workspace renamed')
+      updateSettings: (patch) => {
+        void runCommand((s) => ({ state: { ...s, settings: { ...s.settings, ...patch } }, result: undefined }), undefined)
+      },
+      setWorkspaceName: async (name) => {
+        const saved = await runCommand((s) => ({ state: { ...s, workspaceName: name }, result: true }), false)
+        if (saved) toast.success('Workspace renamed')
+        return saved
       },
 
       capture: async (text, meta) => {
@@ -694,33 +728,60 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
           priority: meta?.priority ?? 'none',
           createdAt: Date.now(),
         }
-        commit((s) => ({ ...s, inbox: [item, ...s.inbox] }))
-        toast.success('Captured to Inbox', {
-          action: { label: 'View', onClick: () => navigate(WORKSPACE_PATHS.inbox) },
-        })
-        return null
+        const saved = await runCommand((s) => ({ state: { ...s, inbox: [item, ...s.inbox] }, result: true }), false)
+        if (saved) {
+          toast.success('Captured to Inbox', {
+            action: { label: 'View', onClick: () => navigate(WORKSPACE_PATHS.inbox) },
+          })
+        }
+        return saved
       },
-      updateInboxItem: (id, patch) =>
-        commit((s) => ({ ...s, inbox: s.inbox.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+      updateInboxItem: (id, patch) => {
+        void runCommand((s) => ({
+          state: { ...s, inbox: s.inbox.map((item) => item.id === id ? { ...item, ...patch } : item) },
+          result: undefined,
+        }), undefined)
+      },
       dismissInboxItem: (id) => {
-        const item = state.inbox.find((i) => i.id === id)
-        if (!item) return
-        commit((s) => ({ ...s, inbox: s.inbox.filter((i) => i.id !== id) }))
-        toast('Item dismissed', {
-          action: { label: 'Undo', onClick: () => commit((s) => ({ ...s, inbox: [item, ...s.inbox] })) },
+        void runCommand((s) => {
+          const item = s.inbox.find((candidate) => candidate.id === id)
+          return item
+            ? { state: { ...s, inbox: s.inbox.filter((candidate) => candidate.id !== id) }, result: item }
+            : { state: s, result: null }
+        }, null).then((item) => {
+          if (!item) return
+          toast('Item dismissed', {
+            action: {
+              label: 'Undo',
+              onClick: () => {
+                void runCommand((s) => ({ state: { ...s, inbox: [item, ...s.inbox] }, result: undefined }), undefined)
+              },
+            },
+          })
         })
       },
       convertInboxItem: async (id) => {
-        const item = state.inbox.find((i) => i.id === id)
-        if (!item) return null
-        const task = addTask({
-          title: item.text,
-          projectId: item.projectId,
-          dueDate: item.dueDate,
-          priority: item.priority,
-          status: 'planned',
-        })
-        commit((s) => ({ ...s, inbox: s.inbox.filter((i) => i.id !== id) }))
+        const converted = await runCommand((s) => {
+          const item = s.inbox.find((candidate) => candidate.id === id)
+          if (!item) return { state: s, result: null }
+          const task = createTask({
+            title: item.text,
+            projectId: item.projectId,
+            dueDate: item.dueDate,
+            priority: item.priority,
+            status: 'planned',
+          })
+          return {
+            state: {
+              ...s,
+              tasks: [...s.tasks, task],
+              inbox: s.inbox.filter((candidate) => candidate.id !== id),
+            },
+            result: { item, task },
+          }
+        }, null)
+        if (!converted) return null
+        const { item, task } = converted
         toast.success('Converted to task', {
           action: {
             label: 'Open',
@@ -729,104 +790,126 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
           cancel: {
             label: 'Undo',
             onClick: () => {
-              commit((s) => ({
-                ...s,
-                tasks: s.tasks.filter((t) => t.id !== task.id),
-                inbox: [item, ...s.inbox],
-              }))
+              void runCommand((s) => ({
+                state: {
+                  ...s,
+                  tasks: s.tasks.filter((candidate) => candidate.id !== task.id),
+                  inbox: [item, ...s.inbox],
+                },
+                result: undefined,
+              }), undefined)
             },
           },
         })
         return task
       },
       bulkConvert: (ids) => {
-        const items = state.inbox.filter((i) => ids.includes(i.id))
-        if (!items.length) return
-        const newTasks: Task[] = items.map((item) => ({
-          id: adapter.nextId('tsk'),
-          title: item.text,
-          description: '',
-          projectId: item.projectId,
-          status: 'planned',
-          priority: item.priority,
-          dueDate: item.dueDate,
-          parentId: null,
-          dependsOn: [],
-          related: [],
-          labelIds: [],
-          assigneeId: null,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          completedAt: null,
-          history: [hist('Created from Inbox')],
-        }))
-        commit((s) => ({
-          ...s,
-          tasks: [...s.tasks, ...newTasks],
-          inbox: s.inbox.filter((i) => !ids.includes(i.id)),
-        }))
-        toast.success(`${items.length} ${items.length === 1 ? 'item' : 'items'} converted to tasks`)
+        void runCommand((s) => {
+          const items = s.inbox.filter((item) => ids.includes(item.id))
+          const tasks = items.map((item) => createTask({
+            title: item.text,
+            projectId: item.projectId,
+            dueDate: item.dueDate,
+            priority: item.priority,
+            status: 'planned',
+          }))
+          return items.length
+            ? {
+                state: {
+                  ...s,
+                  tasks: [...s.tasks, ...tasks],
+                  inbox: s.inbox.filter((item) => !ids.includes(item.id)),
+                },
+                result: items.length,
+              }
+            : { state: s, result: 0 }
+        }, 0).then((count) => {
+          if (count) toast.success(`${count} ${count === 1 ? 'item' : 'items'} converted to tasks`)
+        })
       },
       bulkDismiss: (ids) => {
-        const items = state.inbox.filter((i) => ids.includes(i.id))
-        if (!items.length) return
-        commit((s) => ({ ...s, inbox: s.inbox.filter((i) => !ids.includes(i.id)) }))
-        toast(`${items.length} ${items.length === 1 ? 'item' : 'items'} dismissed`, {
-          action: { label: 'Undo', onClick: () => commit((s) => ({ ...s, inbox: [...items, ...s.inbox] })) },
+        void runCommand((s) => {
+          const items = s.inbox.filter((item) => ids.includes(item.id))
+          return items.length
+            ? { state: { ...s, inbox: s.inbox.filter((item) => !ids.includes(item.id)) }, result: items }
+            : { state: s, result: [] }
+        }, [] as InboxItem[]).then((items) => {
+          if (!items.length) return
+          toast(`${items.length} ${items.length === 1 ? 'item' : 'items'} dismissed`, {
+            action: {
+              label: 'Undo',
+              onClick: () => {
+                void runCommand((s) => ({ state: { ...s, inbox: [...items, ...s.inbox] }, result: undefined }), undefined)
+              },
+            },
+          })
         })
       },
       bulkAssignProject: (ids, projectId) => {
-        commit((s) => ({
-          ...s,
-          inbox: s.inbox.map((i) => (ids.includes(i.id) ? { ...i, projectId } : i)),
-        }))
-        toast.success('Project updated')
+        void runCommand((s) => ({
+          state: { ...s, inbox: s.inbox.map((item) => ids.includes(item.id) ? { ...item, projectId } : item) },
+          result: true,
+        }), false).then((saved) => {
+          if (saved) toast.success('Project updated')
+        })
       },
 
-      addTask: async (partial) => addTask(partial),
-      updateTask: async (id, patch, opts) => {
-        updateTask(id, patch, opts)
-        return true
-      },
+      addTask,
+      updateTask,
       toggleTask: async (id) => {
-        const t = byId.get(id)
-        if (!t) return false
-        const done = t.status !== 'done'
-        commit((s) => ({
-          ...s,
-          tasks: s.tasks.map((x) =>
-            x.id === id
-              ? {
-                  ...x,
-                  status: done ? 'done' : 'planned',
-                  completedAt: done ? Date.now() : null,
-                  updatedAt: Date.now(),
-                  history: [...x.history, hist(done ? 'Marked done' : 'Reopened')].slice(-30),
-                }
-              : x,
-          ),
-        }))
-        if (done) toast.success('Done. Nice.')
+        const result = await runCommand((s) => {
+          const task = s.tasks.find((candidate) => candidate.id === id)
+          if (!task) return { state: s, result: null }
+          const done = task.status !== 'done'
+          const now = Date.now()
+          return {
+            state: {
+              ...s,
+              tasks: s.tasks.map((candidate) => candidate.id === id
+                ? {
+                    ...candidate,
+                    status: done ? 'done' : 'planned',
+                    completedAt: done ? now : null,
+                    updatedAt: now,
+                    history: [...candidate.history, hist(done ? 'Marked done' : 'Reopened')].slice(-30),
+                  }
+                : candidate),
+            },
+            result: done,
+          }
+        }, null)
+        if (result === null) return false
+        if (result) toast.success('Done. Nice.')
         return true
       },
       deleteTask: async (id) => {
-        const t = byId.get(id)
-        if (!t) return false
-        commit((s) => ({
-          ...s,
-          tasks: s.tasks
-            .filter((x) => x.id !== id && x.parentId !== id)
-            .map((x) => ({
-              ...x,
-              dependsOn: x.dependsOn.filter((d) => d !== id),
-              related: x.related.filter((r) => r !== id),
-            })),
-        }))
+        const task = await runCommand((s) => {
+          const deleted = s.tasks.find((candidate) => candidate.id === id)
+          if (!deleted) return { state: s, result: null }
+          return {
+            state: {
+              ...s,
+              tasks: s.tasks
+                .filter((candidate) => candidate.id !== id && candidate.parentId !== id)
+                .map((candidate) => ({
+                  ...candidate,
+                  dependsOn: candidate.dependsOn.filter((dependencyId) => dependencyId !== id),
+                  related: candidate.related.filter((relatedId) => relatedId !== id),
+                })),
+            },
+            result: deleted,
+          }
+        }, null)
+        if (!task) return false
         toast('Task deleted', {
           action: {
             label: 'Undo',
-            onClick: () =>
-              commit((s) => (s.tasks.some((x) => x.id === id) ? s : { ...s, tasks: [...s.tasks, t] })),
+            onClick: () => {
+              void runCommand((s) => ({
+                state: s.tasks.some((candidate) => candidate.id === id) ? s : { ...s, tasks: [...s.tasks, task] },
+                result: undefined,
+              }), undefined)
+            },
           },
         })
         commands.dispatch('task-deleted', { taskId: id })
@@ -834,30 +917,41 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       },
 
       addNote: async (partial) => {
+        const now = Date.now()
         const note: Note = {
           id: adapter.nextId('nte'),
           title: partial?.title ?? 'Untitled note',
           content: partial?.content ?? '',
           projectId: partial?.projectId ?? null,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: now,
+          updatedAt: now,
         }
-        commit((s) => ({ ...s, notes: [note, ...s.notes] }))
-        return note
+        return runCommand((s) => ({ state: { ...s, notes: [note, ...s.notes] }, result: note }), null)
       },
-      updateNote: async (id, patch) => {
-        const note = state.notes.find((item) => item.id === id)
-        if (!note) return null
+      updateNote: (id, patch) => runCommand((s) => {
+        const note = s.notes.find((item) => item.id === id)
+        if (!note) return { state: s, result: null }
         const updated = { ...note, ...patch, updatedAt: Date.now() }
-        commit((s) => ({ ...s, notes: s.notes.map((item) => item.id === id ? updated : item) }))
-        return updated
-      },
+        return {
+          state: { ...s, notes: s.notes.map((item) => item.id === id ? updated : item) },
+          result: updated,
+        }
+      }, null),
       deleteNote: async (id) => {
-        const n = state.notes.find((x) => x.id === id)
-        if (!n) return false
-        commit((s) => ({ ...s, notes: s.notes.filter((x) => x.id !== id) }))
+        const note = await runCommand((s) => {
+          const deleted = s.notes.find((item) => item.id === id)
+          return deleted
+            ? { state: { ...s, notes: s.notes.filter((item) => item.id !== id) }, result: deleted }
+            : { state: s, result: null }
+        }, null)
+        if (!note) return false
         toast('Note deleted', {
-          action: { label: 'Undo', onClick: () => commit((s) => ({ ...s, notes: [n, ...s.notes] })) },
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              void runCommand((s) => ({ state: { ...s, notes: [note, ...s.notes] }, result: undefined }), undefined)
+            },
+          },
         })
         return true
       },
@@ -873,35 +967,50 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
           startDate: startDate ?? null,
           createdAt: Date.now(),
         }
-        commit((s) => ({ ...s, projects: [...s.projects, project] }))
-        toast.success('Project created')
-        return project
+        const created = await runCommand((s) => ({ state: { ...s, projects: [...s.projects, project] }, result: project }), null)
+        if (created) toast.success('Project created')
+        return created
       },
       updateProject: async (id, patch) => {
-        commit((s) => ({ ...s, projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
-        toast.success('Changes saved')
-        return true
+        const saved = await runCommand((s) => s.projects.some((project) => project.id === id)
+          ? {
+              state: { ...s, projects: s.projects.map((project) => project.id === id ? { ...project, ...patch } : project) },
+              result: true,
+            }
+          : { state: s, result: false }, false)
+        if (saved) toast.success('Changes saved')
+        return saved
       },
       deleteProject: async (id) => {
-        if (!state.projects.some((project) => project.id === id)) return false
-        commit((s) => ({
-          ...s,
-          projects: s.projects.filter((project) => project.id !== id),
-          tasks: s.tasks.map((task) => task.projectId === id ? { ...task, projectId: null } : task),
-          notes: s.notes.map((note) => note.projectId === id ? { ...note, projectId: null } : note),
-        }))
-        toast.success('Project deleted')
-        return true
+        const deleted = await runCommand((s) => s.projects.some((project) => project.id === id)
+          ? {
+              state: {
+                ...s,
+                projects: s.projects.filter((project) => project.id !== id),
+                tasks: s.tasks.map((task) => task.projectId === id ? { ...task, projectId: null } : task),
+                notes: s.notes.map((note) => note.projectId === id ? { ...note, projectId: null } : note),
+              },
+              result: true,
+            }
+          : { state: s, result: false }, false)
+        if (deleted) toast.success('Project deleted')
+        return deleted
       },
 
-      pushRecent: (item) =>
-        commit((s) => ({
-          ...s,
-          recents: [{ ...item, at: Date.now() }, ...s.recents.filter((r) => !(r.type === item.type && r.id === item.id))].slice(0, 8),
-        })),
-      resetWorkspace: () => {
-        setState(adapter.reset())
-        toast.success('Workspace reset to sample data')
+      pushRecent: (item) => {
+        void runCommand((s) => ({
+          state: {
+            ...s,
+            recents: [{ ...item, at: Date.now() }, ...s.recents.filter((recent) => !(recent.type === item.type && recent.id === item.id))].slice(0, 8),
+          },
+          result: undefined,
+        }), undefined)
+      },
+      resetWorkspace: async () => {
+        const fresh = adapter.fresh()
+        const saved = await runCommand(() => ({ state: fresh, result: true }), false)
+        if (saved) toast.success('Workspace reset to sample data')
+        return saved
       },
       exportJson: () => JSON.stringify(state, null, 2),
       signOut: () => {
@@ -911,7 +1020,7 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
       },
     }
     return apiObj
-  }, [adapter, commands, navigate, state])
+  }, [adapter, commandQueue, commands, navigate, state, tasksByParent])
 
   return <WorkspaceContexts value={api}>{children}</WorkspaceContexts>
 }
