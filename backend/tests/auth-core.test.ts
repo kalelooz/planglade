@@ -101,6 +101,7 @@ async function authorizeWithCredential(
   password: string,
   verify: (candidate: string, hash: string) => Promise<boolean> = verifyPassword
 ) {
+  await db.authThrottle.deleteMany()
   ;(db.localCredential as typeof db.localCredential).findFirst = ((async () => credential) as unknown) as typeof db.localCredential.findFirst
   try {
     return await authorizeLocalCredentials({ email: "person@example.com", password }, verify)
@@ -135,6 +136,26 @@ test("local credentials authenticate only with an eligible credential and valid 
 
   assert.equal((await authorizeWithCredential(credential, "wrong password")), null)
   assert.deepEqual(await authorizeWithCredential(credential, "correct horse battery staple"), user)
+})
+
+test("local credential throttling skips expensive verification after five failures", async () => {
+  await db.authThrottle.deleteMany()
+  let verificationCalls = 0
+  ;(db.localCredential as typeof db.localCredential).findFirst = ((async () => null) as unknown) as typeof db.localCredential.findFirst
+  try {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      assert.equal(await authorizeLocalCredentials(
+        { email: "blocked@example.com", password: "wrong password" },
+        async () => {
+          verificationCalls += 1
+          return false
+        }
+      ), null)
+    }
+    assert.equal(verificationCalls, 5)
+  } finally {
+    ;(db.localCredential as typeof db.localCredential).findFirst = originalLocalCredentialFindFirst
+  }
 })
 
 test("local credential callback contains database and crypto failures without leaking details", async () => {
