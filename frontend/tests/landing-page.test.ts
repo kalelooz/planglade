@@ -139,20 +139,24 @@ describe('marketing landing page', () => {
   })
 
   it('keeps deployment-specific URLs out of the public core and declares crawl boundaries', async () => {
-    const [html, robots, sitemap, social, routeMetadata] = await Promise.all([
+    const [html, robots, social, routeMetadata, security, nginx] = await Promise.all([
       source('index.html'),
       source('public/robots.txt'),
-      source('public/sitemap.xml'),
       source('public/planglade-social-preview.svg'),
       source('src/components/RouteMetadata.tsx'),
+      source('public/.well-known/security.txt'),
+      source('deploy/default.conf.template'),
     ])
 
     expect(html).not.toContain('planglade.com')
-    expect(html).toContain('content="/planglade-social-preview.svg"')
+    expect(html).toContain('content="/planglade-social-preview.png"')
     for (const path of ['/app', '/auth', '/invite', '/setup', '/onboarding']) expect(robots).toContain(`Disallow: ${path}`)
     expect(robots).not.toContain('Sitemap:')
-    expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" />')
     expect(routeMetadata).toContain("isMarketingRoot ? 'index, follow' : 'noindex, nofollow'")
+    expect(routeMetadata).toContain("isMarketingRoot ? '/planglade-social-preview.png' : null")
+    expect(security).toContain('Contact: https://github.com/kalelooz/planglade/security/advisories/new')
+    expect(nginx).toContain('try_files $uri =404;')
+    expect(nginx).toContain('app(?:/.*)?')
     expect(social).toContain('M14 9.536V7a4 4 0 0 1 4-4')
   })
 })
