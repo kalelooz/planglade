@@ -17,7 +17,28 @@ const uploadBinaryQuerySchema = z.object({
   mimeType: z.string().trim().min(1).max(120).refine(isAllowedAttachmentMimeType, "Unsupported attachment MIME type"),
   expires: z.coerce.number().int().positive(),
   signature: z.string().trim().min(32),
+  reservationId: z.string().uuid(),
+  expectedSizeBytes: z.coerce.number().int().positive().max(MAX_ATTACHMENT_BYTES),
 })
+
+const activeUploadsByWorkspace = new Map<string, number>()
+let activeUploads = 0
+
+function claimUploadSlot(storageKey: string) {
+  const workspaceId = storageKey.split("/", 1)[0]
+  const globalLimit = 4
+  const workspaceLimit = 2
+  const workspaceActive = activeUploadsByWorkspace.get(workspaceId) ?? 0
+  if (activeUploads >= globalLimit || workspaceActive >= workspaceLimit) return null
+  activeUploads += 1
+  activeUploadsByWorkspace.set(workspaceId, workspaceActive + 1)
+  return () => {
+    activeUploads -= 1
+    const remaining = (activeUploadsByWorkspace.get(workspaceId) ?? 1) - 1
+    if (remaining > 0) activeUploadsByWorkspace.set(workspaceId, remaining)
+    else activeUploadsByWorkspace.delete(workspaceId)
+  }
+}
 
 function validateUploadContentLength(request: Request) {
   const contentLength = request.headers.get("content-length")
@@ -48,6 +69,8 @@ export async function PUT(request: NextRequest) {
       mimeType: request.nextUrl.searchParams.get("mimeType") ?? undefined,
       expires: request.nextUrl.searchParams.get("expires") ?? undefined,
       signature: request.nextUrl.searchParams.get("signature") ?? undefined,
+      reservationId: request.nextUrl.searchParams.get("reservationId") ?? undefined,
+      expectedSizeBytes: request.nextUrl.searchParams.get("expectedSizeBytes") ?? undefined,
     })
     if (!parsed.success) {
       return badRequest("Invalid upload URL", parsed.error.flatten())
@@ -59,6 +82,8 @@ export async function PUT(request: NextRequest) {
       mimeType: parsed.data.mimeType,
       expiresAtMs: parsed.data.expires,
       signature: parsed.data.signature,
+      reservationId: parsed.data.reservationId,
+      expectedSizeBytes: parsed.data.expectedSizeBytes,
     })
     if (!isValid) {
       return NextResponse.json({ error: "Upload URL is invalid or expired" }, { status: 401 })
@@ -71,14 +96,27 @@ export async function PUT(request: NextRequest) {
 
     const contentLength = validateUploadContentLength(request)
     if (!contentLength.ok) return badRequest(contentLength.message)
+    const declaredLength = request.headers.get("content-length")
+    if (declaredLength !== null && Number(declaredLength) > parsed.data.expectedSizeBytes) {
+      return badRequest("Upload exceeds its reserved size")
+    }
     if (!request.body) return badRequest("Upload body is empty")
 
-    const saved = await writeLocalStorageObjectStream({
-      storageKey: parsed.data.storageKey,
-      mimeType: parsed.data.mimeType,
-      body: request.body,
-      maxBytes: MAX_ATTACHMENT_BYTES,
-    })
+    const releaseUploadSlot = claimUploadSlot(parsed.data.storageKey)
+    if (!releaseUploadSlot) {
+      return NextResponse.json({ error: "Too many concurrent attachment uploads" }, { status: 429 })
+    }
+    let saved
+    try {
+      saved = await writeLocalStorageObjectStream({
+        storageKey: parsed.data.storageKey,
+        mimeType: parsed.data.mimeType,
+        body: request.body,
+        maxBytes: parsed.data.expectedSizeBytes,
+      })
+    } finally {
+      releaseUploadSlot()
+    }
 
     return NextResponse.json({
       uploaded: true,

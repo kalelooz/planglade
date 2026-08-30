@@ -320,9 +320,25 @@ export async function GET(request: NextRequest) {
     await Promise.allSettled(sideEffects.map(async (effect) => effect()))
 
     const response = NextResponse.json({
-      version: 1,
+      version: 2,
       exportedAt,
       generatedAt: exportedAt,
+      manifest: {
+        format: "planglade-workspace",
+        version: 2,
+        createdAt: exportedAt,
+        appVersion: process.env.npm_package_version ?? "0.2.0",
+        capabilities: [
+          "projects.v2",
+          "workItems.hierarchy",
+          "notes.visibility",
+          "labels",
+          "taskLabels",
+          "taskNoteLinks",
+          "projectDocs",
+          "savedViews",
+        ],
+      },
       scope,
       workspace: serializedWorkspace,
       projects: serializedProjects,

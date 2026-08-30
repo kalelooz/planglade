@@ -34,6 +34,15 @@
 - 2026-08-27: rendered invitation review passed DOM, visual, and console inspection; evidence is under `artifacts/verification/core-unification/` (intentionally ignored).
 - 2026-08-27: leakage scan found no Firebase, Stripe, GCP, billing, cloud-plan, or secret references in the reusable slice.
 
+## Completed tasks
+
+### AUDIT-001 — 2026-08-30 deep-dive remediation
+
+- Status: **PASS** for branch publication; release remains separately gated
+- Requested: 2026-08-30
+- Scope: verify every finding in the supplied deep-dive audit, implement confirmed provider-neutral security, recovery, storage, import/export, concurrency, and public-surface fixes, and preserve explicit release/runtime/legal gates.
+- Evidence: [the finding-by-finding reconciliation](./DEEP_DIVE_REMEDIATION_2026-08-30.md); 253 backend tests and 168 frontend tests pass; backend/frontend lint, typecheck, and production builds pass; public-boundary, CI, docs, release-readiness, release-rehearsal, Prisma migration, backend-surface, dependency-audit, and responsive recovery-screen checks pass.
+
 ### UI-003 — Proportional Tasks work surface
 
 - Status: **PASS**

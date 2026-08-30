@@ -134,12 +134,14 @@ describe('API client', () => {
 
   it('previews an import before posting the confirmed append', async () => {
     const snapshot = parseWorkspaceImport({
-      version: 1,
+      version: 2,
+      manifest: { format: 'planglade-workspace', version: 2, createdAt: '2026-07-21T12:00:00.000Z', appVersion: '0.2.0', capabilities: [] },
       data: { projects: [{ id: 'p1' }], workItems: [], notes: [], projectDocs: [], savedViews: [] },
     })
     const preview = {
       workspaceId: 'workspace-1',
       counts: { projects: 1, tasks: 0, notes: 0, projectDocs: 0, savedViews: 0, settings: 0, archivedProjectDocs: 0 },
+      contract: { operation: 'append-import', supportedVersions: [1, 2], canExecute: true, idempotent: false, collisionStrategy: 'skip duplicates', discardedFields: [], expectedAttachmentBytes: 0, sourceChecksum: `sha256:${'a'.repeat(64)}` },
       warnings: [],
       writes: false,
     }
@@ -353,9 +355,10 @@ describe('API client', () => {
 
   it('downloads the guarded backend workspace export through the same-origin client', async () => {
     const exported = {
-      version: 1,
+      version: 2,
       exportedAt: '2026-07-21T12:00:00.000Z',
       generatedAt: '2026-07-21T12:00:00.000Z',
+      manifest: { format: 'planglade-workspace', version: 2, createdAt: '2026-07-21T12:00:00.000Z', appVersion: '0.2.0', capabilities: [] },
       workspace: { id: 'workspace-1', slug: 'studio', name: 'Studio', taskPriorityDisplayStyle: 'FLAGS' },
       projects: [], tasks: [], inboxItems: [], notes: [], labels: [], taskLabels: [], legacyDocs: [], savedViews: [],
       data: {},
@@ -492,7 +495,7 @@ describe('API client', () => {
     const completeBody = JSON.parse(fetchMock.mock.calls[0]?.[1].body)
     expect(completeBody.status).toBe('DONE')
     expect(completeBody.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ status: 'TODO', completedAt: null })
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ expectedUpdatedAt: task.updatedAt, status: 'TODO', completedAt: null })
   })
 
   it('sends IN_REVIEW without converting it to In Progress', async () => {
@@ -501,7 +504,7 @@ describe('API client', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(updateTask('workspace-1', task, { status: 'in_review' })).resolves.toEqual(reviewed)
-    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ status: 'IN_REVIEW', completedAt: null })
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ expectedUpdatedAt: task.updatedAt, status: 'IN_REVIEW', completedAt: null })
   })
 
   it('preserves confirmed state when a status mutation fails', async () => {

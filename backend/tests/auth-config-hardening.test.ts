@@ -148,6 +148,8 @@ test("local storage derives a separate signing key from the operator secret", as
     const target = await createAttachmentUploadTarget({
       storageKey: "workspace-1/file.txt",
       mimeType: "text/plain",
+      reservationId: "00000000-0000-4000-8000-000000000001",
+      expectedSizeBytes: 10,
       expiresInSeconds: 60,
     })
     const url = new URL(target.uploadUrl, "http://localhost")

@@ -99,7 +99,7 @@ export function createTask(input: CreateTaskInput, signal?: AbortSignal) {
 }
 
 export function updateTask(workspaceId: string, task: BackendWorkItem, patch: TaskMutationPatch, signal?: AbortSignal) {
-  const body: Record<string, unknown> = {}
+  const body: Record<string, unknown> = { expectedUpdatedAt: task.updatedAt }
   if (patch.title !== undefined) body.title = patch.title
   if (patch.description !== undefined) body.description = patch.description
   if (patch.projectId !== undefined) body.projectId = patch.projectId
