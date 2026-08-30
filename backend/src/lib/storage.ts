@@ -419,7 +419,7 @@ export async function writeLocalStorageObjectStream(input: {
         await reader.cancel().catch(() => undefined)
         throw new StorageObjectTooLargeError()
       }
-      await handle.write(value)
+      await handle.writeFile(value)
     }
     if (totalBytes === 0) throw new StorageObjectEmptyError()
     await handle.sync()

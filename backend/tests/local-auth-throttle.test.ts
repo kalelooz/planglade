@@ -37,6 +37,10 @@ test("parallel login claims allow at most five expensive verifications per accou
   assert.equal(account?.attemptCount, 5)
   assert.ok(account?.blockedUntil)
   assert.equal(account?.subjectKey.includes("person@example.com"), false)
+  const global = await db.authThrottle.findUnique({
+    where: { scope_subjectKey: { scope: "LOGIN_GLOBAL", subjectKey: "installation" } },
+  })
+  assert.equal(global?.attemptCount, 5)
 })
 
 test("successful authentication can clear only its account bucket", async () => {
