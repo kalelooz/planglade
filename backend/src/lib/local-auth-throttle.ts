@@ -64,17 +64,17 @@ async function claimBucket(policy: LoginThrottlePolicy, now: Date) {
 }
 
 export async function claimLoginVerification(normalizedEmail: string | null, now = new Date()) {
-  const globalAllowed = await claimBucket({
-    scope: "LOGIN_GLOBAL",
-    subjectKey: GLOBAL_SUBJECT,
-    attempts: LOGIN_GLOBAL_ATTEMPTS,
-  }, now)
-  if (!globalAllowed) return false
-
-  return claimBucket({
+  const accountAllowed = await claimBucket({
     scope: "LOGIN_ACCOUNT",
     subjectKey: hashLoginAccountSubject(normalizedEmail),
     attempts: LOGIN_ACCOUNT_ATTEMPTS,
+  }, now)
+  if (!accountAllowed) return false
+
+  return claimBucket({
+    scope: "LOGIN_GLOBAL",
+    subjectKey: GLOBAL_SUBJECT,
+    attempts: LOGIN_GLOBAL_ATTEMPTS,
   }, now)
 }
 
