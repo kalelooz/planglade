@@ -60,6 +60,8 @@ test("POST /workspace/invitations/preview returns decision details without accep
     }
 
     assert.equal(response.status, 200)
+    assert.equal(response.headers.get("cache-control"), "no-store")
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer")
     assert.deepEqual(payload.review, {
       email: "invitee@example.com",
       role: "MEMBER",

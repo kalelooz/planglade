@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto"
+import { createHash, randomBytes } from "node:crypto"
 
 type InviteLike = {
   status: "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED"
@@ -12,7 +12,11 @@ export function normalizeInviteEmail(email: string) {
 }
 
 export function buildInviteToken() {
-  return randomBytes(24).toString("hex")
+  return randomBytes(32).toString("base64url")
+}
+
+export function hashInviteToken(token: string) {
+  return createHash("sha256").update(token, "utf8").digest("hex")
 }
 
 export function buildInviteExpiry(expiresInDays = DEFAULT_INVITE_EXPIRY_DAYS) {

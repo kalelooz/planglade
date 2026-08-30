@@ -225,6 +225,8 @@ test("POST /workspace/invitations/accept preserves an existing member role", asy
     const payload = (await response.json()) as { member?: { role?: string } }
 
     assert.equal(response.status, 200)
+    assert.equal(response.headers.get("cache-control"), "no-store")
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer")
     assert.deepEqual(upsertUpdate, {})
     assert.equal(payload.member?.role, "ADMIN")
   })

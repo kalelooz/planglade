@@ -3,6 +3,7 @@ import test from "node:test"
 
 import {
   evaluateAuthConfiguration,
+  evaluateCanonicalPublicUrl,
   evaluateProductionConfiguration,
   evaluateStorageConfiguration,
 } from "../src/lib/production-config.mjs"
@@ -64,4 +65,18 @@ test("blank mode and provider values use their production defaults", () => {
   assert.equal(configuration.storage.provider, "local")
   assert.equal(configuration.email.provider, "disabled")
   assert.deepEqual(configuration.errors, [])
+})
+
+test("canonical public URL preserves ports and rejects ambiguous authorities", () => {
+  assert.deepEqual(evaluateCanonicalPublicUrl("http://localhost:8080/"), {
+    origin: "http://localhost:8080",
+    errors: [],
+  })
+  assert.deepEqual(evaluateCanonicalPublicUrl("https://example.com/"), {
+    origin: "https://example.com",
+    errors: [],
+  })
+  assert.match(evaluateCanonicalPublicUrl("http://example.com/").errors.join(" "), /HTTPS/)
+  assert.match(evaluateCanonicalPublicUrl("https://example.com/app").errors.join(" "), /no path/)
+  assert.match(evaluateCanonicalPublicUrl("https://user@example.com/").errors.join(" "), /credentials/)
 })
