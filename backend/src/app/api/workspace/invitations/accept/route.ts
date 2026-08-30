@@ -13,6 +13,8 @@ import { db } from "@/lib/db"
 import { evaluateInviteAcceptance } from "@/lib/workspace-invite-guards"
 import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
 
+class InviteClaimLostError extends Error {}
+
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, acceptWorkspaceInviteSchema)
   if (!parsed.ok) return parsed.response
@@ -87,6 +89,21 @@ export async function POST(request: NextRequest) {
     }
 
     const accepted = await db.$transaction(async (tx) => {
+      const claim = await tx.workspaceInvite.updateMany({
+        where: {
+          id: invite.id,
+          token: parsed.data.token,
+          status: "PENDING",
+          acceptedById: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          status: "ACCEPTED",
+          acceptedById: actor.id,
+        },
+      })
+      if (claim.count !== 1) throw new InviteClaimLostError()
+
       const membership = await tx.workspaceMember.upsert({
         where: {
           workspaceId_userId: {
@@ -94,9 +111,7 @@ export async function POST(request: NextRequest) {
             userId: actor.id,
           },
         },
-        update: {
-          role: invite.role,
-        },
+        update: {},
         create: {
           workspaceId: invite.workspaceId,
           userId: actor.id,
@@ -104,12 +119,8 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      const updatedInvite = await tx.workspaceInvite.update({
+      const updatedInvite = await tx.workspaceInvite.findUniqueOrThrow({
         where: { id: invite.id },
-        data: {
-          status: "ACCEPTED",
-          acceptedById: actor.id,
-        },
       })
 
       await logActivityEvent(tx, {
@@ -144,6 +155,9 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof InviteClaimLostError) {
+      return badRequest("Invite is no longer available")
+    }
     return serverError("Failed to accept workspace invite", String(error))
   }
 }
