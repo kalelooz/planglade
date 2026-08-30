@@ -6,12 +6,8 @@ import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { createAttachmentUploadUrlSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canAccessNote } from "@/lib/note-access"
-import { createAttachmentUploadTarget } from "@/lib/storage"
-
-function sanitizeFilename(input: string) {
-  const cleaned = input.trim().replace(/[^\w.\- ]+/g, "_")
-  return cleaned.length > 0 ? cleaned : "attachment"
-}
+import { reserveAttachmentUpload, WorkspaceStorageQuotaError } from "@/lib/attachment-reservations"
+import { createAttachmentUploadTarget, ensureLocalStorageHeadroom, StorageCapacityError } from "@/lib/storage"
 
 async function validateAttachmentTarget(
   workspaceId: string,
@@ -106,13 +102,32 @@ export async function POST(request: NextRequest) {
     if (flagError) return flagError
 
     const now = new Date()
-    const safeName = sanitizeFilename(parsed.data.name)
-    const storageKey = `${parsed.data.workspaceId}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}-${safeName}`
-    const uploadTarget = await createAttachmentUploadTarget({
+    const storageKey = `${parsed.data.workspaceId}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}`
+    const expiresInSeconds = 900
+    await ensureLocalStorageHeadroom(parsed.data.sizeBytes)
+    const reservation = await reserveAttachmentUpload({
+      workspaceId: parsed.data.workspaceId,
+      actorUserId: access.actor.userId,
+      workItemId: parsed.data.workItemId,
+      noteId: parsed.data.noteId,
       storageKey,
       mimeType: parsed.data.mimeType,
-      expiresInSeconds: 900,
+      sizeBytes: parsed.data.sizeBytes,
+      expiresAt: new Date(now.getTime() + expiresInSeconds * 1000),
     })
+    let uploadTarget
+    try {
+      uploadTarget = await createAttachmentUploadTarget({
+        storageKey,
+        mimeType: parsed.data.mimeType,
+        reservationId: reservation.id,
+        expectedSizeBytes: parsed.data.sizeBytes,
+        expiresInSeconds,
+      })
+    } catch (error) {
+      await db.attachmentUploadReservation.delete({ where: { id: reservation.id } }).catch(() => undefined)
+      throw error
+    }
 
     return NextResponse.json({
       uploadUrl: uploadTarget.uploadUrl,
@@ -121,6 +136,7 @@ export async function POST(request: NextRequest) {
       expiresInSeconds: uploadTarget.expiresInSeconds,
       requiredHeaders: uploadTarget.requiredHeaders,
       finalizePayload: {
+        reservationId: reservation.id,
         workspaceId: parsed.data.workspaceId,
         workItemId: parsed.data.workItemId ?? undefined,
         noteId: parsed.data.noteId ?? undefined,
@@ -131,6 +147,12 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof WorkspaceStorageQuotaError) {
+      return NextResponse.json({ error: "Workspace attachment storage quota exceeded" }, { status: 409 })
+    }
+    if (error instanceof StorageCapacityError) {
+      return NextResponse.json({ error: "Attachment storage does not have enough free space" }, { status: 507 })
+    }
     return serverError("Failed to generate upload URL", String(error))
   }
 }

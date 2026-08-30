@@ -38,6 +38,7 @@ export function routeTitle(pathname: string) {
   if (!decoded) return 'Page not found · PlanGlade'
   if (matchesRoute(decoded, '/')) return landingTitle
   if (matchesRoute(decoded, '/auth/login') || matchesRoute(decoded, '/login')) return 'Sign in · PlanGlade'
+  if (matchesRoute(decoded, '/auth/recover')) return 'Recover local account · PlanGlade'
 
   for (const [path, title] of workspaceTitles) {
     if (matchesRoute(decoded, path)) return title

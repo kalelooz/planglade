@@ -61,6 +61,8 @@ async function uploadUrl(storageKey: string) {
   const target = await createAttachmentUploadTarget({
     storageKey,
     mimeType: "text/plain",
+    reservationId: "00000000-0000-4000-8000-000000000001",
+    expectedSizeBytes: MAX_ATTACHMENT_BYTES,
     expiresInSeconds: 60,
   })
   return new URL(target.uploadUrl, "http://localhost")
@@ -287,6 +289,7 @@ test("attachment finalization rejects reuse of an already finalized storage key"
           "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
+          reservationId: "00000000-0000-4000-8000-000000000001",
           workspaceId: "ws-1",
           workItemId: "task-1",
           name: "notes.txt",

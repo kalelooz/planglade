@@ -25,6 +25,8 @@ import {
 
 type Params = { params: Promise<{ workItemId: string }> }
 
+class StaleWorkItemMutationError extends Error {}
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { workItemId } = await params
   const query = workspaceQuerySchema.safeParse({
@@ -75,6 +77,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         projectId: true,
         parentId: true,
         position: true,
+        updatedAt: true,
       },
     })
     if (!existing) return notFound("Work item not found")
@@ -129,7 +132,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const changedFields = Object.entries(parsed.data)
-      .filter(([, value]) => value !== undefined)
+      .filter(([key, value]) => key !== "expectedUpdatedAt" && value !== undefined)
       .map(([key]) => key)
     const action =
       parsed.data.status === "DONE" && existing.status !== "DONE"
@@ -139,9 +142,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           : "UPDATED"
 
     const updated = await db.$transaction(async (tx) => {
-      const patchedWorkItem = await tx.workItem.update({
-        where: { id: workItemId },
-        data: {
+      const mutationData = {
           ...(parsed.data.projectId !== undefined ? { projectId: parsed.data.projectId } : {}),
           ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
           ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
@@ -159,15 +160,37 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ...(parsed.data.completedAt !== undefined
             ? { completedAt: parseDateValue(parsed.data.completedAt ?? undefined) }
             : {}),
-        },
-        select: {
+      }
+      let patchedWorkItem
+      if (parsed.data.expectedUpdatedAt) {
+        const claim = await tx.workItem.updateMany({
+          where: { id: workItemId, updatedAt: new Date(parsed.data.expectedUpdatedAt) },
+          data: mutationData,
+        })
+        if (claim.count !== 1) throw new StaleWorkItemMutationError()
+        patchedWorkItem = await tx.workItem.findUniqueOrThrow({
+          where: { id: workItemId },
+          select: {
+            id: true,
+            title: true,
+            assigneeId: true,
+            projectId: true,
+            updatedAt: true,
+          },
+        })
+      } else {
+        patchedWorkItem = await tx.workItem.update({
+          where: { id: workItemId },
+          data: mutationData,
+          select: {
           id: true,
           title: true,
           assigneeId: true,
           projectId: true,
           updatedAt: true,
-        },
-      })
+          },
+        })
+      }
 
       if (parsed.data.beforeId !== undefined) {
         const siblings = await tx.workItem.findMany({
@@ -286,6 +309,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ workItem: updated })
   } catch (error) {
+    if (error instanceof StaleWorkItemMutationError) {
+      const current = await db.workItem.findUnique({
+        where: { id: workItemId },
+        include: { labels: { include: { label: true } } },
+      })
+      return NextResponse.json(
+        { error: "Work item changed since it was loaded", current },
+        { status: 409 },
+      )
+    }
     return serverError("Failed to update work item", String(error))
   }
 }

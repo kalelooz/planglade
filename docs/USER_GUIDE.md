@@ -46,7 +46,9 @@ Settings contains workspace preferences, appearance and date controls, account i
 
 Read [workspace permissions](./PERMISSIONS.md) to see what each role can view, change, export, import, or delete.
 
-Export the workspace regularly and keep the resulting JSON file somewhere protected. Administrators of authenticated workspaces can preview supported imports before adding records.
+Workspace export, append import, and server backup/restore are different operations. A workspace export is a portable JSON snapshot of the permitted product records listed in its manifest; it excludes authentication, memberships, attachments, and operations data. Append import creates new supported records, skips possible duplicates, discards fields listed in its preview, and is not idempotent. It does not restore a workspace. Administrators of authenticated workspaces must review the version, checksum, exact counts, relationship remaps, collision strategy, and discarded fields before confirming an append import.
+
+For disaster recovery, back up the database and attachment volume together. A JSON workspace export is not a server backup.
 
 For server backups, upgrades, and recovery procedures, see:
 

@@ -6,6 +6,7 @@ describe('route metadata', () => {
     expect(routeTitle('/app')).toBe('Home · PlanGlade')
     expect(routeTitle('/app/tasks')).toBe('Tasks · PlanGlade')
     expect(routeTitle('/app/projects/project-1')).toBe('Project · PlanGlade')
+    expect(routeTitle('/auth/recover')).toBe('Recover local account · PlanGlade')
   })
 
   it('matches known routes case-insensitively and after URL decoding', () => {

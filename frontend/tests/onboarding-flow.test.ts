@@ -31,6 +31,7 @@ describe('solo first-run flow', () => {
     expect(viteConfig).not.toContain("'/setup':")
     expect(nginxConfig).not.toMatch(/location .*\/(?:auth|login|setup|_next)/)
     expect(app).toContain('<Route path="/auth/login" element={<DeferredRoute><AuthLogin /></DeferredRoute>} />')
+    expect(app).toContain('<Route path="/auth/recover" element={<DeferredRoute><AuthRecovery /></DeferredRoute>} />')
     expect(app).toContain('<Route path="/setup" element={<DeferredRoute><Setup /></DeferredRoute>} />')
     expect(devLauncher).toContain("NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? 'http://127.0.0.1:5173'")
     expect(devLauncher).toContain("'db', 'push', '--skip-generate'")
