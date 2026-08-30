@@ -11,6 +11,8 @@ import {
 import { previewWorkspaceInviteSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { evaluateInviteAcceptance } from "@/lib/workspace-invite-guards"
+import { hashInviteToken } from "@/lib/workspace-invite-utils"
+import { SENSITIVE_INVITE_RESPONSE_HEADERS } from "@/lib/workspace-invite-response"
 import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
 
 export async function POST(request: NextRequest) {
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (!actor) return forbidden("Signed-in user not found")
 
     const invite = await db.workspaceInvite.findUnique({
-      where: { token: parsed.data.token },
+      where: { tokenHash: hashInviteToken(parsed.data.token) },
       include: {
         workspace: { select: { id: true, name: true, slug: true } },
         invitedBy: { select: { id: true, name: true, email: true } },
@@ -59,8 +61,9 @@ export async function POST(request: NextRequest) {
       return forbidden("Invite email does not match the signed-in account email")
     }
 
-    return NextResponse.json({
-      review: {
+    return NextResponse.json(
+      {
+        review: {
         email: invite.email,
         role: invite.role,
         status: invite.status,
@@ -69,8 +72,10 @@ export async function POST(request: NextRequest) {
         alreadyAccepted: decision.kind === "accepted_self",
         workspace: invite.workspace,
         invitedBy: invite.invitedBy,
+        },
       },
-    })
+      { headers: SENSITIVE_INVITE_RESPONSE_HEADERS }
+    )
   } catch (error) {
     return serverError("Failed to review workspace invite", String(error))
   }

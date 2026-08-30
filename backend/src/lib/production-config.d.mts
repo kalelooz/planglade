@@ -8,6 +8,11 @@ export type ProviderCapabilities = {
   anyConfigured: boolean
 }
 
+export function evaluateCanonicalPublicUrl(value?: string): {
+  origin: string | null
+  errors: string[]
+}
+
 export function evaluateTrustedProxyConfiguration(env?: ConfigurationEnvironment): {
   hops: number
   errors: string[]
