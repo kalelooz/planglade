@@ -7,7 +7,7 @@ import { IMPORT_LIMITS, importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
 import { tryAcquireWorkspaceImport } from "@/lib/workspace-import-lock"
-import { buildWorkspaceImportPlan } from "@/lib/workspace-import-plan"
+import { buildWorkspaceImportPlan, remapImportedNoteIds } from "@/lib/workspace-import-plan"
 
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, importLocalWorkspaceSchema, {
@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
         { projectSlugs: existingProjects.map((project) => project.slug) }
       )
       const projectMap = new Map<string, string>()
+      const noteMap = new Map<string, string>()
       const workspaceMembers = await tx.workspaceMember.findMany({
         where: { workspaceId },
         select: { userId: true },
@@ -87,6 +88,37 @@ export async function POST(request: NextRequest) {
         createdProjects += 1
       }
 
+      for (const note of importPlan.notes) {
+        const duplicate = await tx.note.findFirst({
+          where: {
+            ...buildNoteAccessWhere(workspaceId, actorUserId),
+            title: note.title,
+          },
+          select: { id: true },
+        })
+        if (duplicate) {
+          noteMap.set(note.sourceId, duplicate.id)
+          skippedNotes += 1
+          continue
+        }
+
+        const createdNote = await tx.note.create({
+          data: {
+            workspaceId,
+            title: note.title,
+            body: note.body,
+            visibility: note.visibility,
+            pinned: false,
+            tags: note.tags,
+            createdById: actorUserId,
+            updatedById: actorUserId,
+          },
+          select: { id: true },
+        })
+        noteMap.set(note.sourceId, createdNote.id)
+        createdNotes += 1
+      }
+
       for (const item of importPlan.workItems) {
         const projectId = item.sourceProjectId ? projectMap.get(item.sourceProjectId) : null
         const duplicate = await tx.workItem.findFirst({
@@ -109,7 +141,7 @@ export async function POST(request: NextRequest) {
             title: item.title,
             description: item.description,
             checklist: item.checklist,
-            noteIds: item.noteIds,
+            noteIds: remapImportedNoteIds(item.noteIds, noteMap),
             status: item.status,
             isInbox: item.isInbox,
             priority: item.priority,
@@ -120,34 +152,6 @@ export async function POST(request: NextRequest) {
           },
         })
         createdWorkItems += 1
-      }
-
-      for (const note of importPlan.notes) {
-        const duplicate = await tx.note.findFirst({
-          where: {
-            ...buildNoteAccessWhere(workspaceId, actorUserId),
-            title: note.title,
-          },
-          select: { id: true },
-        })
-        if (duplicate) {
-          skippedNotes += 1
-          continue
-        }
-
-        await tx.note.create({
-          data: {
-            workspaceId,
-            title: note.title,
-            body: note.body,
-            visibility: note.visibility,
-            pinned: false,
-            tags: note.tags,
-            createdById: actorUserId,
-            updatedById: actorUserId,
-          },
-        })
-        createdNotes += 1
       }
 
       for (const doc of importPlan.projectDocs) {
@@ -231,6 +235,7 @@ export async function POST(request: NextRequest) {
         },
         warnings: {
           projectDocsMissingProjects: importPlan.relationIssues.projectDocsMissingProjects,
+          tasksMissingNotes: importPlan.relationIssues.tasksMissingNotes,
         },
       }
 

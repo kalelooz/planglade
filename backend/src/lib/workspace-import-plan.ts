@@ -113,6 +113,16 @@ function reserveProjectSlug(input: string, index: number, usedSlugs: Set<string>
   return slug
 }
 
+export function remapImportedNoteIds(
+  sourceNoteIds: string[] | undefined,
+  noteMap: ReadonlyMap<string, string>
+) {
+  if (!sourceNoteIds) return undefined
+  return sourceNoteIds
+    .map((sourceNoteId) => noteMap.get(sourceNoteId))
+    .filter((noteId): noteId is string => Boolean(noteId))
+}
+
 export function buildWorkspaceImportPlan(
   source: WorkspaceImportSource,
   existing: Partial<ExistingWorkspaceImportValues> = EMPTY_EXISTING

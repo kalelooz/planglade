@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildWorkspaceImportPlan } from "../src/lib/workspace-import-plan"
+import { buildWorkspaceImportPlan, remapImportedNoteIds } from "../src/lib/workspace-import-plan"
 
 test("workspace import plan shares relationship warnings and normalized writes", () => {
   const plan = buildWorkspaceImportPlan({
@@ -89,4 +89,17 @@ test("workspace import plan reserves non-empty unique project slugs", () => {
   ])
   assert.equal(new Set(plan.projects.map((project) => project.slug)).size, 4)
   assert.equal(plan.projects.every((project) => project.slug.length > 0 && project.slug.length <= 50), true)
+})
+
+test("workspace import remaps destination note IDs and drops unresolved references", () => {
+  const noteMap = new Map([
+    ["note-source-1", "note-destination-9"],
+    ["note-source-2", "note-destination-10"],
+  ])
+
+  assert.deepEqual(
+    remapImportedNoteIds(["note-source-2", "missing-note", "note-source-1"], noteMap),
+    ["note-destination-10", "note-destination-9"]
+  )
+  assert.equal(remapImportedNoteIds(undefined, noteMap), undefined)
 })
