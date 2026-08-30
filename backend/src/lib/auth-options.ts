@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import { normalizeEmail } from "@/lib/local-auth-email"
 import { resolveLegacyNextAuthUser, resolveVerifiedApplicationUser } from "@/lib/local-auth-identity"
 import { getDummyPasswordHash, isPasswordHash, verifyPassword } from "@/lib/local-auth-password"
+import { claimLoginVerification, clearLoginAccountThrottle } from "@/lib/local-auth-throttle"
 import { resolveVerifiedOAuthIdentity } from "@/lib/oauth-verified-identity"
 
 const MAX_EMAIL_LENGTH = 320
@@ -28,6 +29,8 @@ export async function authorizeLocalCredentials(
       typeof email === "string" && email.length <= MAX_EMAIL_LENGTH
         ? normalizeEmail(email)
         : null
+    const verificationAllowed = await claimLoginVerification(normalizedEmail)
+    if (!verificationAllowed) return null
     const usablePassword = typeof password === "string" && password.length <= MAX_PASSWORD_LENGTH
     const credential = normalizedEmail
       ? await db.localCredential.findFirst({
@@ -44,6 +47,7 @@ export async function authorizeLocalCredentials(
     const passwordMatches = await verify(usablePassword ? password : "", hashToVerify)
 
     if (!credentialIsUsable || !passwordMatches || !credential) return null
+    await clearLoginAccountThrottle(normalizedEmail!)
     return {
       id: credential.user.id,
       email: credential.user.email,
