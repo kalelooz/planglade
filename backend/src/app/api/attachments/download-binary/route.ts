@@ -4,7 +4,7 @@ import { z } from "zod"
 import { badRequest, serverError } from "@/lib/api-utils"
 import {
   getConfiguredStorageProvider,
-  readLocalStorageObject,
+  streamLocalStorageObject,
   verifyLocalSignedStorageUrl,
 } from "@/lib/storage"
 
@@ -47,17 +47,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Download URL is invalid or expired" }, { status: 401 })
     }
 
-    const object = await readLocalStorageObject({ storageKey: parsed.data.storageKey }).catch(() => null)
+    const object = await streamLocalStorageObject({ storageKey: parsed.data.storageKey }).catch(() => null)
     if (!object) {
       return NextResponse.json({ error: "Attachment file is missing from storage" }, { status: 404 })
     }
 
     const filename = (parsed.data.name ?? "attachment").replace(/["\r\n]/g, "_")
-    return new NextResponse(object.bytes, {
+    return new NextResponse(object.body, {
       status: 200,
       headers: {
         "Content-Type": object.mimeType || parsed.data.mimeType,
-        "Content-Length": String(object.bytes.byteLength),
+        "Content-Length": String(object.sizeBytes),
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     })
