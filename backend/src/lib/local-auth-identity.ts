@@ -107,18 +107,3 @@ export async function resolveVerifiedApplicationUser(identity: VerifiedIdentity)
     throw error
   }
 }
-
-// Temporary compatibility for OAuth JWTs issued before userId/authVersion claims existed.
-export async function resolveLegacyNextAuthUser(email: unknown): Promise<VerifiedApplicationUser | null> {
-  const normalizedEmail = normalizeEmail(email)
-  if (!normalizedEmail) return null
-  const existing = await db.user.findUnique({ where: { normalizedEmail }, select: identityUserSelect })
-  if (existing) return existing.authVersion === 0 ? toVerifiedApplicationUser(existing) : null
-  const transitionalUsers = matchingTransitionalUsers(
-    await db.user.findMany({ where: { normalizedEmail: null }, select: identityUserSelect }),
-    normalizedEmail,
-  )
-  return transitionalUsers.length === 1 && transitionalUsers[0].authVersion === 0
-    ? toVerifiedApplicationUser(transitionalUsers[0])
-    : null
-}
