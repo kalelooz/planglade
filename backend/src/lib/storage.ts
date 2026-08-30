@@ -1,6 +1,8 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto"
+import { createReadStream } from "node:fs"
+import { link, mkdir, open, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { Readable } from "node:stream"
 
 import { readPlanGladeEnv } from "@/lib/env-config"
 import { evaluateStorageConfiguration } from "@/lib/production-config.mjs"
@@ -19,6 +21,9 @@ export class StorageObjectAlreadyExistsError extends Error {
     this.name = "StorageObjectAlreadyExistsError"
   }
 }
+
+export class StorageObjectTooLargeError extends Error {}
+export class StorageObjectEmptyError extends Error {}
 
 type SignedStorageMethod = "upload" | "download"
 
@@ -384,6 +389,65 @@ export async function writeLocalStorageObject(input: {
   }
 }
 
+export async function writeLocalStorageObjectStream(input: {
+  storageKey: string
+  mimeType: string
+  body: ReadableStream<Uint8Array>
+  maxBytes: number
+}) {
+  const provider = getStorageProviderOrThrow()
+  if (provider !== "local") {
+    throw new Error("Local object writes require PLANGLADE_STORAGE_PROVIDER=local")
+  }
+
+  const filePath = resolveLocalStoragePath(input.storageKey)
+  const tempPath = `${filePath}.upload-${randomUUID()}`
+  const metaPath = getLocalMetaPath(filePath)
+  await mkdir(path.dirname(filePath), { recursive: true })
+
+  const reader = input.body.getReader()
+  const handle = await open(tempPath, "wx")
+  let totalBytes = 0
+  let objectLinked = false
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value || value.byteLength === 0) continue
+      totalBytes += value.byteLength
+      if (totalBytes > input.maxBytes) {
+        await reader.cancel().catch(() => undefined)
+        throw new StorageObjectTooLargeError()
+      }
+      await handle.write(value)
+    }
+    if (totalBytes === 0) throw new StorageObjectEmptyError()
+    await handle.sync()
+    await handle.close()
+
+    try {
+      await link(tempPath, filePath)
+      objectLinked = true
+      await writeFile(metaPath, JSON.stringify({ mimeType: input.mimeType }, null, 2), {
+        flag: "wx",
+      })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new StorageObjectAlreadyExistsError()
+      }
+      throw error
+    }
+
+    return { sizeBytes: totalBytes, path: filePath }
+  } catch (error) {
+    if (objectLinked) await rm(filePath, { force: true }).catch(() => undefined)
+    throw error
+  } finally {
+    await handle.close().catch(() => undefined)
+    await rm(tempPath, { force: true }).catch(() => undefined)
+  }
+}
+
 export async function readLocalStorageObject(input: { storageKey: string }) {
   const provider = getStorageProviderOrThrow()
   if (provider !== "local") {
@@ -399,5 +463,24 @@ export async function readLocalStorageObject(input: { storageKey: string }) {
   return {
     bytes: buffer,
     mimeType: typeof meta?.mimeType === "string" ? meta.mimeType : "application/octet-stream",
+  }
+}
+
+export async function streamLocalStorageObject(input: { storageKey: string }) {
+  const provider = getStorageProviderOrThrow()
+  if (provider !== "local") {
+    throw new Error("Local object reads require PLANGLADE_STORAGE_PROVIDER=local")
+  }
+
+  const filePath = resolveLocalStoragePath(input.storageKey)
+  const [fileStat, metaRaw] = await Promise.all([
+    stat(/* turbopackIgnore: true */ filePath),
+    readFile(/* turbopackIgnore: true */ getLocalMetaPath(filePath), "utf8").catch(() => null),
+  ])
+  const meta = metaRaw ? (JSON.parse(metaRaw) as { mimeType?: unknown }) : null
+  return {
+    body: Readable.toWeb(createReadStream(filePath)) as ReadableStream<Uint8Array>,
+    mimeType: typeof meta?.mimeType === "string" ? meta.mimeType : "application/octet-stream",
+    sizeBytes: fileStat.size,
   }
 }
