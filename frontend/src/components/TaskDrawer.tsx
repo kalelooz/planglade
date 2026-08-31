@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useNavigate } from 'react-router'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  CalendarDays, CircleSlash, Link2, Plus, Trash2, X, CornerDownRight, History, User,
+  CalendarDays, CircleSlash, Link2, Plus, Trash2, X, CornerDownRight, History, StickyNote, User,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -25,7 +26,9 @@ import { useQuery } from '@tanstack/react-query'
 import { getTaskHistory } from '@/lib/api/tasks'
 import { useAppCommands } from '@/store/app-commands'
 import { TaskComments } from '@/components/TaskComments'
+import { EntityTypeBadge } from '@/components/EntityTypeBadge'
 import { createAutosaveDraftController } from '@/lib/autosave-draft-controller'
+import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 import {
   clearSubmittedCommentDraft,
   commentDraftBody,
@@ -236,6 +239,8 @@ function TaskDrawerBody({
   onDraftFlushChange: (flush: (() => Promise<boolean>) | null) => void
 }) {
   const ws = useWorkspace()
+  const navigate = useNavigate()
+  const { closeTask } = useTaskDrawer()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [newSub, setNewSub] = useState('')
   const newSubRef = useRef<HTMLInputElement>(null)
@@ -316,6 +321,7 @@ function TaskDrawerBody({
             <span className="sr-only" aria-live="polite">{titleDraft.saving || descriptionDraft.saving ? 'Saving task changes' : ''}</span>
             {titleDraft.error && <p id="task-title-save-error" className="mt-1 text-xs text-destructive" role="status">{titleDraft.error}</p>}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <EntityTypeBadge type="task" />
               <StatusBadge status={task.status} />
               {blocked && !done && (
                 <span className="inline-flex items-center gap-1 text-[12.5px] text-red-600 dark:text-red-400">
@@ -337,6 +343,41 @@ function TaskDrawerBody({
       </SheetHeader>
       <Separator />
       <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-thin">
+        <div className="px-5 py-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <label htmlFor={`task-description-${task.id}`} className="text-xs font-medium text-foreground">Description</label>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">The context needed to complete this task.</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 shrink-0 px-2 text-xs text-muted-foreground"
+              onClick={() => {
+                closeTask()
+                navigate(WORKSPACE_PATHS.notes)
+              }}
+            >
+              <StickyNote className="size-3.5" aria-hidden="true" /> Open Notes
+            </Button>
+          </div>
+          <textarea
+            id={`task-description-${task.id}`}
+            value={descriptionDraft.value}
+            readOnly={!canEdit}
+            onChange={(e) => descriptionDraft.setValue(e.target.value)}
+            onBlur={() => { void descriptionDraft.flush() }}
+            aria-label="Task description"
+            aria-invalid={descriptionDraft.error ? true : undefined}
+            aria-describedby={descriptionDraft.error ? 'task-description-save-error' : undefined}
+            placeholder="Add instructions, context, or the expected outcome…"
+            rows={4}
+            className="mt-1 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2.5 text-sm leading-6 outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring"
+          />
+          {descriptionDraft.error && <p id="task-description-save-error" className="mt-1 text-xs text-destructive" role="status">{descriptionDraft.error}</p>}
+        </div>
+        <Separator />
         <div className="px-5 py-4 space-y-1.5">
           <Field label="Project">
             <Select
@@ -429,7 +470,7 @@ function TaskDrawerBody({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Labels">
+          <Field label="Custom labels">
             <div className="flex flex-wrap gap-1 py-1">
               {ws.state.labels.map((l) => {
                 const active = task.labelIds.includes(l.id)
@@ -458,37 +499,6 @@ function TaskDrawerBody({
               })}
             </div>
           </Field>
-        </div>
-
-        {ws.mode.kind === 'server' && commentScope && task.source && <>
-          <Separator />
-          <TaskComments
-            workspaceId={commentScope.workspaceId}
-            taskId={commentScope.taskId}
-            members={ws.state.people}
-            canComment={canEdit}
-            draftBody={commentDraftBody(commentDrafts, commentScope)}
-            onDraftChange={(body) => onCommentDraftChange(commentScope, body)}
-            onDraftSubmitted={onCommentDraftSubmitted}
-          />
-        </>}
-
-        <Separator />
-        <div className="px-5 py-4">
-          <span className="text-xs text-muted-foreground">Notes</span>
-          <textarea
-            value={descriptionDraft.value}
-            readOnly={!canEdit}
-            onChange={(e) => descriptionDraft.setValue(e.target.value)}
-            onBlur={() => { void descriptionDraft.flush() }}
-            aria-label="Task notes"
-            aria-invalid={descriptionDraft.error ? true : undefined}
-            aria-describedby={descriptionDraft.error ? 'task-notes-save-error' : undefined}
-            placeholder="Add a note about this task…"
-            rows={3}
-            className="mt-1.5 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
-          />
-          {descriptionDraft.error && <p id="task-notes-save-error" className="mt-1 text-xs text-destructive" role="status">{descriptionDraft.error}</p>}
         </div>
 
         <Separator />
@@ -652,6 +662,19 @@ function TaskDrawerBody({
             </div>
           </>
         )}
+
+        {ws.mode.kind === 'server' && commentScope && task.source && <>
+          <Separator />
+          <TaskComments
+            workspaceId={commentScope.workspaceId}
+            taskId={commentScope.taskId}
+            members={ws.state.people}
+            canComment={canEdit}
+            draftBody={commentDraftBody(commentDrafts, commentScope)}
+            onDraftChange={(body) => onCommentDraftChange(commentScope, body)}
+            onDraftSubmitted={onCommentDraftSubmitted}
+          />
+        </>}
 
         <Separator />
         <div className="px-5 py-4">

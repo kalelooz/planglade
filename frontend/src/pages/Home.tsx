@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { WORKSPACE_PATHS, workspaceNotePath, workspaceProjectPath } from '@/lib/workspace-routes'
 import { useSubmissionLifecycle } from '@/lib/use-submission-lifecycle'
+import { EntityTypeBadge } from '@/components/EntityTypeBadge'
 
 export default function Home() {
   const ws = useWorkspace()
@@ -290,7 +291,7 @@ export default function Home() {
                       className="w-full text-left px-2 py-2.5 hover:bg-accent/60 transition-colors rounded-md"
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="pg-item-title truncate">{p.name}</span>
+                        <span className="flex min-w-0 items-center gap-2"><span className="pg-item-title truncate">{p.name}</span><EntityTypeBadge type="project" /></span>
                         <span className="pg-meta shrink-0 tabular-nums">
                           {prog.done}/{prog.total} done
                         </span>
@@ -326,7 +327,7 @@ export default function Home() {
               <div className="border-y border-border/60 divide-y divide-border/60">
                 {ws.inbox.slice(0, 3).map((i) => (
                   <Link key={i.id} to={WORKSPACE_PATHS.inbox} className="block px-2 py-2 hover:bg-accent/60 transition-colors rounded-md">
-                    <p className="pg-item-title truncate">{i.text}</p>
+                    <div className="flex min-w-0 items-center gap-2"><p className="pg-item-title min-w-0 flex-1 truncate">{i.text}</p><EntityTypeBadge type="capture" /></div>
                     <p className="pg-meta mt-0.5">{timeAgo(i.createdAt)}</p>
                   </Link>
                 ))}
@@ -359,7 +360,7 @@ export default function Home() {
                     onClick={() => navigate(workspaceNotePath(n.id))}
                     className="w-full text-left px-2 py-2 hover:bg-accent/60 transition-colors rounded-md"
                   >
-                    <p className="pg-item-title truncate">{n.title}</p>
+                    <div className="flex min-w-0 items-center gap-2"><p className="pg-item-title min-w-0 flex-1 truncate">{n.title}</p><EntityTypeBadge type="note" /></div>
                     <p className="pg-meta mt-0.5 flex min-w-0 items-center gap-1.5">
                       <span className="shrink-0">{timeAgo(n.updatedAt)}</span>
                       {n.projectId && <ProjectChip project={ws.getProject(n.projectId)} className="truncate" />}
@@ -387,7 +388,7 @@ export default function Home() {
                   >
                     <Clock className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden />
                     <span className="pg-item-title truncate">{r.label}</span>
-                    <span className="pg-meta ml-auto shrink-0 capitalize">{r.type}</span>
+                    <EntityTypeBadge type={r.type} className="ml-auto" />
                   </button>
                 ))}
               </div>

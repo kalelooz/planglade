@@ -22,6 +22,7 @@ import {
 import { zoomPanAtPoint } from "@/lib/graph-zoom";
 import { useWorkspace } from "@/store/workspace";
 import { useTaskDrawer } from "@/components/TaskDrawer";
+import { EntityTypeBadge } from "@/components/EntityTypeBadge";
 import { PageContainer } from "@/components/bits";
 import { workspaceNotePath, workspaceProjectPath } from "@/lib/workspace-routes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -202,8 +203,9 @@ function GraphNodeView({
         <span className="block truncate text-[12.5px] font-medium leading-4">
           {node.label}
         </span>
-        <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
-          {node.meta}
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+          {node.type !== "label" && <EntityTypeBadge type={node.type} />}
+          <span className="min-w-0 truncate text-[12.5px] text-muted-foreground">{node.meta}</span>
         </span>
       </span>
     </button>

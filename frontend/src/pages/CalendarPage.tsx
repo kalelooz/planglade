@@ -43,7 +43,7 @@ function TaskChip({ task, overlay, active, onOpen }: { task: Task; overlay?: boo
       }}
       className={cn(
         'min-h-11 w-full cursor-grab select-none truncate rounded px-1.5 py-[3px] text-left lg:min-h-0 text-[12.5px] leading-tight transition-[background-color,color,box-shadow,transform] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:transition-none',
-        active ? 'bg-foreground text-background shadow-[0_0_0_1px_hsl(var(--foreground)),0_6px_18px_hsl(var(--foreground)/0.12)]' : [tone.bg, tone.text],
+        active ? 'bg-accent text-accent-foreground shadow-[inset_0_0_0_1px_hsl(var(--border)),0_6px_18px_hsl(var(--foreground)/0.08)]' : [tone.bg, tone.text],
         isDragging && 'opacity-40',
         overlay && 'shadow-[0_6px_18px_hsl(240_8%_10%/0.18)]',
       )}
@@ -340,9 +340,10 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                         <button
                           key={t.id}
                           onClick={(e) => openTask(t.id, e.currentTarget)}
+                          aria-current={openTaskId === t.id ? 'true' : undefined}
                           className={cn(
                             'pg-item-title min-h-11 w-full truncate px-3.5 py-2 text-left transition-colors hover:bg-accent/50',
-                            openTaskId === t.id && 'bg-foreground text-background hover:bg-foreground',
+                            openTaskId === t.id && 'bg-accent text-accent-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))] hover:bg-accent',
                           )}
                         >
                           {t.title}
@@ -373,14 +374,15 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                           <button
                             key={t.id}
                             onClick={(e) => openTask(t.id, e.currentTarget)}
+                            aria-current={openTaskId === t.id ? 'true' : undefined}
                             className={cn(
                               'pg-item-title min-h-[44px] w-full rounded-md border border-border bg-card px-3 py-2.5 text-left transition-[background-color,color,border-color,box-shadow]',
                               t.status === 'done' && 'opacity-60',
-                              openTaskId === t.id && 'border-foreground bg-foreground text-background shadow-[0_8px_24px_hsl(var(--foreground)/0.12)]',
+                              openTaskId === t.id && 'border-border bg-accent text-accent-foreground shadow-[0_8px_24px_hsl(var(--foreground)/0.08)]',
                             )}
                           >
                             <span className={cn(t.status === 'done' && 'line-through')}>{t.title}</span>
-                            {t.projectId && <span className={cn('pg-meta mt-0.5 block', openTaskId === t.id && 'text-background/70')}>{ws.getProject(t.projectId)?.name}</span>}
+                            {t.projectId && <span className="pg-meta mt-0.5 block">{ws.getProject(t.projectId)?.name}</span>}
                           </button>
                         ))}
                       </div>
@@ -428,10 +430,14 @@ export default function CalendarPage({ embedded = false, tasks: providedTasks }:
                     return (
                       <button
                         key={task.id}
+                        aria-current={openTaskId === task.id ? 'true' : undefined}
                         onClick={(event) => {
                           openTask(task.id, event.currentTarget, { nonModal: true })
                         }}
-                        className="group flex min-h-11 w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-[background-color,border-color,transform] hover:border-border hover:bg-accent/55 active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                        className={cn(
+                          'group flex min-h-11 w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-[background-color,border-color,transform] hover:border-border hover:bg-accent/55 active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                          openTaskId === task.id && 'border-border bg-accent',
+                        )}
                       >
                         <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', tone.dot)} aria-hidden />
                         <span className="min-w-0 flex-1">

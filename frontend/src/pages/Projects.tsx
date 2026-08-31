@@ -17,6 +17,7 @@ import { ProjectColorField, ProjectDateField, ProjectIconField } from '@/compone
 import { DEFAULT_PROJECT_COLOR } from '@/lib/project-fields'
 import { DEFAULT_PROJECT_ICON, inferProjectIcon, projectIcon, type ProjectIconName } from '@/lib/project-icons'
 import { workspaceProjectPath } from '@/lib/workspace-routes'
+import { EntityTypeBadge } from '@/components/EntityTypeBadge'
 
 export default function Projects() {
   const ws = useWorkspace()
@@ -189,6 +190,7 @@ export default function Projects() {
                     <div className="flex items-center gap-2">
                       <ProjectIcon className="h-4 w-4 shrink-0" style={{ color: p.source?.color ?? DEFAULT_PROJECT_COLOR }} aria-hidden />
                       <span className="text-[14px] font-medium truncate">{p.name}</span>
+                      <EntityTypeBadge type="project" />
                       <span className={cn('text-[12.5px] rounded px-1.5 py-px shrink-0', p.status === 'active' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : p.status === 'on_hold' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400')}>
                         {PROJECT_STATUS_LABELS[p.status]}
                       </span>
