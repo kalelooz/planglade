@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import type { Task } from '@/types'
 import { useWorkspace } from '@/store/workspace'
 import { useTaskDrawer } from '@/components/TaskDrawer'
+import { EntityTypeBadge } from '@/components/EntityTypeBadge'
 import { TaskCheckbox, PriorityBadge, DueBadge, ProjectChip, BlockedIndicator, BlockingIndicator, StatusBadge } from '@/components/bits'
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub,
@@ -101,6 +102,7 @@ export function TaskRow({
               <p className={cn('pg-item-title min-w-0 flex-1', done && 'line-through text-muted-foreground font-normal')}>
                 <span data-task-field={listMobileLayout ? 'title' : undefined}>{task.title}</span>
               </p>
+              <EntityTypeBadge type="task" className="mt-0.5" />
               {showStatus && field('status') && !listMobileLayout && !done && task.status !== 'blocked' && <StatusBadge status={task.status} className="mt-0.5 shrink-0" />}
             </div>
             {(subs.length > 0 || showProject || (blocked && !done) || blocking || hasMobileStatus || hasMobileDue || hasMobilePriority) && (

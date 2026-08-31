@@ -27,6 +27,7 @@ import {
   InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput,
 } from '@/components/ui/input-group'
 import type { Note, Priority } from '@/types'
+import { EntityTypeBadge } from '@/components/EntityTypeBadge'
 
 interface ConvertState {
   open: boolean
@@ -575,7 +576,10 @@ export default function Notes() {
                     active?.id === n.id ? 'bg-accent' : 'hover:bg-accent/50',
                   )}
                 >
-                  <p className="text-[13px] font-medium truncate">{n.title}</p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-[13px] font-medium">{n.title}</p>
+                    <EntityTypeBadge type="note" />
+                  </div>
                   <p className="text-[12.5px] text-muted-foreground mt-0.5 flex items-center gap-1.5 min-w-0">
                     <span className="shrink-0">{timeAgo(n.updatedAt)}</span>
                     {n.projectId && <ProjectChip project={ws.getProject(n.projectId)} className="truncate" />}

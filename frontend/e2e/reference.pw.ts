@@ -193,3 +193,61 @@ test('desktop task rows render metadata once', async ({ page }) => {
     await expectTouchTarget(target)
   }
 })
+
+test('selected Calendar agenda tasks keep readable text', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/app/calendar')
+
+  const agenda = page.getByRole('heading', { name: 'Agenda' }).locator('..')
+  const taskButton = agenda.locator('button').first()
+  await expect(taskButton).toBeVisible()
+  const taskButtonHandle = await taskButton.elementHandle()
+  expect(taskButtonHandle).not.toBeNull()
+  await taskButton.click()
+  await expect(page.getByLabel('Task details')).toBeVisible()
+
+  const selectedState = await taskButtonHandle!.evaluate((button) => ({
+    className: button.className,
+    current: button.getAttribute('aria-current'),
+  }))
+  expect(selectedState.current).toBe('true')
+  expect(selectedState.className).toContain('bg-accent')
+  expect(selectedState.className).not.toContain('bg-foreground')
+
+  const contrast = await taskButtonHandle!.evaluate((button) => {
+    const parse = (value: string) => value.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0]
+    const luminance = (rgb: number[]) => {
+      const channels = rgb.map((channel) => {
+        const value = channel / 255
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+    }
+    const foreground = luminance(parse(getComputedStyle(button).color))
+    const background = luminance(parse(getComputedStyle(button).backgroundColor))
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+  })
+
+  expect(contrast).toBeGreaterThanOrEqual(4.5)
+})
+
+test('item types and task description are explicit', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 820 })
+  await page.goto('/app')
+
+  const attention = page.getByRole('heading', { name: 'What needs your attention' }).locator('xpath=ancestor::section[1]')
+  await expect(attention.locator('[data-entity-type="task"]').first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Inbox' }).locator('xpath=ancestor::section[1]').locator('[data-entity-type="capture"]').first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recent notes' }).locator('xpath=ancestor::section[1]').locator('[data-entity-type="note"]').first()).toBeVisible()
+
+  await attention.getByRole('button', { name: /^Task:/ }).first().click()
+  const drawer = page.getByLabel('Task details')
+  await expect(drawer.locator('[data-entity-type="task"]')).toBeVisible()
+  await expect(drawer.getByRole('textbox', { name: 'Task description' })).toBeVisible()
+  await expect(drawer.getByText('Custom labels', { exact: true })).toBeVisible()
+  await expect(drawer.getByRole('button', { name: 'Open Notes' })).toBeVisible()
+  await expect(drawer.getByRole('textbox', { name: 'Task notes' })).toHaveCount(0)
+
+  await page.goto('/app/connections')
+  await expect(page.locator('[data-entity-type="person"]').first()).toBeVisible()
+})

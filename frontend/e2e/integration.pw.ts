@@ -347,14 +347,14 @@ test('Task drawer keeps the newest debounced title when an older save settles la
   await expect(page.getByLabel('Task title')).toHaveValue(finalTitle)
 })
 
-test('Task drawer preserves failed notes and accepts a deliberate retry without flattening source values', async ({ page }) => {
+test('Task drawer preserves failed descriptions and accepts a deliberate retry without flattening source values', async ({ page }) => {
   const fixture = await runtime()
-  const failedNotes = `Failed notes ${fixture.runId}`
-  const finalNotes = `Final notes ${fixture.runId}`
+  const failedDescription = `Failed description ${fixture.runId}`
+  const finalDescription = `Final description ${fixture.runId}`
   let failedPatches = 0
   const failDescription = async (route: Route) => {
     const request = route.request()
-    if (request.method() === 'PATCH' && request.postDataJSON()?.description === failedNotes) {
+    if (request.method() === 'PATCH' && request.postDataJSON()?.description === failedDescription) {
       failedPatches += 1
       await route.fulfill({ contentType: 'application/json', status: 503, body: '{"error":"Temporary"}' })
       return
@@ -364,21 +364,21 @@ test('Task drawer preserves failed notes and accepts a deliberate retry without 
 
   await openTaskDrawer(page, fixture.reviewTaskTitle)
   await page.route('**/api/work-items/**', failDescription)
-  const notes = page.getByLabel('Task notes')
-  await notes.fill(failedNotes)
+  const description = page.getByLabel('Task description')
+  await description.fill(failedDescription)
   await expect(page.getByText('This change was not saved. Edit again to retry.')).toBeVisible()
-  await expect(notes).toHaveValue(failedNotes)
+  await expect(description).toHaveValue(failedDescription)
   await page.waitForTimeout(700)
   expect(failedPatches).toBe(1)
   await page.unroute('**/api/work-items/**', failDescription)
 
-  const savedPatch = taskPatch(page, { description: finalNotes })
-  await notes.fill(finalNotes)
+  const savedPatch = taskPatch(page, { description: finalDescription })
+  await description.fill(finalDescription)
   expect((await savedPatch).status()).toBe(200)
   await openTaskDrawer(page, fixture.reviewTaskTitle)
-  await expect(page.getByLabel('Task notes')).toHaveValue(finalNotes)
+  await expect(page.getByLabel('Task description')).toHaveValue(finalDescription)
   await expect.poll(() => rawTask(page, fixture.workspaceId, fixture.reviewTaskTitle)).toMatchObject({
-    description: finalNotes,
+    description: finalDescription,
     priority: 'URGENT',
     status: 'IN_REVIEW',
   })

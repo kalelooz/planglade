@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import type { InboxItem, Priority } from '@/types'
 import { useSubmissionLifecycle } from '@/lib/use-submission-lifecycle'
+import { EntityTypeBadge } from '@/components/EntityTypeBadge'
 
 function InboxRow({
   item,
@@ -179,7 +180,10 @@ function InboxRow({
         />
       </label>}
       <div className="min-w-0">
-        <p className="pg-item-title truncate">{item.text}</p>
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="pg-item-title min-w-0 flex-1 truncate">{item.text}</p>
+          <EntityTypeBadge type="capture" />
+        </div>
         <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden">
           <span className="pg-meta shrink-0">{timeAgo(item.createdAt)}</span>
           {controls}
