@@ -180,11 +180,9 @@ function InboxRow({
         />
       </label>}
       <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="pg-item-title min-w-0 flex-1 truncate">{item.text}</p>
-          <EntityTypeBadge type="capture" />
-        </div>
+        <p className="pg-item-title truncate">{item.text}</p>
         <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden">
+          <EntityTypeBadge type="capture" />
           <span className="pg-meta shrink-0">{timeAgo(item.createdAt)}</span>
           {controls}
         </div>
