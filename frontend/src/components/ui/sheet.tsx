@@ -3,6 +3,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { assignElementRef, OverlayPortalContainer } from "@/components/ui/overlay-portal"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -46,14 +47,22 @@ function SheetContent({
   className,
   children,
   side = "right",
+  ref,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
 }) {
+  const [portalContainer, setPortalContainer] = React.useState<HTMLDivElement | null>(null)
+  const contentRef = React.useCallback((node: HTMLDivElement | null) => {
+    setPortalContainer(node)
+    assignElementRef(ref, node)
+  }, [ref])
+
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
+        ref={contentRef}
         data-slot="sheet-content"
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out motion-reduce:animate-none motion-reduce:transition-none fixed z-50 flex flex-col gap-4 shadow-lg transition-[transform,opacity] ease-in-out data-[state=closed]:duration-200 data-[state=open]:duration-300",
@@ -69,11 +78,13 @@ function SheetContent({
         )}
         {...props}
       >
-        {children}
-        <SheetPrimitive.Close data-slot="sheet-close" className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-2 right-2 inline-flex size-11 items-center justify-center rounded-md opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none motion-reduce:transition-none lg:top-4 lg:right-4 lg:size-8">
-          <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
+        <OverlayPortalContainer.Provider value={portalContainer}>
+          {children}
+          <SheetPrimitive.Close data-slot="sheet-close" className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-2 right-2 inline-flex size-11 items-center justify-center rounded-md opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none motion-reduce:transition-none lg:top-4 lg:right-4 lg:size-8">
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        </OverlayPortalContainer.Provider>
       </SheetPrimitive.Content>
     </SheetPortal>
   )

@@ -956,11 +956,14 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         return true
       },
 
-      addProject: async ({ name, description, status, startDate, targetDate }) => {
+      addProject: async ({ name, slug, description, status, color, icon, startDate, targetDate }) => {
         const project: Project = {
           id: adapter.nextId('prj'),
           name,
           description: description ?? '',
+          ...(slug ? { slug } : {}),
+          ...(color ? { color } : {}),
+          ...(icon ? { icon } : {}),
           status: status === 'completed' ? 'active' : status ?? 'active',
           focus: '',
           targetDate: targetDate ?? null,

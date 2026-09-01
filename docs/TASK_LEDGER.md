@@ -2,6 +2,21 @@
 
 ## Active task
 
+### UI-005 — Project, Task, and Note control integrity
+
+- Status: **PASS** for public-core publication; Cloud import remains separately gated
+- Requested: 2026-09-01
+- Scope: make every Project create/edit control durable, prevent nested Project, Task, and Note controls from closing or clicking through their parent dialog or sheet, and verify the shared mutation paths without adding provider-specific behavior.
+- Acceptance: Project start/target dates, color, icon, status, and Advanced slug create, edit, save, and survive reload; Task status, priority, project, and due date survive reload; Note formatting and linked-project changes survive reload; nested task-conversion controls remain interactive; focused tests, reference and authenticated browser suites, lint, typecheck, production build, and repository boundaries pass.
+
+### Evidence
+
+- 2026-09-01: live inspection reproduced Project overlay clicks falling through to underlying controls. Browser regression coverage then proved the shared Select/Popover layer matched its parent modal and calendar day buttons could submit a surrounding form.
+- 2026-09-01: Dialog and Sheet now provide an in-surface portal container for nested Select and Popover content, transient overlays render above the parent surface, calendar days are explicit non-submit buttons, and project appearance selectors close after a confirmed choice.
+- 2026-09-01: slug, color, and icon are first-class provider-neutral Project fields. Server adapters expose them directly and mutable workspaces persist them, while legacy source fallbacks remain readable.
+- 2026-09-01: all 168 frontend tests passed; the expanded 10-test reference browser suite passed Project, Task, and Note interaction and save/reload coverage; the authenticated browser integration suite and 3-test landing suite passed; frontend lint, typecheck, production build, public boundary across 491 files, and CI workflow validation passed.
+- 2026-09-01: independent bounded UI review found no actionable issues after the correction pass.
+
 ### UI-004 — Discoverable plans and support
 
 - Status: **PASS**

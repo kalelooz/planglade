@@ -22,6 +22,7 @@ const project = backendProjectSchema.parse({
   mode: 'STANDARD',
   featureFlags: { tasks: true },
   color: '#334455',
+  icon: 'rocket',
   startDate: '2026-07-01T00:00:00.000Z',
   dueDate: '2026-07-31T00:00:00.000Z',
   archivedAt: null,
@@ -566,7 +567,7 @@ describe('lossless adapters', () => {
     const mappedProject = adaptProject(project)
     const mappedTask = adaptTask(task)
 
-    expect(mappedProject).toMatchObject({ status: 'in_review', targetDate: '2026-07-31', source: project })
+    expect(mappedProject).toMatchObject({ slug: 'launch', color: '#334455', icon: 'rocket', status: 'in_review', targetDate: '2026-07-31', source: project })
     expect(mappedTask).toMatchObject({ status: 'in_review', priority: 'high', labelIds: ['label-1'], source: task })
     expect(mappedProject.source?.futureField).toBe('retained')
     expect(mappedTask.source?.futureField).toEqual({ retained: true })
