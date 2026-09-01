@@ -342,6 +342,30 @@ test('task controls and Home cards stay calm and readable in both themes', async
   }
 })
 
+test('desktop sidebar gives account identity and utilities separate rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/app')
+
+  const accountCard = page.locator('[data-sidebar-account-card]')
+  const account = accountCard.getByRole('button', { name: 'Account' })
+  const utilities = page.locator('[data-sidebar-utilities]')
+  await expect(accountCard).toBeVisible()
+  await expect(accountCard.getByText('Alex', { exact: true })).toBeVisible()
+  await expect(accountCard).toContainText('owner · Local')
+  await expect(utilities.getByRole('link', { name: 'PlanGlade on GitHub' })).toBeVisible()
+  await expect(utilities.getByRole('button', { name: 'Change appearance' })).toBeVisible()
+  await expect(utilities.getByRole('button', { name: 'Collapse sidebar' })).toBeVisible()
+
+  const accountBox = await visibleBox(accountCard)
+  const utilityBox = await visibleBox(utilities)
+  expect(accountBox.width).toBeGreaterThanOrEqual(200)
+  expect(utilityBox.y).toBeGreaterThanOrEqual(accountBox.y + accountBox.height)
+  expect(await utilities.locator(':scope > *').count()).toBe(3)
+
+  await account.click()
+  await expect(page).toHaveURL(/\/app\/settings$/)
+})
+
 test('item types and task description are explicit', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 820 })
   await page.goto('/app')

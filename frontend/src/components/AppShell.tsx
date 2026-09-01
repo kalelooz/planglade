@@ -306,6 +306,7 @@ function usePrefersReducedMotion() {
 
 export default function AppShell() {
   const ws = useWorkspace()
+  const currentWorkspace = ws.workspaces.find((workspace) => workspace.id === ws.workspaceId) ?? ws.workspaces[0]
   const { openCapture } = useQuickCapture()
   const location = useLocation()
   const navigate = useNavigate()
@@ -388,25 +389,31 @@ export default function AppShell() {
           <div className={cn('border-t border-sidebar-border p-2 space-y-1', collapsed && 'items-center flex flex-col')}>
             <FooterLink to={WORKSPACE_PATHS.plans} label="Plans" collapsed={collapsed} />
             <SupportButton collapsed={collapsed} onClick={() => setSupportOpen(true)} />
-            <div className={cn('flex min-w-0 items-center', collapsed ? 'flex-col gap-1' : 'justify-between')}>
-              <Tooltip>
-                <TooltipTrigger asChild>
+            {!collapsed ? (
+              <>
+                <div className="mt-2 rounded-lg border border-sidebar-border bg-card p-2 shadow-sm" data-sidebar-account-card>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate(WORKSPACE_PATHS.settings)}
-                    className={cn('h-8 min-w-0 flex-1 shrink justify-start gap-2 overflow-hidden px-2 text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-accent/70', collapsed && 'w-8 flex-none justify-center px-0')}
+                    className="h-auto min-h-8 w-full min-w-0 justify-start gap-2.5 overflow-hidden p-0 text-left text-muted-foreground transition-opacity hover:bg-transparent hover:text-foreground hover:opacity-80"
                     aria-label="Account"
                   >
-                    <CircleUserRound className="h-4 w-4 shrink-0" aria-hidden />
-                    {!collapsed && <span className="truncate">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected' : 'Local'}</span>}
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent" aria-hidden>
+                      <CircleUserRound className="size-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold leading-4 text-foreground">{ws.state.userName}</span>
+                      <span className="mt-1 block truncate text-xs font-normal leading-4 text-muted-foreground">
+                        <span className="capitalize">{currentWorkspace?.role?.toLowerCase() ?? 'workspace'}</span>
+                        <span aria-hidden> · </span>
+                        {ws.mode.kind === 'server' ? 'Connected' : 'Local'}
+                      </span>
+                    </span>
                   </Button>
-                </TooltipTrigger>
-                {collapsed && <TooltipContent side="right">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected workspace' : 'Local prototype'}</TooltipContent>}
-              </Tooltip>
-              {!collapsed && (
-                <div className="flex shrink-0 items-center">
+                </div>
+                <div className="grid grid-cols-3 gap-1 pt-1" data-sidebar-utilities>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <a
@@ -414,26 +421,41 @@ export default function AppShell() {
                         target="_blank"
                         rel="noreferrer"
                         aria-label="PlanGlade on GitHub"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-[0.96]"
+                        className="inline-flex h-8 w-full items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-[0.96]"
                       >
                         <Github className="h-4 w-4" aria-hidden />
                       </a>
                     </TooltipTrigger>
                     <TooltipContent side="right">GitHub</TooltipContent>
                   </Tooltip>
-                  <AppearanceMenu />
+                  <AppearanceMenu triggerClassName="w-full" />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon-sm" onClick={toggleCollapse} aria-label="Collapse sidebar" className="text-muted-foreground hover:text-foreground">
+                      <Button type="button" variant="ghost" size="icon-sm" onClick={toggleCollapse} aria-label="Collapse sidebar" className="w-full text-muted-foreground hover:text-foreground">
                         <PanelLeftClose className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">Collapse sidebar</TooltipContent>
                   </Tooltip>
                 </div>
-              )}
-              {collapsed && (
-                <>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(WORKSPACE_PATHS.settings)}
+                      className="h-8 w-8 flex-none justify-center px-0 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                      aria-label="Account"
+                    >
+                      <CircleUserRound className="h-4 w-4 shrink-0" aria-hidden />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{ws.state.userName} · {ws.mode.kind === 'server' ? 'Connected workspace' : 'Local prototype'}</TooltipContent>
+                </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <a
@@ -457,9 +479,8 @@ export default function AppShell() {
                     </TooltipTrigger>
                     <TooltipContent side="right">Expand sidebar</TooltipContent>
                   </Tooltip>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </aside>
 
