@@ -250,24 +250,13 @@ export default function Tasks() {
             <TabsList className="grid h-auto w-full flex-none grid-cols-3 gap-1 rounded-none bg-transparent p-0 sm:w-auto sm:flex sm:shrink-0 sm:items-center" aria-label="Task view">
               {TASK_VIEW_CATALOG.map((item) => {
                 const Icon = item.icon
-                const selected = view === item.view
                 return (
                   <TabsTrigger
                     key={item.view}
                     value={item.view}
-                    className={cn(
-                      'relative isolate h-11 min-w-0 flex-none overflow-hidden rounded-xl border-0 bg-transparent px-1.5 text-[12px] font-normal shadow-none transition-[color,transform] duration-200 active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 sm:shrink-0 lg:h-8 data-[state=active]:bg-transparent data-[state=active]:text-background data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent',
-                      selected ? 'text-background' : 'text-muted-foreground hover:text-foreground',
-                    )}
+                    className="h-11 min-w-0 flex-none rounded-md border-0 bg-transparent px-1.5 text-[12px] font-normal text-muted-foreground shadow-none transition-[background-color,color,box-shadow,transform] duration-150 hover:bg-accent/60 hover:text-foreground active:scale-[0.97] data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-[inset_0_0_0_1px_hsl(var(--border)/0.75)] dark:data-[state=active]:bg-accent motion-reduce:transition-none motion-reduce:active:scale-100 sm:shrink-0 lg:h-8"
                   >
-                    {selected && (
-                      <motion.span
-                        layoutId="task-view-active-pill"
-                        className="absolute inset-0 rounded-xl bg-foreground shadow-[0_6px_18px_hsl(var(--foreground)/0.16)]"
-                        transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }}
-                      />
-                    )}
-                    <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden /> <span className="relative z-10 truncate">{item.label}</span>
+                    <Icon className="h-3.5 w-3.5" aria-hidden /> <span className="truncate">{item.label}</span>
                   </TabsTrigger>
                 )
               })}

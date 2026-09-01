@@ -34,6 +34,56 @@ async function expectInsideRow(row: Locator, target: Locator) {
   expect(targetBox.x + targetBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width)
 }
 
+async function renderedColors(locator: Locator, surfaceSelector?: string) {
+  return locator.evaluate((element, selector) => {
+    const parseColor = (value: string) => {
+      const channels = value.match(/[\d.]+/g)?.map(Number) ?? []
+      return {
+        red: channels[0] ?? 0,
+        green: channels[1] ?? 0,
+        blue: channels[2] ?? 0,
+        alpha: channels[3] ?? 1,
+      }
+    }
+    const composite = (foreground: ReturnType<typeof parseColor>, background: ReturnType<typeof parseColor>) => {
+      const alpha = foreground.alpha + background.alpha * (1 - foreground.alpha)
+      if (alpha === 0) return { red: 0, green: 0, blue: 0, alpha: 0 }
+      return {
+        red: (foreground.red * foreground.alpha + background.red * background.alpha * (1 - foreground.alpha)) / alpha,
+        green: (foreground.green * foreground.alpha + background.green * background.alpha * (1 - foreground.alpha)) / alpha,
+        blue: (foreground.blue * foreground.alpha + background.blue * background.alpha * (1 - foreground.alpha)) / alpha,
+        alpha,
+      }
+    }
+    const resolvedBackground = (node: Element | null) => {
+      const layers: ReturnType<typeof parseColor>[] = []
+      for (let current = node; current; current = current.parentElement) {
+        layers.push(parseColor(getComputedStyle(current).backgroundColor))
+      }
+      return layers.reverse().reduce((background, foreground) => composite(foreground, background), { red: 0, green: 0, blue: 0, alpha: 0 })
+    }
+    const luminance = (color: ReturnType<typeof parseColor>) => {
+      const channels = [color.red, color.green, color.blue].map((channel) => {
+        const value = channel / 255
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+    }
+    const target = selector ? element.querySelector(selector) : element
+    if (!target) throw new Error(`Missing rendered surface: ${selector}`)
+    const targetStyle = getComputedStyle(target)
+    const parentBackground = resolvedBackground(target.parentElement)
+    const surface = composite(parseColor(targetStyle.backgroundColor), parentBackground)
+    const text = parseColor(targetStyle.color)
+
+    return {
+      backgroundColor: targetStyle.backgroundColor,
+      contrast: (Math.max(luminance(text), luminance(surface)) + 0.05) / (Math.min(luminance(text), luminance(surface)) + 0.05),
+      surfaceDelta: Math.abs(luminance(surface) - luminance(parentBackground)),
+    }
+  }, surfaceSelector)
+}
+
 test('reference mode stays independent from the backend', async ({ page }) => {
   const backendRequests: string[] = []
   const consoleErrors: string[] = []
@@ -229,6 +279,91 @@ test('selected Calendar agenda tasks keep readable text', async ({ page }) => {
   })
 
   expect(contrast).toBeGreaterThanOrEqual(4.5)
+})
+
+test('task controls and Home cards stay calm and readable in both themes', async ({ page }) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.emulateMedia({ colorScheme })
+    await page.goto('/app/tasks')
+
+    const activeView = page.getByRole('tab', { name: 'Board' })
+    await activeView.click()
+    await expect(activeView).toHaveAttribute('data-state', 'active')
+    const activeViewColors = await renderedColors(activeView)
+    expect(activeViewColors.contrast).toBeGreaterThanOrEqual(4.5)
+    expect(activeViewColors.surfaceDelta).toBeLessThanOrEqual(0.22)
+
+    const completedSwitch = page.getByRole('switch', { name: 'Show completed tasks' })
+    if (await completedSwitch.getAttribute('aria-checked') === 'true') await completedSwitch.click()
+    await expect(completedSwitch).toHaveAttribute('aria-checked', 'false')
+    const uncheckedSwitchColors = await renderedColors(completedSwitch, '[data-slot="switch-track"]')
+    const switchBox = await visibleBox(completedSwitch)
+    let thumbBox = await visibleBox(completedSwitch.locator('[data-slot="switch-thumb"]'))
+    expect(thumbBox.x).toBeGreaterThanOrEqual(switchBox.x)
+    expect(thumbBox.x + thumbBox.width).toBeLessThanOrEqual(switchBox.x + switchBox.width)
+
+    await completedSwitch.click()
+    await expect(completedSwitch).toHaveAttribute('aria-checked', 'true')
+    const switchColors = await renderedColors(completedSwitch, '[data-slot="switch-track"]')
+    expect(switchColors.surfaceDelta).toBeGreaterThanOrEqual(0.03)
+    expect(switchColors.surfaceDelta).toBeLessThanOrEqual(0.6)
+    expect(switchColors.backgroundColor).not.toBe(uncheckedSwitchColors.backgroundColor)
+    thumbBox = await visibleBox(completedSwitch.locator('[data-slot="switch-thumb"]'))
+    expect(thumbBox.x).toBeGreaterThanOrEqual(switchBox.x)
+    expect(thumbBox.x + thumbBox.width).toBeLessThanOrEqual(switchBox.x + switchBox.width)
+
+    await page.goto('/app')
+    const capture = page.getByRole('textbox', { name: 'Quick capture to inbox' })
+    await expect(capture).toHaveCSS('border-radius', '0px')
+    await expect(capture).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+
+    for (const heading of ['What needs your attention', 'Inbox', 'Recent notes']) {
+      const card = page.getByRole('heading', { name: heading }).locator('xpath=ancestor::section[1]')
+      await expect(card).toHaveCSS('border-style', 'solid')
+      await expect(card).toHaveCSS('border-radius', '8px')
+      await expect(card).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    }
+
+    const attentionCount = page.getByRole('heading', { name: 'What needs your attention' }).locator('..').getByLabel(/items/)
+    const countColors = await renderedColors(attentionCount)
+    expect(countColors.contrast).toBeGreaterThanOrEqual(4.5)
+    expect(countColors.surfaceDelta).toBeLessThanOrEqual(0.22)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/app')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+    await expectTouchTarget(page.getByRole('button', { name: /project progress/ }))
+    for (const heading of ['What needs your attention', 'Inbox', 'Recent notes']) {
+      const box = await visibleBox(page.getByRole('heading', { name: heading }).locator('xpath=ancestor::section[1]'))
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(390)
+    }
+  }
+})
+
+test('desktop sidebar gives account identity and utilities separate rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/app')
+
+  const accountCard = page.locator('[data-sidebar-account-card]')
+  const account = accountCard.getByRole('button', { name: 'Account' })
+  const utilities = page.locator('[data-sidebar-utilities]')
+  await expect(accountCard).toBeVisible()
+  await expect(accountCard.getByText('Alex', { exact: true })).toBeVisible()
+  await expect(accountCard).toContainText('owner · Local')
+  await expect(utilities.getByRole('link', { name: 'PlanGlade on GitHub' })).toBeVisible()
+  await expect(utilities.getByRole('button', { name: 'Change appearance' })).toBeVisible()
+  await expect(utilities.getByRole('button', { name: 'Collapse sidebar' })).toBeVisible()
+
+  const accountBox = await visibleBox(accountCard)
+  const utilityBox = await visibleBox(utilities)
+  expect(accountBox.width).toBeGreaterThanOrEqual(200)
+  expect(utilityBox.y).toBeGreaterThanOrEqual(accountBox.y + accountBox.height)
+  expect(await utilities.locator(':scope > *').count()).toBe(3)
+
+  await account.click()
+  await expect(page).toHaveURL(/\/app\/settings$/)
 })
 
 test('item types and task description are explicit', async ({ page }) => {

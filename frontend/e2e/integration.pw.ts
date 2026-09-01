@@ -68,9 +68,10 @@ test('workspace entry enables an authenticated member and preserves access after
   await page.goto('/auth/login')
   await page.getByRole('link', { name: 'Continue to workspace' }).press('Enter')
   await expect(page).toHaveURL('/app')
-  await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
+  const workspaceSwitcher = page.getByRole('button', { name: `Switch workspace. Current workspace: ${fixture.workspaceName}` })
+  await expect(workspaceSwitcher).toBeVisible()
   await page.reload()
-  await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
+  await expect(workspaceSwitcher).toBeVisible()
   expect(consoleErrors).toEqual([])
 })
 
@@ -124,7 +125,7 @@ test('authenticated API mode reads protected workspace data through Vite', async
   })
 
   await page.goto('/app')
-  await expect(page.getByLabel('Sidebar').getByText(fixture.workspaceName, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Switch workspace. Current workspace: ${fixture.workspaceName}` })).toBeVisible()
   await page.goto('/app/tasks')
   await expect(page.getByText(fixture.projectName, { exact: true }).first()).toBeVisible()
   await expect(page.getByText(fixture.taskTitle, { exact: true })).toBeVisible()
