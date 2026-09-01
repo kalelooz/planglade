@@ -331,7 +331,7 @@ export default function AppShell() {
         {/* Desktop sidebar */}
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-sidebar-border bg-sidebar-background transition-[width] duration-200 ease-out md:flex',
+            'fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out md:flex',
             collapsed ? 'w-[60px]' : 'w-[228px]',
           )}
           aria-label="Sidebar"

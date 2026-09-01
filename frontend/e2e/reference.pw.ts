@@ -349,6 +349,7 @@ test('desktop sidebar gives account identity and utilities separate rows', async
   const accountCard = page.locator('[data-sidebar-account-card]')
   const account = accountCard.getByRole('button', { name: 'Account' })
   const utilities = page.locator('[data-sidebar-utilities]')
+  await expect(page.getByRole('complementary', { name: 'Sidebar' })).toHaveCSS('background-color', 'rgb(247, 247, 248)')
   await expect(accountCard).toBeVisible()
   await expect(accountCard.getByText('Alex', { exact: true })).toBeVisible()
   await expect(accountCard).toContainText('owner · Local')
