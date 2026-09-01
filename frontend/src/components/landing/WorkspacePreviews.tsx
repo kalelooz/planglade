@@ -178,18 +178,18 @@ function HomeContent({ condensed = false }: { condensed?: boolean }) {
 
 export function HomeWorkspacePreview() {
   return (
-    <div className="landing-app-preview overflow-hidden rounded-xl border border-border shadow-sm" aria-label="PlanGlade Home workspace preview">
+    <section className="landing-app-preview overflow-hidden rounded-xl border border-border shadow-sm" aria-label="PlanGlade Home workspace preview">
       <div className="flex min-h-[640px] bg-background text-foreground">
         <PreviewSidebar />
         <div className="min-w-0 flex-1"><HomeContent condensed /></div>
       </div>
-    </div>
+    </section>
   )
 }
 
 export function InboxWorkspacePreview() {
   return (
-    <div className="landing-app-preview overflow-hidden rounded-lg border border-border bg-background p-4 text-foreground shadow-sm sm:p-6" aria-label="PlanGlade Inbox preview">
+    <section className="landing-app-preview overflow-hidden rounded-lg border border-border bg-background p-4 text-foreground shadow-sm sm:p-6" aria-label="PlanGlade Inbox preview">
       <header className="mb-5"><h3 className="text-[22px] font-semibold leading-tight">Inbox</h3><p className="mt-0.5 text-sm text-muted-foreground">Capture first. Organize when you're ready.</p></header>
       <div className="mb-4 rounded-lg border border-border bg-card shadow-xs"><div className="flex h-11 items-center gap-2.5 px-3.5"><Inbox className="size-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">What's on your mind?</span></div></div>
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
@@ -199,13 +199,13 @@ export function InboxWorkspacePreview() {
           <div className="px-3 py-3"><p className="text-sm font-medium">Confirm print dimensions</p><p className="mt-1 text-[12.5px] text-muted-foreground">Capture · 20 minutes ago</p></div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
 export function TasksWorkspacePreview() {
   return (
-    <div className="landing-app-preview overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-sm" aria-label="PlanGlade Tasks preview">
+    <section className="landing-app-preview overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-sm" aria-label="PlanGlade Tasks preview">
       <div className="p-4 sm:p-6">
         <header className="mb-5">
           <div className="flex items-center gap-3"><div className="mr-auto"><h3 className="text-[22px] font-semibold leading-tight">Tasks</h3><p className="mt-0.5 text-sm text-muted-foreground">Plan, review, and present work from one place.</p></div><span className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground"><Plus className="size-4" />New task</span></div>
@@ -227,10 +227,10 @@ export function TasksWorkspacePreview() {
         </header>
         <div className="border-y border-border/60"><PreviewTaskRow title="Send homepage draft to Mara" project="Client Refresh" due="Today" /><div className="border-t border-border/50"><PreviewTaskRow title="Review mobile navigation" project="Website" due="Tomorrow" /></div></div>
       </div>
-    </div>
+    </section>
   )
 }
 
 export function HomeOverviewPreview() {
-  return <div className="landing-app-preview overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-sm" aria-label="PlanGlade daily Home preview"><HomeContent /></div>
+  return <section className="landing-app-preview overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-sm" aria-label="PlanGlade daily Home preview"><HomeContent /></section>
 }

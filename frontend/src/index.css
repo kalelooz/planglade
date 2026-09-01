@@ -378,10 +378,11 @@
   --sidebar-background: 240 5% 97%;
   --sidebar-foreground: 240 5% 30%;
   --sidebar-border: 240 5% 90%;
+
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-feature-settings: "cv11", "ss01";
-  text-rendering: optimizeLegibility;
+  text-rendering: optimizelegibility;
 }
 
 @media (prefers-color-scheme: dark) {
