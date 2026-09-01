@@ -80,3 +80,26 @@ test("canonical public URL preserves ports and rejects ambiguous authorities", (
   assert.match(evaluateCanonicalPublicUrl("https://example.com/app").errors.join(" "), /no path/)
   assert.match(evaluateCanonicalPublicUrl("https://user@example.com/").errors.join(" "), /credentials/)
 })
+
+test("every authentication mode requires the canonical origin used by mutation protection", () => {
+  const firebaseEnv = productionEnv({
+    PLANGLADE_AUTH_MODE: "firebase",
+    NEXT_PUBLIC_PLANGLADE_AUTH_MODE: "firebase",
+    NEXTAUTH_URL: undefined,
+    FIREBASE_PROJECT_ID: "project-id",
+    FIREBASE_STORAGE_BUCKET: "bucket",
+    NEXT_PUBLIC_FIREBASE_API_KEY: "api-key",
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "auth.example.com",
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "project-id",
+    NEXT_PUBLIC_FIREBASE_APP_ID: "app-id",
+  })
+
+  assert.match(
+    evaluateAuthConfiguration(firebaseEnv, { productionLike: true }).errors.join(" "),
+    /Missing NEXTAUTH_URL/,
+  )
+  assert.doesNotMatch(
+    evaluateAuthConfiguration({ ...firebaseEnv, NEXTAUTH_URL: "https://app.example.com" }, { productionLike: true }).errors.join(" "),
+    /NEXTAUTH_URL/,
+  )
+})

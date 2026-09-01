@@ -60,7 +60,35 @@ test("workspace import plan reports unsupported export versions without writes",
   })
 
   assert.equal(plan.warnings.some((warning) => warning.code === "unsupported_export_version"), true)
+  assert.equal(plan.contract.canExecute, false)
   assert.equal(plan.counts.settings, 0)
+})
+
+test("workspace import plan reports work item hierarchy as an exact append-import loss", () => {
+  const plan = buildWorkspaceImportPlan({
+    manifest: {
+      format: "planglade-workspace",
+      version: 2,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      appVersion: "0.2.0",
+      capabilities: ["workItems.hierarchy"],
+    },
+    data: {
+      projects: [],
+      workItems: [
+        { id: "parent", title: "Parent", status: "TODO", priority: "MEDIUM" },
+        { id: "child", title: "Child", status: "TODO", priority: "MEDIUM", parentId: "parent" },
+      ],
+      notes: [],
+      projectDocs: [],
+      savedViews: [],
+    },
+  })
+
+  assert.equal(plan.contract.canExecute, true)
+  assert.equal(plan.contract.discardedFields.includes("work item hierarchy"), true)
+  assert.equal(plan.warnings.some((warning) => warning.code === "unsupported_capabilities"), true)
+  assert.equal(plan.warnings.some((warning) => warning.code === "discarded_fields" && /hierarchy/.test(warning.message)), true)
 })
 
 test("workspace import plan reserves non-empty unique project slugs", () => {

@@ -154,12 +154,17 @@ describe('API client', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(previewWorkspaceImport('workspace-1', snapshot)).resolves.toEqual(preview)
-    await expect(importWorkspace('workspace-1', snapshot)).resolves.toEqual(result)
+    await expect(importWorkspace('workspace-1', snapshot, preview.contract.sourceChecksum)).resolves.toEqual(result)
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
       '/api/workspace/import-preview?workspaceId=workspace-1',
       '/api/workspace/import-local',
     ])
-    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toMatchObject({ workspaceId: 'workspace-1', mode: 'append' })
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toMatchObject({
+      workspaceId: 'workspace-1',
+      mode: 'append',
+      expectedSourceChecksum: preview.contract.sourceChecksum,
+      snapshot,
+    })
   })
 
   it('loads task history from the scoped work-item endpoint', async () => {

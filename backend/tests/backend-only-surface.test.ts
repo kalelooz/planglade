@@ -83,3 +83,25 @@ test("the API gateway accepts the canonical origin and rejects a hostile origin"
     else process.env.NEXTAUTH_URL = originalUrl
   }
 })
+
+test("the API gateway uses the request origin only for local development", () => {
+  const originalNodeEnv = process.env.NODE_ENV
+  const originalUrl = process.env.NEXTAUTH_URL
+  delete process.env.NEXTAUTH_URL
+  Reflect.set(process.env, "NODE_ENV", "development")
+  try {
+    assert.equal(proxy(new NextRequest("http://localhost:8080/api/work-items", {
+      method: "POST",
+      headers: { origin: "http://localhost:8080", "sec-fetch-site": "same-origin" },
+    })), undefined)
+    assert.equal(proxy(new NextRequest("http://localhost:8080/api/work-items", {
+      method: "POST",
+      headers: { origin: "https://attacker.example", "sec-fetch-site": "same-site" },
+    }))?.status, 403)
+  } finally {
+    if (originalNodeEnv === undefined) Reflect.deleteProperty(process.env, "NODE_ENV")
+    else Reflect.set(process.env, "NODE_ENV", originalNodeEnv)
+    if (originalUrl === undefined) delete process.env.NEXTAUTH_URL
+    else process.env.NEXTAUTH_URL = originalUrl
+  }
+})

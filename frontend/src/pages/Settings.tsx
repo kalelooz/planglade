@@ -139,11 +139,11 @@ export default function Settings() {
   }
 
   const confirmImport = async () => {
-    if (!ws.workspaceId || !importSnapshot) return
+    if (!ws.workspaceId || !importSnapshot || !importPreview) return
     setImportPending(true)
     setImportError(null)
     try {
-      const result = await importWorkspace(ws.workspaceId, importSnapshot)
+      const result = await importWorkspace(ws.workspaceId, importSnapshot, importPreview.contract.sourceChecksum)
       const total = result.imported.projects + result.imported.workItems + result.imported.notes + result.imported.projectDocs + result.imported.savedViews
       toast.success(`Import complete: ${total} records added`)
       setImportOpen(false)

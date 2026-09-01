@@ -1,15 +1,11 @@
 import { createHash } from "node:crypto"
 import { parseDateValue } from "@/lib/api-utils"
-import type {
-  ImportLocalWorkspaceInput,
-  ImportPreviewWorkspaceSnapshotInput,
-} from "@/lib/contracts"
+import type { ImportPreviewWorkspaceSnapshotInput } from "@/lib/contracts"
 
 export const SUPPORTED_EXPORT_VERSIONS = [1, 2] as const
 export const SUPPORTED_EXPORT_VERSION = 2
 const SUPPORTED_CAPABILITIES = new Set([
   "projects.v2",
-  "workItems.hierarchy",
   "notes.visibility",
   "labels",
   "taskLabels",
@@ -25,7 +21,7 @@ export type WorkspaceImportWarning = {
 }
 
 type WorkspaceImportData = Pick<
-  ImportLocalWorkspaceInput,
+  ImportPreviewWorkspaceSnapshotInput["data"],
   "projects" | "workItems" | "notes" | "projectDocs" | "savedViews"
 >
 
@@ -169,7 +165,7 @@ export function buildWorkspaceImportPlan(
   }
   const warnings: WorkspaceImportWarning[] = []
   const sourceVersion = source.manifest?.version ?? source.version ?? null
-  const supportedVersion = sourceVersion === null || (SUPPORTED_EXPORT_VERSIONS as readonly number[]).includes(sourceVersion)
+  const supportedVersion = sourceVersion !== null && (SUPPORTED_EXPORT_VERSIONS as readonly number[]).includes(sourceVersion)
   if (!supportedVersion) {
     warnings.push({
       code: "unsupported_export_version",
@@ -190,7 +186,7 @@ export function buildWorkspaceImportPlan(
   })
   warnings.push({
     code: "discarded_fields",
-    message: "Append import discards workspace profile changes, original record IDs and timestamps, note visibility, label assignments, assignees that are not current members, and unsupported presentation fields.",
+    message: "Append import discards workspace profile changes, original record IDs and timestamps, work item hierarchy, note visibility, label assignments, assignees that are not current members, and unsupported presentation fields.",
   })
   addCountWarning(warnings, "work_items_missing_projects", "Some tasks reference projects that are not in this import file.", relationCounts.workItemsMissingProjects)
   addCountWarning(warnings, "project_docs_missing_projects", "Some Project Docs reference projects that are not in this import file.", relationCounts.projectDocsMissingProjects)
@@ -219,6 +215,7 @@ export function buildWorkspaceImportPlan(
       discardedFields: [
         "workspace profile changes",
         "original record IDs and timestamps",
+        "work item hierarchy",
         "note visibility",
         "label and task-label assignments",
         "assignees that are not current workspace members",

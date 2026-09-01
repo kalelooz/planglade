@@ -5,6 +5,11 @@ import { NextRequest } from "next/server"
 import { db } from "../src/lib/db"
 import { GET as exportWorkspace } from "../src/app/api/workspace/export/route"
 import { POST as importWorkspace } from "../src/app/api/workspace/import-local/route"
+import {
+  importPreviewWorkspaceSnapshotSchema,
+  type ImportPreviewWorkspaceSnapshotInput,
+} from "../src/lib/contracts"
+import { buildWorkspaceImportPlan } from "../src/lib/workspace-import-plan"
 
 const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
@@ -84,6 +89,72 @@ function mockTransaction(tx: unknown) {
     project: { findMany: async () => [], ...transaction.project },
   })) as typeof db.$transaction
 }
+
+function importBody(input: {
+  workspaceId: string
+  projects?: ImportPreviewWorkspaceSnapshotInput["data"]["projects"]
+  workItems?: ImportPreviewWorkspaceSnapshotInput["data"]["workItems"]
+  notes?: ImportPreviewWorkspaceSnapshotInput["data"]["notes"]
+  projectDocs?: Array<
+    ImportPreviewWorkspaceSnapshotInput["data"]["projectDocs"][number] & Record<string, unknown>
+  >
+  savedViews?: ImportPreviewWorkspaceSnapshotInput["data"]["savedViews"]
+}) {
+  const snapshot: ImportPreviewWorkspaceSnapshotInput = {
+    version: 2,
+    data: {
+      projects: input.projects ?? [],
+      workItems: input.workItems ?? [],
+      notes: input.notes ?? [],
+      projectDocs: input.projectDocs ?? [],
+      savedViews: input.savedViews ?? [],
+    },
+  }
+  return {
+    workspaceId: input.workspaceId,
+    mode: "append",
+    expectedSourceChecksum: buildWorkspaceImportPlan(
+      importPreviewWorkspaceSnapshotSchema.parse(snapshot),
+    ).contract.sourceChecksum,
+    snapshot,
+  }
+}
+
+test("POST /workspace/import-local rejects unsupported versions and preview mismatches before writing", async () => {
+  await runWithMocks(async () => {
+    mockWorkspaceAccess("ADMIN")
+    let transactionCalled = false
+    ;(db as unknown as { $transaction: unknown }).$transaction = (async () => {
+      transactionCalled = true
+    }) as unknown as typeof db.$transaction
+
+    const unsupportedSnapshot = {
+      version: 999,
+      data: { projects: [], workItems: [], notes: [], projectDocs: [], savedViews: [] },
+    }
+    const unsupported = await importWorkspace(new NextRequest("http://localhost/api/workspace/import-local", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-planglade-user-id": "actor-1" },
+      body: JSON.stringify({
+        workspaceId: "workspace-1",
+        mode: "append",
+        expectedSourceChecksum: buildWorkspaceImportPlan(unsupportedSnapshot).contract.sourceChecksum,
+        snapshot: unsupportedSnapshot,
+      }),
+    }))
+    assert.equal(unsupported.status, 400)
+
+    const changedAfterPreview = importBody({ workspaceId: "workspace-1" })
+    changedAfterPreview.expectedSourceChecksum = `sha256:${"0".repeat(64)}`
+    const mismatched = await importWorkspace(new NextRequest("http://localhost/api/workspace/import-local", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-planglade-user-id": "actor-1" },
+      body: JSON.stringify(changedAfterPreview),
+    }))
+    assert.equal(mismatched.status, 409)
+    assert.equal(transactionCalled, false)
+  })
+})
 
 test("GET /workspace/export requires a workspace admin", async () => {
   await runWithMocks(async () => {
@@ -478,7 +549,7 @@ test("POST /workspace/import-local creates project docs with imported project as
         "content-type": "application/json",
         "x-planglade-user-id": "actor-1",
       },
-      body: JSON.stringify({
+      body: JSON.stringify(importBody({
         workspaceId: "workspace-1",
         projects: [{ id: "project-import-1", name: "Launch", status: "ACTIVE" }],
         projectDocs: [
@@ -490,7 +561,7 @@ test("POST /workspace/import-local creates project docs with imported project as
             status: "ACTIVE",
           },
         ],
-      }),
+      })),
     })
 
     const response = await importWorkspace(request)
@@ -536,11 +607,11 @@ test("POST /workspace/import-local restores saved presentation configuration", a
     const response = await importWorkspace(new NextRequest("http://localhost/api/workspace/import-local", {
       method: "POST",
       headers: { "content-type": "application/json", "x-planglade-user-id": "actor-1" },
-      body: JSON.stringify({
+      body: JSON.stringify(importBody({
         workspaceId: "workspace-1",
         projects: [{ id: "project-import-1", name: "Launch", status: "ACTIVE" }],
         savedViews: [{ id: "view-import-1", project: "project-import-1", name: "Launch risks", layout: "overview", groupBy: "project", orderBy: "priority", filters: { quick: ["blocked"] }, display: { version: 1, pinned: true }, isDefault: true }],
-      }),
+      })),
     }))
     const payload = (await response.json()) as { imported?: { savedViews?: number } }
 
@@ -590,7 +661,7 @@ test("POST /workspace/import-local imports archived docs and handles missing pro
         "content-type": "application/json",
         "x-planglade-user-id": "actor-1",
       },
-      body: JSON.stringify({
+      body: JSON.stringify(importBody({
         workspaceId: "workspace-1",
         projectDocs: [
           {
@@ -602,7 +673,7 @@ test("POST /workspace/import-local imports archived docs and handles missing pro
             archivedAt: "2026-06-06T10:00:00.000Z",
           },
         ],
-      }),
+      })),
     })
 
     const response = await importWorkspace(request)
@@ -657,7 +728,7 @@ test("POST /workspace/import-local ignores spoofed project doc workspace and use
         "content-type": "application/json",
         "x-planglade-user-id": "actor-1",
       },
-      body: JSON.stringify({
+      body: JSON.stringify(importBody({
         workspaceId: "workspace-1",
         projectDocs: [
           {
@@ -669,7 +740,7 @@ test("POST /workspace/import-local ignores spoofed project doc workspace and use
             status: "ACTIVE",
           },
         ],
-      }),
+      })),
     })
 
     const response = await importWorkspace(request)

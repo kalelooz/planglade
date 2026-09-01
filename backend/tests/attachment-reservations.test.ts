@@ -109,3 +109,55 @@ test("the reaper removes expired unfinalized objects and reservation records", a
   assert.equal(await storageObjectExists(storageKey), false)
   assert.equal(await db.attachmentUploadReservation.findUnique({ where: { id: "expired-reservation" } }), null)
 })
+
+test("the reaper preserves an object when finalization wins the cleanup race", async () => {
+  const storageKey = "workspace-1/finalized-during-reap"
+  await writeLocalStorageObject({
+    storageKey,
+    mimeType: "text/plain",
+    bytes: new TextEncoder().encode("kept"),
+  })
+  const reservation = await db.attachmentUploadReservation.create({
+    data: {
+      id: "finalized-during-reap",
+      workspaceId: "workspace-1",
+      actorUserId: "owner-1",
+      storageKey,
+      mimeType: "text/plain",
+      sizeBytes: 4,
+      expiresAt: new Date(Date.now() - 1000),
+    },
+  })
+
+  const originalFindMany = db.attachmentUploadReservation.findMany
+  ;(db.attachmentUploadReservation as typeof db.attachmentUploadReservation).findMany = (async (args) => {
+    const listed = await originalFindMany(args)
+    await db.$transaction(async (tx) => {
+      await finalizeAttachmentReservation(tx, {
+        reservationId: reservation.id,
+        workspaceId: "workspace-1",
+        now: new Date(reservation.expiresAt.getTime() - 1),
+      })
+      await tx.attachment.create({
+        data: {
+          workspaceId: "workspace-1",
+          uploadedById: "owner-1",
+          name: "kept.txt",
+          storageKey,
+          mimeType: "text/plain",
+          sizeBytes: 4,
+        },
+      })
+    })
+    return listed
+  }) as typeof db.attachmentUploadReservation.findMany
+
+  try {
+    const result = await reapExpiredAttachmentUploads()
+    assert.equal(result.reservationsRemoved, 0)
+    assert.equal(await storageObjectExists(storageKey), true)
+    assert.ok(await db.attachment.findUnique({ where: { storageKey } }))
+  } finally {
+    ;(db.attachmentUploadReservation as typeof db.attachmentUploadReservation).findMany = originalFindMany
+  }
+})

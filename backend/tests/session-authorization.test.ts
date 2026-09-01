@@ -230,9 +230,11 @@ test("spoofed import actorUserId does not grant owner fallback access", async ()
         workspaceId: workspace.id,
         actorUserId: owner.id,
         mode: "append",
-        projects: [],
-        workItems: [],
-        notes: [],
+        expectedSourceChecksum: `sha256:${"0".repeat(64)}`,
+        snapshot: {
+          version: 2,
+          data: { projects: [], workItems: [], notes: [], projectDocs: [], savedViews: [] },
+        },
       }),
     }) as NextRequest
   )

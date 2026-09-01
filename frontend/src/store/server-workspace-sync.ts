@@ -94,10 +94,20 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     onError: (_error, { workspaceId: targetWorkspaceId }, context) => {
       if (context?.previousTasks) queryClient.setQueryData(['tasks', targetWorkspaceId], context.previousTasks)
     },
-    onSuccess: (updated, { workspaceId: targetWorkspaceId }) => {
-      taskVersions.current.set(`${targetWorkspaceId}:${updated.id}`, updated.updatedAt)
+    onSuccess: async (updated, { workspaceId: targetWorkspaceId, patch }) => {
       queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => replaceTaskInList(current, updated))
       queryClient.setQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId], (current = []) => replaceInboxInList(current, updated))
+      if (patch.beforeId !== undefined) {
+        for (const key of taskVersions.current.keys()) {
+          if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
+        }
+        await queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
+        for (const task of queryClient.getQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId]) ?? []) {
+          taskVersions.current.set(`${targetWorkspaceId}:${task.id}`, task.updatedAt)
+        }
+      } else {
+        taskVersions.current.set(`${targetWorkspaceId}:${updated.id}`, updated.updatedAt)
+      }
     },
   })
   const deleteTaskMutation = useMutation({

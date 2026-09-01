@@ -13,7 +13,8 @@ function unsafeRequestIsCrossOrigin(request: NextRequest) {
   const origin = request.headers.get("origin")
   if (origin) {
     const canonical = evaluateCanonicalPublicUrl(process.env.NEXTAUTH_URL)
-    return !canonical.origin || origin !== canonical.origin
+    const trustedOrigin = canonical.origin ?? (process.env.NODE_ENV === "production" ? null : request.nextUrl.origin)
+    return !trustedOrigin || origin !== trustedOrigin
   }
 
   return fetchSite === "same-site"

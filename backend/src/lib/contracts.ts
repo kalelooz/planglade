@@ -470,6 +470,7 @@ const localWorkItemSchema = z.object({
   due: z.string().trim().max(64).optional(),
   start: z.string().trim().max(64).optional(),
   project: localIdSchema.optional(),
+  parentId: localIdSchema.optional(),
   description: z.string().max(5000).optional(),
   isInbox: z.boolean().optional(),
   noteIds: z.array(localIdSchema).max(IMPORT_LIMITS.relationshipsPerWorkItem).optional(),
@@ -529,16 +530,6 @@ function validateImportTotal(data: ImportEntityArrays, context: z.RefinementCtx)
   }
 }
 
-export const importLocalWorkspaceSchema = z.object({
-  workspaceId: localIdSchema,
-  mode: z.literal("append").default("append"),
-  projects: z.array(localProjectSchema).max(IMPORT_LIMITS.projects).default([]),
-  workItems: z.array(localWorkItemSchema).max(IMPORT_LIMITS.workItems).default([]),
-  notes: z.array(localNoteSchema).max(IMPORT_LIMITS.notes).default([]),
-  projectDocs: z.array(localProjectDocSchema).max(IMPORT_LIMITS.projectDocs).default([]),
-  savedViews: z.array(localSavedViewSchema).max(IMPORT_LIMITS.savedViews).default([]),
-}).superRefine(validateImportTotal)
-
 export const importPreviewWorkspaceSnapshotSchema = z.object({
   version: z.number().int().positive().optional(),
   manifest: z.object({
@@ -583,6 +574,13 @@ export const importPreviewWorkspaceSnapshotSchema = z.object({
       savedViews: z.number().int().nonnegative().optional(),
     })
     .optional(),
+})
+
+export const importLocalWorkspaceSchema = z.object({
+  workspaceId: localIdSchema,
+  mode: z.literal("append").default("append"),
+  expectedSourceChecksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  snapshot: importPreviewWorkspaceSnapshotSchema,
 })
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>

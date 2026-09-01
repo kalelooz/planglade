@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   })
   if (!parsed.ok) return parsed.response
 
-  const { workspaceId, mode, projects, workItems, notes, projectDocs, savedViews } = parsed.data
+  const { workspaceId, mode, expectedSourceChecksum, snapshot } = parsed.data
 
   try {
     const access = await requireWorkspaceRole(
@@ -26,6 +26,13 @@ export async function POST(request: NextRequest) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
+    const reviewedPlan = buildWorkspaceImportPlan(snapshot)
+    if (!reviewedPlan.contract.canExecute) {
+      return NextResponse.json({ error: "This workspace export version cannot be imported" }, { status: 400 })
+    }
+    if (reviewedPlan.contract.sourceChecksum !== expectedSourceChecksum) {
+      return NextResponse.json({ error: "Workspace export changed after preview" }, { status: 409 })
+    }
     const releaseImport = tryAcquireWorkspaceImport(workspaceId)
     if (!releaseImport) {
       return NextResponse.json(
@@ -41,7 +48,7 @@ export async function POST(request: NextRequest) {
         select: { slug: true },
       })
       const importPlan = buildWorkspaceImportPlan(
-        { data: { projects, workItems, notes, projectDocs, savedViews } },
+        snapshot,
         { projectSlugs: existingProjects.map((project) => project.slug) }
       )
       const projectMap = new Map<string, string>()

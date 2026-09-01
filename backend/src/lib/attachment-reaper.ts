@@ -9,11 +9,25 @@ export async function reapExpiredAttachmentUploads(now = new Date()) {
   })
   let reservationsRemoved = 0
   for (const reservation of expired) {
-    await deleteStorageObject(reservation.storageKey)
-    const removed = await db.attachmentUploadReservation.deleteMany({
+    const claimed = await db.attachmentUploadReservation.updateMany({
       where: { id: reservation.id, consumedAt: null, expiresAt: { lte: now } },
+      data: { consumedAt: now },
     })
-    reservationsRemoved += removed.count
+    if (claimed.count !== 1) continue
+
+    try {
+      await deleteStorageObject(reservation.storageKey)
+      const removed = await db.attachmentUploadReservation.deleteMany({
+        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: now } },
+      })
+      reservationsRemoved += removed.count
+    } catch (error) {
+      await db.attachmentUploadReservation.updateMany({
+        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: now } },
+        data: { consumedAt: null },
+      })
+      throw error
+    }
   }
 
   const temporaryFilesRemoved = await removeAbandonedLocalUploadTemps(

@@ -143,8 +143,10 @@ export function evaluateAuthConfiguration(env = process.env, options = {}) {
       const secretError = getSecretConfigError("NEXTAUTH_SECRET", env.NEXTAUTH_SECRET)
       if (secretError) errors.push(secretError)
     }
-    errors.push(...evaluateCanonicalPublicUrl(env.NEXTAUTH_URL).errors)
     errors.push(...providers.errors)
+  }
+  if (mode !== "invalid" && (productionLike || mode === "nextauth")) {
+    errors.push(...evaluateCanonicalPublicUrl(env.NEXTAUTH_URL).errors)
   }
   return {
     mode,
