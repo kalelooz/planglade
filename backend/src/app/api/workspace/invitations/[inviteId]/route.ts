@@ -13,11 +13,13 @@ import {
 } from "@/lib/api-utils"
 import { updateWorkspaceInviteSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { getCanonicalPublicOrigin } from "@/lib/canonical-public-origin"
 import { canResendInvite } from "@/lib/workspace-invite-guards"
 import { deliverWorkspaceInviteEmail } from "@/lib/workspace-invite-mailer"
 import {
   buildInviteExpiry,
   buildInviteToken,
+  hashInviteToken,
   normalizeInviteEmail,
   resolveInviteStatus,
 } from "@/lib/workspace-invite-utils"
@@ -143,7 +145,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const token = buildInviteToken()
     const customMessage = parsed.data.customMessage ?? invite.customMessage ?? ""
     const requestedTemplateKey = parsed.data.templateKey ?? invite.templateKey ?? "default"
-    const inviteUrl = `${request.nextUrl.origin}/invite/review?inviteToken=${token}`
+    const inviteUrl = `${getCanonicalPublicOrigin()}/invite/review?inviteToken=${token}`
 
     const selectedTemplate = resolveInviteTemplateFromPolicy({
       templateKey: requestedTemplateKey,
@@ -176,14 +178,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         data: {
           role,
           status: "PENDING",
-          token,
+          tokenHash: hashInviteToken(token),
+          tokenVersion: { increment: 1 },
           expiresAt,
           invitedById: actorUserId,
           acceptedById: null,
           customMessage,
           templateKey: selectedTemplate.key,
           messageSubject,
-          messageBody,
         },
       })
 
@@ -210,12 +212,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const delivery = await deliverWorkspaceInviteEmail({
       workspaceId: parsed.data.workspaceId,
       inviteId: updated.id,
+      tokenVersion: updated.tokenVersion,
       email: updated.email,
       role: updated.role,
       subject: updated.messageSubject ?? `You're invited to join ${invite.workspace.name}`,
-      body:
-        updated.messageBody ??
-        `${inviter?.name ?? inviter?.email ?? actorUserId} invited you to join ${invite.workspace.name} as ${updated.role}.`,
+      body: messageBody,
     })
     if (!delivery.ok) {
       await db.workspaceInvite.update({
@@ -261,11 +262,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         lastDeliveryMessageId: updatedWithDelivery.lastDeliveryMessageId,
         lastDeliveryError: updatedWithDelivery.lastDeliveryError,
         lastDeliveredAt: updatedWithDelivery.lastDeliveredAt,
-      },
-      inviteToken: updatedWithDelivery.token,
-      messagePreview: {
-        subject: updatedWithDelivery.messageSubject,
-        body: updatedWithDelivery.messageBody,
       },
       delivery: {
         provider: delivery.provider,

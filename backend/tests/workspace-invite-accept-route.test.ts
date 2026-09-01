@@ -176,3 +176,107 @@ test("POST /workspace/invitations/accept rejects a persisted OWNER invite", asyn
     assert.equal(transactionCalled, false)
   })
 })
+
+test("POST /workspace/invitations/accept preserves an existing member role", async () => {
+  await runWithMocks(async () => {
+    ;(db.user as typeof db.user).findUnique = ((async () => ({
+      id: "user-1",
+      email: "user@example.com",
+      name: "User One",
+    })) as unknown) as typeof db.user.findUnique
+    ;(db.workspaceInvite as typeof db.workspaceInvite).findUnique = ((async () => ({
+      id: "invite-role",
+      workspaceId: "ws-1",
+      email: "user@example.com",
+      role: "VIEWER",
+      token: "role-test-test-token-01",
+      status: "PENDING",
+      expiresAt: new Date("2100-01-01T00:00:00.000Z"),
+      invitedById: "admin-1",
+      acceptedById: null,
+      workspace: { id: "ws-1", slug: "ws", name: "Workspace" },
+    })) as unknown) as typeof db.workspaceInvite.findUnique
+
+    let upsertUpdate: unknown
+    ;(db as typeof db).$transaction = (async (fn: (tx: unknown) => Promise<unknown>) => fn({
+      workspaceInvite: {
+        updateMany: async () => ({ count: 1 }),
+        findUniqueOrThrow: async () => ({ id: "invite-role", status: "ACCEPTED" }),
+      },
+      workspaceMember: {
+        upsert: async (args: unknown) => {
+          upsertUpdate = (args as { update: unknown }).update
+          return { role: "ADMIN", joinedAt: new Date("2026-01-01T00:00:00.000Z") }
+        },
+      },
+      activityEvent: { create: async () => ({}) },
+    })) as typeof db.$transaction
+
+    const request = new Request("http://localhost/api/workspace/invitations/accept", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-planglade-user-id": "user-1",
+      },
+      body: JSON.stringify({ token: "role-test-test-token-01", confirmed: true }),
+    }) as unknown as NextRequest
+
+    const response = await acceptWorkspaceInvite(request)
+    const payload = (await response.json()) as { member?: { role?: string } }
+
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get("cache-control"), "no-store")
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer")
+    assert.deepEqual(upsertUpdate, {})
+    assert.equal(payload.member?.role, "ADMIN")
+  })
+})
+
+test("POST /workspace/invitations/accept has one database claim winner", async () => {
+  await runWithMocks(async () => {
+    ;(db.user as typeof db.user).findUnique = ((async () => ({
+      id: "user-1",
+      email: "user@example.com",
+      name: "User One",
+    })) as unknown) as typeof db.user.findUnique
+    ;(db.workspaceInvite as typeof db.workspaceInvite).findUnique = ((async () => ({
+      id: "invite-race",
+      workspaceId: "ws-1",
+      email: "user@example.com",
+      role: "MEMBER",
+      token: "race-test-test-token-01",
+      status: "PENDING",
+      expiresAt: new Date("2100-01-01T00:00:00.000Z"),
+      invitedById: "admin-1",
+      acceptedById: null,
+      workspace: { id: "ws-1", slug: "ws", name: "Workspace" },
+    })) as unknown) as typeof db.workspaceInvite.findUnique
+
+    let membershipWritten = false
+    ;(db as typeof db).$transaction = (async (fn: (tx: unknown) => Promise<unknown>) => fn({
+      workspaceInvite: { updateMany: async () => ({ count: 0 }) },
+      workspaceMember: {
+        upsert: async () => {
+          membershipWritten = true
+          return {}
+        },
+      },
+    })) as typeof db.$transaction
+
+    const request = new Request("http://localhost/api/workspace/invitations/accept", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-planglade-user-id": "user-1",
+      },
+      body: JSON.stringify({ token: "race-test-test-token-01", confirmed: true }),
+    }) as unknown as NextRequest
+
+    const response = await acceptWorkspaceInvite(request)
+    const payload = (await response.json()) as { error?: string }
+
+    assert.equal(response.status, 400)
+    assert.equal(payload.error, "Invite is no longer available")
+    assert.equal(membershipWritten, false)
+  })
+})

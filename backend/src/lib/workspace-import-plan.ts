@@ -1,10 +1,18 @@
+import { createHash } from "node:crypto"
 import { parseDateValue } from "@/lib/api-utils"
-import type {
-  ImportLocalWorkspaceInput,
-  ImportPreviewWorkspaceSnapshotInput,
-} from "@/lib/contracts"
+import type { ImportPreviewWorkspaceSnapshotInput } from "@/lib/contracts"
 
-export const SUPPORTED_EXPORT_VERSION = 1
+export const SUPPORTED_EXPORT_VERSIONS = [1, 2] as const
+export const SUPPORTED_EXPORT_VERSION = 2
+const SUPPORTED_CAPABILITIES = new Set([
+  "projects.v2",
+  "notes.visibility",
+  "labels",
+  "taskLabels",
+  "taskNoteLinks",
+  "projectDocs",
+  "savedViews",
+])
 
 export type WorkspaceImportWarning = {
   code: string
@@ -13,13 +21,13 @@ export type WorkspaceImportWarning = {
 }
 
 type WorkspaceImportData = Pick<
-  ImportLocalWorkspaceInput,
+  ImportPreviewWorkspaceSnapshotInput["data"],
   "projects" | "workItems" | "notes" | "projectDocs" | "savedViews"
 >
 
 type WorkspaceImportSource = Pick<
   ImportPreviewWorkspaceSnapshotInput,
-  "version" | "generatedAt" | "workspace" | "settings"
+  "version" | "manifest" | "generatedAt" | "workspace" | "settings"
 > & { data: WorkspaceImportData }
 
 export type ExistingWorkspaceImportValues = {
@@ -113,6 +121,16 @@ function reserveProjectSlug(input: string, index: number, usedSlugs: Set<string>
   return slug
 }
 
+export function remapImportedNoteIds(
+  sourceNoteIds: string[] | undefined,
+  noteMap: ReadonlyMap<string, string>
+) {
+  if (!sourceNoteIds) return undefined
+  return sourceNoteIds
+    .map((sourceNoteId) => noteMap.get(sourceNoteId))
+    .filter((noteId): noteId is string => Boolean(noteId))
+}
+
 export function buildWorkspaceImportPlan(
   source: WorkspaceImportSource,
   existing: Partial<ExistingWorkspaceImportValues> = EMPTY_EXISTING
@@ -146,12 +164,30 @@ export function buildWorkspaceImportPlan(
     savedViews: countDuplicates(source.data.savedViews, existingValues.savedViews, (view) => view.name),
   }
   const warnings: WorkspaceImportWarning[] = []
-  if (source.version && source.version !== SUPPORTED_EXPORT_VERSION) {
+  const sourceVersion = source.manifest?.version ?? source.version ?? null
+  const supportedVersion = sourceVersion !== null && (SUPPORTED_EXPORT_VERSIONS as readonly number[]).includes(sourceVersion)
+  if (!supportedVersion) {
     warnings.push({
       code: "unsupported_export_version",
-      message: `This export version is not currently supported. Expected version ${SUPPORTED_EXPORT_VERSION}.`,
+      message: `This export version is not currently supported. Supported versions: ${SUPPORTED_EXPORT_VERSIONS.join(", ")}.`,
     })
   }
+  const unsupportedCapabilities = source.manifest?.capabilities.filter((capability) => !SUPPORTED_CAPABILITIES.has(capability)) ?? []
+  if (unsupportedCapabilities.length > 0) {
+    warnings.push({
+      code: "unsupported_capabilities",
+      message: `This file declares capabilities that append import will discard: ${unsupportedCapabilities.join(", ")}.`,
+      count: unsupportedCapabilities.length,
+    })
+  }
+  warnings.push({
+    code: "append_import_not_restore",
+    message: "Append import creates new records; it does not restore a workspace, memberships, authentication, attachments, or activity history.",
+  })
+  warnings.push({
+    code: "discarded_fields",
+    message: "Append import discards workspace profile changes, original record IDs and timestamps, work item hierarchy, note visibility, label assignments, assignees that are not current members, and unsupported presentation fields.",
+  })
   addCountWarning(warnings, "work_items_missing_projects", "Some tasks reference projects that are not in this import file.", relationCounts.workItemsMissingProjects)
   addCountWarning(warnings, "project_docs_missing_projects", "Some Project Docs reference projects that are not in this import file.", relationCounts.projectDocsMissingProjects)
   addCountWarning(warnings, "work_items_missing_notes", "Some tasks reference notes that are not in this import file.", relationCounts.workItemsMissingNotes)
@@ -165,10 +201,28 @@ export function buildWorkspaceImportPlan(
 
   return {
     source: {
-      version: source.version ?? null,
+      version: sourceVersion,
       generatedAt: source.generatedAt ?? null,
       workspaceName: source.workspace?.name ?? null,
       workspaceSlug: source.workspace?.slug ?? null,
+    },
+    contract: {
+      operation: "append-import" as const,
+      supportedVersions: [...SUPPORTED_EXPORT_VERSIONS],
+      canExecute: supportedVersion,
+      idempotent: false,
+      collisionStrategy: "Create new records and skip possible duplicates by normalized name or title.",
+      discardedFields: [
+        "workspace profile changes",
+        "original record IDs and timestamps",
+        "work item hierarchy",
+        "note visibility",
+        "label and task-label assignments",
+        "assignees that are not current workspace members",
+        "memberships, invitations, authentication, activity, notifications, and attachments",
+      ],
+      expectedAttachmentBytes: 0,
+      sourceChecksum: `sha256:${createHash("sha256").update(JSON.stringify(source)).digest("hex")}`,
     },
     counts: {
       projects: source.data.projects.length,

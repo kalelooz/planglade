@@ -70,10 +70,16 @@ test("import contracts bound per-entity and aggregate record work", () => {
   assert.equal(
     importLocalWorkspaceSchema.safeParse({
       workspaceId: "ws-1",
-      projects: Array.from({ length: IMPORT_LIMITS.projects + 1 }, (_, index) => ({
-        ...project,
-        id: `p-${index}`,
-      })),
+      expectedSourceChecksum: `sha256:${"0".repeat(64)}`,
+      snapshot: {
+        version: 2,
+        data: {
+          projects: Array.from({ length: IMPORT_LIMITS.projects + 1 }, (_, index) => ({
+            ...project,
+            id: `p-${index}`,
+          })),
+        },
+      },
     }).success,
     false
   )
@@ -98,6 +104,8 @@ test("import contracts bound per-entity and aggregate record work", () => {
   const replaceImport = importLocalWorkspaceSchema.safeParse({
     workspaceId: "ws-1",
     mode: "replace",
+    expectedSourceChecksum: `sha256:${"0".repeat(64)}`,
+    snapshot: { version: 2, data: {} },
   })
   assert.equal(replaceImport.success, false)
 })

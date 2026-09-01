@@ -153,6 +153,33 @@ test("TASK-UPDATE-PARTIAL-PATCH-001: create schema still applies intended task d
   assert.equal(parsed.isInbox, false)
 })
 
+test("work-item updates reject a stale updated-at precondition with current server state", async () => {
+  await runWithUpdateRouteMocks(async () => {
+    ;(db as unknown as { $transaction: unknown }).$transaction = (async (callback: (tx: unknown) => Promise<unknown>) => callback({
+      workItem: {
+        updateMany: async () => ({ count: 0 }),
+      },
+    })) as unknown as typeof db.$transaction
+
+    const response = await updateWorkItem(new NextRequest(
+      "http://localhost/api/work-items/task-1?workspaceId=workspace-1",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-planglade-user-id": "user-1" },
+        body: JSON.stringify({
+          title: "Stale title",
+          expectedUpdatedAt: "2026-08-29T10:00:00.000Z",
+        }),
+      },
+    ), { params: Promise.resolve({ workItemId: "task-1" }) })
+
+    assert.equal(response.status, 409)
+    const payload = await response.json()
+    assert.equal(payload.error, "Work item changed since it was loaded")
+    assert.equal(payload.current.id, "task-1")
+  })
+})
+
 test("task placement reindexes the workspace-wide destination status across projects", async () => {
   await runWithUpdateRouteMocks(async () => {
     const positionUpdates: Array<{ id: string; position: number }> = []

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildWorkspaceImportPlan } from "../src/lib/workspace-import-plan"
+import { buildWorkspaceImportPlan, remapImportedNoteIds } from "../src/lib/workspace-import-plan"
 
 test("workspace import plan shares relationship warnings and normalized writes", () => {
   const plan = buildWorkspaceImportPlan({
@@ -60,7 +60,35 @@ test("workspace import plan reports unsupported export versions without writes",
   })
 
   assert.equal(plan.warnings.some((warning) => warning.code === "unsupported_export_version"), true)
+  assert.equal(plan.contract.canExecute, false)
   assert.equal(plan.counts.settings, 0)
+})
+
+test("workspace import plan reports work item hierarchy as an exact append-import loss", () => {
+  const plan = buildWorkspaceImportPlan({
+    manifest: {
+      format: "planglade-workspace",
+      version: 2,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      appVersion: "0.2.0",
+      capabilities: ["workItems.hierarchy"],
+    },
+    data: {
+      projects: [],
+      workItems: [
+        { id: "parent", title: "Parent", status: "TODO", priority: "MEDIUM" },
+        { id: "child", title: "Child", status: "TODO", priority: "MEDIUM", parentId: "parent" },
+      ],
+      notes: [],
+      projectDocs: [],
+      savedViews: [],
+    },
+  })
+
+  assert.equal(plan.contract.canExecute, true)
+  assert.equal(plan.contract.discardedFields.includes("work item hierarchy"), true)
+  assert.equal(plan.warnings.some((warning) => warning.code === "unsupported_capabilities"), true)
+  assert.equal(plan.warnings.some((warning) => warning.code === "discarded_fields" && /hierarchy/.test(warning.message)), true)
 })
 
 test("workspace import plan reserves non-empty unique project slugs", () => {
@@ -89,4 +117,17 @@ test("workspace import plan reserves non-empty unique project slugs", () => {
   ])
   assert.equal(new Set(plan.projects.map((project) => project.slug)).size, 4)
   assert.equal(plan.projects.every((project) => project.slug.length > 0 && project.slug.length <= 50), true)
+})
+
+test("workspace import remaps destination note IDs and drops unresolved references", () => {
+  const noteMap = new Map([
+    ["note-source-1", "note-destination-9"],
+    ["note-source-2", "note-destination-10"],
+  ])
+
+  assert.deepEqual(
+    remapImportedNoteIds(["note-source-2", "missing-note", "note-source-1"], noteMap),
+    ["note-destination-10", "note-destination-9"]
+  )
+  assert.equal(remapImportedNoteIds(undefined, noteMap), undefined)
 })

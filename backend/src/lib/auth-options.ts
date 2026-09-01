@@ -6,12 +6,14 @@ import GoogleProvider from "next-auth/providers/google"
 import { getProviderCapabilityResult } from "@/lib/auth-provider-capabilities"
 import { db } from "@/lib/db"
 import { normalizeEmail } from "@/lib/local-auth-email"
-import { resolveLegacyNextAuthUser, resolveVerifiedApplicationUser } from "@/lib/local-auth-identity"
+import { resolveVerifiedApplicationUser } from "@/lib/local-auth-identity"
 import { getDummyPasswordHash, isPasswordHash, verifyPassword } from "@/lib/local-auth-password"
+import { claimLoginVerification, clearLoginAccountThrottle } from "@/lib/local-auth-throttle"
 import { resolveVerifiedOAuthIdentity } from "@/lib/oauth-verified-identity"
 
 const MAX_EMAIL_LENGTH = 320
 const MAX_PASSWORD_LENGTH = 1024
+const SESSION_TOKEN_VERSION = 1
 
 function isAuthVersion(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0
@@ -28,6 +30,8 @@ export async function authorizeLocalCredentials(
       typeof email === "string" && email.length <= MAX_EMAIL_LENGTH
         ? normalizeEmail(email)
         : null
+    const verificationAllowed = await claimLoginVerification(normalizedEmail)
+    if (!verificationAllowed) return null
     const usablePassword = typeof password === "string" && password.length <= MAX_PASSWORD_LENGTH
     const credential = normalizedEmail
       ? await db.localCredential.findFirst({
@@ -44,6 +48,7 @@ export async function authorizeLocalCredentials(
     const passwordMatches = await verify(usablePassword ? password : "", hashToVerify)
 
     if (!credentialIsUsable || !passwordMatches || !credential) return null
+    await clearLoginAccountThrottle(normalizedEmail!)
     return {
       id: credential.user.id,
       email: credential.user.email,
@@ -119,23 +124,18 @@ export function getAuthOptions(): NextAuthOptions {
         if (user?.id && isAuthVersion(user.authVersion)) {
           token.userId = user.id
           token.authVersion = user.authVersion
+          token.sessionVersion = SESSION_TOKEN_VERSION
           return token
-        }
-        if ((!token.userId || !isAuthVersion(token.authVersion)) && token.email) {
-          try {
-            const legacyUser = await resolveLegacyNextAuthUser(token.email)
-            if (legacyUser) {
-              token.userId = legacyUser.id
-              token.authVersion = legacyUser.authVersion
-            }
-          } catch {
-            return token
-          }
         }
         return token
       },
       session({ session, token }) {
-        if (session.user && token.userId && isAuthVersion(token.authVersion)) {
+        if (
+          session.user &&
+          token.sessionVersion === SESSION_TOKEN_VERSION &&
+          token.userId &&
+          isAuthVersion(token.authVersion)
+        ) {
           session.user.id = token.userId
           session.user.authVersion = token.authVersion
         }

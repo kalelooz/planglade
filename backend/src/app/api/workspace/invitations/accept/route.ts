@@ -12,6 +12,10 @@ import { acceptWorkspaceInviteSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { evaluateInviteAcceptance } from "@/lib/workspace-invite-guards"
 import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
+import { hashInviteToken } from "@/lib/workspace-invite-utils"
+import { SENSITIVE_INVITE_RESPONSE_HEADERS } from "@/lib/workspace-invite-response"
+
+class InviteClaimLostError extends Error {}
 
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, acceptWorkspaceInviteSchema)
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!actor) return forbidden("Signed-in user not found")
 
     const invite = await db.workspaceInvite.findUnique({
-      where: { token: parsed.data.token },
+      where: { tokenHash: hashInviteToken(parsed.data.token) },
       include: {
         workspace: { select: { id: true, name: true, slug: true } },
       },
@@ -69,15 +73,18 @@ export async function POST(request: NextRequest) {
         })
         if (!membership) return badRequest("Invite was accepted but membership is missing")
 
-        return NextResponse.json({
-          accepted: true,
-          workspace: invite.workspace,
-          member: {
-            userId: actor.id,
-            role: membership.role,
-            joinedAt: membership.joinedAt,
+        return NextResponse.json(
+          {
+            accepted: true,
+            workspace: invite.workspace,
+            member: {
+              userId: actor.id,
+              role: membership.role,
+              joinedAt: membership.joinedAt,
+            },
           },
-        })
+          { headers: SENSITIVE_INVITE_RESPONSE_HEADERS }
+        )
       }
     if (decision.kind === "accepted_other") {
       return forbidden("Invite has already been accepted by a different account")
@@ -87,6 +94,21 @@ export async function POST(request: NextRequest) {
     }
 
     const accepted = await db.$transaction(async (tx) => {
+      const claim = await tx.workspaceInvite.updateMany({
+        where: {
+          id: invite.id,
+          tokenHash: hashInviteToken(parsed.data.token),
+          status: "PENDING",
+          acceptedById: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          status: "ACCEPTED",
+          acceptedById: actor.id,
+        },
+      })
+      if (claim.count !== 1) throw new InviteClaimLostError()
+
       const membership = await tx.workspaceMember.upsert({
         where: {
           workspaceId_userId: {
@@ -94,9 +116,7 @@ export async function POST(request: NextRequest) {
             userId: actor.id,
           },
         },
-        update: {
-          role: invite.role,
-        },
+        update: {},
         create: {
           workspaceId: invite.workspaceId,
           userId: actor.id,
@@ -104,12 +124,8 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      const updatedInvite = await tx.workspaceInvite.update({
+      const updatedInvite = await tx.workspaceInvite.findUniqueOrThrow({
         where: { id: invite.id },
-        data: {
-          status: "ACCEPTED",
-          acceptedById: actor.id,
-        },
       })
 
       await logActivityEvent(tx, {
@@ -130,20 +146,26 @@ export async function POST(request: NextRequest) {
       return { membership, updatedInvite }
     })
 
-    return NextResponse.json({
-      accepted: true,
-      workspace: invite.workspace,
-      member: {
-        userId: actor.id,
-        role: accepted.membership.role,
-        joinedAt: accepted.membership.joinedAt,
+    return NextResponse.json(
+      {
+        accepted: true,
+        workspace: invite.workspace,
+        member: {
+          userId: actor.id,
+          role: accepted.membership.role,
+          joinedAt: accepted.membership.joinedAt,
+        },
+        invite: {
+          id: accepted.updatedInvite.id,
+          status: accepted.updatedInvite.status,
+        },
       },
-      invite: {
-        id: accepted.updatedInvite.id,
-        status: accepted.updatedInvite.status,
-      },
-    })
+      { headers: SENSITIVE_INVITE_RESPONSE_HEADERS }
+    )
   } catch (error) {
+    if (error instanceof InviteClaimLostError) {
+      return badRequest("Invite is no longer available")
+    }
     return serverError("Failed to accept workspace invite", String(error))
   }
 }

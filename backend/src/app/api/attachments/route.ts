@@ -20,6 +20,11 @@ import {
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere, canAccessNote } from "@/lib/note-access"
 import { readStorageObjectMetadata, storageObjectExists } from "@/lib/storage"
+import {
+  AttachmentReservationConflictError,
+  finalizeAttachmentReservation,
+  WorkspaceStorageQuotaError,
+} from "@/lib/attachment-reservations"
 
 async function validateAttachmentTarget(
   workspaceId: string,
@@ -214,6 +219,24 @@ export async function POST(request: NextRequest) {
       return badRequest("Attachment storage key has already been finalized")
     }
 
+    const reservation = await db.attachmentUploadReservation.findUnique({
+      where: { id: parsed.data.reservationId },
+    })
+    if (
+      !reservation ||
+      reservation.workspaceId !== parsed.data.workspaceId ||
+      reservation.actorUserId !== actorUserId ||
+      reservation.workItemId !== (parsed.data.workItemId ?? null) ||
+      reservation.noteId !== (parsed.data.noteId ?? null) ||
+      reservation.storageKey !== parsed.data.storageKey ||
+      reservation.mimeType !== parsed.data.mimeType ||
+      reservation.sizeBytes !== parsed.data.sizeBytes ||
+      reservation.consumedAt ||
+      reservation.expiresAt <= new Date()
+    ) {
+      return NextResponse.json({ error: "Attachment upload reservation is invalid, expired, or already consumed" }, { status: 409 })
+    }
+
     const exists = await storageObjectExists(parsed.data.storageKey)
     if (!exists) {
       return badRequest("Uploaded file not found in storage for the provided storageKey")
@@ -240,6 +263,11 @@ export async function POST(request: NextRequest) {
     }
 
     const attachment = await db.$transaction(async (tx) => {
+      await finalizeAttachmentReservation(tx, {
+        reservationId: reservation.id,
+        workspaceId: parsed.data.workspaceId,
+        now: new Date(),
+      })
       const createdAttachment = await tx.attachment.create({
         data: {
           workspaceId: parsed.data.workspaceId,
@@ -273,6 +301,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ attachment }, { status: 201 })
   } catch (error) {
+    if (error instanceof AttachmentReservationConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 })
+    }
+    if (error instanceof WorkspaceStorageQuotaError) {
+      return NextResponse.json({ error: error.message }, { status: 409 })
+    }
     return serverError("Failed to create attachment", String(error))
   }
 }

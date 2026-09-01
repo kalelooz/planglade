@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client'
 
+export function getPrismaLogLevels(nodeEnv = process.env.NODE_ENV) {
+  return nodeEnv === 'production'
+    ? (['warn', 'error'] as const)
+    : (['query', 'warn', 'error'] as const)
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -7,7 +13,7 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    log: [...getPrismaLogLevels()],
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db

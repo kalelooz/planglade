@@ -6,6 +6,7 @@ import { db } from "../src/lib/db"
 import { POST as sendTestInviteEmail } from "../src/app/api/workspace/invitations/test-send/route"
 
 const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
+const originalNextAuthUrl = process.env.NEXTAUTH_URL
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalMemberFindUnique = db.workspaceMember.findUnique
 const originalUserFindUnique = db.user.findUnique
@@ -14,10 +15,12 @@ const originalPolicyFindUnique = db.workspaceInvitePolicy.findUnique
 async function runWithMocks(fn: () => Promise<void>) {
   process.env.PLANGLADE_AUTH_MODE = "dev"
   process.env.PLANGLADE_EMAIL_PROVIDER = "console"
+  process.env.NEXTAUTH_URL = "http://localhost:8080/"
   try {
     await fn()
   } finally {
     process.env.PLANGLADE_AUTH_MODE = originalAuthMode
+    process.env.NEXTAUTH_URL = originalNextAuthUrl
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalMemberFindUnique
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique

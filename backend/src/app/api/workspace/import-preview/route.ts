@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       counts: plan.counts,
       relationIssues: plan.relationIssues,
       duplicateCandidates: plan.duplicateCandidates,
+      contract: plan.contract,
       warnings: plan.warnings,
       writes: false,
     })

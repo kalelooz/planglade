@@ -4,7 +4,7 @@ import {
   withPreservedLocation,
 } from './workspace-routes'
 
-const ENTRY_PATHS = new Set(['/auth/login', '/login', '/setup', '/onboarding', '/invite/review'])
+const ENTRY_PATHS = new Set(['/auth/login', '/auth/recover', '/login', '/setup', '/onboarding', '/invite/review'])
 
 function hasControlCharacters(value: string) {
   return [...value].some((character) => {

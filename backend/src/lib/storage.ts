@@ -1,6 +1,8 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto"
+import { createReadStream } from "node:fs"
+import { link, mkdir, open, readFile, readdir, rm, stat, statfs, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { Readable } from "node:stream"
 
 import { readPlanGladeEnv } from "@/lib/env-config"
 import { evaluateStorageConfiguration } from "@/lib/production-config.mjs"
@@ -19,6 +21,10 @@ export class StorageObjectAlreadyExistsError extends Error {
     this.name = "StorageObjectAlreadyExistsError"
   }
 }
+
+export class StorageObjectTooLargeError extends Error {}
+export class StorageObjectEmptyError extends Error {}
+export class StorageCapacityError extends Error {}
 
 type SignedStorageMethod = "upload" | "download"
 
@@ -109,8 +115,10 @@ function encodeLocalStorageTokenPayload(input: {
   storageKey: string
   mimeType: string
   expiresAtMs: number
+  reservationId?: string
+  expectedSizeBytes?: number
 }) {
-  return `${input.method}|${input.storageKey}|${input.mimeType}|${input.expiresAtMs}`
+  return `${input.method}|${input.storageKey}|${input.mimeType}|${input.expiresAtMs}|${input.reservationId ?? ""}|${input.expectedSizeBytes ?? ""}`
 }
 
 function timingSafeStringEqual(left: string, right: string) {
@@ -127,6 +135,8 @@ function buildLocalSignedStorageUrl(input: {
   storageKey: string
   mimeType: string
   expiresInSeconds: number
+  reservationId?: string
+  expectedSizeBytes?: number
 }) {
   const expiresAtMs = Date.now() + input.expiresInSeconds * 1000
   const payload = encodeLocalStorageTokenPayload({
@@ -134,6 +144,8 @@ function buildLocalSignedStorageUrl(input: {
     storageKey: input.storageKey,
     mimeType: input.mimeType,
     expiresAtMs,
+    reservationId: input.reservationId,
+    expectedSizeBytes: input.expectedSizeBytes,
   })
   const signature = signLocalStorageToken(payload)
   const params = new URLSearchParams({
@@ -141,6 +153,8 @@ function buildLocalSignedStorageUrl(input: {
     mimeType: input.mimeType,
     expires: String(expiresAtMs),
     signature,
+    ...(input.reservationId ? { reservationId: input.reservationId } : {}),
+    ...(input.expectedSizeBytes ? { expectedSizeBytes: String(input.expectedSizeBytes) } : {}),
   })
 
   const pathname =
@@ -157,6 +171,8 @@ export function verifyLocalSignedStorageUrl(input: {
   mimeType: string
   expiresAtMs: number
   signature: string
+  reservationId?: string
+  expectedSizeBytes?: number
 }) {
   if (!Number.isFinite(input.expiresAtMs) || input.expiresAtMs <= 0) {
     return false
@@ -171,6 +187,8 @@ export function verifyLocalSignedStorageUrl(input: {
       storageKey: input.storageKey,
       mimeType: input.mimeType,
       expiresAtMs: input.expiresAtMs,
+      reservationId: input.reservationId,
+      expectedSizeBytes: input.expectedSizeBytes,
     })
   )
 
@@ -193,6 +211,8 @@ export function buildFirebaseUploadSignedUrlConfig(input: {
 export async function createAttachmentUploadTarget(input: {
   storageKey: string
   mimeType: string
+  reservationId: string
+  expectedSizeBytes: number
   expiresInSeconds?: number
 }) {
   const provider = getStorageProviderOrThrow()
@@ -214,6 +234,8 @@ export async function createAttachmentUploadTarget(input: {
         "Content-Type": input.mimeType,
       },
       expiresInSeconds,
+      reservationId: input.reservationId,
+      expectedSizeBytes: input.expectedSizeBytes,
     }
   }
 
@@ -223,6 +245,8 @@ export async function createAttachmentUploadTarget(input: {
       storageKey: input.storageKey,
       mimeType: input.mimeType,
       expiresInSeconds,
+      reservationId: input.reservationId,
+      expectedSizeBytes: input.expectedSizeBytes,
     }),
     method: "PUT" as const,
     requiredHeaders: {
@@ -230,6 +254,44 @@ export async function createAttachmentUploadTarget(input: {
     },
     expiresInSeconds,
   }
+}
+
+export async function ensureLocalStorageHeadroom(requestedBytes: number) {
+  if (getStorageProviderOrThrow() !== "local") return
+  const rootDir = getLocalStorageRootDir()
+  await mkdir(rootDir, { recursive: true })
+  const filesystem = await statfs(rootDir)
+  const availableBytes = filesystem.bavail * filesystem.bsize
+  const configured = Number(process.env.PLANGLADE_STORAGE_MIN_FREE_BYTES)
+  const minimumFreeBytes = Number.isSafeInteger(configured) && configured >= 0
+    ? configured
+    : 256 * 1024 * 1024
+  if (availableBytes - requestedBytes < minimumFreeBytes) throw new StorageCapacityError()
+}
+
+export async function removeAbandonedLocalUploadTemps(olderThan: Date) {
+  if (getStorageProviderOrThrow() !== "local") return 0
+  const rootDir = getLocalStorageRootDir()
+  let removed = 0
+
+  async function visit(directory: string) {
+    const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      const entryPath = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        await visit(entryPath)
+      } else if (/\.upload-[0-9a-f-]{36}$/i.test(entry.name)) {
+        const entryStat = await stat(entryPath).catch(() => null)
+        if (entryStat && entryStat.mtime < olderThan) {
+          await rm(entryPath, { force: true })
+          removed += 1
+        }
+      }
+    }
+  }
+
+  await visit(rootDir)
+  return removed
 }
 
 export async function createAttachmentDownloadTarget(input: {
@@ -384,6 +446,65 @@ export async function writeLocalStorageObject(input: {
   }
 }
 
+export async function writeLocalStorageObjectStream(input: {
+  storageKey: string
+  mimeType: string
+  body: ReadableStream<Uint8Array>
+  maxBytes: number
+}) {
+  const provider = getStorageProviderOrThrow()
+  if (provider !== "local") {
+    throw new Error("Local object writes require PLANGLADE_STORAGE_PROVIDER=local")
+  }
+
+  const filePath = resolveLocalStoragePath(input.storageKey)
+  const tempPath = `${filePath}.upload-${randomUUID()}`
+  const metaPath = getLocalMetaPath(filePath)
+  await mkdir(path.dirname(filePath), { recursive: true })
+
+  const reader = input.body.getReader()
+  const handle = await open(tempPath, "wx")
+  let totalBytes = 0
+  let objectLinked = false
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value || value.byteLength === 0) continue
+      totalBytes += value.byteLength
+      if (totalBytes > input.maxBytes) {
+        await reader.cancel().catch(() => undefined)
+        throw new StorageObjectTooLargeError()
+      }
+      await handle.writeFile(value)
+    }
+    if (totalBytes === 0) throw new StorageObjectEmptyError()
+    await handle.sync()
+    await handle.close()
+
+    try {
+      await link(tempPath, filePath)
+      objectLinked = true
+      await writeFile(metaPath, JSON.stringify({ mimeType: input.mimeType }, null, 2), {
+        flag: "wx",
+      })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new StorageObjectAlreadyExistsError()
+      }
+      throw error
+    }
+
+    return { sizeBytes: totalBytes, path: filePath }
+  } catch (error) {
+    if (objectLinked) await rm(filePath, { force: true }).catch(() => undefined)
+    throw error
+  } finally {
+    await handle.close().catch(() => undefined)
+    await rm(tempPath, { force: true }).catch(() => undefined)
+  }
+}
+
 export async function readLocalStorageObject(input: { storageKey: string }) {
   const provider = getStorageProviderOrThrow()
   if (provider !== "local") {
@@ -399,5 +520,24 @@ export async function readLocalStorageObject(input: { storageKey: string }) {
   return {
     bytes: buffer,
     mimeType: typeof meta?.mimeType === "string" ? meta.mimeType : "application/octet-stream",
+  }
+}
+
+export async function streamLocalStorageObject(input: { storageKey: string }) {
+  const provider = getStorageProviderOrThrow()
+  if (provider !== "local") {
+    throw new Error("Local object reads require PLANGLADE_STORAGE_PROVIDER=local")
+  }
+
+  const filePath = resolveLocalStoragePath(input.storageKey)
+  const [fileStat, metaRaw] = await Promise.all([
+    stat(/* turbopackIgnore: true */ filePath),
+    readFile(/* turbopackIgnore: true */ getLocalMetaPath(filePath), "utf8").catch(() => null),
+  ])
+  const meta = metaRaw ? (JSON.parse(metaRaw) as { mimeType?: unknown }) : null
+  return {
+    body: Readable.toWeb(createReadStream(filePath)) as ReadableStream<Uint8Array>,
+    mimeType: typeof meta?.mimeType === "string" ? meta.mimeType : "application/octet-stream",
+    sizeBytes: fileStat.size,
   }
 }

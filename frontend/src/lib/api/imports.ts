@@ -11,14 +11,16 @@ export function previewWorkspaceImport(workspaceId: string, snapshot: WorkspaceI
   return sendJson(`/api/workspace/import-preview?workspaceId=${encodeURIComponent(workspaceId)}`, 'POST', snapshot, workspaceImportPreviewSchema, signal)
 }
 
-export function importWorkspace(workspaceId: string, snapshot: WorkspaceImportSnapshot, signal?: AbortSignal) {
+export function importWorkspace(
+  workspaceId: string,
+  snapshot: WorkspaceImportSnapshot,
+  expectedSourceChecksum: string,
+  signal?: AbortSignal,
+) {
   return sendJson('/api/workspace/import-local', 'POST', {
     workspaceId,
     mode: 'append',
-    projects: snapshot.data.projects,
-    workItems: snapshot.data.workItems,
-    notes: snapshot.data.notes,
-    projectDocs: snapshot.data.projectDocs,
-    savedViews: snapshot.data.savedViews,
+    expectedSourceChecksum,
+    snapshot,
   }, workspaceImportResultSchema, signal)
 }

@@ -10,7 +10,6 @@ const isolatedDatabase = createIsolatedTestDatabase()
 let db: typeof import("../src/lib/db").db
 let getAuthOptions: typeof import("../src/lib/auth-options").getAuthOptions
 let authorizeLocalCredentials: typeof import("../src/lib/auth-options").authorizeLocalCredentials
-let resolveLegacyNextAuthUser: typeof import("../src/lib/local-auth-identity").resolveLegacyNextAuthUser
 let resolveVerifiedApplicationUser: typeof import("../src/lib/local-auth-identity").resolveVerifiedApplicationUser
 let originalUserFindUnique: typeof db.user.findUnique
 let originalUserFindMany: typeof db.user.findMany
@@ -21,7 +20,7 @@ let originalLocalCredentialFindFirst: typeof db.localCredential.findFirst
 before(async () => {
   ;({ db } = await import("../src/lib/db"))
   ;({ getAuthOptions, authorizeLocalCredentials } = await import("../src/lib/auth-options"))
-  ;({ resolveLegacyNextAuthUser, resolveVerifiedApplicationUser } = await import("../src/lib/local-auth-identity"))
+  ;({ resolveVerifiedApplicationUser } = await import("../src/lib/local-auth-identity"))
   originalUserFindUnique = db.user.findUnique
   originalUserFindMany = db.user.findMany
   originalUserUpdate = db.user.update
@@ -101,6 +100,7 @@ async function authorizeWithCredential(
   password: string,
   verify: (candidate: string, hash: string) => Promise<boolean> = verifyPassword
 ) {
+  await db.authThrottle.deleteMany()
   ;(db.localCredential as typeof db.localCredential).findFirst = ((async () => credential) as unknown) as typeof db.localCredential.findFirst
   try {
     return await authorizeLocalCredentials({ email: "person@example.com", password }, verify)
@@ -135,6 +135,26 @@ test("local credentials authenticate only with an eligible credential and valid 
 
   assert.equal((await authorizeWithCredential(credential, "wrong password")), null)
   assert.deepEqual(await authorizeWithCredential(credential, "correct horse battery staple"), user)
+})
+
+test("local credential throttling skips expensive verification after five failures", async () => {
+  await db.authThrottle.deleteMany()
+  let verificationCalls = 0
+  ;(db.localCredential as typeof db.localCredential).findFirst = ((async () => null) as unknown) as typeof db.localCredential.findFirst
+  try {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      assert.equal(await authorizeLocalCredentials(
+        { email: "blocked@example.com", password: "wrong password" },
+        async () => {
+          verificationCalls += 1
+          return false
+        }
+      ), null)
+    }
+    assert.equal(verificationCalls, 5)
+  } finally {
+    ;(db.localCredential as typeof db.localCredential).findFirst = originalLocalCredentialFindFirst
+  }
 })
 
 test("local credential callback contains database and crypto failures without leaking details", async () => {
@@ -191,7 +211,7 @@ test("NextAuth enables local credentials explicitly and derives JWT identity cla
       account: null,
       trigger: "signIn",
     })
-    assert.deepEqual(token, { userId: "user-1", authVersion: 3 })
+    assert.deepEqual(token, { userId: "user-1", authVersion: 3, sessionVersion: 1 })
 
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "invalid"
     assert.equal(getAuthOptions().providers.some((provider) => provider.id === "credentials"), false)
@@ -307,20 +327,13 @@ test("OAuth sign-in contains identity and application-user failures before mutat
   }
 })
 
-test("legacy JWT lookup failures leave trusted claims unset", async () => {
+test("legacy email-only JWTs remain untrusted and force sign-in", async () => {
   const jwt = getAuthOptions().callbacks?.jwt
   assert.ok(jwt)
-  try {
-    ;(db.user as typeof db.user).findUnique = ((async () => {
-      throw new Error("C:\\private\\custom.db token=inert-token person@example.com STACK_MARKER")
-    }) as unknown) as typeof db.user.findUnique
-    assert.deepEqual(
-      await jwt({ token: { email: "person@example.com" }, user: { id: "legacy-user" }, account: null, trigger: "update" }),
-      { email: "person@example.com" }
-    )
-  } finally {
-    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
-  }
+  assert.deepEqual(
+    await jwt({ token: { email: "person@example.com" }, user: { id: "legacy-user" }, account: null, trigger: "update" }),
+    { email: "person@example.com" }
+  )
 })
 
 test("email normalization trims and lowercases without provider-specific rewriting", () => {
@@ -368,7 +381,7 @@ test("verified identities use normalized email and backfill one transitional use
   }
 })
 
-test("ambiguous transitional and legacy identity matches fail closed", async () => {
+test("ambiguous transitional identity matches fail closed", async () => {
   try {
     ;(db.user as typeof db.user).findUnique = ((async () => null) as unknown) as typeof db.user.findUnique
     ;(db.user as typeof db.user).findMany = ((async () => [
@@ -377,7 +390,6 @@ test("ambiguous transitional and legacy identity matches fail closed", async () 
     ]) as unknown) as typeof db.user.findMany
 
     assert.equal(await resolveVerifiedApplicationUser({ email: "person@example.com" }), null)
-    assert.equal(await resolveLegacyNextAuthUser("person@example.com"), null)
   } finally {
     ;(db.user as typeof db.user).findUnique = originalUserFindUnique
     ;(db.user as typeof db.user).findMany = originalUserFindMany

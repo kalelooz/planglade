@@ -4,6 +4,7 @@ import test from "node:test"
 import {
   buildInviteExpiry,
   buildInviteToken,
+  hashInviteToken,
   normalizeInviteEmail,
   resolveInviteStatus,
 } from "../src/lib/workspace-invite-utils"
@@ -15,7 +16,11 @@ test("normalizeInviteEmail trims and lowercases", () => {
 test("buildInviteToken creates long unpredictable token", () => {
   const token = buildInviteToken()
   assert.equal(typeof token, "string")
-  assert.equal(token.length, 48)
+  assert.equal(token.length, 43)
+  assert.match(token, /^[A-Za-z0-9_-]+$/)
+  assert.match(hashInviteToken(token), /^[a-f0-9]{64}$/)
+  assert.equal(hashInviteToken(token), hashInviteToken(token))
+  assert.notEqual(hashInviteToken(token), hashInviteToken(`${token}x`))
 })
 
 test("resolveInviteStatus keeps non-pending status", () => {

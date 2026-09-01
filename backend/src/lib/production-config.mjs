@@ -29,6 +29,29 @@ function resolveProductionLike(env, options) {
   return options?.productionLike ?? (env.NODE_ENV === "production" || env.CI === "true")
 }
 
+function isLoopbackHostname(hostname) {
+  const normalized = hostname.toLowerCase()
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]"
+}
+
+export function evaluateCanonicalPublicUrl(value) {
+  if (!value) return { origin: null, errors: ["Missing NEXTAUTH_URL for nextauth mode."] }
+  try {
+    const url = new URL(value)
+    const errors = []
+    if (url.username || url.password) errors.push("NEXTAUTH_URL must not contain credentials.")
+    if (url.pathname !== "/" || url.search || url.hash) {
+      errors.push("NEXTAUTH_URL must be an origin with no path, query, or fragment.")
+    }
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopbackHostname(url.hostname))) {
+      errors.push("NEXTAUTH_URL must use HTTPS unless it is an explicit loopback URL.")
+    }
+    return { origin: errors.length === 0 ? url.origin : null, errors }
+  } catch {
+    return { origin: null, errors: ["NEXTAUTH_URL must be an absolute public URL."] }
+  }
+}
+
 export function evaluateTrustedProxyConfiguration(env = process.env) {
   const value = env.PLANGLADE_TRUST_PROXY_HOPS
   const invalid = value !== undefined && value !== "" && (
@@ -120,8 +143,10 @@ export function evaluateAuthConfiguration(env = process.env, options = {}) {
       const secretError = getSecretConfigError("NEXTAUTH_SECRET", env.NEXTAUTH_SECRET)
       if (secretError) errors.push(secretError)
     }
-    if (!env.NEXTAUTH_URL) errors.push("Missing NEXTAUTH_URL for nextauth mode.")
     errors.push(...providers.errors)
+  }
+  if (mode !== "invalid" && (productionLike || mode === "nextauth")) {
+    errors.push(...evaluateCanonicalPublicUrl(env.NEXTAUTH_URL).errors)
   }
   return {
     mode,

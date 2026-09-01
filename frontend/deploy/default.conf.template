@@ -6,8 +6,8 @@ server {
   index index.html;
 
   proxy_http_version 1.1;
-  proxy_set_header Host $host;
-  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Host $http_host;
+  proxy_set_header X-Forwarded-Host $http_host;
   proxy_set_header X-Forwarded-Proto $scheme;
   proxy_set_header X-Forwarded-For $remote_addr;
   proxy_set_header X-Real-IP $remote_addr;
@@ -47,10 +47,20 @@ server {
   }
 
   location / {
-    try_files $uri $uri/ /index.html;
+    try_files $uri =404;
     expires -1;
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  }
+
+  location ~ ^/(?:app(?:/.*)?|auth/(?:login|recover)/?|invite/review/?|login/?|setup/?|onboarding/?|inbox/?|tasks/?|projects(?:/[^/]+)?/?|notes/?|calendar/?|connections/?|settings/?|board/?|my-tasks/?)$ {
+    try_files $uri /index.html;
+    expires -1;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'" always;
+    add_header Referrer-Policy "no-referrer" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;

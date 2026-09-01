@@ -207,9 +207,16 @@ export const savedViewDeleteSchema = z.object({ deleted: z.literal(true) }).pass
 
 // The export is an archival payload, so retain fields the frontend does not render.
 export const workspaceExportSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   exportedAt: z.string(),
   generatedAt: z.string(),
+  manifest: z.object({
+    format: z.literal('planglade-workspace'),
+    version: z.literal(2),
+    createdAt: z.string(),
+    appVersion: z.string(),
+    capabilities: z.array(z.string()),
+  }),
   workspace: z.object({
     id: z.string(),
     slug: z.string(),
@@ -241,6 +248,13 @@ export const workspaceExportSchema = z.object({
 
 export const workspaceImportSnapshotSchema = z.object({
   version: z.number().int().positive().optional(),
+  manifest: z.object({
+    format: z.literal('planglade-workspace'),
+    version: z.number().int().positive(),
+    createdAt: z.string(),
+    appVersion: z.string(),
+    capabilities: z.array(z.string()),
+  }).optional(),
   generatedAt: z.string().optional(),
   workspace: z.object({ id: z.string().optional(), slug: z.string().optional(), name: z.string().optional() }).passthrough().optional(),
   settings: z.unknown().optional(),
@@ -259,6 +273,16 @@ export const workspaceImportPreviewSchema = z.object({
     projects: z.number(), tasks: z.number(), notes: z.number(), projectDocs: z.number(), savedViews: z.number(),
     settings: z.number(), archivedProjectDocs: z.number(),
   }).passthrough(),
+  contract: z.object({
+    operation: z.literal('append-import'),
+    supportedVersions: z.array(z.number()),
+    canExecute: z.boolean(),
+    idempotent: z.literal(false),
+    collisionStrategy: z.string(),
+    discardedFields: z.array(z.string()),
+    expectedAttachmentBytes: z.number(),
+    sourceChecksum: z.string(),
+  }),
   warnings: z.array(z.object({ code: z.string(), message: z.string(), count: z.number().optional() }).passthrough()),
   writes: z.literal(false),
 }).passthrough()

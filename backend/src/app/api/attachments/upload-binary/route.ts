@@ -6,8 +6,10 @@ import { MAX_ATTACHMENT_BYTES, isAllowedAttachmentMimeType } from "@/lib/contrac
 import {
   getConfiguredStorageProvider,
   StorageObjectAlreadyExistsError,
+  StorageObjectEmptyError,
+  StorageObjectTooLargeError,
   verifyLocalSignedStorageUrl,
-  writeLocalStorageObject,
+  writeLocalStorageObjectStream,
 } from "@/lib/storage"
 
 const uploadBinaryQuerySchema = z.object({
@@ -15,9 +17,30 @@ const uploadBinaryQuerySchema = z.object({
   mimeType: z.string().trim().min(1).max(120).refine(isAllowedAttachmentMimeType, "Unsupported attachment MIME type"),
   expires: z.coerce.number().int().positive(),
   signature: z.string().trim().min(32),
+  reservationId: z.string().uuid(),
+  expectedSizeBytes: z.coerce.number().int().positive().max(MAX_ATTACHMENT_BYTES),
 })
 
-async function readBoundedUploadBody(request: Request) {
+const activeUploadsByWorkspace = new Map<string, number>()
+let activeUploads = 0
+
+function claimUploadSlot(storageKey: string) {
+  const workspaceId = storageKey.split("/", 1)[0]
+  const globalLimit = 4
+  const workspaceLimit = 2
+  const workspaceActive = activeUploadsByWorkspace.get(workspaceId) ?? 0
+  if (activeUploads >= globalLimit || workspaceActive >= workspaceLimit) return null
+  activeUploads += 1
+  activeUploadsByWorkspace.set(workspaceId, workspaceActive + 1)
+  return () => {
+    activeUploads -= 1
+    const remaining = (activeUploadsByWorkspace.get(workspaceId) ?? 1) - 1
+    if (remaining > 0) activeUploadsByWorkspace.set(workspaceId, remaining)
+    else activeUploadsByWorkspace.delete(workspaceId)
+  }
+}
+
+function validateUploadContentLength(request: Request) {
   const contentLength = request.headers.get("content-length")
   if (contentLength !== null) {
     if (!/^\d+$/.test(contentLength)) {
@@ -29,38 +52,7 @@ async function readBoundedUploadBody(request: Request) {
     }
   }
 
-  if (!request.body) {
-    return { ok: false as const, message: "Upload body is empty" }
-  }
-
-  const reader = request.body.getReader()
-  const chunks: Uint8Array[] = []
-  let totalBytes = 0
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    if (!value || value.byteLength === 0) continue
-
-    totalBytes += value.byteLength
-    if (totalBytes > MAX_ATTACHMENT_BYTES) {
-      await reader.cancel().catch(() => undefined)
-      return { ok: false as const, message: "Upload exceeds the 50 MB limit" }
-    }
-    chunks.push(value)
-  }
-
-  if (totalBytes === 0) {
-    return { ok: false as const, message: "Upload body is empty" }
-  }
-
-  const bytes = new Uint8Array(totalBytes)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return { ok: true as const, bytes }
+  return { ok: true as const }
 }
 
 export async function PUT(request: NextRequest) {
@@ -77,6 +69,8 @@ export async function PUT(request: NextRequest) {
       mimeType: request.nextUrl.searchParams.get("mimeType") ?? undefined,
       expires: request.nextUrl.searchParams.get("expires") ?? undefined,
       signature: request.nextUrl.searchParams.get("signature") ?? undefined,
+      reservationId: request.nextUrl.searchParams.get("reservationId") ?? undefined,
+      expectedSizeBytes: request.nextUrl.searchParams.get("expectedSizeBytes") ?? undefined,
     })
     if (!parsed.success) {
       return badRequest("Invalid upload URL", parsed.error.flatten())
@@ -88,6 +82,8 @@ export async function PUT(request: NextRequest) {
       mimeType: parsed.data.mimeType,
       expiresAtMs: parsed.data.expires,
       signature: parsed.data.signature,
+      reservationId: parsed.data.reservationId,
+      expectedSizeBytes: parsed.data.expectedSizeBytes,
     })
     if (!isValid) {
       return NextResponse.json({ error: "Upload URL is invalid or expired" }, { status: 401 })
@@ -98,14 +94,29 @@ export async function PUT(request: NextRequest) {
       return badRequest("Content-Type header must match the signed upload MIME type")
     }
 
-    const body = await readBoundedUploadBody(request)
-    if (!body.ok) return badRequest(body.message)
+    const contentLength = validateUploadContentLength(request)
+    if (!contentLength.ok) return badRequest(contentLength.message)
+    const declaredLength = request.headers.get("content-length")
+    if (declaredLength !== null && Number(declaredLength) > parsed.data.expectedSizeBytes) {
+      return badRequest("Upload exceeds its reserved size")
+    }
+    if (!request.body) return badRequest("Upload body is empty")
 
-    const saved = await writeLocalStorageObject({
-      storageKey: parsed.data.storageKey,
-      mimeType: parsed.data.mimeType,
-      bytes: body.bytes,
-    })
+    const releaseUploadSlot = claimUploadSlot(parsed.data.storageKey)
+    if (!releaseUploadSlot) {
+      return NextResponse.json({ error: "Too many concurrent attachment uploads" }, { status: 429 })
+    }
+    let saved
+    try {
+      saved = await writeLocalStorageObjectStream({
+        storageKey: parsed.data.storageKey,
+        mimeType: parsed.data.mimeType,
+        body: request.body,
+        maxBytes: parsed.data.expectedSizeBytes,
+      })
+    } finally {
+      releaseUploadSlot()
+    }
 
     return NextResponse.json({
       uploaded: true,
@@ -116,6 +127,12 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     if (error instanceof StorageObjectAlreadyExistsError) {
       return NextResponse.json({ error: "Upload target already contains an object" }, { status: 409 })
+    }
+    if (error instanceof StorageObjectTooLargeError) {
+      return badRequest("Upload exceeds the 50 MB limit")
+    }
+    if (error instanceof StorageObjectEmptyError) {
+      return badRequest("Upload body is empty")
     }
     return serverError("Failed to store uploaded attachment", String(error))
   }

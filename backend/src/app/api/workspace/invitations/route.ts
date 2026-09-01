@@ -16,11 +16,13 @@ import {
   workspaceInviteListQuerySchema,
 } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { getCanonicalPublicOrigin } from "@/lib/canonical-public-origin"
 import { deliverWorkspaceInviteEmail } from "@/lib/workspace-invite-mailer"
 import type { WorkspaceRole } from "@prisma/client"
 import {
   buildInviteExpiry,
   buildInviteToken,
+  hashInviteToken,
   normalizeInviteEmail,
   resolveInviteStatus,
 } from "@/lib/workspace-invite-utils"
@@ -199,8 +201,6 @@ export async function POST(request: NextRequest) {
         lastDeliveryError: string | null
         lastDeliveredAt: Date | null
       }
-      inviteToken: string
-      messagePreview: { subject: string | null; body: string | null }
       wasPendingRegenerated: boolean
       delivery: {
         provider: "resend" | "console" | "disabled"
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
       }
       const expiresAt = buildInviteExpiry(policy.inviteExpiryDays)
       const token = buildInviteToken()
-      const inviteUrl = `${request.nextUrl.origin}/invite/review?inviteToken=${token}`
+      const inviteUrl = `${getCanonicalPublicOrigin()}/invite/review?inviteToken=${token}`
       const selectedTemplate = resolveInviteTemplateFromPolicy({
         templateKey: entry.templateKey ?? "default",
         policyEmailSubjectTemplate:
@@ -287,14 +287,14 @@ export async function POST(request: NextRequest) {
                 where: { id: existingPendingInvite.id },
                 data: {
                   role,
-                  token,
+                  tokenHash: hashInviteToken(token),
+                  tokenVersion: { increment: 1 },
                   expiresAt,
                   invitedById: actorUserId,
                   status: "PENDING",
                   acceptedById: null,
                   customMessage: entry.customMessage ?? null,
                   messageSubject,
-                  messageBody,
                   templateKey: selectedTemplate.key,
                 },
               })
@@ -303,13 +303,12 @@ export async function POST(request: NextRequest) {
                   workspaceId: parsed.data.workspaceId,
                   email: inviteEmail,
                   role,
-                  token,
+                  tokenHash: hashInviteToken(token),
                   status: "PENDING",
                   expiresAt,
                   invitedById: actorUserId,
                   customMessage: entry.customMessage ?? null,
                   messageSubject,
-                  messageBody,
                   templateKey: selectedTemplate.key,
                 },
               })
@@ -337,16 +336,14 @@ export async function POST(request: NextRequest) {
         })
 
         const subjectForSend = invite.messageSubject ?? `You're invited to join ${workspace.name}`
-        const bodyForSend =
-          invite.messageBody ??
-          `${inviter?.name ?? inviter?.email ?? actorUserId} invited you to join ${workspace.name} as ${invite.role}.`
         const delivery = await deliverWorkspaceInviteEmail({
           workspaceId: parsed.data.workspaceId,
           inviteId: invite.id,
+          tokenVersion: invite.tokenVersion,
           email: invite.email,
           role: invite.role,
           subject: subjectForSend,
-          body: bodyForSend,
+          body: messageBody,
         })
 
         if (!delivery.ok) {
@@ -393,11 +390,6 @@ export async function POST(request: NextRequest) {
             lastDeliveryError: inviteWithDelivery.lastDeliveryError,
             lastDeliveredAt: inviteWithDelivery.lastDeliveredAt,
           },
-          inviteToken: inviteWithDelivery.token,
-          messagePreview: {
-            subject: inviteWithDelivery.messageSubject,
-            body: inviteWithDelivery.messageBody,
-          },
           wasPendingRegenerated: Boolean(existingPendingInvite),
           delivery: {
             provider: delivery.provider,
@@ -423,8 +415,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           invite: first.invite,
-          inviteToken: first.inviteToken,
-          messagePreview: first.messagePreview,
           delivery: first.delivery,
         },
         { status: first.wasPendingRegenerated ? 200 : 201 }

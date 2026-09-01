@@ -6,11 +6,13 @@ import test from "node:test"
 import { NextRequest } from "next/server"
 
 import { POST as createAttachment } from "../src/app/api/attachments/route"
+import { GET as downloadLocalAttachment } from "../src/app/api/attachments/download-binary/route"
 import { PUT as uploadLocalAttachment } from "../src/app/api/attachments/upload-binary/route"
 import { MAX_ATTACHMENT_BYTES, updateAttachmentSchema } from "../src/lib/contracts"
 import { db } from "../src/lib/db"
 import {
   buildFirebaseUploadSignedUrlConfig,
+  createAttachmentDownloadTarget,
   createAttachmentUploadTarget,
   readLocalStorageObject,
   storageObjectExists,
@@ -59,6 +61,8 @@ async function uploadUrl(storageKey: string) {
   const target = await createAttachmentUploadTarget({
     storageKey,
     mimeType: "text/plain",
+    reservationId: "00000000-0000-4000-8000-000000000001",
+    expectedSizeBytes: MAX_ATTACHMENT_BYTES,
     expiresInSeconds: 60,
   })
   return new URL(target.uploadUrl, "http://localhost")
@@ -104,6 +108,32 @@ test("local upload capability is create-only and replay cannot alter bytes", asy
     assert.equal(first.status, 200)
     assert.equal(second.status, 409)
     assert.equal(new TextDecoder().decode(stored.bytes), "first bytes")
+  })
+})
+
+test("local downloads stream stored bytes through the response body", async () => {
+  await withLocalStorage(async () => {
+    const storageKey = "ws-1/2026/07/streamed-download.txt"
+    const upload = await uploadUrl(storageKey)
+    const uploaded = await uploadLocalAttachment(new NextRequest(upload, {
+      method: "PUT",
+      headers: { "content-type": "text/plain" },
+      body: new TextEncoder().encode("streamed bytes"),
+    }))
+    const target = await createAttachmentDownloadTarget({
+      storageKey,
+      name: "streamed-download.txt",
+      mimeType: "text/plain",
+      expiresInSeconds: 60,
+    })
+    const downloaded = await downloadLocalAttachment(
+      new NextRequest(new URL(target.downloadUrl, "http://localhost"))
+    )
+
+    assert.equal(uploaded.status, 200)
+    assert.equal(downloaded.status, 200)
+    assert.equal(downloaded.headers.get("content-length"), String("streamed bytes".length))
+    assert.equal(await downloaded.text(), "streamed bytes")
   })
 })
 
@@ -259,6 +289,7 @@ test("attachment finalization rejects reuse of an already finalized storage key"
           "x-planglade-user-id": "member-1",
         },
         body: JSON.stringify({
+          reservationId: "00000000-0000-4000-8000-000000000001",
           workspaceId: "ws-1",
           workItemId: "task-1",
           name: "notes.txt",

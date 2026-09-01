@@ -48,14 +48,16 @@ function setLandingSocialMetadata(isMarketingRoot: boolean) {
   const description = isMarketingRoot
     ? 'Capture work once, then see the same tasks as a list, board, timeline, calendar, or connection map.'
     : null
-  const image = isMarketingRoot ? '/planglade-social-preview.svg' : null
+  const image = isMarketingRoot ? '/planglade-social-preview.png' : null
 
   setPropertyMeta('og:type', isMarketingRoot ? 'website' : null)
   setPropertyMeta('og:site_name', isMarketingRoot ? 'PlanGlade' : null)
   setPropertyMeta('og:title', title)
   setPropertyMeta('og:description', description)
   setPropertyMeta('og:image', image)
-  setPropertyMeta('og:image:type', isMarketingRoot ? 'image/svg+xml' : null)
+  setPropertyMeta('og:image:type', isMarketingRoot ? 'image/png' : null)
+  setPropertyMeta('og:image:width', isMarketingRoot ? '1200' : null)
+  setPropertyMeta('og:image:height', isMarketingRoot ? '630' : null)
   setPropertyMeta('og:image:alt', isMarketingRoot ? 'PlanGlade mark and the words Your work, without the work of managing it.' : null)
   setNamedMeta('twitter:card', isMarketingRoot ? 'summary_large_image' : null)
   setNamedMeta('twitter:title', title)

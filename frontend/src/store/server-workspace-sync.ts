@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AppSettings } from '@/types'
 import type { BackendNote, BackendProject, BackendWorkItem, Session } from '@/lib/api/contracts'
@@ -18,6 +19,7 @@ import { useAppCommands } from './app-commands'
 export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
   const queryClient = useQueryClient()
   const commands = useAppCommands()
+  const taskVersions = useRef(new Map<string, string>())
   const session = useQuery({
     queryKey: ['session', selectedWorkspaceId],
     queryFn: ({ signal }) => getSession(selectedWorkspaceId, signal),
@@ -72,7 +74,13 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     },
   })
   const updateTaskMutation = useMutation({
-    mutationFn: ({ workspaceId: targetWorkspaceId, task, patch }: { workspaceId: string; task: BackendWorkItem; patch: TaskPatch }) => updateTask(targetWorkspaceId, task, patch),
+    mutationFn: ({ workspaceId: targetWorkspaceId, task, patch }: { workspaceId: string; task: BackendWorkItem; patch: TaskPatch }) => updateTask(
+      targetWorkspaceId,
+      task,
+      patch,
+      undefined,
+      taskVersions.current.get(`${targetWorkspaceId}:${task.id}`) ?? task.updatedAt,
+    ),
     retry: false,
     onMutate: async ({ workspaceId: targetWorkspaceId, task, patch }) => {
       await Promise.all([
@@ -86,9 +94,20 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     onError: (_error, { workspaceId: targetWorkspaceId }, context) => {
       if (context?.previousTasks) queryClient.setQueryData(['tasks', targetWorkspaceId], context.previousTasks)
     },
-    onSuccess: (updated, { workspaceId: targetWorkspaceId }) => {
+    onSuccess: async (updated, { workspaceId: targetWorkspaceId, patch }) => {
       queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => replaceTaskInList(current, updated))
       queryClient.setQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId], (current = []) => replaceInboxInList(current, updated))
+      if (patch.beforeId !== undefined) {
+        for (const key of taskVersions.current.keys()) {
+          if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
+        }
+        await queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
+        for (const task of queryClient.getQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId]) ?? []) {
+          taskVersions.current.set(`${targetWorkspaceId}:${task.id}`, task.updatedAt)
+        }
+      } else {
+        taskVersions.current.set(`${targetWorkspaceId}:${updated.id}`, updated.updatedAt)
+      }
     },
   })
   const deleteTaskMutation = useMutation({

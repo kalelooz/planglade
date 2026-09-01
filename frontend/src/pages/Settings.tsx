@@ -139,11 +139,11 @@ export default function Settings() {
   }
 
   const confirmImport = async () => {
-    if (!ws.workspaceId || !importSnapshot) return
+    if (!ws.workspaceId || !importSnapshot || !importPreview) return
     setImportPending(true)
     setImportError(null)
     try {
-      const result = await importWorkspace(ws.workspaceId, importSnapshot)
+      const result = await importWorkspace(ws.workspaceId, importSnapshot, importPreview.contract.sourceChecksum)
       const total = result.imported.projects + result.imported.workItems + result.imported.notes + result.imported.projectDocs + result.imported.savedViews
       toast.success(`Import complete: ${total} records added`)
       setImportOpen(false)
@@ -359,13 +359,15 @@ export default function Settings() {
           </AlertDialogHeader>
           {importPreview && <div className="max-h-48 overflow-y-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">
             <p>{importPreview.counts.projects} projects · {importPreview.counts.tasks} tasks · {importPreview.counts.notes} notes · {importPreview.counts.projectDocs} Project Docs · {importPreview.counts.savedViews} saved views</p>
+            <p className="mt-2 font-medium text-foreground">Append import · not a backup restore · not idempotent</p>
+            <p className="mt-1 break-all">Source {importPreview.contract.sourceChecksum}</p>
             {importPreview.warnings.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-4">
               {importPreview.warnings.map((warning) => <li key={warning.code}>{warning.message}{warning.count ? ` (${warning.count})` : ''}</li>)}
             </ul>}
           </div>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={importPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void confirmImport()} disabled={importPending}>
+            <AlertDialogAction onClick={() => void confirmImport()} disabled={importPending || !importPreview?.contract.canExecute}>
               {importPending ? 'Importing…' : 'Import records'}
             </AlertDialogAction>
           </AlertDialogFooter>

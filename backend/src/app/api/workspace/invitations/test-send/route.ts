@@ -9,6 +9,7 @@ import {
 } from "@/lib/api-utils"
 import { sendWorkspaceInviteTestEmailSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
+import { getCanonicalPublicOrigin } from "@/lib/canonical-public-origin"
 import { deliverWorkspaceInviteEmail } from "@/lib/workspace-invite-mailer"
 import {
   DEFAULT_INVITE_POLICY,
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
     if (!isGenericWorkspaceRole(role)) {
       return badRequest("Ownership cannot be granted through invitations")
     }
-    const inviteUrl = `${request.nextUrl.origin}/login?invitePreview=1`
+    const inviteUrl = `${getCanonicalPublicOrigin()}/login?invitePreview=1`
     const customMessage =
       parsed.data.customMessage ??
       "This is a test invite email from PlanGlade. No invite was created."
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
     const delivery = await deliverWorkspaceInviteEmail({
       workspaceId: workspace.id,
       inviteId: `test-${Date.now()}`,
+      tokenVersion: 1,
       email: toEmail,
       role,
       subject,
