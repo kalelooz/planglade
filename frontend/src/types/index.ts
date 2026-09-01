@@ -38,6 +38,9 @@ export interface Project {
   id: string
   name: string
   description: string
+  slug?: string
+  color?: string
+  icon?: string
   status: ProjectStatus
   focus: string
   targetDate: string | null

@@ -167,25 +167,25 @@ export default function ProjectDetail() {
     setDraftName(project.name)
     setDraftDescription(project.description)
     setDraftStatus(project.status === 'completed' ? 'active' : project.status)
-    setDraftSlug(project.source?.slug ?? projectSlugFromName(project.name))
+    setDraftSlug(project.slug ?? project.source?.slug ?? projectSlugFromName(project.name))
     setDraftStartDate(project.startDate ?? '')
     setDraftTargetDate(project.targetDate ?? '')
-    setDraftColor(editableProjectColor(project.source?.color))
-    setDraftIcon(projectIcon(project.source?.icon ?? inferProjectIcon(project.name)).name)
-    setDraftIconEdited(Boolean(project.source?.icon))
+    setDraftColor(editableProjectColor(project.color ?? project.source?.color))
+    setDraftIcon(projectIcon(project.icon ?? project.source?.icon ?? inferProjectIcon(project.name)).name)
+    setDraftIconEdited(Boolean(project.icon ?? project.source?.icon))
     setEditOpen(true)
   }
   const saveProject = async () => {
     if (!draftName.trim() || !isValidProjectSlug(draftSlug) || (draftStartDate && draftTargetDate && draftTargetDate < draftStartDate) || savingProject) return
     const patch = {
       ...(draftName.trim() !== project.name ? { name: draftName.trim() } : {}),
-      ...(draftSlug !== (project.source?.slug ?? projectSlugFromName(project.name)) ? { slug: draftSlug } : {}),
+      ...(draftSlug !== (project.slug ?? project.source?.slug ?? projectSlugFromName(project.name)) ? { slug: draftSlug } : {}),
       ...(draftDescription.trim() !== project.description ? { description: draftDescription.trim() } : {}),
       ...(draftStatus !== project.status ? { status: draftStatus } : {}),
       ...(draftStartDate !== (project.startDate ?? '') ? { startDate: draftStartDate || null } : {}),
       ...(draftTargetDate !== (project.targetDate ?? '') ? { targetDate: draftTargetDate || null } : {}),
-      ...(draftColor !== editableProjectColor(project.source?.color) ? { color: draftColor } : {}),
-      ...(draftIcon !== (project.source?.icon ?? inferProjectIcon(project.name)) ? { icon: draftIcon } : {}),
+      ...(draftColor !== editableProjectColor(project.color ?? project.source?.color) ? { color: draftColor } : {}),
+      ...(draftIcon !== (project.icon ?? project.source?.icon ?? inferProjectIcon(project.name)) ? { icon: draftIcon } : {}),
     }
     if (!Object.keys(patch).length) return setEditOpen(false)
     setSavingProject(true)
@@ -214,7 +214,7 @@ export default function ProjectDetail() {
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              {(() => { const Icon = projectIcon(project.source?.icon ?? inferProjectIcon(project.name)).icon; return <Icon className="h-5 w-5 shrink-0" style={{ color: project.source?.color ?? DEFAULT_PROJECT_COLOR }} aria-hidden /> })()}
+              {(() => { const Icon = projectIcon(project.icon ?? project.source?.icon ?? inferProjectIcon(project.name)).icon; return <Icon className="h-5 w-5 shrink-0" style={{ color: project.color ?? project.source?.color ?? DEFAULT_PROJECT_COLOR }} aria-hidden /> })()}
               <h1 className="pg-page-title">{project.name}</h1>
             </div>
             <p className="text-sm text-muted-foreground mt-1 max-w-xl">{project.description}</p>

@@ -178,7 +178,7 @@ export default function Projects() {
             const nextDue = open.filter((t) => t.dueDate).map((t) => t.dueDate!).sort()[0] ?? null
             const overdueCount = open.filter((t) => isOverdue(t.dueDate, false)).length
             const recentNote = ws.notes.filter((n) => n.projectId === p.id).sort((a, b) => b.updatedAt - a.updatedAt)[0]
-            const ProjectIcon = projectIcon(p.source?.icon ?? inferProjectIcon(p.name)).icon
+            const ProjectIcon = projectIcon(p.icon ?? p.source?.icon ?? inferProjectIcon(p.name)).icon
             return (
               <button
                 key={p.id}
@@ -188,7 +188,7 @@ export default function Projects() {
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <ProjectIcon className="h-4 w-4 shrink-0" style={{ color: p.source?.color ?? DEFAULT_PROJECT_COLOR }} aria-hidden />
+                      <ProjectIcon className="h-4 w-4 shrink-0" style={{ color: p.color ?? p.source?.color ?? DEFAULT_PROJECT_COLOR }} aria-hidden />
                       <span className="text-[14px] font-medium truncate">{p.name}</span>
                       <EntityTypeBadge type="project" />
                       <span className={cn('text-[12.5px] rounded px-1.5 py-px shrink-0', p.status === 'active' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : p.status === 'on_hold' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400')}>

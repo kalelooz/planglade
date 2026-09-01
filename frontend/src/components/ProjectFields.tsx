@@ -81,7 +81,7 @@ export function ProjectColorField({ id, value, onChange }: { id: string; value: 
               {PROJECT_COLORS.map((color) => {
                 const active = color.value === value
                 return (
-                  <button key={color.value} type="button" aria-label={color.name} aria-pressed={active} title={color.name} onClick={() => onChange(color.value)} className="relative grid size-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:size-8">
+                  <button key={color.value} type="button" aria-label={color.name} aria-pressed={active} title={color.name} onClick={() => { onChange(color.value); setOpen(false) }} className="relative grid size-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:size-8">
                     <span className="absolute inset-0 rounded-full border border-black/10" style={{ backgroundColor: color.value }} aria-hidden />
                     {active && <Check className="relative h-4 w-4 text-white drop-shadow-sm" strokeWidth={3} aria-hidden />}
                   </button>
@@ -129,7 +129,7 @@ export function ProjectIconField({ id, value, color, onChange }: { id: string; v
               const Icon = item.icon
               const active = item.name === value
               return (
-                <button key={item.name} type="button" aria-label={item.label} aria-pressed={active} title={item.label} onClick={() => onChange(item.name)} className={cn('grid size-11 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring lg:size-8', active && 'bg-accent text-foreground ring-1 ring-border')}>
+                <button key={item.name} type="button" aria-label={item.label} aria-pressed={active} title={item.label} onClick={() => { onChange(item.name); setOpen(false) }} className={cn('grid size-11 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring lg:size-8', active && 'bg-accent text-foreground ring-1 ring-border')}>
                   <Icon className="h-4 w-4" style={{ color }} aria-hidden />
                 </button>
               )

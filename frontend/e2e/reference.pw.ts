@@ -34,6 +34,14 @@ async function expectInsideRow(row: Locator, target: Locator) {
   expect(targetBox.x + targetBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width)
 }
 
+async function expectAbove(parent: Locator, overlay: Locator) {
+  const [parentZ, overlayZ] = await Promise.all([
+    parent.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10)),
+    overlay.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10)),
+  ])
+  expect(overlayZ).toBeGreaterThan(parentZ)
+}
+
 async function renderedColors(locator: Locator, surfaceSelector?: string) {
   return locator.evaluate((element, selector) => {
     const parseColor = (value: string) => {
@@ -121,6 +129,153 @@ test('Quick Capture examples fill the input and saving closes the dialog', async
   await expect(dialog).toBeHidden()
   await page.getByRole('link', { name: /Inbox/ }).click()
   await expect(page.getByText('Send homepage draft', { exact: true }).first()).toBeVisible()
+})
+
+test('project schedule, appearance, status, and advanced fields remain interactive and durable', async ({ page }) => {
+  const projectName = `Control audit ${Date.now()}`
+  const slug = `control-audit-${Date.now()}`
+  await page.goto('/app/projects')
+  await page.getByRole('button', { name: 'New project' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New project' })
+  await dialog.getByLabel('Name').fill(projectName)
+  await dialog.getByLabel('Project URL slug').fill(slug)
+
+  const color = dialog.getByRole('button', { name: 'Project color' })
+  await color.click()
+  const colorPopover = page.locator('[data-slot="popover-content"]').filter({ visible: true })
+  await expectAbove(dialog, colorPopover)
+  await colorPopover.getByRole('button', { name: 'Blue', exact: true }).click()
+  await expect(color).toContainText('Blue')
+  await expect(colorPopover).toBeHidden()
+
+  const icon = dialog.getByRole('button', { name: 'Project icon' })
+  await icon.click()
+  const iconPopover = page.locator('[data-slot="popover-content"]').filter({ visible: true })
+  await expectAbove(dialog, iconPopover)
+  await iconPopover.getByRole('button', { name: 'Launch', exact: true }).click()
+  await expect(icon).toContainText('Launch')
+  await expect(iconPopover).toBeHidden()
+
+  const startDate = dialog.getByRole('button', { name: 'Start date' })
+  await startDate.click()
+  const startCalendar = page.locator('[data-slot="popover-content"]').filter({ visible: true })
+  await expectAbove(dialog, startCalendar)
+  await startCalendar.locator('button[data-day]').filter({ visible: true }).nth(10).click()
+  await expect(startDate).not.toContainText('Set date')
+
+  const targetDate = dialog.getByRole('button', { name: 'Target date' })
+  await targetDate.click()
+  const targetCalendar = page.locator('[data-slot="popover-content"]').filter({ visible: true })
+  await targetCalendar.locator('button[data-day]:not([disabled])').filter({ visible: true }).last().click()
+  await expect(targetDate).not.toContainText('Set date')
+
+  await dialog.getByRole('combobox', { name: 'Project status' }).click()
+  const statusMenu = page.locator('[data-slot="select-content"]').filter({ visible: true })
+  await expectAbove(dialog, statusMenu)
+  await statusMenu.getByRole('option', { name: 'On hold', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Create project' }).click()
+  await expect(page.getByRole('heading', { name: projectName })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Edit project' }).click()
+  const editor = page.getByRole('dialog', { name: 'Edit project' })
+  await expect(editor.getByRole('button', { name: 'Project color' })).toContainText('Blue')
+  await expect(editor.getByRole('button', { name: 'Project icon' })).toContainText('Launch')
+  await expect(editor.getByRole('button', { name: 'Start date' })).not.toContainText('Set date')
+  await expect(editor.getByRole('button', { name: 'Target date' })).not.toContainText('Set date')
+  await expect(editor.getByRole('combobox', { name: 'Project status' })).toContainText('On hold')
+  await editor.locator('summary').click()
+  await expect(editor.getByLabel('Project URL slug')).toHaveValue(slug)
+
+  await editor.getByRole('button', { name: 'Project color' }).click()
+  await page.locator('[data-slot="popover-content"]').filter({ visible: true }).getByRole('button', { name: 'Rose', exact: true }).click()
+  await editor.getByRole('button', { name: 'Project icon' }).click()
+  await page.locator('[data-slot="popover-content"]').filter({ visible: true }).getByRole('button', { name: 'Goal', exact: true }).click()
+  await editor.getByRole('combobox', { name: 'Project status' }).click()
+  await page.getByRole('option', { name: 'In review', exact: true }).click()
+  await editor.getByLabel('Project URL slug').fill(`${slug}-edited`)
+  await editor.getByRole('button', { name: 'Save changes' }).click()
+  await page.reload()
+  await page.getByRole('button', { name: 'Edit project' }).click()
+  const persisted = page.getByRole('dialog', { name: 'Edit project' })
+  await expect(persisted.getByRole('button', { name: 'Project color' })).toContainText('Rose')
+  await expect(persisted.getByRole('button', { name: 'Project icon' })).toContainText('Goal')
+  await expect(persisted.getByRole('combobox', { name: 'Project status' })).toContainText('In review')
+  await persisted.locator('summary').click()
+  await expect(persisted.getByLabel('Project URL slug')).toHaveValue(`${slug}-edited`)
+})
+
+test('Task and Note controls remain interactive above their sheets and dialogs', async ({ page }) => {
+  await page.goto('/app/tasks')
+  await page.getByRole('textbox', { name: 'Search tasks' }).fill("Renew driver's license")
+  await page.getByRole('button', { name: "Task: Renew driver's license" }).click()
+  const drawer = page.getByLabel('Task details')
+  const sheet = page.locator('[data-slot="sheet-content"]')
+
+  await drawer.getByRole('combobox', { name: 'Status' }).click()
+  let selectMenu = page.locator('[data-slot="select-content"]').filter({ visible: true })
+  await expectAbove(sheet, selectMenu)
+  await selectMenu.getByRole('option', { name: 'In Review', exact: true }).click()
+  await expect(drawer.getByRole('combobox', { name: 'Status' })).toContainText('In Review')
+
+  await drawer.getByRole('combobox', { name: 'Priority' }).click()
+  selectMenu = page.locator('[data-slot="select-content"]').filter({ visible: true })
+  await selectMenu.getByRole('option', { name: 'High', exact: true }).click()
+  await expect(drawer.getByRole('combobox', { name: 'Priority' })).toContainText('High')
+
+  await drawer.getByRole('combobox', { name: 'Project' }).click()
+  selectMenu = page.locator('[data-slot="select-content"]').filter({ visible: true })
+  await selectMenu.getByRole('option', { name: 'Research Notes', exact: true }).click()
+  await expect(drawer.getByRole('combobox', { name: 'Project' })).toContainText('Research Notes')
+
+  await drawer.getByRole('button', { name: 'Due date', exact: true }).click()
+  const taskCalendar = page.locator('[data-slot="popover-content"]').filter({ visible: true })
+  await expectAbove(sheet, taskCalendar)
+  await taskCalendar.locator('button[data-day]').filter({ visible: true }).last().click()
+  await expect(drawer.getByRole('button', { name: 'Due date', exact: true })).not.toContainText('Set a date')
+  await drawer.getByRole('button', { name: 'Close' }).click()
+
+  await page.reload()
+  await page.getByRole('textbox', { name: 'Search tasks' }).fill("Renew driver's license")
+  await page.getByRole('button', { name: "Task: Renew driver's license" }).click()
+  const persistedTask = page.getByLabel('Task details')
+  await expect(persistedTask.getByRole('combobox', { name: 'Status' })).toContainText('In Review')
+  await expect(persistedTask.getByRole('combobox', { name: 'Priority' })).toContainText('High')
+  await expect(persistedTask.getByRole('combobox', { name: 'Project' })).toContainText('Research Notes')
+  await persistedTask.getByRole('button', { name: 'Close' }).click()
+
+  await page.goto('/app/notes')
+  await page.getByRole('button', { name: /Attention residue — reading notes/ }).click()
+  const noteContent = page.getByRole('textbox', { name: 'Note content (Markdown)' })
+  await noteContent.fill('Control audit note')
+  await noteContent.press('Control+A')
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await expect(noteContent).toHaveValue('**Control audit note**')
+  await noteContent.blur()
+
+  await page.getByRole('combobox', { name: 'Linked project' }).click()
+  await page.getByRole('option', { name: 'Personal Admin', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Linked project' })).toContainText('Personal Admin')
+
+  await noteContent.focus()
+  await noteContent.press('Control+A')
+  await page.getByRole('button', { name: 'Convert selection to task' }).click()
+  const convertDialog = page.getByRole('dialog', { name: 'Convert to task' })
+  await convertDialog.getByRole('combobox', { name: 'Project' }).click()
+  selectMenu = page.locator('[data-slot="select-content"]').filter({ visible: true })
+  await expectAbove(convertDialog, selectMenu)
+  await selectMenu.getByRole('option', { name: 'Personal Admin', exact: true }).click()
+  await convertDialog.getByRole('button', { name: 'No date' }).click()
+  const noteCalendar = page.locator('[data-slot="popover-content"]').filter({ visible: true })
+  await expectAbove(convertDialog, noteCalendar)
+  await noteCalendar.locator('button[data-day]').filter({ visible: true }).last().click()
+  await convertDialog.getByRole('combobox', { name: 'Priority' }).click()
+  await page.getByRole('option', { name: 'High', exact: true }).click()
+  await convertDialog.getByRole('button', { name: 'Cancel' }).click()
+
+  await page.reload()
+  await page.getByRole('button', { name: /Attention residue — reading notes/ }).click()
+  await expect(page.getByRole('textbox', { name: 'Note content (Markdown)' })).toHaveValue('**Control audit note**')
+  await expect(page.getByRole('combobox', { name: 'Linked project' })).toContainText('Personal Admin')
 })
 
 test('primary product surfaces pass axe and Settings radios support native keyboard navigation', async ({ page }) => {
