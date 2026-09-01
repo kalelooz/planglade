@@ -18,6 +18,7 @@ describe('workspace routes', () => {
       notes: '/app/notes',
       calendar: '/app/calendar',
       connections: '/app/connections',
+      plans: '/app/plans',
       settings: '/app/settings',
     })
     expect(workspaceProjectPath('project 1')).toBe('/app/projects/project%201')
@@ -37,6 +38,7 @@ describe('workspace routes', () => {
       .toBe('/app/projects/project%201?tab=notes#today')
     expect(canonicalizeLegacyWorkspaceLocation('/notes', '?note=note-1', '#editor'))
       .toBe('/app/notes?note=note-1#editor')
+    expect(canonicalizeLegacyWorkspaceLocation('/plans')).toBe('/app/plans')
     expect(canonicalizeLegacyWorkspaceLocation('/not-a-workspace-route', '?q=one', '#two')).toBeNull()
   })
 

@@ -17,6 +17,7 @@ const ProjectDetail = lazy(() => import('@/pages/ProjectDetail'))
 const Notes = lazy(() => import('@/pages/Notes'))
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'))
 const Connections = lazy(() => import('@/pages/Connections'))
+const Plans = lazy(() => import('@/pages/Plans'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -70,6 +71,7 @@ export default function WorkspaceRoutes() {
           <Route path="notes" element={<DeferredRoute><Notes /></DeferredRoute>} />
           <Route path="calendar" element={<DeferredRoute><CalendarPage /></DeferredRoute>} />
           <Route path="connections" element={<DeferredRoute><Connections /></DeferredRoute>} />
+          <Route path="plans" element={<DeferredRoute><Plans /></DeferredRoute>} />
           <Route path="settings" element={<DeferredRoute><Settings /></DeferredRoute>} />
         </Route>
       </Route>

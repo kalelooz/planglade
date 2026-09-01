@@ -12,7 +12,7 @@ describe('route loading', () => {
       expect(app).toContain(`lazy(() => import('@/pages/${page}'))`)
       expect(app).not.toMatch(new RegExp(`import ${page} from ['"]@/pages/${page}['"]`))
     }
-    for (const page of ['Home', 'Inbox', 'Tasks', 'Projects', 'ProjectDetail', 'Notes', 'CalendarPage', 'Connections', 'Settings', 'NotFound']) {
+    for (const page of ['Home', 'Inbox', 'Tasks', 'Projects', 'ProjectDetail', 'Notes', 'CalendarPage', 'Connections', 'Plans', 'Settings', 'NotFound']) {
       expect(workspaceRoutes).toContain(`lazy(() => import('@/pages/${page}'))`)
       expect(workspaceRoutes).not.toMatch(new RegExp(`import ${page} from ['"]@/pages/${page}['"]`))
     }

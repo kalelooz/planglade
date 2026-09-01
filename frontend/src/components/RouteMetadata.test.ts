@@ -5,6 +5,7 @@ describe('route metadata', () => {
   it('labels known workspace and project-detail routes', () => {
     expect(routeTitle('/app')).toBe('Home · PlanGlade')
     expect(routeTitle('/app/tasks')).toBe('Tasks · PlanGlade')
+    expect(routeTitle('/app/plans')).toBe('Plans · PlanGlade')
     expect(routeTitle('/app/projects/project-1')).toBe('Project · PlanGlade')
   })
 

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { WORKSPACE_PATHS, workspaceNotePath, workspaceProjectPath } from '@/lib/workspace-routes'
 import { useSubmissionLifecycle } from '@/lib/use-submission-lifecycle'
 import { EntityTypeBadge } from '@/components/EntityTypeBadge'
+import { EngagementPrompt } from '@/components/EngagementPrompt'
 
 export default function Home() {
   const ws = useWorkspace()
@@ -145,6 +146,12 @@ export default function Home() {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      <EngagementPrompt
+        eligible={ws.mode.kind === 'server' && completedFirstRunSteps === firstRunSteps.length}
+        storageKey={`planglade-engagement-v1-${ws.workspaceId ?? 'self-hosted'}`}
+        plansHref={WORKSPACE_PATHS.plans}
+      />
 
       {/* Quick capture */}
       <div className="rounded-lg border border-border bg-card shadow-[0_1px_2px_hsl(240_8%_10%/0.04)] mb-8">

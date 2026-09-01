@@ -11,6 +11,7 @@ const workspaceTitles = new Map<string, string>([
   [WORKSPACE_PATHS.notes, 'Notes · PlanGlade'],
   [WORKSPACE_PATHS.calendar, 'Calendar · PlanGlade'],
   [WORKSPACE_PATHS.connections, 'Connections · PlanGlade'],
+  [WORKSPACE_PATHS.plans, 'Plans · PlanGlade'],
   [WORKSPACE_PATHS.settings, 'Settings · PlanGlade'],
 ])
 

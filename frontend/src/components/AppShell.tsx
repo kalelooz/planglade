@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import {
   Home, Inbox, CheckSquare, FolderOpen, StickyNote, CalendarDays, Waypoints, Settings as SettingsIcon,
   Search, Plus, PanelLeftClose, PanelLeftOpen, Menu, Moon, Sun, MonitorSmartphone, CircleUserRound,
-  Check, ChevronsUpDown, Github,
+  Check, ChevronsUpDown, CreditCard, Github, LifeBuoy,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
@@ -24,6 +24,7 @@ import { CountBadge } from '@/components/bits'
 import { PlanGladeMark } from '@/components/PlanGladeBrand'
 import { useAppCommands } from '@/store/app-commands'
 import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
+import { SupportSheet } from '@/components/SupportSheet'
 
 const NAV = [
   { name: 'Home', path: WORKSPACE_PATHS.home, icon: Home },
@@ -63,6 +64,73 @@ function AppearanceMenu({ triggerClassName }: { triggerClassName?: string }) {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function FooterLink({
+  to,
+  label,
+  collapsed = false,
+  className,
+  onNavigate,
+}: {
+  to: string
+  label: string
+  collapsed?: boolean
+  className?: string
+  onNavigate?: () => void
+}) {
+  const location = useLocation()
+  const isActive = location.pathname === to
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <NavLink
+          to={to}
+          onClick={onNavigate}
+          aria-label={label}
+          className={cn(
+            'flex h-8 w-full items-center justify-start gap-2 rounded-md px-2 text-[12.5px] text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/60',
+            isActive && 'bg-accent text-foreground font-medium',
+            collapsed && 'w-8 justify-center px-0',
+            className,
+          )}
+        >
+          <CreditCard className="size-4 shrink-0" aria-hidden="true" />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </NavLink>
+      </TooltipTrigger>
+      {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
+    </Tooltip>
+  )
+}
+
+function SupportButton({
+  collapsed = false,
+  className,
+  onClick,
+}: {
+  collapsed?: boolean
+  className?: string
+  onClick: () => void
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClick}
+          className={cn('h-8 w-full justify-start gap-2 px-2 text-[12.5px] text-muted-foreground hover:bg-accent/70 hover:text-foreground', collapsed && 'w-8 justify-center px-0', className)}
+          aria-label="Help and support"
+        >
+          <LifeBuoy className="size-4 shrink-0" aria-hidden="true" />
+          {!collapsed && <span className="truncate">Help &amp; support</span>}
+        </Button>
+      </TooltipTrigger>
+      {collapsed && <TooltipContent side="right">Help &amp; support</TooltipContent>}
+    </Tooltip>
   )
 }
 
@@ -244,12 +312,15 @@ export default function AppShell() {
   const commands = useAppCommands()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('planglade-sidebar') === 'collapsed')
   const [mobileNav, setMobileNav] = useState({ open: false, path: location.pathname })
+  const [supportOpen, setSupportOpen] = useState(false)
   const reducedMotion = usePrefersReducedMotion()
   const mobileNavOpen = mobileNav.open && mobileNav.path === location.pathname
 
   useEffect(() => {
     localStorage.setItem('planglade-sidebar', collapsed ? 'collapsed' : 'expanded')
   }, [collapsed])
+
+  useEffect(() => commands.subscribe('open-support', () => setSupportOpen(true)), [commands])
 
   const toggleCollapse = () => setCollapsed((c) => !c)
 
@@ -315,6 +386,8 @@ export default function AppShell() {
           <NavItems collapsed={collapsed} />
 
           <div className={cn('border-t border-sidebar-border p-2 space-y-1', collapsed && 'items-center flex flex-col')}>
+            <FooterLink to={WORKSPACE_PATHS.plans} label="Plans" collapsed={collapsed} />
+            <SupportButton collapsed={collapsed} onClick={() => setSupportOpen(true)} />
             <div className={cn('flex min-w-0 items-center', collapsed ? 'flex-col gap-1' : 'justify-between')}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -406,6 +479,19 @@ export default function AppShell() {
               <div className="flex flex-col flex-1 overflow-hidden">
                 <NavItems onNavigate={() => setMobileNav({ open: false, path: location.pathname })} />
                 <div className="flex items-center border-t border-border p-2">
+                  <FooterLink
+                    to={WORKSPACE_PATHS.plans}
+                    label="Plans"
+                    className="h-11 min-w-0 flex-1"
+                    onNavigate={() => setMobileNav({ open: false, path: location.pathname })}
+                  />
+                  <SupportButton
+                    className="h-11 min-w-0 flex-1"
+                    onClick={() => {
+                      setMobileNav({ open: false, path: location.pathname })
+                      setSupportOpen(true)
+                    }}
+                  />
                   <a
                     href="https://github.com/kalelooz/planglade"
                     target="_blank"
@@ -471,6 +557,7 @@ export default function AppShell() {
           </main>
         </div>
       </div>
+      <SupportSheet open={supportOpen} onOpenChange={setSupportOpen} />
       <Toaster theme={ws.state.settings.theme} position="bottom-right" toastOptions={{ duration: 4000 }} />
     </>
   )

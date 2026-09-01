@@ -6,6 +6,7 @@ export const WORKSPACE_PATHS = {
   notes: '/app/notes',
   calendar: '/app/calendar',
   connections: '/app/connections',
+  plans: '/app/plans',
   settings: '/app/settings',
 } as const
 
@@ -29,6 +30,7 @@ const LEGACY_WORKSPACE_PATHS = {
   notes: '/notes',
   calendar: '/calendar',
   connections: '/connections',
+  plans: '/plans',
   settings: '/settings',
   board: '/board',
   myTasks: '/my-tasks',
@@ -41,6 +43,7 @@ export const LEGACY_WORKSPACE_REDIRECTS: readonly LegacyWorkspaceRedirect[] = [
   { path: LEGACY_WORKSPACE_PATHS.notes, to: WORKSPACE_PATHS.notes },
   { path: LEGACY_WORKSPACE_PATHS.calendar, to: WORKSPACE_PATHS.calendar },
   { path: LEGACY_WORKSPACE_PATHS.connections, to: WORKSPACE_PATHS.connections },
+  { path: LEGACY_WORKSPACE_PATHS.plans, to: WORKSPACE_PATHS.plans },
   { path: LEGACY_WORKSPACE_PATHS.settings, to: WORKSPACE_PATHS.settings },
   { path: LEGACY_WORKSPACE_PATHS.board, to: WORKSPACE_PATHS.tasks, requiredSearchParams: { view: 'board' } },
   { path: LEGACY_WORKSPACE_PATHS.myTasks, to: WORKSPACE_PATHS.tasks, requiredSearchParams: { filter: 'mine' } },

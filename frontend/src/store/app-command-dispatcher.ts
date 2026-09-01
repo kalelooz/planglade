@@ -1,5 +1,6 @@
 export interface AppCommandMap {
   'open-command-palette': undefined
+  'open-support': undefined
   'open-task': { taskId: string }
   'task-deleted': { taskId: string }
 }
