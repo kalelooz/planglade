@@ -2,6 +2,24 @@
 
 ## Active task
 
+### UI-004 — Discoverable plans and support
+
+- Status: **PASS**
+- Requested: 2026-09-01
+- Scope: give plan discovery and support stable product navigation, add a dedicated Plans route, and provide a reusable contextual engagement card without publishing provider billing implementation.
+- Acceptance: Plans and Help & support are reachable from desktop, collapsed, mobile, and command navigation; the reusable corner card waits for caller-confirmed meaningful use and remembers dismissal for 30 days; routes, metadata, accessibility, responsive layout, focused tests, public boundaries, and production build pass.
+
+### Evidence
+
+- 2026-09-01: `/app/plans` now presents Free, Solo, and Teams with a PlanGlade-specific sprout, tree, and grove progression. Provider pricing, checkout, entitlements, and payment administration remain outside the public core.
+- 2026-09-01: Plans and Help & support are reachable from expanded, collapsed, mobile, and command navigation. The support sheet provides private email/feedback paths, public documentation and issue paths, and a warning against publishing sensitive information.
+- 2026-09-01: the reusable bottom-right engagement card requires caller-confirmed meaningful use, links to Plans, feedback, and GitHub, and stores a 30-day dismissal. Reference/sample mode does not show it.
+- 2026-09-01: all 170 frontend tests, frontend lint and typecheck, the frontend production build, public boundary, CI workflow, documentation, and release-readiness checks passed. The focused Playwright check passed at 1440×900 and 390×844 with no accessibility violations, horizontal overflow, console errors, or sub-44px mobile controls.
+- 2026-09-01: independent review found the initially unreachable engagement card and missing support command; one bounded correction mounted the card after the three real onboarding milestones and added the typed `open-support` command. Corrected source, tests, build, browser check, and boundary scan passed.
+- 2026-09-01: the root backend suite was not acceptance evidence for this frontend-only task; in this fresh Windows worktree it could not initialize Prisma's SQLite schema engine even after client generation, before loading changed code. No backend files changed, and remote CI remains the independent backend gate.
+
+## Completed tasks
+
 ### CORE-001 — Canonical public collaboration core
 
 - Status: **PASS**
@@ -15,8 +33,6 @@
 - 2026-08-27: six focused invitation consent/preview tests and all 117 frontend tests passed; backend and frontend lint, typecheck, and production builds passed.
 - 2026-08-27: rendered invitation review passed DOM, visual, and console inspection; evidence is under `artifacts/verification/core-unification/` (intentionally ignored).
 - 2026-08-27: leakage scan found no Firebase, Stripe, GCP, billing, cloud-plan, or secret references in the reusable slice.
-
-## Completed tasks
 
 ### UI-003 — Proportional Tasks work surface
 

@@ -4,8 +4,8 @@ import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from '@/components/ui/command'
 import {
-  Home, Inbox, CheckSquare, FolderOpen, StickyNote, CalendarDays, Waypoints, Settings,
-  Plus, Moon, Sun, MonitorSmartphone, Clock,
+  Home, Inbox, CheckSquare, FolderOpen, StickyNote, CalendarDays, Waypoints, Settings, CreditCard,
+  Plus, Moon, Sun, MonitorSmartphone, Clock, LifeBuoy,
 } from 'lucide-react'
 import { useWorkspace } from '@/store/workspace'
 import { useQuickCapture } from '@/components/QuickCapture'
@@ -75,6 +75,7 @@ export function CommandPalette() {
     { name: 'Notes', path: WORKSPACE_PATHS.notes, icon: StickyNote },
     { name: 'Calendar', path: WORKSPACE_PATHS.calendar, icon: CalendarDays },
     { name: 'Connections', path: WORKSPACE_PATHS.connections, icon: Waypoints },
+    { name: 'Plans', path: WORKSPACE_PATHS.plans, icon: CreditCard },
     { name: 'Settings', path: WORKSPACE_PATHS.settings, icon: Settings },
   ]
 
@@ -119,6 +120,9 @@ export function CommandPalette() {
           {ws.canMutateNotes && <CommandItem onSelect={() => { close(false); navigate(WORKSPACE_PATHS.notes, { state: { newNote: true } }) }}>
             <StickyNote className="mr-2 h-4 w-4" /> Create note
           </CommandItem>}
+          <CommandItem onSelect={() => { close(false); commands.dispatch('open-support') }}>
+            <LifeBuoy className="mr-2 h-4 w-4" /> Help &amp; support
+          </CommandItem>
           <CommandItem onSelect={() => { ws.updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); close(false) }}>
             {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
             Switch to {theme === 'dark' ? 'light' : 'dark'} mode
