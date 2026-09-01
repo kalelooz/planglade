@@ -210,7 +210,7 @@ export function CountBadge({ count, label, className }: { count: number; label?:
   return (
     <span
       className={cn(
-        'inline-flex size-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-foreground bg-foreground px-1 text-[12.5px] font-semibold leading-none tabular-nums text-background',
+        'inline-flex size-5 min-w-5 shrink-0 items-center justify-center rounded-md border border-border/80 bg-secondary px-1 text-[12.5px] font-semibold leading-none tabular-nums text-secondary-foreground',
         className,
       )}
       aria-label={label ?? `${count} items`}
