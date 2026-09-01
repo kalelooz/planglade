@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, CalendarDays, Check, Circle, FileText, FolderOpen, Inbox, ListChecks, Sprout } from 'lucide-react'
+import { Check, Circle, FileText, FolderOpen, ListChecks } from 'lucide-react'
+import { HomeOverviewPreview, InboxWorkspacePreview, TasksWorkspacePreview } from '@/components/landing/WorkspacePreviews'
 
 function SectionIntro({ kicker, title, children }: { kicker: string; title: string; children: ReactNode }) {
   return (
@@ -12,48 +13,11 @@ function SectionIntro({ kicker, title, children }: { kicker: string; title: stri
 }
 
 function CapturePreview() {
-  return (
-    <div className="landing-product-surface">
-      <div className="border-b border-[hsl(var(--landing-rule))] px-4 py-3">
-        <p className="text-sm font-semibold">Inbox</p>
-        <p className="mt-0.5 text-[12px] text-[hsl(var(--landing-quiet))]">Capture first. Organize when you’re ready.</p>
-      </div>
-      <div className="p-3 sm:p-4">
-        <div className="flex min-h-11 items-center gap-2 rounded-md border border-[hsl(var(--landing-rule))] bg-[hsl(var(--landing-paper))] px-3 text-[13px]">
-          <Inbox className="size-4 shrink-0 text-[hsl(var(--landing-quiet))]" aria-hidden="true" />
-          <span className="text-[hsl(var(--landing-quiet))]">What’s on your mind?</span>
-        </div>
-        <div className="mt-3 divide-y divide-[hsl(var(--landing-rule))] border-y border-[hsl(var(--landing-rule))]">
-          <div className="px-2 py-3">
-            <p className="text-[13px] font-medium">Send homepage draft to Mara</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="landing-data-chip"><FolderOpen className="size-3" />Client Refresh</span>
-              <span className="landing-data-chip"><CalendarDays className="size-3" />Tomorrow</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-2 py-3">
-            <div><p className="text-[13px] font-medium">Confirm launch print dimensions</p><p className="mt-0.5 text-xs text-[hsl(var(--landing-quiet))]">Captured just now</p></div>
-            <span className="inline-flex min-h-11 items-center rounded-md bg-[hsl(var(--landing-ink))] px-3 text-[12px] font-medium text-[hsl(var(--landing-paper))]">Ready to clarify</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  return <InboxWorkspacePreview />
 }
 
 function SharedTaskPreview() {
-  return (
-    <div className="landing-shared-task" aria-label="One task record used by five views">
-      <div className="landing-shared-task-record">
-        <span className="landing-kicker">ONE TASK RECORD</span>
-        <p className="mt-2 text-base font-semibold">Send homepage draft to Mara</p>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[hsl(var(--landing-quiet))]"><span>Client Refresh</span><span>Tomorrow</span><span>Inbox</span></div>
-      </div>
-      <div className="landing-shared-task-views" role="list" aria-label="Available task views">
-        {['List', 'Board', 'Timeline', 'Calendar', 'Connections'].map((view) => <div key={view} role="listitem" className="landing-shared-view"><span>{view}</span><ArrowRight className="size-3" aria-hidden="true" /></div>)}
-      </div>
-    </div>
-  )
+  return <TasksWorkspacePreview />
 }
 
 function ProjectPreview() {
@@ -72,16 +36,7 @@ function ProjectPreview() {
 }
 
 function HomePreview() {
-  return (
-    <div className="landing-product-surface p-4 sm:p-5">
-      <div className="flex items-end justify-between gap-3 border-b border-[hsl(var(--landing-rule))] pb-4"><div><p className="text-base font-semibold">Good morning.</p><p className="mt-1 text-[12px] text-[hsl(var(--landing-quiet))]">Tuesday, September 19</p></div><Sprout className="size-5 text-[hsl(var(--landing-quiet))]" aria-hidden="true" /></div>
-      <div className="mt-4 grid gap-5 sm:grid-cols-[minmax(0,1fr)_13rem]">
-        <section aria-label="Items needing attention"><div className="flex items-center justify-between"><p className="text-[12px] font-semibold">What needs your attention</p><span className="text-xs text-[hsl(var(--landing-quiet))]">1</span></div><div className="mt-2 flex items-start gap-2 border-y border-[hsl(var(--landing-rule))] py-3"><Circle className="mt-0.5 size-4 shrink-0" aria-hidden="true" /><div><p className="text-[12px] font-medium">Send homepage draft to Mara</p><p className="mt-1 text-xs text-[hsl(var(--landing-quiet))]">Client Refresh · Tomorrow</p></div></div></section>
-        <section aria-label="Inbox summary"><div className="flex items-center justify-between"><p className="text-[12px] font-semibold">Inbox</p><span className="text-xs text-[hsl(var(--landing-quiet))]">2</span></div><div className="mt-2 space-y-2 border-y border-[hsl(var(--landing-rule))] py-3 text-xs"><p>Confirm print dimensions</p><p>Confirm launch print dimensions</p></div></section>
-      </div>
-      <div className="mt-5 flex items-start gap-2 rounded-md bg-[hsl(var(--landing-soft))] px-3 py-3 text-[12px] leading-5 text-[hsl(var(--landing-quiet))]"><Sprout className="mt-0.5 size-4 shrink-0" aria-hidden="true" />Start with one small thing. The rest can wait its turn.</div>
-    </div>
-  )
+  return <HomeOverviewPreview />
 }
 
 export function ProductStory() {

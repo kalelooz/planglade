@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
-import { LANDING_DEMO_INPUT, parseLandingDemoInput } from '@/components/landing/ledger-demo-model'
 
 const source = (file: string) => readFile(new URL(`../${file}`, import.meta.url), 'utf8')
 const landingFiles = [
@@ -9,9 +8,8 @@ const landingFiles = [
   'src/components/landing/edition.ts',
   'src/components/landing/LandingHeader.tsx',
   'src/components/landing/FilmDialog.tsx',
-  'src/components/landing/LedgerDemo.tsx',
-  'src/components/landing/ledger-demo-model.ts',
   'src/components/landing/ProductStory.tsx',
+  'src/components/landing/WorkspacePreviews.tsx',
   'src/components/landing/LandingFAQ.tsx',
   'src/components/landing/LandingFooter.tsx',
 ]
@@ -24,7 +22,7 @@ describe('marketing landing page', () => {
   it('keeps the approved hero copy and provider-neutral destination exact', async () => {
     const landing = await landingSource()
 
-    expect(landing).toContain('CALM PROJECT PLANNING')
+    expect(landing).toContain('A WORKSPACE FOR CLARITY')
     expect(landing).toContain('Your work, without the work of managing it.')
     expect(landing).toContain('Capture loose thoughts, turn them into clear tasks, and see the same work as a list, board, timeline, calendar, or connection map—without duplicating anything.')
     expect(landing).toContain("primaryCtaLabel: 'Open PlanGlade'")
@@ -33,7 +31,28 @@ describe('marketing landing page', () => {
     expect(landing).toContain("primaryHref: '/auth/login?next=/app'")
   })
 
-  it('uses semantic landmarks, Radix primitives, and an interactive real-parser capture', async () => {
+  it('reproduces the real workspace hierarchy inside every product preview', async () => {
+    const previews = await source('src/components/landing/WorkspacePreviews.tsx')
+    const landing = await source('src/pages/Landing.tsx')
+    const productStory = await source('src/components/landing/ProductStory.tsx')
+
+    expect(landing).toContain('<HomeWorkspacePreview />')
+    expect(productStory).toContain('<InboxWorkspacePreview />')
+    expect(productStory).toContain('<TasksWorkspacePreview />')
+    expect(productStory).toContain('<HomeOverviewPreview />')
+    for (const label of ['Quick capture', 'Search', 'Home', 'Inbox', 'Tasks', 'Projects', 'Notes', 'Calendar', 'Connections', 'Settings', 'Plans', 'Help &amp; support']) {
+      expect(previews).toContain(label)
+    }
+    expect(previews).toContain('data-sidebar')
+    expect(previews).toContain('What needs your attention')
+    expect(previews).toContain('Coming up this week')
+    expect(previews).toContain('2 items to organize')
+    expect(previews).toContain('Plan, review, and present work from one place.')
+    expect(previews).toContain('Show completed')
+    expect(previews).not.toContain('browser chrome')
+  })
+
+  it('uses semantic landmarks, Radix primitives, and truthful workspace previews', async () => {
     const landing = await landingSource()
     const productStory = await source('src/components/landing/ProductStory.tsx')
 
@@ -44,46 +63,10 @@ describe('marketing landing page', () => {
     expect(landing).toContain('aria-label="Primary navigation"')
     expect(landing).toContain('<Sheet>')
     expect(landing).toContain('<Dialog open={open}')
-    expect(landing).toContain('<Tabs defaultValue="List"')
-    expect(landing).toContain('<form onSubmit={captureTask}')
-    expect(landing).toContain('disabled={!captureText.trim()}')
-    expect(landing).toContain('if (!nextTask) return')
-    expect(landing).toContain('parseCaptureInput(parserReadyInput(value), demoProjects)')
-    expect(landing).toContain("state: 'Inbox'")
-    expect(landing).not.toContain('task.assignee')
+    expect(landing).toContain('PlanGlade Home workspace preview')
+    expect(landing).toContain('PlanGlade Inbox preview')
+    expect(landing).toContain('PlanGlade Tasks preview')
     expect(productStory).not.toContain('<button')
-  })
-
-  it('turns the exact capture sentence into one structured Inbox task', () => {
-    expect(parseLandingDemoInput(LANDING_DEMO_INPUT)).toEqual({
-      title: 'Send homepage draft to Mara',
-      project: 'Client Refresh',
-      due: 'Tomorrow',
-      state: 'Inbox',
-    })
-  })
-
-  it('does not fabricate structure for arbitrary or empty demo input', () => {
-    expect(parseLandingDemoInput('Buy milk')).toEqual({
-      title: 'Buy milk',
-      project: null,
-      due: null,
-      state: 'Inbox',
-    })
-    expect(parseLandingDemoInput('')).toBeNull()
-    expect(parseLandingDemoInput('   ')).toBeNull()
-  })
-
-  it('conditions every relationship view on parsed project and date data', async () => {
-    const ledger = await source('src/components/landing/LedgerDemo.tsx')
-
-    expect(ledger).toContain("task.project ?? 'No project'")
-    expect(ledger).toContain("task.due ?? 'No date'")
-    expect(ledger).toContain('No date set — not placed on the timeline.')
-    expect(ledger).toContain('No date set — not placed on the calendar.')
-    expect(ledger).toContain('No project or date connections yet.')
-    expect(ledger).toContain('{task.project && <path')
-    expect(ledger).toContain('{task.due && <path')
   })
 
   it('keeps the product film out of the document until the dialog opens', async () => {

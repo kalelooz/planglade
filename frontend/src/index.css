@@ -356,6 +356,77 @@
   padding-block: clamp(3.5rem, 8vw, 7.5rem);
 }
 
+.landing-editorial-hero {
+  padding-block: clamp(4rem, 9vw, 8rem);
+}
+
+.landing-app-preview {
+  --background: 0 0% 100%;
+  --foreground: 240 8% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 8% 12%;
+  --primary: 240 7% 14%;
+  --primary-foreground: 40 20% 97%;
+  --secondary: 240 5% 96%;
+  --secondary-foreground: 240 7% 18%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 42%;
+  --accent: 240 5% 94.5%;
+  --accent-foreground: 240 7% 16%;
+  --border: 240 5% 90%;
+  --input: 240 5% 86%;
+  --sidebar-background: 240 5% 97%;
+  --sidebar-foreground: 240 5% 30%;
+  --sidebar-border: 240 5% 90%;
+
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizelegibility;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.light) .landing-app-preview {
+    --background: 240 7% 8.5%;
+    --foreground: 40 8% 92%;
+    --card: 240 6% 11%;
+    --card-foreground: 40 8% 92%;
+    --primary: 40 9% 90%;
+    --primary-foreground: 240 7% 12%;
+    --secondary: 240 5% 16%;
+    --secondary-foreground: 40 8% 90%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 62%;
+    --accent: 240 5% 17%;
+    --accent-foreground: 40 8% 92%;
+    --border: 240 5% 18%;
+    --input: 240 5% 24%;
+    --sidebar-background: 240 7% 10%;
+    --sidebar-foreground: 240 5% 65%;
+    --sidebar-border: 240 5% 17%;
+  }
+}
+
+.dark .landing-app-preview {
+  --background: 240 7% 8.5%;
+  --foreground: 40 8% 92%;
+  --card: 240 6% 11%;
+  --card-foreground: 40 8% 92%;
+  --primary: 40 9% 90%;
+  --primary-foreground: 240 7% 12%;
+  --secondary: 240 5% 16%;
+  --secondary-foreground: 40 8% 90%;
+  --muted: 240 5% 15%;
+  --muted-foreground: 240 5% 62%;
+  --accent: 240 5% 17%;
+  --accent-foreground: 40 8% 92%;
+  --border: 240 5% 18%;
+  --input: 240 5% 24%;
+  --sidebar-background: 240 7% 10%;
+  --sidebar-foreground: 240 5% 65%;
+  --sidebar-border: 240 5% 17%;
+}
+
 .landing-hero-copy {
   max-width: 43rem;
 }
