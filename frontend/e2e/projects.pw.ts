@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { deleteCurrentProject } from './collaborative-cleanup'
 
 type Project = { id: string; name: string; status: string }
 
@@ -39,8 +40,7 @@ test('creates, persists, edits, and exposes a project through shared selectors',
     await expect(page.getByText(`${runId} renamed`, { exact: true })).toBeVisible()
   } finally {
     if (created) {
-      const response = await page.request.delete(`/api/projects/${encodeURIComponent(created.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(response.ok()).toBeTruthy()
+      await deleteCurrentProject(page.request, session.workspace.id, created.id)
     }
   }
 })

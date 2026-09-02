@@ -25,7 +25,11 @@ test.afterEach(() => {
 })
 
 function request() {
-  return new NextRequest("http://localhost/api/projects/project-1?workspaceId=workspace-1", { method: "DELETE" })
+  return new NextRequest("http://localhost/api/projects/project-1?workspaceId=workspace-1", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  })
 }
 
 function mockWorkspace(role: "VIEWER" | "MEMBER" | "ADMIN") {

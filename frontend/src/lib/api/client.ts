@@ -22,7 +22,7 @@ export async function getJson<T>(path: `/${string}`, schema: ZodType<T>, signal?
 
 export async function sendJson<T>(
   path: `/${string}`,
-  method: 'POST' | 'PUT' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body: unknown,
   schema: ZodType<T>,
   signal?: AbortSignal,

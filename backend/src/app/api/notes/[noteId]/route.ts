@@ -10,9 +10,9 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
-import { updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
+import { deleteNoteSchema, updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { canAccessNote } from "@/lib/note-access"
+import { buildNoteAccessWhere, canAccessNote } from "@/lib/note-access"
 import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 
 type Params = { params: Promise<{ noteId: string }> }
@@ -29,6 +29,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = await parseJsonBody(request, updateNoteSchema)
   if (!parsed.ok) return parsed.response
 
+  let actorUserId: string | undefined
   try {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
@@ -36,6 +37,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       "MEMBER"
     )
     if (!access.ok) return access.response
+    actorUserId = access.actor.userId
 
     const existing = await db.note.findUnique({
       where: { id: noteId },
@@ -49,14 +51,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       },
     })
     if (!existing) return notFound("Note not found")
-    if (!canAccessNote(existing, query.data.workspaceId, access.actor.userId)) {
+    if (!canAccessNote(existing, query.data.workspaceId, actorUserId)) {
       return notFound("Note not found")
     }
     if (!parsed.data.expectedUpdatedAt) {
       return NextResponse.json(
         {
           error: "expectedUpdatedAt is required",
-          current: await db.note.findUnique({ where: { id: noteId } }),
+          current: await db.note.findFirst({
+            where: { id: noteId, ...buildNoteAccessWhere(query.data.workspaceId, actorUserId) },
+          }),
         },
         { status: 428 },
       )
@@ -71,7 +75,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (!project) return badRequest("Project not found in workspace")
     }
 
-    const actorUserId = access.actor.userId
     const changedFields = Object.entries(parsed.data)
       .filter(([key, value]) => key !== "expectedUpdatedAt" && value !== undefined)
       .map(([key]) => key)
@@ -111,9 +114,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json(
         {
           error: "Note changed since it was loaded",
-          current: await db.note.findFirst({
-            where: { id: noteId, workspaceId: query.data.workspaceId },
-          }),
+          current: actorUserId
+            ? await db.note.findFirst({
+                where: { id: noteId, ...buildNoteAccessWhere(query.data.workspaceId, actorUserId) },
+              })
+            : null,
         },
         { status: 409 },
       )
@@ -122,21 +127,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { noteId } = await params
   const query = workspaceQuerySchema.safeParse({
-    workspaceId: _request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+    workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
   })
   if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+  const parsed = await parseJsonBody(request, deleteNoteSchema, { allowEmptyObject: true })
+  if (!parsed.ok) return parsed.response
 
+  let actorUserId: string | undefined
   try {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
-      await resolveRequestActorUserId(_request),
+      await resolveRequestActorUserId(request),
       "MEMBER"
     )
     if (!access.ok) return access.response
-    const actorUserId = access.actor.userId
+    actorUserId = access.actor.userId
 
     const existing = await db.note.findUnique({
       where: { id: noteId },
@@ -146,6 +154,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
         title: true,
         visibility: true,
         createdById: true,
+        updatedAt: true,
       },
     })
     if (!existing) return notFound("Note not found")
@@ -157,9 +166,23 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       actorUserId,
       creatorUserId: existing.createdById,
     })) return forbidden("Only the note creator or a workspace admin can delete this note")
+    if (!parsed.data.expectedUpdatedAt) {
+      return NextResponse.json(
+        {
+          error: "expectedUpdatedAt is required",
+          current: await db.note.findFirst({
+            where: { id: noteId, ...buildNoteAccessWhere(query.data.workspaceId, actorUserId) },
+          }),
+        },
+        { status: 428 },
+      )
+    }
 
     await db.$transaction(async (tx) => {
-      await tx.note.delete({ where: { id: noteId } })
+      const claim = await tx.note.deleteMany({
+        where: { id: noteId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
+      })
+      if (claim.count !== 1) throw new StaleNoteMutationError()
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
         actorId: actorUserId,
@@ -171,6 +194,19 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     })
     return NextResponse.json({ deleted: true })
   } catch (error) {
+    if (error instanceof StaleNoteMutationError) {
+      return NextResponse.json(
+        {
+          error: "Note changed since it was loaded",
+          current: actorUserId
+            ? await db.note.findFirst({
+                where: { id: noteId, ...buildNoteAccessWhere(query.data.workspaceId, actorUserId) },
+              })
+            : null,
+        },
+        { status: 409 },
+      )
+    }
     return serverError("Failed to delete note", String(error))
   }
 }

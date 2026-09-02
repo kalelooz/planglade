@@ -5,7 +5,7 @@ import type { BackendNote, BackendProject, BackendWorkItem, Session } from '@/li
 import { getSession } from '@/lib/api/session'
 import { getProjects, createProject, deleteProject, replaceProjectInList, updateProject, type CreateProjectInput, type ProjectMutationPatch } from '@/lib/api/projects'
 import {
-  getTaskSnapshot, getInboxItems, createTask, deleteTask, expectedLaneVersionsForTaskUpdate, optimisticallyPatchTask,
+  getTaskSnapshot, getInboxItems, createTask, deleteTask, expectedLaneVersionsForTaskDelete, expectedLaneVersionsForTaskUpdate, optimisticallyPatchTask,
   removeInboxFromList, removeTaskFromList, replaceInboxInList, replaceTaskInList,
   updateTask, type CreateTaskInput, type TaskMutationPatch,
 } from '@/lib/api/tasks'
@@ -16,7 +16,7 @@ import { createWorkspace, updateWorkspace } from '@/lib/api/workspace'
 import type { TaskPatch } from './workspace-context'
 import { useAppCommands } from './app-commands'
 import { toApiError } from '@/lib/api/errors'
-import { reloadCollaborativeQueryOnConflict } from '@/lib/api/conflict-refresh'
+import { reloadCollaborativeQueryOnConflict, reloadTaskQueriesOnConflict } from '@/lib/api/conflict-refresh'
 
 type TaskSnapshot = Awaited<ReturnType<typeof getTaskSnapshot>>
 
@@ -120,7 +120,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
         for (const key of taskVersions.current.keys()) {
           if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
         }
-        void reloadCollaborativeQueryOnConflict(queryClient, error, ['tasks', targetWorkspaceId])
+        void reloadTaskQueriesOnConflict(queryClient, error, targetWorkspaceId)
       }
     },
     onSuccess: async (updated, { workspaceId: targetWorkspaceId, expectedLaneVersions }) => {
@@ -143,9 +143,15 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     },
   })
   const deleteTaskMutation = useMutation({
-    mutationFn: ({ workspaceId: targetWorkspaceId, taskId }: { workspaceId: string; taskId: string }) => deleteTask(targetWorkspaceId, taskId),
+    mutationFn: ({ workspaceId: targetWorkspaceId, task, expectedLaneVersions }: { workspaceId: string; task: BackendWorkItem; expectedLaneVersions?: ReturnType<typeof expectedLaneVersionsForTaskDelete> }) => deleteTask(targetWorkspaceId, task, expectedLaneVersions),
     retry: false,
-    onSuccess: (_deleted, { workspaceId: targetWorkspaceId, taskId }) => {
+    onError: (error, variables) => {
+      if (toApiError(error).kind === 'conflict') {
+        void reloadTaskQueriesOnConflict(queryClient, error, variables.workspaceId)
+      }
+    },
+    onSuccess: (_deleted, { workspaceId: targetWorkspaceId, task }) => {
+      const taskId = task.id
       queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
         current,
         (items) => removeTaskFromList(items, taskId),
@@ -175,15 +181,21 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     },
   })
   const deleteProjectMutation = useMutation({
-    mutationFn: ({ workspaceId: targetWorkspaceId, projectId }: { workspaceId: string; projectId: string }) => deleteProject(targetWorkspaceId, projectId),
+    mutationFn: ({ workspaceId: targetWorkspaceId, project }: { workspaceId: string; project: BackendProject }) => deleteProject(targetWorkspaceId, project),
     retry: false,
+    onError: (error, variables) => {
+      if (toApiError(error).kind === 'conflict') {
+        void reloadCollaborativeQueryOnConflict(queryClient, error, ['projects', variables.workspaceId])
+      }
+    },
     onSuccess: (_deleted, variables) => {
-      queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => current.filter((project) => project.id !== variables.projectId))
+      const projectId = variables.project.id
+      queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => current.filter((project) => project.id !== projectId))
       queryClient.setQueryData<TaskSnapshot>(['tasks', variables.workspaceId], (current) => updateTaskSnapshot(
         current,
-        (items) => items.map((task) => task.projectId === variables.projectId ? { ...task, projectId: null } : task),
+        (items) => items.map((task) => task.projectId === projectId ? { ...task, projectId: null } : task),
       ))
-      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.projectId === variables.projectId ? { ...note, projectId: null } : note))
+      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.projectId === projectId ? { ...note, projectId: null } : note))
     },
   })
   const createNoteMutation = useMutation({
@@ -210,10 +222,15 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     },
   })
   const deleteNoteMutation = useMutation({
-    mutationFn: ({ workspaceId: targetWorkspaceId, noteId }: { workspaceId: string; noteId: string }) => deleteNote(targetWorkspaceId, noteId),
+    mutationFn: ({ workspaceId: targetWorkspaceId, note }: { workspaceId: string; note: BackendNote }) => deleteNote(targetWorkspaceId, note),
     retry: false,
+    onError: (error, variables) => {
+      if (toApiError(error).kind === 'conflict') {
+        void reloadCollaborativeQueryOnConflict(queryClient, error, ['notes', variables.workspaceId])
+      }
+    },
     onSuccess: (_deleted, variables) => {
-      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.filter((note) => note.id !== variables.noteId))
+      queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.filter((note) => note.id !== variables.note.id))
     },
   })
   const createWorkspaceMutation = useMutation({
@@ -260,6 +277,10 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
       const snapshot = queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])
       const currentTask = snapshot?.workItems.find((candidate) => candidate.id === task.id) ?? task
       return snapshot ? expectedLaneVersionsForTaskUpdate(currentTask, patch, snapshot.laneVersions) : undefined
+    },
+    expectedDeleteLaneVersions: (targetWorkspaceId: string, task: BackendWorkItem) => {
+      const snapshot = queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])
+      return snapshot ? expectedLaneVersionsForTaskDelete(task, snapshot.laneVersions) : undefined
     },
     invalidateRelations: (targetWorkspaceId: string) => queryClient.invalidateQueries({ queryKey: ['work-item-relations', targetWorkspaceId] }),
   }

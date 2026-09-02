@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { deleteCurrentNote } from './collaborative-cleanup'
 
 type Note = { id: string }
 
@@ -42,8 +43,7 @@ test('creates, persists, and deletes an authenticated note', async ({ page }) =>
     await expect(page.getByLabel('Note title')).toHaveCount(0)
   } finally {
     if (created) {
-      const response = await page.request.delete(`/api/notes/${encodeURIComponent(created.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(response.ok()).toBeTruthy()
+      await deleteCurrentNote(page.request, session.workspace.id, created.id)
     }
   }
 })
@@ -64,7 +64,6 @@ test('keeps a note draft when the authenticated save is temporarily unavailable'
     await expect(page.getByText('Could not save. Your edits are still here.')).toBeVisible()
   } finally {
     await page.unrouteAll({ behavior: 'ignoreErrors' })
-    const cleanup = await page.request.delete(`/api/notes/${encodeURIComponent(created.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-    expect(cleanup.ok()).toBeTruthy()
+    await deleteCurrentNote(page.request, session.workspace.id, created.id)
   }
 })

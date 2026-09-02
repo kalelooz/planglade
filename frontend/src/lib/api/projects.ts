@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { deleteJson, getJson, sendJson } from '@/lib/api/client'
+import { getJson, sendJson } from '@/lib/api/client'
 import { projectListSchema, projectResponseSchema, type BackendProject } from '@/lib/api/contracts'
 import type { Project, ProjectStatus } from '@/types'
 
@@ -68,8 +68,14 @@ export function updateProject(workspaceId: string, project: BackendProject, patc
 
 const projectDeleteResponseSchema = z.object({ deleted: z.literal(true) })
 
-export function deleteProject(workspaceId: string, projectId: string, signal?: AbortSignal) {
-  return deleteJson(`/api/projects/${encodeURIComponent(projectId)}?workspaceId=${encodeURIComponent(workspaceId)}`, projectDeleteResponseSchema, signal)
+export function deleteProject(workspaceId: string, project: BackendProject, signal?: AbortSignal) {
+  return sendJson(
+    `/api/projects/${encodeURIComponent(project.id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+    'DELETE',
+    { expectedUpdatedAt: project.updatedAt },
+    projectDeleteResponseSchema,
+    signal,
+  )
 }
 
 export function replaceProjectInList(projects: BackendProject[], updated: BackendProject) {

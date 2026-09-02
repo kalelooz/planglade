@@ -14,6 +14,24 @@ function patchRequest(path: string, body: Record<string, unknown>) {
   })
 }
 
+function deleteRequest(path: string, body: Record<string, unknown>) {
+  return new NextRequest(`http://localhost${path}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+function emptyDeleteRequest(path: string) {
+  return new NextRequest(`http://localhost${path}`, { method: "DELETE" })
+}
+
+function assertSafeUpdateDeleteRace(responses: Response[]) {
+  const statuses = responses.map((response) => response.status)
+  assert.equal(statuses.filter((status) => status === 200).length, 1)
+  assert.ok(statuses.some((status) => status === 409 || status === 404), `unexpected statuses: ${statuses.join(",")}`)
+}
+
 test("two clients cannot silently overwrite task, project, note, or lane updates", async () => {
   const isolated = createIsolatedTestDatabase()
   const previousAuthMode = process.env.PLANGLADE_AUTH_MODE
@@ -22,9 +40,9 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
   process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = "dev"
 
   const { db } = await import("../src/lib/db")
-  const { PATCH: updateProject } = await import("../src/app/api/projects/[projectId]/route")
-  const { PATCH: updateNote } = await import("../src/app/api/notes/[noteId]/route")
-  const { PATCH: updateWorkItem } = await import("../src/app/api/work-items/[workItemId]/route")
+  const { DELETE: deleteProject, PATCH: updateProject } = await import("../src/app/api/projects/[projectId]/route")
+  const { DELETE: deleteNote, PATCH: updateNote } = await import("../src/app/api/notes/[noteId]/route")
+  const { DELETE: deleteWorkItem, PATCH: updateWorkItem } = await import("../src/app/api/work-items/[workItemId]/route")
 
   try {
     const user = await db.user.create({
@@ -88,6 +106,45 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
         createdById: user.id,
       },
     })
+    const deleteProjectCandidate = await db.project.create({
+      data: {
+        id: "project-delete",
+        workspaceId: "workspace-1",
+        name: "Project delete candidate",
+        slug: "project-delete-candidate",
+        createdById: user.id,
+      },
+    })
+    const deleteNoteCandidate = await db.note.create({
+      data: {
+        id: "note-delete",
+        workspaceId: "workspace-1",
+        title: "Note delete candidate",
+        createdById: user.id,
+        updatedById: user.id,
+        visibility: "WORKSPACE",
+      },
+    })
+    const deleteTaskCandidate = await db.workItem.create({
+      data: {
+        id: "task-delete",
+        workspaceId: "workspace-1",
+        title: "Task delete candidate",
+        status: "BACKLOG",
+        position: 1024,
+        createdById: user.id,
+      },
+    })
+    const staleLaneTask = await db.workItem.create({
+      data: {
+        id: "task-stale-lane",
+        workspaceId: "workspace-1",
+        title: "Task moved elsewhere",
+        status: "BACKLOG",
+        position: 2048,
+        createdById: user.id,
+      },
+    })
 
     const missingProjectPrecondition = await updateProject(
       patchRequest("/api/projects/project-1?workspaceId=workspace-1", { name: "Unconditional project" }),
@@ -146,6 +203,78 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
     const taskConflict = taskResponses.find((response) => response.status === 409)
     assert.equal((await taskConflict!.json()).current.id, firstTask.id)
     assert.match((await db.workItem.findUniqueOrThrow({ where: { id: firstTask.id } })).title, /^Task from client [AB]$/)
+
+    const missingDeletePreconditions = await Promise.all([
+      deleteProject(emptyDeleteRequest("/api/projects/project-delete?workspaceId=workspace-1"), { params: Promise.resolve({ projectId: deleteProjectCandidate.id }) }),
+      deleteNote(emptyDeleteRequest("/api/notes/note-delete?workspaceId=workspace-1"), { params: Promise.resolve({ noteId: deleteNoteCandidate.id }) }),
+      deleteWorkItem(emptyDeleteRequest("/api/work-items/task-delete?workspaceId=workspace-1"), { params: Promise.resolve({ workItemId: deleteTaskCandidate.id }) }),
+    ])
+    assert.deepEqual(missingDeletePreconditions.map((response) => response.status), [428, 428, 428])
+
+    await db.workItem.update({
+      where: { id: staleLaneTask.id },
+      data: {
+        status: "DONE",
+        updatedAt: new Date(staleLaneTask.updatedAt.getTime() + 1_000),
+      },
+    })
+    const staleCrossLaneResponses = await Promise.all([
+      updateWorkItem(patchRequest("/api/work-items/task-stale-lane?workspaceId=workspace-1", {
+        status: "IN_PROGRESS",
+        expectedUpdatedAt: staleLaneTask.updatedAt.toISOString(),
+        expectedLaneVersions: { BACKLOG: 0, IN_PROGRESS: 0 },
+      }), { params: Promise.resolve({ workItemId: staleLaneTask.id }) }),
+      deleteWorkItem(deleteRequest("/api/work-items/task-stale-lane?workspaceId=workspace-1", {
+        expectedUpdatedAt: staleLaneTask.updatedAt.toISOString(),
+        expectedLaneVersions: { BACKLOG: 0 },
+      }), { params: Promise.resolve({ workItemId: staleLaneTask.id }) }),
+    ])
+    assert.deepEqual(staleCrossLaneResponses.map((response) => response.status), [409, 409])
+    for (const response of staleCrossLaneResponses) {
+      const conflict = await response.json()
+      assert.equal(conflict.current.id, staleLaneTask.id)
+      assert.equal(conflict.current.status, "DONE")
+    }
+
+    const projectDeleteRace = await Promise.all([
+      updateProject(patchRequest("/api/projects/project-delete?workspaceId=workspace-1", {
+        name: "Project updated before delete",
+        expectedUpdatedAt: deleteProjectCandidate.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ projectId: deleteProjectCandidate.id }) }),
+      deleteProject(deleteRequest("/api/projects/project-delete?workspaceId=workspace-1", {
+        expectedUpdatedAt: deleteProjectCandidate.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ projectId: deleteProjectCandidate.id }) }),
+    ])
+    assertSafeUpdateDeleteRace(projectDeleteRace)
+    const remainingProject = await db.project.findUnique({ where: { id: deleteProjectCandidate.id } })
+    if (remainingProject) assert.equal(remainingProject.name, "Project updated before delete")
+
+    const noteDeleteRace = await Promise.all([
+      updateNote(patchRequest("/api/notes/note-delete?workspaceId=workspace-1", {
+        title: "Note updated before delete",
+        expectedUpdatedAt: deleteNoteCandidate.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ noteId: deleteNoteCandidate.id }) }),
+      deleteNote(deleteRequest("/api/notes/note-delete?workspaceId=workspace-1", {
+        expectedUpdatedAt: deleteNoteCandidate.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ noteId: deleteNoteCandidate.id }) }),
+    ])
+    assertSafeUpdateDeleteRace(noteDeleteRace)
+    const remainingNote = await db.note.findUnique({ where: { id: deleteNoteCandidate.id } })
+    if (remainingNote) assert.equal(remainingNote.title, "Note updated before delete")
+
+    const taskDeleteRace = await Promise.all([
+      updateWorkItem(patchRequest("/api/work-items/task-delete?workspaceId=workspace-1", {
+        title: "Task updated before delete",
+        expectedUpdatedAt: deleteTaskCandidate.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ workItemId: deleteTaskCandidate.id }) }),
+      deleteWorkItem(deleteRequest("/api/work-items/task-delete?workspaceId=workspace-1", {
+        expectedUpdatedAt: deleteTaskCandidate.updatedAt.toISOString(),
+        expectedLaneVersions: { BACKLOG: 0 },
+      }), { params: Promise.resolve({ workItemId: deleteTaskCandidate.id }) }),
+    ])
+    assertSafeUpdateDeleteRace(taskDeleteRace)
+    const remainingTask = await db.workItem.findUnique({ where: { id: deleteTaskCandidate.id } })
+    if (remainingTask) assert.equal(remainingTask.title, "Task updated before delete")
 
     const currentFirst = await db.workItem.findUniqueOrThrow({ where: { id: firstTask.id } })
     const currentThird = await db.workItem.findUniqueOrThrow({ where: { id: thirdTask.id } })

@@ -1,4 +1,4 @@
-import { deleteJson, getJson, sendJson } from '@/lib/api/client'
+import { getJson, sendJson } from '@/lib/api/client'
 import { noteDeleteResponseSchema, noteListSchema, noteResponseSchema, type BackendNote } from '@/lib/api/contracts'
 
 export type CreateNoteInput = {
@@ -36,6 +36,12 @@ export function updateNote(workspaceId: string, note: BackendNote, patch: NoteMu
     .then((response) => response.note)
 }
 
-export function deleteNote(workspaceId: string, noteId: string, signal?: AbortSignal) {
-  return deleteJson(`/api/notes/${encodeURIComponent(noteId)}?workspaceId=${encodeURIComponent(workspaceId)}`, noteDeleteResponseSchema, signal)
+export function deleteNote(workspaceId: string, note: BackendNote, signal?: AbortSignal) {
+  return sendJson(
+    `/api/notes/${encodeURIComponent(note.id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+    'DELETE',
+    { expectedUpdatedAt: note.updatedAt },
+    noteDeleteResponseSchema,
+    signal,
+  )
 }

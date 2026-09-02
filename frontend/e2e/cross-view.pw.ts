@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 type Project = { id: string; name: string }
 type Session = { workspace: { id: string } }
-type WorkItem = { id: string; title: string; projectId: string | null; dueDate: string | null; status: string }
+type WorkItem = { id: string; title: string; projectId: string | null; dueDate: string | null; status: string; isInbox: boolean; updatedAt: string }
+type LaneVersions = Record<'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE', number>
 
 async function session(page: Page) {
   const response = await page.request.get('/api/auth/session')
@@ -34,7 +35,17 @@ async function createTask(page: Page, workspaceId: string, projectId: string, ti
 }
 
 async function deleteTask(page: Page, workspaceId: string, id: string) {
-  const response = await page.request.delete(`/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`)
+  const listResponse = await page.request.get(`/api/work-items?workspaceId=${encodeURIComponent(workspaceId)}`)
+  expect(listResponse.ok()).toBeTruthy()
+  const current = await listResponse.json() as { workItems: WorkItem[]; laneVersions: LaneVersions }
+  const item = current.workItems.find((candidate) => candidate.id === id)
+  if (!item) return
+  const response = await page.request.delete(`/api/work-items/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+    data: {
+      expectedUpdatedAt: item.updatedAt,
+      ...(!item.isInbox ? { expectedLaneVersions: { [item.status]: current.laneVersions[item.status as keyof LaneVersions] } } : {}),
+    },
+  })
   expect(response.ok()).toBeTruthy()
 }
 
