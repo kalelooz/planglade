@@ -225,9 +225,24 @@ model Workspace {
   comments                     Comment[]
   attachments                  Attachment[]
   attachmentUploadReservations AttachmentUploadReservation[]
+  importOperation              WorkspaceImportOperation?
   workItemRelations            WorkItemRelation[]
   createdAt                    DateTime                      @default(now())
   updatedAt                    DateTime                      @updatedAt
+}
+
+model WorkspaceImportOperation {
+  workspaceId    String    @id
+  claimId        String    @unique
+  sourceChecksum String
+  leaseExpiresAt DateTime
+  completedAt    DateTime?
+  result         Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([leaseExpiresAt])
 }
 
 model WorkspaceMember {

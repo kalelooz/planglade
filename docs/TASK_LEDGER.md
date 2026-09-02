@@ -2,6 +2,21 @@
 
 ## Active task
 
+### PG-DATA-002 — Serialize append imports durably
+
+- Status: **REVISE** — public implementation and focused SQLite evidence pass; full public gates, independent review, merge, and downstream PostgreSQL proof remain pending
+- Requested: 2026-09-02
+- Scope: prevent overlapping append imports from passing duplicate checks in separate application processes, while giving safe retries a stable provider-neutral idempotency contract.
+- Acceptance: a durable workspace lease gives one active importer ownership and returns 409 to overlap; the reviewed source checksum replays a completed result; expired claims recover; release and completion are claim-scoped; import writes and completion commit atomically under Serializable isolation with bounded retry; empty and populated migrations, full public gates, independent review, and downstream PostgreSQL multi-process proof pass.
+
+### Evidence
+
+- 2026-09-02: regression-first tests failed because import coordination existed only in a process-local `Set`. The replacement stores a five-minute claim in the application database, uses the confirmed source checksum as the idempotency key, and records the result in the same transaction as imported data.
+- 2026-09-02: real SQLite tests give parallel claims exactly one owner and one conflict, replay a completed checksum, recover an expired lease, prevent stale release, and prove bounded retry of Serializable transaction conflicts. The focused import/export route suite and typecheck pass.
+- 2026-09-02: a populated migration probe applies the new operation table after all prior migrations, preserves the existing user and workspace, and accepts a durable lease row.
+- 2026-09-02: the complete backend suite passes 275/275 on a fresh database with every migration applied. The route suite directly proves an overlapping import returns 409, and backend lint, typecheck, production build, backend-surface validation, high-severity dependency audit, public/CI/docs/release boundary checks, and the backup/restore release rehearsal all pass.
+- Visual evidence: not required for the database, API concurrency, and migration change.
+
 ### PG-SEC-001 — Close the invitation test-send relay
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
