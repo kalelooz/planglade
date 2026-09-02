@@ -8,7 +8,6 @@ import {
   importLocalWorkspaceSchema,
   importPreviewWorkspaceSnapshotSchema,
 } from "../src/lib/contracts"
-import { tryAcquireWorkspaceImport } from "../src/lib/workspace-import-lock"
 
 const tinySchema = z.object({ value: z.string() })
 
@@ -108,14 +107,4 @@ test("import contracts bound per-entity and aggregate record work", () => {
     snapshot: { version: 2, data: {} },
   })
   assert.equal(replaceImport.success, false)
-})
-
-test("only one import can run per workspace at a time", () => {
-  const release = tryAcquireWorkspaceImport("ws-1")
-  assert.equal(typeof release, "function")
-  assert.equal(tryAcquireWorkspaceImport("ws-1"), null)
-  release?.()
-  const reacquired = tryAcquireWorkspaceImport("ws-1")
-  assert.equal(typeof reacquired, "function")
-  reacquired?.()
 })

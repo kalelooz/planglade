@@ -14,6 +14,7 @@ import { buildWorkspaceImportPlan } from "../src/lib/workspace-import-plan"
 const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
+const originalUserFindUnique = db.user.findUnique
 const originalProjectFindMany = db.project.findMany
 const originalWorkItemFindMany = db.workItem.findMany
 const originalNoteFindMany = db.note.findMany
@@ -24,6 +25,8 @@ const originalActivityEventCreate = db.activityEvent.create
 const originalNotificationUpsert = db.notification.upsert
 const originalUserSettingsFindUnique = db.userSettings.findUnique
 const originalTransaction = db.$transaction
+const originalImportOperationDeleteMany = db.workspaceImportOperation.deleteMany
+const originalImportLeaseDeleteMany = db.workspaceImportLease.deleteMany
 
 type Role = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
@@ -35,6 +38,7 @@ async function runWithMocks(fn: () => Promise<void>) {
     process.env.PLANGLADE_AUTH_MODE = originalAuthMode
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalWorkspaceMemberFindUnique
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
     ;(db.project as typeof db.project).findMany = originalProjectFindMany
     ;(db.workItem as typeof db.workItem).findMany = originalWorkItemFindMany
     ;(db.note as typeof db.note).findMany = originalNoteFindMany
@@ -45,10 +49,21 @@ async function runWithMocks(fn: () => Promise<void>) {
     ;(db.notification as typeof db.notification).upsert = originalNotificationUpsert
     ;(db.userSettings as typeof db.userSettings).findUnique = originalUserSettingsFindUnique
     ;(db as unknown as { $transaction: unknown }).$transaction = originalTransaction
+    ;(db.workspaceImportOperation as typeof db.workspaceImportOperation).deleteMany = originalImportOperationDeleteMany
+    ;(db.workspaceImportLease as typeof db.workspaceImportLease).deleteMany = originalImportLeaseDeleteMany
   }
 }
 
 function mockWorkspaceAccess(role: Role) {
+  ;(db.user as typeof db.user).findUnique = ((async () => ({
+    id: "actor-1",
+    email: "alex.morgan@planglade.dev",
+    normalizedEmail: "alex.morgan@planglade.dev",
+    firebaseUid: null,
+    name: "Alex Morgan",
+    image: null,
+    authVersion: 0,
+  })) as unknown) as typeof db.user.findUnique
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({
     id: "workspace-1",
     ownerId: "owner-1",
@@ -85,9 +100,24 @@ function mockTransaction(tx: unknown) {
     fn: (transactionClient: unknown) => Promise<T>
   ) => fn({
     activityEvent: { create: async () => ({}) },
+    workspaceImportOperation: {
+      findUnique: async () => null,
+      create: async () => ({}),
+    },
+    workspaceImportLease: {
+      findUnique: async () => null,
+      create: async () => ({}),
+      deleteMany: async () => ({ count: 1 }),
+    },
     ...(tx as object),
     project: { findMany: async () => [], ...transaction.project },
   })) as typeof db.$transaction
+  ;(db.workspaceImportOperation as typeof db.workspaceImportOperation).deleteMany = ((async () => ({
+    count: 1,
+  })) as unknown) as typeof db.workspaceImportOperation.deleteMany
+  ;(db.workspaceImportLease as typeof db.workspaceImportLease).deleteMany = ((async () => ({
+    count: 1,
+  })) as unknown) as typeof db.workspaceImportLease.deleteMany
 }
 
 function importBody(input: {
@@ -153,6 +183,43 @@ test("POST /workspace/import-local rejects unsupported versions and preview mism
     }))
     assert.equal(mismatched.status, 409)
     assert.equal(transactionCalled, false)
+  })
+})
+
+test("POST /workspace/import-local rejects an overlapping workspace import", async () => {
+  await runWithMocks(async () => {
+    mockWorkspaceAccess("ADMIN")
+    const body = importBody({ workspaceId: "workspace-1" })
+    ;(db as unknown as { $transaction: unknown }).$transaction = (async <T>(
+      fn: (transactionClient: unknown) => Promise<T>
+    ) => fn({
+      workspaceImportOperation: {
+        findUnique: async () => null,
+      },
+      workspaceImportLease: {
+        findUnique: async () => ({
+          workspaceId: "workspace-1",
+          claimId: "claim-active",
+          sourceChecksum: body.expectedSourceChecksum,
+          leaseExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          completedAt: null,
+          result: null,
+          createdAt: new Date("2026-09-02T00:00:00.000Z"),
+          updatedAt: new Date("2026-09-02T00:00:00.000Z"),
+        }),
+      },
+    })) as typeof db.$transaction
+
+    const response = await importWorkspace(new NextRequest("http://localhost/api/workspace/import-local", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-planglade-user-id": "actor-1" },
+      body: JSON.stringify(body),
+    }))
+
+    assert.equal(response.status, 409)
+    assert.deepEqual(await response.json(), {
+      error: "Another import is already running for this workspace",
+    })
   })
 })
 

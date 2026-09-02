@@ -167,7 +167,8 @@ authentication is local-only and cannot be enabled in production.
 ## Known limitations
 
 - No bundled TLS, automated backup, monitoring, alerting, or malware scanning.
-- SQLite and the in-process import lock assume the bundled single-backend
-  topology; horizontal scaling requires additional coordination.
+- SQLite assumes the bundled single-backend topology. Import execution uses a
+  durable database lease, but horizontal application scaling still requires a
+  database and deployment topology designed for multiple writers.
 - Releases and upgrade guarantees remain early-preview quality until a
   versioned release and restore rehearsal are published.

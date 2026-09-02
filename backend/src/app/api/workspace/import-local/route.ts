@@ -6,7 +6,12 @@ import { logActivityEvent } from "@/lib/activity"
 import { IMPORT_LIMITS, importLocalWorkspaceSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere } from "@/lib/note-access"
-import { tryAcquireWorkspaceImport } from "@/lib/workspace-import-lock"
+import {
+  claimWorkspaceImportOperation,
+  completeWorkspaceImportOperation,
+  releaseWorkspaceImportOperation,
+  runSerializableWorkspaceImport,
+} from "@/lib/workspace-import-operation"
 import { buildWorkspaceImportPlan, remapImportedNoteIds } from "@/lib/workspace-import-plan"
 
 export async function POST(request: NextRequest) {
@@ -33,16 +38,22 @@ export async function POST(request: NextRequest) {
     if (reviewedPlan.contract.sourceChecksum !== expectedSourceChecksum) {
       return NextResponse.json({ error: "Workspace export changed after preview" }, { status: 409 })
     }
-    const releaseImport = tryAcquireWorkspaceImport(workspaceId)
-    if (!releaseImport) {
+    const operation = await claimWorkspaceImportOperation(db, {
+      workspaceId,
+      sourceChecksum: expectedSourceChecksum,
+    })
+    if (operation.status === "in_progress") {
       return NextResponse.json(
         { error: "Another import is already running for this workspace" },
         { status: 409 }
       )
     }
+    if (operation.status === "replayed") {
+      return NextResponse.json(operation.result, { status: 200 })
+    }
 
     try {
-      const summary = await db.$transaction(async (tx) => {
+      const summary = await runSerializableWorkspaceImport(db, async (tx) => {
       const existingProjects = await tx.project.findMany({
         where: { workspaceId },
         select: { slug: true },
@@ -261,12 +272,23 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      await completeWorkspaceImportOperation(tx, {
+        workspaceId,
+        sourceChecksum: expectedSourceChecksum,
+        claimId: operation.claimId,
+        result: result as Prisma.InputJsonValue,
+      })
+
       return result
-      }, { maxWait: 2_000, timeout: 15_000 })
+      })
 
       return NextResponse.json(summary, { status: 201 })
-    } finally {
-      releaseImport()
+    } catch (error) {
+      await releaseWorkspaceImportOperation(db, {
+        workspaceId,
+        claimId: operation.claimId,
+      }).catch(() => false)
+      throw error
     }
   } catch (error) {
     return serverError("Failed to import local workspace data", String(error))

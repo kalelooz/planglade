@@ -25,7 +25,7 @@ Store exported JSON files securely. They can contain private workspace content.
 
 ## Imports
 
-Imports are append-only. PlanGlade previews supported data before import, then creates new records or skips duplicates. It does not delete or replace existing workspace data.
+Imports add supported data without deleting records. PlanGlade previews the data, creates records, updates projects whose workspace slug already matches, and skips possible duplicates for other record types. Every completed source checksum retains its committed result for idempotent retries, and a separate durable workspace lease rejects overlapping imports. An import does not replace the workspace.
 
 Only admins and owners can import data. Each completed import is recorded in the activity log.
 
