@@ -2,6 +2,21 @@
 
 ## Active task
 
+### PG-STO-009 — Retry attachment storage deletion durably
+
+- Status: **REVISE** — implementation validation, review, and downstream proof are pending
+- Requested: 2026-09-02
+- Scope: retain a durable, provider-neutral cleanup job whenever an attachment record is deleted so a temporary storage-provider failure cannot create an untracked object.
+- Acceptance: the cleanup job commits atomically with attachment deletion; immediate deletion remains fast; failures retain only safe retry metadata; expiring claims and bounded backoff support multiple workers; maintenance retries are idempotent across process restart; the public migration preserves populated data; focused/full public gates, independent review, Cloud PostgreSQL import, scheduler proof, and production-safe verification pass.
+
+### Evidence
+
+- 2026-09-02: the finding reproduced against public `main` `b68c302569cc3e52a739d14f7d1fd7fba2659ed9`. The database transaction removed the attachment and committed its activity record before calling the provider; a controlled invalid-provider fault then returned 500 with the attachment row already gone and the storage object still present.
+- 2026-09-02: a provider-neutral `AttachmentDeletionJob` is now queued in the same transaction as record deletion. A five-minute UUID claim prevents concurrent workers from owning one attempt, expired claims recover after crashes, failures release the claim with bounded exponential backoff, and successful or repeated not-found deletion removes the job idempotently. Stored and logged failures contain only a validated error class, not provider response text.
+- 2026-09-02: the existing maintenance endpoint drains pending deletion jobs before its expired-upload work. Self-hosting guidance now requires a private five-minute schedule, secret Bearer handling, and monitoring of the safe failure count; no new endpoint, dependency, background thread, or provider assumption was added.
+- 2026-09-02: thirteen focused SQLite tests pass. They prove one provider call under both same-process and true parallel-process claims, recovery of an expired claim, safe stale-worker completion after takeover, retry timing from failure completion with exponential growth and a one-hour cap, fresh claims inside a delayed batch, transaction rollback of both attachment deletion and its queued intent, route-level durability during an injected provider outage, a successful retry from a fresh Node process, a harmless repeated retry, existing upload-reservation race safety, and a populated migration that preserves attachments while the cleanup job survives deletion of the original workspace row. The full backend suite also passes all 294 tests against a clean database built from all seven migration SQL files. The known local Windows Prisma schema-engine failure remains limited to that engine binary; Linux CI is required to prove `prisma migrate deploy` itself.
+- 2026-09-02: independent review caught stale batch and failure timestamps before merge. The correction now takes each claim from that attempt's actual start, schedules backoff from provider completion, and prevents an expired claimant from overwriting or reporting failure after a newer worker wins. The review's requested process, takeover, timing, cap, and rollback regressions all pass; final follow-up review is pending.
+
 ### PG-OPS-007 — Publish safe health and immutable revision status
 
 - Status: **PASS** — public implementation and private downstream production proof are complete

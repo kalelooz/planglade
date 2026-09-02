@@ -28,6 +28,8 @@ for (const expected of ['frontend', 'backend', 'migrate', 'http://localhost:8080
   assert.ok(selfHosting.includes(expected), `Self-hosting guide is missing ${expected}`)
 }
 assert.match(selfHosting, /OAuth, Firebase, and an email provider are optional/)
+assert.match(selfHosting, /POST` to `\/api\/attachments\/reap-expired`/)
+assert.match(selfHosting, /PLANGLADE_MAINTENANCE_TOKEN/)
 assert.doesNotMatch(selfHosting, /one standalone Next\.js app|Open `http:\/\/localhost:3000`|docker compose stop app/)
 
 for (const file of ['README.md', 'docs/SUPPORT.md']) {

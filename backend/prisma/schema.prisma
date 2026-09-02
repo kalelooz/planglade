@@ -534,6 +534,21 @@ model Attachment {
   @@index([noteId])
 }
 
+model AttachmentDeletionJob {
+  id             String    @id @default(cuid())
+  storageKey     String    @unique
+  attemptCount   Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  lastAttemptAt  DateTime?
+  lastError      String?
+  claimId        String?   @unique
+  claimExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([nextAttemptAt, claimExpiresAt])
+}
+
 model AttachmentUploadReservation {
   id          String    @id @default(cuid())
   workspaceId String

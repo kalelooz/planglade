@@ -84,6 +84,20 @@ authentication is the default self-host path.
 Before adding real data, verify sign-in, task create/edit/delete, refresh
 persistence, and attachment upload/download.
 
+## Attachment maintenance
+
+The database keeps a durable deletion job before an attachment record is
+removed. The API tries storage deletion immediately; if the storage provider is
+temporarily unavailable, the job remains safe across restarts and is retried by
+the existing attachment maintenance endpoint.
+
+Arrange a scheduler on the private application origin to send an authenticated
+`POST` to `/api/attachments/reap-expired` at least every five minutes. Supply
+the generated `PLANGLADE_MAINTENANCE_TOKEN` as a Bearer token, keep it out of
+logs and command history, and alert when `deletionFailures` stays above zero.
+The same endpoint also removes expired unfinalized uploads and abandoned local
+temporary files. Repeated calls are safe.
+
 ## HTTPS and public exposure
 
 The bundle does not terminate public TLS. Put a maintained HTTPS reverse proxy
@@ -163,7 +177,8 @@ authentication is local-only and cannot be enabled in production.
 - **Sign-in fails:** verify the public URL, stable session secret, local-auth
   flag, and any optional OAuth callback.
 - **Attachments fail:** verify the attachment volume is writable and the
-  session/storage signing secret stayed stable.
+  session/storage signing secret stayed stable. Check that attachment
+  maintenance is running and that `deletionFailures` returns to zero.
 
 ## Known limitations
 

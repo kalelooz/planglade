@@ -1,7 +1,9 @@
 import { db } from "@/lib/db"
+import { reapPendingAttachmentDeletions } from "@/lib/attachment-deletion"
 import { deleteStorageObject, removeAbandonedLocalUploadTemps } from "@/lib/storage"
 
 export async function reapExpiredAttachmentUploads(now = new Date()) {
+  const deletionResult = await reapPendingAttachmentDeletions(now)
   const expired = await db.attachmentUploadReservation.findMany({
     where: { consumedAt: null, expiresAt: { lte: now } },
     orderBy: { expiresAt: "asc" },
@@ -33,5 +35,5 @@ export async function reapExpiredAttachmentUploads(now = new Date()) {
   const temporaryFilesRemoved = await removeAbandonedLocalUploadTemps(
     new Date(now.getTime() - 60 * 60 * 1000),
   )
-  return { reservationsRemoved, temporaryFilesRemoved }
+  return { ...deletionResult, reservationsRemoved, temporaryFilesRemoved }
 }
