@@ -13,7 +13,8 @@
 
 - 2026-09-02: regression-first route checks prove arbitrary-recipient rejection, OWNER-only and blocked-domain policy enforcement, fixed delivered content with caller content confined to the response preview, stable provider keys for logical retries, and a clear 429 with `Retry-After` after the test quota.
 - 2026-09-02: the durable limiter stores only hashed account/workspace/recipient subjects in the existing database throttle table. Create and resend share the recipient quota; two independent Node processes racing against one SQLite database receive only three total test-send claims.
-- 2026-09-02: all 267 backend tests and all 168 frontend tests pass. Backend/frontend lint and typecheck, both production builds, Prisma validation, public boundary, CI/docs/release/backend-surface checks, release backup/restore rehearsal, and high-severity dependency audits pass. A newly disclosed Browserslist advisory was removed with compatible lockfile-only updates; one low-severity frontend build-tool advisory remains non-blocking.
+- 2026-09-02: independent review identified a stale quota-window denial race. A deterministic regression reproduced it, and the corrected conditional block claim now re-evaluates capacity if another process resets the window. The review's duplicate-variable claim was disproved by source scopes, TypeScript, and the complete test run.
+- 2026-09-02: all 268 backend tests and all 168 frontend tests pass. Backend/frontend lint and typecheck, both production builds, Prisma validation, public boundary, CI/docs/release/backend-surface checks, release backup/restore rehearsal, and high-severity dependency audits pass. A newly disclosed Browserslist advisory was removed with compatible lockfile-only updates; one low-severity frontend build-tool advisory remains non-blocking.
 - Visual evidence: not required; this correction changes server API and delivery behavior only.
 
 ### UI-005 — Project, Task, and Note control integrity

@@ -42,6 +42,65 @@ test("test invitation delivery returns a durable limit after three account attem
   assert.equal(buckets.some((bucket) => bucket.subjectKey.includes("recipient@example.com")), false)
 })
 
+test("a stale exhausted claim cannot block a freshly reset quota window", async () => {
+  const input = {
+    action: "test" as const,
+    actorUserId: "rollover-account",
+    workspaceId: "rollover-workspace",
+    recipientEmail: "rollover@example.com",
+  }
+  const oldWindow = new Date("2026-09-02T10:00:00.000Z")
+  const newWindow = new Date("2026-09-02T11:00:00.000Z")
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    assert.equal(
+      (await consumeWorkspaceInviteDeliveryRateLimit(input, oldWindow)).allowed,
+      true
+    )
+  }
+
+  const originalFindUnique = db.authThrottle.findUnique
+  let releaseStaleRead = () => {}
+  const staleReadReleased = new Promise<void>((resolve) => {
+    releaseStaleRead = resolve
+  })
+  let markStaleRead = () => {}
+  const staleReadObserved = new Promise<void>((resolve) => {
+    markStaleRead = resolve
+  })
+  let shouldPause = true
+  ;(db.authThrottle as typeof db.authThrottle).findUnique = (async (...args) => {
+    const current = await originalFindUnique(...args)
+    if (shouldPause) {
+      shouldPause = false
+      markStaleRead()
+      await staleReadReleased
+    }
+    return current
+  }) as typeof db.authThrottle.findUnique
+
+  try {
+    const staleAttempt = consumeWorkspaceInviteDeliveryRateLimit(
+      input,
+      new Date("2026-09-02T10:59:59.000Z")
+    )
+    await staleReadObserved
+    const rolloverAttempt = await consumeWorkspaceInviteDeliveryRateLimit(input, newWindow)
+    releaseStaleRead()
+    const staleResult = await staleAttempt
+
+    assert.equal(rolloverAttempt.allowed, true)
+    assert.equal(staleResult.allowed, true)
+    const resetBuckets = await db.authThrottle.findMany({
+      where: { scope: "INVITATION", windowStartedAt: newWindow },
+    })
+    assert.equal(resetBuckets.length, 5)
+    assert.equal(resetBuckets.every((bucket) => bucket.blockedUntil === null), true)
+  } finally {
+    releaseStaleRead()
+    ;(db.authThrottle as typeof db.authThrottle).findUnique = originalFindUnique
+  }
+})
+
 test("two application processes share the same invitation quota", async () => {
   const startFile = path.join(path.dirname(isolatedDatabase.databasePath), "start-rate-limit")
   const workerPath = path.resolve("tests/helpers/workspace-invite-rate-limit-worker.ts")

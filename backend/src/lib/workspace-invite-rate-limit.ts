@@ -57,47 +57,55 @@ async function claimBucket(
   const key = { scope: INVITATION_SCOPE, subjectKey: bucket.subjectKey }
   const windowCutoff = new Date(now.getTime() - policy.windowMs)
 
-  await db.authThrottle.upsert({
-    where: { scope_subjectKey: key },
-    create: { ...key, windowStartedAt: now, attemptCount: 0 },
-    update: {},
-  })
-  await db.authThrottle.updateMany({
-    where: { ...key, windowStartedAt: { lte: windowCutoff } },
-    data: { windowStartedAt: now, attemptCount: 0, blockedUntil: null },
-  })
+  while (true) {
+    await db.authThrottle.upsert({
+      where: { scope_subjectKey: key },
+      create: { ...key, windowStartedAt: now, attemptCount: 0 },
+      update: {},
+    })
+    await db.authThrottle.updateMany({
+      where: { ...key, windowStartedAt: { lte: windowCutoff } },
+      data: { windowStartedAt: now, attemptCount: 0, blockedUntil: null },
+    })
 
-  const claim = await db.authThrottle.updateMany({
-    where: {
-      ...key,
-      attemptCount: { lt: policy.attempts },
-      OR: [{ blockedUntil: null }, { blockedUntil: { lte: now } }],
-    },
-    data: { attemptCount: { increment: 1 } },
-  })
-  if (claim.count === 1) return { allowed: true as const, retryAfterSeconds: 0 }
+    const claim = await db.authThrottle.updateMany({
+      where: {
+        ...key,
+        attemptCount: { lt: policy.attempts },
+        OR: [{ blockedUntil: null }, { blockedUntil: { lte: now } }],
+      },
+      data: { attemptCount: { increment: 1 } },
+    })
+    if (claim.count === 1) return { allowed: true as const, retryAfterSeconds: 0 }
 
-  const current = await db.authThrottle.findUnique({
-    where: { scope_subjectKey: key },
-    select: { windowStartedAt: true, blockedUntil: true },
-  })
-  const windowEndsAt = new Date(
-    (current?.windowStartedAt ?? now).getTime() + policy.windowMs
-  )
-  const blockedUntil =
-    current?.blockedUntil && current.blockedUntil > now
-      ? current.blockedUntil
-      : windowEndsAt
-  await db.authThrottle.updateMany({
-    where: key,
-    data: { blockedUntil },
-  })
-  return {
-    allowed: false as const,
-    retryAfterSeconds: Math.max(
-      1,
-      Math.ceil((blockedUntil.getTime() - now.getTime()) / 1000)
-    ),
+    const current = await db.authThrottle.findUnique({
+      where: { scope_subjectKey: key },
+      select: { windowStartedAt: true, blockedUntil: true },
+    })
+    if (!current) continue
+
+    const blockedUntil =
+      current.blockedUntil && current.blockedUntil > now
+        ? current.blockedUntil
+        : new Date(current.windowStartedAt.getTime() + policy.windowMs)
+    if (!current.blockedUntil || current.blockedUntil <= now) {
+      const blocked = await db.authThrottle.updateMany({
+        where: {
+          ...key,
+          windowStartedAt: current.windowStartedAt,
+          attemptCount: { gte: policy.attempts },
+        },
+        data: { blockedUntil },
+      })
+      if (blocked.count === 0) continue
+    }
+    return {
+      allowed: false as const,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((blockedUntil.getTime() - now.getTime()) / 1000)
+      ),
+    }
   }
 }
 
