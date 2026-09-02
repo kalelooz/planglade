@@ -182,7 +182,7 @@ export function buildWorkspaceImportPlan(
   }
   warnings.push({
     code: "append_import_not_restore",
-    message: "Append import creates new records; it does not restore a workspace, memberships, authentication, attachments, or activity history.",
+    message: "Append import applies supported records; it does not restore a workspace, memberships, authentication, attachments, or activity history.",
   })
   warnings.push({
     code: "discarded_fields",
@@ -210,8 +210,8 @@ export function buildWorkspaceImportPlan(
       operation: "append-import" as const,
       supportedVersions: [...SUPPORTED_EXPORT_VERSIONS],
       canExecute: supportedVersion,
-      idempotent: false,
-      collisionStrategy: "Create new records and skip possible duplicates by normalized name or title.",
+      idempotent: true,
+      collisionStrategy: "Update matching project slugs; create other records and skip possible duplicates by normalized name or title.",
       discardedFields: [
         "workspace profile changes",
         "original record IDs and timestamps",

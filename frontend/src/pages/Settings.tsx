@@ -354,12 +354,12 @@ export default function Settings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Import these records?</AlertDialogTitle>
             <AlertDialogDescription>
-              The preview made no changes. Confirming will append {importPreview ? importPreview.counts.projects + importPreview.counts.tasks + importPreview.counts.notes + importPreview.counts.projectDocs + importPreview.counts.savedViews : 0} records to this workspace; possible duplicates will be skipped.
+              The preview made no changes. Confirming will apply {importPreview ? importPreview.counts.projects + importPreview.counts.tasks + importPreview.counts.notes + importPreview.counts.projectDocs + importPreview.counts.savedViews : 0} supported records to this workspace; matching project slugs will be updated and other possible duplicates will be skipped.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {importPreview && <div className="max-h-48 overflow-y-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">
             <p>{importPreview.counts.projects} projects · {importPreview.counts.tasks} tasks · {importPreview.counts.notes} notes · {importPreview.counts.projectDocs} Project Docs · {importPreview.counts.savedViews} saved views</p>
-            <p className="mt-2 font-medium text-foreground">Append import · not a backup restore · not idempotent</p>
+            <p className="mt-2 font-medium text-foreground">Append import · not a backup restore · checksum retries are idempotent</p>
             <p className="mt-1 break-all">Source {importPreview.contract.sourceChecksum}</p>
             {importPreview.warnings.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-4">
               {importPreview.warnings.map((warning) => <li key={warning.code}>{warning.message}{warning.count ? ` (${warning.count})` : ''}</li>)}
