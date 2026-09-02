@@ -32,6 +32,8 @@ import {
   resolveInviteTemplateFromPolicy,
 } from "@/lib/workspace-invite-policy"
 import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
+import { consumeWorkspaceInviteDeliveryRateLimit } from "@/lib/workspace-invite-rate-limit"
+import { workspaceInviteRateLimitResponse } from "@/lib/workspace-invite-response"
 
 type Params = { params: Promise<{ inviteId: string }> }
 
@@ -140,6 +142,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const role = parsed.data.role ?? invite.role
     if (!isGenericWorkspaceRole(role)) {
       return forbidden("Ownership cannot be granted through invitations")
+    }
+    const rateLimit = await consumeWorkspaceInviteDeliveryRateLimit({
+      action: "resend",
+      actorUserId,
+      workspaceId: parsed.data.workspaceId,
+      recipientEmail: invite.email,
+    })
+    if (!rateLimit.allowed) {
+      return workspaceInviteRateLimitResponse(rateLimit.retryAfterSeconds)
     }
     const expiresAt = buildInviteExpiry(policy.inviteExpiryDays)
     const token = buildInviteToken()

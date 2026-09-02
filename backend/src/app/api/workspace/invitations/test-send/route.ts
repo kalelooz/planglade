@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 
 import {
   badRequest,
+  forbidden,
+  hasMinimumWorkspaceRole,
   parseJsonBody,
   requireWorkspaceRole,
   resolveRequestActorUserId,
@@ -10,14 +12,22 @@ import {
 import { sendWorkspaceInviteTestEmailSchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { getCanonicalPublicOrigin } from "@/lib/canonical-public-origin"
-import { deliverWorkspaceInviteEmail } from "@/lib/workspace-invite-mailer"
 import {
+  buildWorkspaceInviteTestDeliveryIdempotencyKey,
+  deliverWorkspaceInviteEmail,
+} from "@/lib/workspace-invite-mailer"
+import { normalizeInviteEmail } from "@/lib/workspace-invite-utils"
+import { workspaceInviteRateLimitResponse } from "@/lib/workspace-invite-response"
+import {
+  canInviteEmailByDomain,
   DEFAULT_INVITE_POLICY,
   getOrCreateWorkspaceInvitePolicy,
+  normalizeDomainList,
   renderInviteTemplate,
   resolveInviteTemplateFromPolicy,
 } from "@/lib/workspace-invite-policy"
 import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
+import { consumeWorkspaceInviteDeliveryRateLimit } from "@/lib/workspace-invite-rate-limit"
 
 function deriveInviteeName(email: string) {
   const localPart = email.trim().split("@")[0] ?? ""
@@ -33,9 +43,14 @@ export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, sendWorkspaceInviteTestEmailSchema)
   if (!parsed.ok) return parsed.response
 
+  const requestId = request.headers.get("idempotency-key")
+  if (requestId && !/^[A-Za-z0-9._:-]{8,128}$/.test(requestId)) {
+    return badRequest("Idempotency-Key must be 8 to 128 letters, numbers, or . _ : -")
+  }
+
   try {
     const actorUserId = await resolveRequestActorUserId(request)
-    const access = await requireWorkspaceRole(parsed.data.workspaceId, actorUserId, "ADMIN")
+    const access = await requireWorkspaceRole(parsed.data.workspaceId, actorUserId, "MEMBER")
     if (!access.ok) return access.response
 
     const [workspace, actor, policy] = await Promise.all([
@@ -52,6 +67,30 @@ export async function POST(request: NextRequest) {
 
     if (!workspace) return badRequest("Workspace not found")
     if (!actor?.email) return badRequest("Signed-in user email is unavailable")
+    if (!hasMinimumWorkspaceRole(access.actor.role, policy.minimumInviterRole)) {
+      return forbidden(
+        `This workspace requires ${policy.minimumInviterRole} role or higher to send invite tests`
+      )
+    }
+
+    const actorEmail = normalizeInviteEmail(actor.email)
+    if (
+      parsed.data.toEmail &&
+      normalizeInviteEmail(parsed.data.toEmail) !== actorEmail
+    ) {
+      return badRequest("Test invite emails can only be sent to the signed-in user's email")
+    }
+    const domainCheck = canInviteEmailByDomain({
+      email: actorEmail,
+      allowExternalDomains: policy.allowExternalDomains,
+      allowedDomains: normalizeDomainList(
+        Array.isArray(policy.allowedDomains) ? (policy.allowedDomains as string[]) : []
+      ),
+      blockedDomains: normalizeDomainList(
+        Array.isArray(policy.blockedDomains) ? (policy.blockedDomains as string[]) : []
+      ),
+    })
+    if (!domainCheck.ok) return badRequest(domainCheck.reason)
 
     const selectedTemplate = resolveInviteTemplateFromPolicy({
       templateKey: parsed.data.templateKey ?? "default",
@@ -62,10 +101,19 @@ export async function POST(request: NextRequest) {
       policyTemplateCatalog: policy.templateCatalog,
     })
 
-    const toEmail = parsed.data.toEmail ?? actor.email
+    const toEmail = actorEmail
     const role = parsed.data.role ?? policy.defaultInviteRole
     if (!isGenericWorkspaceRole(role)) {
       return badRequest("Ownership cannot be granted through invitations")
+    }
+    const rateLimit = await consumeWorkspaceInviteDeliveryRateLimit({
+      action: "test",
+      actorUserId: access.actor.userId,
+      workspaceId: workspace.id,
+      recipientEmail: toEmail,
+    })
+    if (!rateLimit.allowed) {
+      return workspaceInviteRateLimitResponse(rateLimit.retryAfterSeconds)
     }
     const inviteUrl = `${getCanonicalPublicOrigin()}/login?invitePreview=1`
     const customMessage =
@@ -87,8 +135,12 @@ export async function POST(request: NextRequest) {
       parsed.data.bodyTemplateOverride?.trim() || selectedTemplate.bodyTemplate
     const subjectTemplate =
       parsed.data.subjectTemplateOverride?.trim() || selectedTemplate.subjectTemplate
-    const subject = renderInviteTemplate(subjectTemplate, context)
-    const body = renderInviteTemplate(bodyTemplate, context)
+    const previewSubject = renderInviteTemplate(subjectTemplate, context)
+    const previewBody = renderInviteTemplate(bodyTemplate, context)
+    const deliverySubject = `PlanGlade invitation test for ${workspace.name}`
+    const deliveryBody =
+      `This is a PlanGlade invitation delivery test for ${workspace.name}.\n\n` +
+      "No invitation was created, and no action is required."
 
     const delivery = await deliverWorkspaceInviteEmail({
       workspaceId: workspace.id,
@@ -96,15 +148,20 @@ export async function POST(request: NextRequest) {
       tokenVersion: 1,
       email: toEmail,
       role,
-      subject,
-      body,
+      subject: deliverySubject,
+      body: deliveryBody,
+      idempotencyKey: buildWorkspaceInviteTestDeliveryIdempotencyKey({
+        workspaceId: workspace.id,
+        actorUserId: access.actor.userId,
+        requestId,
+      }),
     })
 
     if (!delivery.ok) {
       return NextResponse.json(
         {
           error: `Test email delivery failed: ${delivery.error}`,
-          preview: { subject, body },
+          preview: { subject: previewSubject, body: previewBody },
           templateKey: selectedTemplate.key,
           toEmail,
         },
@@ -116,7 +173,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       templateKey: selectedTemplate.key,
       toEmail,
-      preview: { subject, body },
+      preview: { subject: previewSubject, body: previewBody },
       delivery: {
         provider: delivery.provider,
         messageId: delivery.messageId,
