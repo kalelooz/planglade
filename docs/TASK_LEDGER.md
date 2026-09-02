@@ -2,6 +2,21 @@
 
 ## Active task
 
+### PG-SEC-001 — Close the invitation test-send relay
+
+- Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
+- Requested: 2026-09-02
+- Scope: prevent authenticated invitation test-send from targeting arbitrary recipients or delivering caller-controlled content, apply the normal invitation policy, and share durable abuse controls across create, resend, and test delivery.
+- Acceptance: test-send is restricted to the signed-in verified email; overrides remain preview-only; minimum inviter-role and domain policies apply; stable logical retries reuse the provider idempotency key; account, workspace, recipient, test, and installation quotas persist across processes and return 429; normal invitation routes remain intact; focused and full public gates pass.
+
+### Evidence
+
+- 2026-09-02: regression-first route checks prove arbitrary-recipient rejection, OWNER-only and blocked-domain policy enforcement, fixed delivered content with caller content confined to the response preview, stable provider keys for logical retries, and a clear 429 with `Retry-After` after the test quota.
+- 2026-09-02: the durable limiter stores only hashed account/workspace/recipient subjects in the existing database throttle table. Create and resend share the recipient quota; two independent Node processes racing against one SQLite database receive only three total test-send claims.
+- 2026-09-02: independent review identified a stale quota-window denial race. A deterministic regression reproduced it, and the corrected conditional block claim now re-evaluates capacity if another process resets the window. The review's duplicate-variable claim was disproved by source scopes, TypeScript, and the complete test run.
+- 2026-09-02: all 268 backend tests and all 168 frontend tests pass. Backend/frontend lint and typecheck, both production builds, Prisma validation, public boundary, CI/docs/release/backend-surface checks, release backup/restore rehearsal, and high-severity dependency audits pass. A newly disclosed Browserslist advisory was removed with compatible lockfile-only updates; one low-severity frontend build-tool advisory remains non-blocking.
+- Visual evidence: not required; this correction changes server API and delivery behavior only.
+
 ### UI-005 — Project, Task, and Note control integrity
 
 - Status: **PASS** for public-core publication; Cloud import remains separately gated

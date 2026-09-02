@@ -35,6 +35,8 @@ import {
   resolveInviteTemplateFromPolicy,
 } from "@/lib/workspace-invite-policy"
 import { isGenericWorkspaceRole } from "@/lib/workspace-member-guards"
+import { consumeWorkspaceInviteDeliveryRateLimit } from "@/lib/workspace-invite-rate-limit"
+import { workspaceInviteRateLimitResponse } from "@/lib/workspace-invite-response"
 
 function deriveInviteeName(inputName: string | undefined, email: string) {
   const trimmedName = inputName?.trim() ?? ""
@@ -207,7 +209,13 @@ export async function POST(request: NextRequest) {
         messageId: string
       }
     }> = []
-    const failed: Array<{ email: string; error: string; inviteId?: string }> = []
+    const failed: Array<{
+      email: string
+      error: string
+      inviteId?: string
+      code?: "INVITATION_RATE_LIMITED"
+      retryAfterSeconds?: number
+    }> = []
 
     for (const entry of inviteEntries) {
       const inviteEmail = normalizeInviteEmail(entry.email)
@@ -248,6 +256,21 @@ export async function POST(request: NextRequest) {
         failed.push({
           email: inviteEmail,
           error: "Ownership cannot be granted through invitations",
+        })
+        continue
+      }
+      const rateLimit = await consumeWorkspaceInviteDeliveryRateLimit({
+        action: "create",
+        actorUserId,
+        workspaceId: parsed.data.workspaceId,
+        recipientEmail: inviteEmail,
+      })
+      if (!rateLimit.allowed) {
+        failed.push({
+          email: inviteEmail,
+          error: "Too many invitation emails. Wait before trying again.",
+          code: "INVITATION_RATE_LIMITED",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
         })
         continue
       }
@@ -406,6 +429,9 @@ export async function POST(request: NextRequest) {
 
     if (!isBatch) {
       if (sent.length === 0) {
+        if (failed[0]?.code === "INVITATION_RATE_LIMITED") {
+          return workspaceInviteRateLimitResponse(failed[0].retryAfterSeconds ?? 1)
+        }
         return NextResponse.json(
           { error: failed[0]?.error ?? "Failed to create workspace invitation", failed },
           { status: 502 }
@@ -418,6 +444,16 @@ export async function POST(request: NextRequest) {
           delivery: first.delivery,
         },
         { status: first.wasPendingRegenerated ? 200 : 201 }
+      )
+    }
+
+    if (
+      sent.length === 0 &&
+      failed.length > 0 &&
+      failed.every((entry) => entry.code === "INVITATION_RATE_LIMITED")
+    ) {
+      return workspaceInviteRateLimitResponse(
+        Math.max(...failed.map((entry) => entry.retryAfterSeconds ?? 1))
       )
     }
 
