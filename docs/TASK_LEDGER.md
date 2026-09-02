@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-OPS-007 — Publish safe health and immutable revision status
+
+- Status: **REVISE** — implementation, review, and downstream proof are pending
+- Requested: 2026-09-02
+- Scope: keep readiness checks useful to operators while removing public provider topology and configuration errors, and expose only a validated immutable source revision.
+- Acceptance: public 200, 503, and 500 responses contain only status, service, and a validated 40-character revision or `unknown`; component detail remains server-side; provider-neutral container builds can supply the revision; focused and full public gates, independent review, Cloud import, exact-merge deployment, and production response-to-image proof pass.
+
+### Evidence
+
+- 2026-09-02: the finding is current. Production `/api/health` returned Firebase, Resend, storage, billing, provider-capability, and component error structures but no build identifier, even though the running image was independently tied to a reviewed commit.
+- 2026-09-02: regression coverage now requires the complete public response shape for ready, degraded, database-failure, and unexpected-failure paths; invalid or mutable revision text is replaced with `unknown`, while exact lowercase 40-character revisions are returned. Detailed readiness failures are logged internally and are not serialized.
+- 2026-09-02: all ten focused health/API contract tests pass. Backend typecheck, lint, and production build pass, and a clean runner image built with a controlled revision exposes that exact value through `PLANGLADE_BUILD_REVISION`; the local test image was removed after inspection.
+
 ### PG-DATA-005 — Prevent stale collaborative overwrites
 
 - Status: **PASS** for public-core publication; Cloud import and PostgreSQL multi-process proof remain separately gated

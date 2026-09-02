@@ -2,6 +2,28 @@ import { NextResponse } from "next/server"
 
 import { evaluateProductionConfiguration } from "@/lib/production-config.mjs"
 
+type HealthStatus = "ok" | "degraded" | "error"
+
+function publicBuildRevision() {
+  try {
+    const revision = process.env.PLANGLADE_BUILD_REVISION?.trim() ?? ""
+    return /^[0-9a-f]{40}$/.test(revision) ? revision : "unknown"
+  } catch {
+    return "unknown"
+  }
+}
+
+function publicHealthResponse(status: HealthStatus, statusCode: number) {
+  return NextResponse.json(
+    {
+      status,
+      service: "planglade-api",
+      revision: publicBuildRevision(),
+    },
+    { status: statusCode }
+  )
+}
+
 export async function GET() {
   try {
     const configuration = evaluateProductionConfiguration(process.env, {
@@ -28,52 +50,27 @@ export async function GET() {
     }
     const isReady = isAuthReady && isStorageReady && isEmailReady && isDatabaseReady
 
-    return NextResponse.json(
-      {
-        status: isReady ? "ok" : "degraded",
-        service: "planglade-api",
-        time: new Date().toISOString(),
-        checks: {
-          auth: {
-            ready: isAuthReady,
-            mode: authConfig.mode,
-            publicMode: authConfig.publicMode,
-            providersConfigured: authProvidersConfigured,
-            providers: providerCapabilities,
-            errors:
-              authConfig.mode === "nextauth" && !authProvidersConfigured
-                ? [
-                    ...authConfig.errors,
-                    "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider.",
-                  ]
-                : authConfig.errors,
-          },
-          storage: {
-            ready: isStorageReady,
-            provider: storageConfig.provider,
-            errors: storageConfig.errors,
-          },
-          email: {
-            ready: isEmailReady,
-            provider: emailConfig.provider,
-            errors: emailConfig.errors,
-          },
-          database: {
-            ready: isDatabaseReady,
-          },
+    if (!isReady) {
+      console.error("Health readiness check failed", {
+        auth: {
+          ready: isAuthReady,
+          errors:
+            authConfig.mode === "nextauth" && !authProvidersConfigured
+              ? [
+                  ...authConfig.errors,
+                  "PLANGLADE_AUTH_MODE=nextauth requires at least one configured provider.",
+                ]
+              : authConfig.errors,
         },
-      },
-      { status: isReady ? 200 : 503 }
-    )
+        storage: { ready: isStorageReady, errors: storageConfig.errors },
+        email: { ready: isEmailReady, errors: emailConfig.errors },
+        database: { ready: isDatabaseReady },
+      })
+    }
+
+    return publicHealthResponse(isReady ? "ok" : "degraded", isReady ? 200 : 503)
   } catch (error) {
     console.error("Health check failed", error)
-    return NextResponse.json(
-      {
-        status: "error",
-        service: "planglade-api",
-        time: new Date().toISOString(),
-      },
-      { status: 500 }
-    )
+    return publicHealthResponse("error", 500)
   }
 }
