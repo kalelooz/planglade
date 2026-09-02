@@ -224,6 +224,7 @@ test("valid label IDs are deduplicated before join writes", async () => {
           },
         },
         activityEvent: { create: async () => ({}) },
+        workItemLaneVersion: { upsert: async () => ({ version: 1 }) },
       }
       return (callback as (client: typeof tx) => Promise<unknown>)(tx)
     }) as typeof db.$transaction
