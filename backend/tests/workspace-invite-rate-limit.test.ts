@@ -42,6 +42,30 @@ test("test invitation delivery returns a durable limit after three account attem
   assert.equal(buckets.some((bucket) => bucket.subjectKey.includes("recipient@example.com")), false)
 })
 
+test("a concurrent first claim tolerates a database unique-key race", async () => {
+  const originalUpsert = db.authThrottle.upsert
+  let shouldConflict = true
+  ;(db.authThrottle as typeof db.authThrottle).upsert = (async (...args) => {
+    if (shouldConflict) {
+      shouldConflict = false
+      throw Object.assign(new Error("simulated concurrent create"), { code: "P2002" })
+    }
+    return originalUpsert(...args)
+  }) as typeof db.authThrottle.upsert
+
+  try {
+    const result = await consumeWorkspaceInviteDeliveryRateLimit({
+      action: "test",
+      actorUserId: "unique-race-account",
+      workspaceId: "unique-race-workspace",
+      recipientEmail: "unique-race@example.com",
+    }, new Date("2026-09-02T09:00:00.000Z"))
+    assert.equal(result.allowed, true)
+  } finally {
+    ;(db.authThrottle as typeof db.authThrottle).upsert = originalUpsert
+  }
+})
+
 test("a stale exhausted claim cannot block a freshly reset quota window", async () => {
   const input = {
     action: "test" as const,
