@@ -29,6 +29,10 @@ function hashSubject(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex")
 }
 
+function isConcurrentCreateConflict(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002"
+}
+
 function getBuckets(input: RateLimitInput) {
   const buckets: Array<{ name: BucketName; subjectKey: string }> = []
   if (input.action === "test") {
@@ -58,11 +62,15 @@ async function claimBucket(
   const windowCutoff = new Date(now.getTime() - policy.windowMs)
 
   while (true) {
-    await db.authThrottle.upsert({
-      where: { scope_subjectKey: key },
-      create: { ...key, windowStartedAt: now, attemptCount: 0 },
-      update: {},
-    })
+    try {
+      await db.authThrottle.upsert({
+        where: { scope_subjectKey: key },
+        create: { ...key, windowStartedAt: now, attemptCount: 0 },
+        update: {},
+      })
+    } catch (error) {
+      if (!isConcurrentCreateConflict(error)) throw error
+    }
     await db.authThrottle.updateMany({
       where: { ...key, windowStartedAt: { lte: windowCutoff } },
       data: { windowStartedAt: now, attemptCount: 0, blockedUntil: null },
