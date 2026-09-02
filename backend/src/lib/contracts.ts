@@ -309,8 +309,8 @@ const projectFieldsSchema = z.object({
   name: z.string().trim().min(1).max(120),
   slug: workspaceSlugSchema,
   description: z.string().trim().max(1000).optional(),
-  status: projectStatusSchema.default("ACTIVE"),
-  mode: projectModeSchema.default("STANDARD"),
+  status: projectStatusSchema,
+  mode: projectModeSchema,
   featureFlags: z.record(z.string(), z.boolean()).optional(),
   color: z.string().trim().max(32).optional(),
   icon: z.enum(["folder", "rocket", "megaphone", "code", "palette", "book-open", "calendar", "target", "briefcase", "shopping-bag", "heart-pulse", "graduation-cap", "home", "plane"]).optional(),
@@ -324,9 +324,13 @@ function validateProjectDates(data: { startDate?: string | null; dueDate?: strin
   }
 }
 
-export const createProjectSchema = projectFieldsSchema.superRefine(validateProjectDates)
+export const createProjectSchema = projectFieldsSchema.extend({
+  status: projectStatusSchema.default("ACTIVE"),
+  mode: projectModeSchema.default("STANDARD"),
+}).superRefine(validateProjectDates)
 
 export const updateProjectSchema = projectFieldsSchema.partial().extend({
+  expectedUpdatedAt: z.string().datetime().optional(),
   workspaceId: z.string().min(1).optional(),
   slug: workspaceSlugSchema.optional(),
   startDate: z.string().datetime().nullable().optional(),
@@ -366,6 +370,13 @@ export const createWorkItemSchema = workItemBaseSchema.extend({
 
 export const updateWorkItemSchema = workItemBaseSchema.partial().extend({
   expectedUpdatedAt: z.string().datetime().optional(),
+  expectedLaneVersions: z.object({
+    BACKLOG: z.number().int().nonnegative().optional(),
+    TODO: z.number().int().nonnegative().optional(),
+    IN_PROGRESS: z.number().int().nonnegative().optional(),
+    IN_REVIEW: z.number().int().nonnegative().optional(),
+    DONE: z.number().int().nonnegative().optional(),
+  }).strict().optional(),
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).nullable().optional(),
   startDate: z.string().datetime().nullable().optional(),
@@ -379,17 +390,24 @@ export const createCommentSchema = z.object({
   body: z.string().trim().min(1).max(5000),
 })
 
-export const createNoteSchema = z.object({
+const noteFieldsSchema = z.object({
   workspaceId: z.string().min(1),
   projectId: z.string().min(1).optional(),
   title: z.string().trim().min(1).max(180),
   body: z.string().trim().max(20000).optional(),
+  visibility: noteVisibilitySchema,
+  pinned: z.boolean(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(50),
+})
+
+export const createNoteSchema = noteFieldsSchema.extend({
   visibility: noteVisibilitySchema.default("PRIVATE"),
   pinned: z.boolean().default(false),
   tags: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
 })
 
-export const updateNoteSchema = createNoteSchema.partial().extend({
+export const updateNoteSchema = noteFieldsSchema.partial().extend({
+  expectedUpdatedAt: z.string().datetime().optional(),
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).nullable().optional(),
 })

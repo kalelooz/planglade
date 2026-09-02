@@ -5,9 +5,9 @@ import type { BackendNote, BackendProject, BackendWorkItem, Session } from '@/li
 import { getSession } from '@/lib/api/session'
 import { getProjects, createProject, deleteProject, replaceProjectInList, updateProject, type CreateProjectInput, type ProjectMutationPatch } from '@/lib/api/projects'
 import {
-  getTasks, getInboxItems, createTask, deleteTask, optimisticallyPatchTask,
+  getTaskSnapshot, getInboxItems, createTask, deleteTask, expectedLaneVersionsForTaskUpdate, optimisticallyPatchTask,
   removeInboxFromList, removeTaskFromList, replaceInboxInList, replaceTaskInList,
-  updateTask, type CreateTaskInput,
+  updateTask, type CreateTaskInput, type TaskMutationPatch,
 } from '@/lib/api/tasks'
 import { getNotes, createNote, deleteNote, updateNote, type NoteMutationPatch } from '@/lib/api/notes'
 import { getWorkItemRelations } from '@/lib/api/relations'
@@ -15,6 +15,16 @@ import { getUserSettings, updateUserSettings } from '@/lib/api/settings'
 import { createWorkspace, updateWorkspace } from '@/lib/api/workspace'
 import type { TaskPatch } from './workspace-context'
 import { useAppCommands } from './app-commands'
+import { toApiError } from '@/lib/api/errors'
+
+type TaskSnapshot = Awaited<ReturnType<typeof getTaskSnapshot>>
+
+function updateTaskSnapshot(
+  current: TaskSnapshot | undefined,
+  update: (items: BackendWorkItem[]) => BackendWorkItem[],
+) {
+  return current ? { ...current, workItems: update(current.workItems) } : current
+}
 
 export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
   const queryClient = useQueryClient()
@@ -39,12 +49,16 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     enabled: !!workspaceId,
     retry: false,
   })
-  const tasks = useQuery({
+  const taskSnapshot = useQuery({
     queryKey: ['tasks', workspaceId],
-    queryFn: ({ signal }) => getTasks(workspaceId!, signal),
+    queryFn: ({ signal }) => getTaskSnapshot(workspaceId!, signal),
     enabled: !!workspaceId,
     retry: false,
   })
+  const tasks = {
+    ...taskSnapshot,
+    data: taskSnapshot.data?.workItems,
+  }
   const inbox = useQuery({
     queryKey: ['inbox', workspaceId],
     queryFn: ({ signal }) => getInboxItems(workspaceId!, signal),
@@ -69,17 +83,22 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     retry: false,
     onSuccess: (created, variables) => {
       const targetWorkspaceId = variables.input.workspaceId
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => created.isInbox ? current : [...current.filter((task) => task.id !== created.id), created])
+      queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
+        current,
+        (items) => created.isInbox ? items : [...items.filter((task) => task.id !== created.id), created],
+      ))
       queryClient.setQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId], (current = []) => created.isInbox ? [...current.filter((item) => item.id !== created.id), created] : current)
+      if (!created.isInbox) void queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
     },
   })
   const updateTaskMutation = useMutation({
-    mutationFn: ({ workspaceId: targetWorkspaceId, task, patch }: { workspaceId: string; task: BackendWorkItem; patch: TaskPatch }) => updateTask(
+    mutationFn: ({ workspaceId: targetWorkspaceId, task, patch, expectedLaneVersions }: { workspaceId: string; task: BackendWorkItem; patch: TaskPatch; expectedLaneVersions?: ReturnType<typeof expectedLaneVersionsForTaskUpdate> }) => updateTask(
       targetWorkspaceId,
       task,
       patch,
       undefined,
       taskVersions.current.get(`${targetWorkspaceId}:${task.id}`) ?? task.updatedAt,
+      expectedLaneVersions,
     ),
     retry: false,
     onMutate: async ({ workspaceId: targetWorkspaceId, task, patch }) => {
@@ -87,22 +106,34 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
         queryClient.cancelQueries({ queryKey: ['tasks', targetWorkspaceId] }),
         queryClient.cancelQueries({ queryKey: ['inbox', targetWorkspaceId] }),
       ])
-      const previousTasks = queryClient.getQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId])
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => optimisticallyPatchTask(current, task, patch))
+      const previousTasks = queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])
+      queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
+        current,
+        (items) => optimisticallyPatchTask(items, task, patch),
+      ))
       return { previousTasks }
     },
-    onError: (_error, { workspaceId: targetWorkspaceId }, context) => {
+    onError: (error, { workspaceId: targetWorkspaceId }, context) => {
       if (context?.previousTasks) queryClient.setQueryData(['tasks', targetWorkspaceId], context.previousTasks)
+      if (toApiError(error).kind === 'conflict') {
+        for (const key of taskVersions.current.keys()) {
+          if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
+        }
+        void queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
+      }
     },
-    onSuccess: async (updated, { workspaceId: targetWorkspaceId, patch }) => {
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => replaceTaskInList(current, updated))
+    onSuccess: async (updated, { workspaceId: targetWorkspaceId, expectedLaneVersions }) => {
+      queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
+        current,
+        (items) => replaceTaskInList(items, updated),
+      ))
       queryClient.setQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId], (current = []) => replaceInboxInList(current, updated))
-      if (patch.beforeId !== undefined) {
+      if (expectedLaneVersions) {
         for (const key of taskVersions.current.keys()) {
           if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
         }
         await queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
-        for (const task of queryClient.getQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId]) ?? []) {
+        for (const task of queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])?.workItems ?? []) {
           taskVersions.current.set(`${targetWorkspaceId}:${task.id}`, task.updatedAt)
         }
       } else {
@@ -114,8 +145,12 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     mutationFn: ({ workspaceId: targetWorkspaceId, taskId }: { workspaceId: string; taskId: string }) => deleteTask(targetWorkspaceId, taskId),
     retry: false,
     onSuccess: (_deleted, { workspaceId: targetWorkspaceId, taskId }) => {
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', targetWorkspaceId], (current = []) => removeTaskFromList(current, taskId))
+      queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
+        current,
+        (items) => removeTaskFromList(items, taskId),
+      ))
       queryClient.setQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId], (current = []) => removeInboxFromList(current, taskId))
+      void queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
       commands.dispatch('task-deleted', { taskId })
     },
   })
@@ -129,6 +164,11 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
   const updateProjectMutation = useMutation({
     mutationFn: ({ workspaceId: targetWorkspaceId, project, patch }: { workspaceId: string; project: BackendProject; patch: ProjectMutationPatch }) => updateProject(targetWorkspaceId, project, patch),
     retry: false,
+    onError: (error, variables) => {
+      if (toApiError(error).kind === 'conflict') {
+        void queryClient.invalidateQueries({ queryKey: ['projects', variables.workspaceId] })
+      }
+    },
     onSuccess: (updated, variables) => {
       queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => replaceProjectInList(current, updated))
     },
@@ -138,7 +178,10 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     retry: false,
     onSuccess: (_deleted, variables) => {
       queryClient.setQueryData<BackendProject[]>(['projects', variables.workspaceId], (current = []) => current.filter((project) => project.id !== variables.projectId))
-      queryClient.setQueryData<BackendWorkItem[]>(['tasks', variables.workspaceId], (current = []) => current.map((task) => task.projectId === variables.projectId ? { ...task, projectId: null } : task))
+      queryClient.setQueryData<TaskSnapshot>(['tasks', variables.workspaceId], (current) => updateTaskSnapshot(
+        current,
+        (items) => items.map((task) => task.projectId === variables.projectId ? { ...task, projectId: null } : task),
+      ))
       queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.projectId === variables.projectId ? { ...note, projectId: null } : note))
     },
   })
@@ -150,8 +193,17 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     },
   })
   const updateNoteMutation = useMutation({
-    mutationFn: ({ workspaceId: targetWorkspaceId, noteId, patch }: { workspaceId: string; noteId: string; patch: NoteMutationPatch }) => updateNote(targetWorkspaceId, noteId, patch),
+    mutationFn: ({ workspaceId: targetWorkspaceId, noteId, patch }: { workspaceId: string; noteId: string; patch: NoteMutationPatch }) => {
+      const note = queryClient.getQueryData<BackendNote[]>(['notes', targetWorkspaceId])?.find((candidate) => candidate.id === noteId)
+      if (!note) throw new Error('Note is no longer available')
+      return updateNote(targetWorkspaceId, note, patch)
+    },
     retry: false,
+    onError: (error, variables) => {
+      if (toApiError(error).kind === 'conflict') {
+        void queryClient.invalidateQueries({ queryKey: ['notes', variables.workspaceId] })
+      }
+    },
     onSuccess: (updated, variables) => {
       queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.map((note) => note.id === updated.id ? updated : note))
     },
@@ -203,6 +255,11 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     createWorkspaceMutation,
     updateWorkspaceMutation,
     updateSettingsMutation,
+    expectedLaneVersions: (targetWorkspaceId: string, task: BackendWorkItem, patch: TaskMutationPatch) => {
+      const snapshot = queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])
+      const currentTask = snapshot?.workItems.find((candidate) => candidate.id === task.id) ?? task
+      return snapshot ? expectedLaneVersionsForTaskUpdate(currentTask, patch, snapshot.laneVersions) : undefined
+    },
     invalidateRelations: (targetWorkspaceId: string) => queryClient.invalidateQueries({ queryKey: ['work-item-relations', targetWorkspaceId] }),
   }
 }

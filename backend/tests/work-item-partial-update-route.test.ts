@@ -13,7 +13,10 @@ const originalEnv = {
 
 const originalWorkspaceFindUnique = db.workspace.findUnique
 const originalWorkspaceMemberFindUnique = db.workspaceMember.findUnique
+const originalUserFindUnique = db.user.findUnique
 const originalWorkItemFindUnique = db.workItem.findUnique
+const originalWorkItemFindFirst = db.workItem.findFirst
+const originalLaneVersionFindMany = db.workItemLaneVersion.findMany
 const originalTransaction = db.$transaction
 
 function restoreEnv() {
@@ -40,6 +43,15 @@ async function runWithUpdateRouteMocks(fn: () => Promise<void>) {
     userId: "user-1",
     role: "MEMBER",
   })) as unknown) as typeof db.workspaceMember.findUnique
+  ;(db.user as typeof db.user).findUnique = ((async () => ({
+    id: "user-1",
+    email: "alex.morgan@planglade.dev",
+    normalizedEmail: "alex.morgan@planglade.dev",
+    firebaseUid: null,
+    name: "Alex Morgan",
+    image: null,
+    authVersion: 0,
+  })) as unknown) as typeof db.user.findUnique
 
   ;(db.workItem as typeof db.workItem).findUnique = ((async () => ({
     id: "task-1",
@@ -49,7 +61,16 @@ async function runWithUpdateRouteMocks(fn: () => Promise<void>) {
     assigneeId: "user-2",
     projectId: "project-1",
     parentId: null,
+    position: 1024,
+    isInbox: false,
+    updatedAt: new Date("2026-06-29T09:00:00.000Z"),
   })) as unknown) as typeof db.workItem.findUnique
+  ;(db.workItem as typeof db.workItem).findFirst = ((async () => ({
+    id: "task-1",
+    workspaceId: "workspace-1",
+    title: "Current title",
+  })) as unknown) as typeof db.workItem.findFirst
+  ;(db.workItemLaneVersion as typeof db.workItemLaneVersion).findMany = ((async () => []) as unknown) as typeof db.workItemLaneVersion.findMany
 
   try {
     await fn()
@@ -57,7 +78,10 @@ async function runWithUpdateRouteMocks(fn: () => Promise<void>) {
     restoreEnv()
     ;(db.workspace as typeof db.workspace).findUnique = originalWorkspaceFindUnique
     ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originalWorkspaceMemberFindUnique
+    ;(db.user as typeof db.user).findUnique = originalUserFindUnique
     ;(db.workItem as typeof db.workItem).findUnique = originalWorkItemFindUnique
+    ;(db.workItem as typeof db.workItem).findFirst = originalWorkItemFindFirst
+    ;(db.workItemLaneVersion as typeof db.workItemLaneVersion).findMany = originalLaneVersionFindMany
     ;(db as unknown as { $transaction: unknown }).$transaction = originalTransaction
   }
 }
@@ -69,8 +93,16 @@ test("TASK-UPDATE-PARTIAL-PATCH-001: title-only update sends only title to the d
     ;(db as unknown as { $transaction: unknown }).$transaction = (async (callback: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         workItem: {
-          update: async (args: { data: Record<string, unknown> }) => {
+          updateMany: async (args: { data: Record<string, unknown> }) => {
             updateData = args.data
+            return { count: 1 }
+          },
+          findUniqueOrThrow: async () => ({
+            id: "task-1",
+            projectId: "project-1",
+            updatedAt: new Date("2026-06-29T10:00:00.000Z"),
+          }),
+          update: async () => {
             return {
               id: "task-1",
               projectId: "project-1",
@@ -117,7 +149,10 @@ test("TASK-UPDATE-PARTIAL-PATCH-001: title-only update sends only title to the d
         "content-type": "application/json",
         "x-planglade-user-id": "user-1",
       },
-      body: JSON.stringify({ title: "Renamed title" }),
+      body: JSON.stringify({
+        title: "Renamed title",
+        expectedUpdatedAt: "2026-06-29T09:00:00.000Z",
+      }),
     })
 
     const response = await updateWorkItem(request, {
@@ -137,9 +172,33 @@ test("TASK-UPDATE-PARTIAL-PATCH-001: title-only update sends only title to the d
 })
 
 test("TASK-UPDATE-PARTIAL-PATCH-001: update schema has no create defaults", () => {
-  const parsed = updateWorkItemSchema.parse({ title: "Renamed title" })
+  const parsed = updateWorkItemSchema.parse({
+    title: "Renamed title",
+    expectedUpdatedAt: "2026-06-29T09:00:00.000Z",
+  })
 
-  assert.deepEqual(parsed, { title: "Renamed title" })
+  assert.deepEqual(parsed, {
+    title: "Renamed title",
+    expectedUpdatedAt: "2026-06-29T09:00:00.000Z",
+  })
+})
+
+test("work-item updates require an updated-at precondition and return current state", async () => {
+  await runWithUpdateRouteMocks(async () => {
+    const response = await updateWorkItem(new NextRequest(
+      "http://localhost/api/work-items/task-1?workspaceId=workspace-1",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-planglade-user-id": "user-1" },
+        body: JSON.stringify({ title: "Unconditional title" }),
+      },
+    ), { params: Promise.resolve({ workItemId: "task-1" }) })
+
+    assert.equal(response.status, 428)
+    const payload = await response.json()
+    assert.equal(payload.error, "expectedUpdatedAt is required")
+    assert.equal(payload.current.workItem.id, "task-1")
+  })
 })
 
 test("TASK-UPDATE-PARTIAL-PATCH-001: create schema still applies intended task defaults", () => {
@@ -176,7 +235,7 @@ test("work-item updates reject a stale updated-at precondition with current serv
     assert.equal(response.status, 409)
     const payload = await response.json()
     assert.equal(payload.error, "Work item changed since it was loaded")
-    assert.equal(payload.current.id, "task-1")
+    assert.equal(payload.current.workItem.id, "task-1")
   })
 })
 
@@ -199,14 +258,26 @@ test("task placement reindexes the workspace-wide destination status across proj
         projectId: "project-1",
         parentId: null,
         position: 1024,
+        isInbox: false,
+        updatedAt: new Date("2026-06-29T09:00:00.000Z"),
       }
     }) as unknown) as typeof db.workItem.findUnique
 
     ;(db as unknown as { $transaction: unknown }).$transaction = (async (callback: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         workItem: {
+          updateMany: async (args: { data: Record<string, unknown> }) => {
+            statusPatch = args.data
+            return { count: 1 }
+          },
+          findUniqueOrThrow: async () => ({
+            id: "task-1",
+            title: "Original title",
+            assigneeId: "user-2",
+            projectId: "project-1",
+            updatedAt: new Date("2026-07-31T00:00:00.000Z"),
+          }),
           update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
-            if (args.data.status) statusPatch = args.data
             if (typeof args.data.position === "number") {
               positionUpdates.push({ id: args.where.id, position: args.data.position })
             }
@@ -222,6 +293,7 @@ test("task placement reindexes the workspace-wide destination status across proj
             siblingWhere = args.where
             return [{ id: "task-2" }, { id: "task-3" }, { id: "task-1" }]
           },
+          findFirst: async () => ({ id: "task-2" }),
           findUnique: async () => ({
             id: "task-1",
             workspaceId: "workspace-1",
@@ -242,6 +314,10 @@ test("task placement reindexes the workspace-wide destination status across proj
         workItemLabel: { deleteMany: async () => ({}), createMany: async () => ({}) },
         activityEvent: { create: async () => ({}) },
         notification: { create: async () => ({}), upsert: async () => ({}) },
+        workItemLaneVersion: {
+          upsert: async () => ({ version: 0 }),
+          updateMany: async () => ({ count: 1 }),
+        },
       }
       return callback(tx)
     }) as unknown as typeof db.$transaction
@@ -249,12 +325,17 @@ test("task placement reindexes the workspace-wide destination status across proj
     const response = await updateWorkItem(new NextRequest("http://localhost/api/work-items/task-1?workspaceId=workspace-1", {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-planglade-user-id": "user-1" },
-      body: JSON.stringify({ status: "TODO", beforeId: "task-2" }),
+      body: JSON.stringify({
+        status: "TODO",
+        beforeId: "task-2",
+        expectedUpdatedAt: "2026-06-29T09:00:00.000Z",
+        expectedLaneVersions: { IN_PROGRESS: 0, TODO: 0 },
+      }),
     }), { params: Promise.resolve({ workItemId: "task-1" }) })
 
     assert.equal(response.status, 200)
     assert.deepEqual(statusPatch, { status: "TODO", isInbox: false })
-    assert.deepEqual(siblingWhere, { workspaceId: "workspace-1", status: "TODO" })
+    assert.deepEqual(siblingWhere, { workspaceId: "workspace-1", status: "TODO", isInbox: false })
     assert.deepEqual(positionUpdates, [
       { id: "task-1", position: 1024 },
       { id: "task-2", position: 2048 },

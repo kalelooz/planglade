@@ -54,7 +54,7 @@ export function createProject(input: CreateProjectInput, signal?: AbortSignal) {
 }
 
 export function updateProject(workspaceId: string, project: BackendProject, patch: ProjectMutationPatch, signal?: AbortSignal) {
-  const body: Record<string, unknown> = {}
+  const body: Record<string, unknown> = { expectedUpdatedAt: project.updatedAt }
   if (patch.name !== undefined) body.name = patch.name
   if (patch.slug !== undefined) body.slug = patch.slug
   if (patch.description !== undefined) body.description = patch.description

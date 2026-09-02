@@ -1,5 +1,5 @@
 import { deleteJson, getJson, sendJson } from '@/lib/api/client'
-import { workItemHistorySchema, workItemListSchema, workItemResponseSchema, type BackendWorkItem } from '@/lib/api/contracts'
+import { workItemHistorySchema, workItemListSchema, workItemResponseSchema, type BackendWorkItem, type WorkItemLaneVersions } from '@/lib/api/contracts'
 import type { Priority, Task, TaskStatus } from '@/types'
 import { placeBoardTask } from '@/lib/board-order'
 import { z } from 'zod'
@@ -11,8 +11,13 @@ export function canMutateTasksForAuthMode(authMode?: string) {
 }
 
 export async function getTasks(workspaceId: string, signal?: AbortSignal) {
+  const response = await getTaskSnapshot(workspaceId, signal)
+  return response.workItems
+}
+
+export async function getTaskSnapshot(workspaceId: string, signal?: AbortSignal) {
   const response = await getJson(`/api/work-items?workspaceId=${encodeURIComponent(workspaceId)}`, workItemListSchema, signal)
-  return response.workItems.filter((item) => !item.isInbox)
+  return { ...response, workItems: response.workItems.filter((item) => !item.isInbox) }
 }
 
 export async function getInboxItems(workspaceId: string, signal?: AbortSignal) {
@@ -98,8 +103,30 @@ export function createTask(input: CreateTaskInput, signal?: AbortSignal) {
   }, workItemResponseSchema, signal).then((response) => response.workItem)
 }
 
-export function updateTask(workspaceId: string, task: BackendWorkItem, patch: TaskMutationPatch, signal?: AbortSignal, expectedUpdatedAt = task.updatedAt) {
+export function expectedLaneVersionsForTaskUpdate(
+  task: BackendWorkItem,
+  patch: TaskMutationPatch,
+  laneVersions: WorkItemLaneVersions,
+) {
+  const targetStatus = patch.status && patch.status !== 'blocked' ? backendStatus[patch.status] : task.status
+  const changesLane = patch.beforeId !== undefined || (patch.status !== undefined && (targetStatus !== task.status || task.isInbox))
+  if (!changesLane) return undefined
+  return {
+    ...(!task.isInbox ? { [task.status]: laneVersions[task.status] } : {}),
+    [targetStatus]: laneVersions[targetStatus],
+  }
+}
+
+export function updateTask(
+  workspaceId: string,
+  task: BackendWorkItem,
+  patch: TaskMutationPatch,
+  signal?: AbortSignal,
+  expectedUpdatedAt = task.updatedAt,
+  expectedLaneVersions?: Partial<WorkItemLaneVersions>,
+) {
   const body: Record<string, unknown> = { expectedUpdatedAt }
+  if (expectedLaneVersions) body.expectedLaneVersions = expectedLaneVersions
   if (patch.title !== undefined) body.title = patch.title
   if (patch.description !== undefined) body.description = patch.description
   if (patch.projectId !== undefined) body.projectId = patch.projectId

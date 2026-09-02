@@ -146,6 +146,13 @@ export const projectResponseSchema = z.object({
 
 export const workItemListSchema = z.object({
   workItems: z.array(backendWorkItemSchema),
+  laneVersions: z.object({
+    BACKLOG: z.number().int().nonnegative(),
+    TODO: z.number().int().nonnegative(),
+    IN_PROGRESS: z.number().int().nonnegative(),
+    IN_REVIEW: z.number().int().nonnegative(),
+    DONE: z.number().int().nonnegative(),
+  }),
 }).passthrough()
 
 export const workItemResponseSchema = z.object({
@@ -299,5 +306,6 @@ export type BackendWorkspace = z.infer<typeof workspaceResponseSchema>['workspac
 export type BackendProject = z.infer<typeof backendProjectSchema>
 export type BackendWorkItem = z.infer<typeof backendWorkItemSchema>
 export type BackendNote = z.infer<typeof backendNoteSchema>
+export type WorkItemLaneVersions = z.infer<typeof workItemListSchema>['laneVersions']
 export type BackendWorkItemRelation = z.infer<typeof backendWorkItemRelationSchema>
 export type BackendSavedView = z.infer<typeof backendSavedViewSchema>

@@ -22,10 +22,29 @@ import {
   workspaceMemberExists,
   workspaceProjectExists,
 } from "@/lib/workspace-reference-guards"
+import {
+  bumpWorkItemLaneVersion,
+  claimWorkItemLaneVersions,
+  getWorkItemLaneVersions,
+  runSerializableWorkItemMutation,
+  StaleWorkItemLaneMutationError,
+  type WorkItemLaneVersions,
+} from "@/lib/work-item-lane-versions"
 
 type Params = { params: Promise<{ workItemId: string }> }
 
 class StaleWorkItemMutationError extends Error {}
+
+async function currentWorkItemState(workspaceId: string, workItemId: string) {
+  const [workItem, laneVersions] = await Promise.all([
+    db.workItem.findFirst({
+      where: { id: workItemId, workspaceId },
+      include: { labels: { include: { label: true } } },
+    }),
+    getWorkItemLaneVersions(db, workspaceId),
+  ])
+  return { workItem, laneVersions }
+}
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { workItemId } = await params
@@ -77,30 +96,52 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         projectId: true,
         parentId: true,
         position: true,
+        isInbox: true,
         updatedAt: true,
       },
     })
     if (!existing) return notFound("Work item not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
 
+    if (!parsed.data.expectedUpdatedAt) {
+      return NextResponse.json(
+        {
+          error: "expectedUpdatedAt is required",
+          current: await currentWorkItemState(query.data.workspaceId, workItemId),
+        },
+        { status: 428 },
+      )
+    }
+    const expectedUpdatedAt = parsed.data.expectedUpdatedAt
+
     const effectiveParentId = parsed.data.parentId !== undefined ? parsed.data.parentId : existing.parentId
     const effectiveProjectId = parsed.data.projectId !== undefined ? parsed.data.projectId : existing.projectId
     const effectiveStatus = parsed.data.status ?? existing.status
 
-    if (parsed.data.beforeId === workItemId) return badRequest("A work item cannot be placed before itself")
-    if (parsed.data.beforeId) {
-      const before = await db.workItem.findUnique({
-        where: { id: parsed.data.beforeId },
-        select: { id: true, workspaceId: true, status: true },
-      })
-      if (
-        !before ||
-        before.workspaceId !== query.data.workspaceId ||
-        before.status !== effectiveStatus
-      ) {
-        return badRequest("Placement target not found in the destination status")
-      }
+    const affectedLaneStatuses = new Set<typeof existing.status>()
+    const changesLane = parsed.data.beforeId !== undefined
+      || (parsed.data.status !== undefined && (parsed.data.status !== existing.status || existing.isInbox))
+    if (changesLane) {
+      if (!existing.isInbox) affectedLaneStatuses.add(existing.status)
+      affectedLaneStatuses.add(effectiveStatus)
     }
+    const expectedLaneVersions = Object.fromEntries(
+      [...affectedLaneStatuses].map((status) => [status, parsed.data.expectedLaneVersions?.[status]]),
+    ) as Partial<WorkItemLaneVersions>
+    const missingLaneVersion = [...affectedLaneStatuses].find(
+      (status) => expectedLaneVersions[status] === undefined,
+    )
+    if (missingLaneVersion) {
+      return NextResponse.json(
+        {
+          error: `expectedLaneVersions.${missingLaneVersion} is required`,
+          current: await currentWorkItemState(query.data.workspaceId, workItemId),
+        },
+        { status: 428 },
+      )
+    }
+
+    if (parsed.data.beforeId === workItemId) return badRequest("A work item cannot be placed before itself")
 
     if (effectiveParentId === workItemId) {
       return badRequest("A work item cannot be its own parent")
@@ -132,7 +173,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const changedFields = Object.entries(parsed.data)
-      .filter(([key, value]) => key !== "expectedUpdatedAt" && value !== undefined)
+      .filter(([key, value]) => !["expectedUpdatedAt", "expectedLaneVersions"].includes(key) && value !== undefined)
       .map(([key]) => key)
     const action =
       parsed.data.status === "DONE" && existing.status !== "DONE"
@@ -141,8 +182,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ? "MOVED"
           : "UPDATED"
 
-    const updated = await db.$transaction(async (tx) => {
-      const mutationData = {
+    const updated = await runSerializableWorkItemMutation(db, async (tx) => {
+      await claimWorkItemLaneVersions(
+        tx,
+        query.data.workspaceId,
+        expectedLaneVersions,
+      )
+
+      const mutationFields = {
           ...(parsed.data.projectId !== undefined ? { projectId: parsed.data.projectId } : {}),
           ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
           ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
@@ -161,42 +208,43 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             ? { completedAt: parseDateValue(parsed.data.completedAt ?? undefined) }
             : {}),
       }
-      let patchedWorkItem
-      if (parsed.data.expectedUpdatedAt) {
-        const claim = await tx.workItem.updateMany({
-          where: { id: workItemId, updatedAt: new Date(parsed.data.expectedUpdatedAt) },
-          data: mutationData,
-        })
-        if (claim.count !== 1) throw new StaleWorkItemMutationError()
-        patchedWorkItem = await tx.workItem.findUniqueOrThrow({
-          where: { id: workItemId },
-          select: {
-            id: true,
-            title: true,
-            assigneeId: true,
-            projectId: true,
-            updatedAt: true,
-          },
-        })
-      } else {
-        patchedWorkItem = await tx.workItem.update({
-          where: { id: workItemId },
-          data: mutationData,
-          select: {
+      const mutationData = Object.keys(mutationFields).length > 0
+        ? mutationFields
+        : { updatedAt: new Date() }
+      const claim = await tx.workItem.updateMany({
+        where: { id: workItemId, updatedAt: new Date(expectedUpdatedAt) },
+        data: mutationData,
+      })
+      if (claim.count !== 1) throw new StaleWorkItemMutationError()
+      const patchedWorkItem = await tx.workItem.findUniqueOrThrow({
+        where: { id: workItemId },
+        select: {
           id: true,
           title: true,
           assigneeId: true,
           projectId: true,
           updatedAt: true,
-          },
-        })
-      }
+        },
+      })
 
       if (parsed.data.beforeId !== undefined) {
+        if (parsed.data.beforeId) {
+          const before = await tx.workItem.findFirst({
+            where: {
+              id: parsed.data.beforeId,
+              workspaceId: query.data.workspaceId,
+              status: effectiveStatus,
+              isInbox: false,
+            },
+            select: { id: true },
+          })
+          if (!before) throw new StaleWorkItemLaneMutationError()
+        }
         const siblings = await tx.workItem.findMany({
           where: {
             workspaceId: query.data.workspaceId,
             status: effectiveStatus,
+            isInbox: false,
           },
           orderBy: [{ position: "asc" }, { createdAt: "asc" }],
           select: { id: true },
@@ -309,13 +357,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ workItem: updated })
   } catch (error) {
-    if (error instanceof StaleWorkItemMutationError) {
-      const current = await db.workItem.findUnique({
-        where: { id: workItemId },
-        include: { labels: { include: { label: true } } },
-      })
+    if (error instanceof StaleWorkItemMutationError || error instanceof StaleWorkItemLaneMutationError) {
       return NextResponse.json(
-        { error: "Work item changed since it was loaded", current },
+        {
+          error: error instanceof StaleWorkItemLaneMutationError
+            ? "Task order changed since it was loaded"
+            : "Work item changed since it was loaded",
+          current: await currentWorkItemState(query.data.workspaceId, workItemId),
+        },
         { status: 409 },
       )
     }
@@ -341,7 +390,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.workItem.findUnique({
       where: { id: workItemId },
-      select: { id: true, workspaceId: true, title: true, createdById: true },
+      select: { id: true, workspaceId: true, title: true, createdById: true, status: true, isInbox: true },
     })
     if (!existing) return notFound("Work item not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
@@ -351,8 +400,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       creatorUserId: existing.createdById,
     })) return forbidden("Only the work-item creator or a workspace admin can delete this work item")
 
-    await db.$transaction(async (tx) => {
+    await runSerializableWorkItemMutation(db, async (tx) => {
       await tx.workItem.delete({ where: { id: workItemId } })
+      if (!existing.isInbox) {
+        await bumpWorkItemLaneVersion(tx, query.data.workspaceId, existing.status)
+      }
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
         actorId: actorUserId,

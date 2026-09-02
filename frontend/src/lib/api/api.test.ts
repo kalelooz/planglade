@@ -7,7 +7,7 @@ import { createBlockedByRelation, deleteWorkItemRelation, getWorkItemRelations }
 import { getSession } from '@/lib/api/session'
 import { getUserSettings, updateUserSettings } from '@/lib/api/settings'
 import { importWorkspace, parseWorkspaceImport, previewWorkspaceImport } from '@/lib/api/imports'
-import { canMutateTasksForAuthMode, createTask, deleteTask, getInboxItems, getTaskHistory, getTasks, removeInboxFromList, removeTaskFromList, replaceInboxInList, replaceTaskInList, updateTask } from '@/lib/api/tasks'
+import { canMutateTasksForAuthMode, createTask, deleteTask, expectedLaneVersionsForTaskUpdate, getInboxItems, getTaskHistory, getTasks, removeInboxFromList, removeTaskFromList, replaceInboxInList, replaceTaskInList, updateTask } from '@/lib/api/tasks'
 import { createWorkspace, getWorkspaceExport, updateWorkspace } from '@/lib/api/workspace'
 import { resolveDataMode } from '@/lib/data-mode'
 import { apiErrorKind } from '@/lib/api/errors'
@@ -101,6 +101,8 @@ const relation = backendWorkItemRelationSchema.parse({
   source: { id: 'task-1', title: 'Blocker', projectId: 'project-1' },
   target: { id: 'task-2', title: 'Blocked', projectId: 'project-1' },
 })
+
+const laneVersions = { BACKLOG: 1, TODO: 2, IN_PROGRESS: 3, IN_REVIEW: 4, DONE: 5 }
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -256,7 +258,7 @@ describe('API client', () => {
 
   it('loads Inbox through the BACKLOG status contract', async () => {
     const inboxTask = { ...task, status: 'BACKLOG' as const, isInbox: true }
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ workItems: [inboxTask] }))
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ workItems: [inboxTask], laneVersions }))
     vi.stubGlobal('fetch', fetchMock)
     await expect(getInboxItems('workspace-1')).resolves.toEqual([inboxTask])
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/work-items?workspaceId=workspace-1&isInbox=true')
@@ -289,7 +291,7 @@ describe('API client', () => {
 
   it('keeps BACKLOG work items in the Tasks collection used by the Board', async () => {
     const backlog = { ...task, status: 'BACKLOG' as const }
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ workItems: [backlog] }))
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ workItems: [backlog], laneVersions }))
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(getTasks('workspace-1')).resolves.toEqual([backlog])
@@ -341,7 +343,7 @@ describe('API client', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(createNote({ workspaceId: 'workspace 1', title: 'Release notes', body: 'Verified backend note', projectId: 'project-1' })).resolves.toEqual(note)
-    await expect(updateNote('workspace 1', 'note/1', { title: 'Saved note', body: 'Saved body' })).resolves.toEqual(updated)
+    await expect(updateNote('workspace 1', { ...note, id: 'note/1' }, { title: 'Saved note', body: 'Saved body' })).resolves.toEqual(updated)
     await expect(deleteNote('workspace 1', 'note/1')).resolves.toEqual({ deleted: true })
 
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
@@ -354,7 +356,7 @@ describe('API client', () => {
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({
       workspaceId: 'workspace 1', title: 'Release notes', body: 'Verified backend note', projectId: 'project-1',
     })
-    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ title: 'Saved note', body: 'Saved body' })
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ title: 'Saved note', body: 'Saved body', expectedUpdatedAt: note.updatedAt })
     expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).not.toHaveProperty('workspaceId')
     expect(fetchMock.mock.calls[2]?.[1]).not.toHaveProperty('body')
   })
@@ -402,7 +404,7 @@ describe('API client', () => {
     vi.stubGlobal('fetch', fetchMock)
     await expect(updateProject('workspace-1', project, { name: 'Launch renamed', slug: 'launch-renamed', status: 'on_hold', color: '#112233', startDate: null, targetDate: null })).resolves.toEqual(updated)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/projects/project-1?workspaceId=workspace-1')
-    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ name: 'Launch renamed', slug: 'launch-renamed', status: 'ON_HOLD', color: '#112233', startDate: null, dueDate: null })
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ expectedUpdatedAt: project.updatedAt, name: 'Launch renamed', slug: 'launch-renamed', status: 'ON_HOLD', color: '#112233', startDate: null, dueDate: null })
   })
 
   it('deletes a project through the credentialed workspace endpoint', async () => {
@@ -443,12 +445,13 @@ describe('API client', () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ workItem: updated }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await updateTask('workspace-1', task, { title: 'Saved title', status: 'done', dueDate: null })
+    const expectedLaneVersions = expectedLaneVersionsForTaskUpdate(task, { status: 'done' }, laneVersions)
+    const result = await updateTask('workspace-1', task, { title: 'Saved title', status: 'done', dueDate: null }, undefined, task.updatedAt, expectedLaneVersions)
 
     expect(result).toEqual(updated)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/work-items/task-1?workspaceId=workspace-1')
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual(expect.objectContaining({
-      title: 'Saved title', status: 'DONE', dueDate: null,
+      title: 'Saved title', status: 'DONE', dueDate: null, expectedLaneVersions,
     }))
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).not.toHaveProperty('workspaceId')
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body).completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
@@ -495,13 +498,13 @@ describe('API client', () => {
       .mockResolvedValueOnce(Response.json({ workItem: reopened }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(updateTask('workspace-1', task, { status: 'done' })).resolves.toEqual(completed)
-    await expect(updateTask('workspace-1', task, { status: 'planned' })).resolves.toEqual(reopened)
+    await expect(updateTask('workspace-1', task, { status: 'done' }, undefined, task.updatedAt, expectedLaneVersionsForTaskUpdate(task, { status: 'done' }, laneVersions))).resolves.toEqual(completed)
+    await expect(updateTask('workspace-1', task, { status: 'planned' }, undefined, task.updatedAt, expectedLaneVersionsForTaskUpdate(task, { status: 'planned' }, laneVersions))).resolves.toEqual(reopened)
 
     const completeBody = JSON.parse(fetchMock.mock.calls[0]?.[1].body)
     expect(completeBody.status).toBe('DONE')
     expect(completeBody.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ expectedUpdatedAt: task.updatedAt, status: 'TODO', completedAt: null })
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ expectedUpdatedAt: task.updatedAt, expectedLaneVersions: { IN_REVIEW: 4, TODO: 2 }, status: 'TODO', completedAt: null })
   })
 
   it('sends IN_REVIEW without converting it to In Progress', async () => {
@@ -509,7 +512,7 @@ describe('API client', () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ workItem: reviewed }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(updateTask('workspace-1', task, { status: 'in_review' })).resolves.toEqual(reviewed)
+    await expect(updateTask('workspace-1', task, { status: 'in_review' }, undefined, task.updatedAt, expectedLaneVersionsForTaskUpdate(task, { status: 'in_review' }, laneVersions))).resolves.toEqual(reviewed)
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ expectedUpdatedAt: task.updatedAt, status: 'IN_REVIEW', completedAt: null })
   })
 

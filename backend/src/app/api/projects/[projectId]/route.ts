@@ -18,6 +18,8 @@ import { toProjectFeatureFlagsJson } from "@/lib/project-flags"
 
 type Params = { params: Promise<{ projectId: string }> }
 
+class StaleProjectMutationError extends Error {}
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { projectId } = await params
   const query = workspaceQuerySchema.safeParse({
@@ -39,19 +41,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const existing = await db.project.findUnique({
       where: { id: projectId },
-      select: { id: true, workspaceId: true, name: true, mode: true, featureFlags: true, startDate: true, dueDate: true },
+      select: { id: true, workspaceId: true, name: true, mode: true, featureFlags: true, startDate: true, dueDate: true, updatedAt: true },
     })
     if (!existing) return notFound("Project not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Project not found in workspace")
-
     const nextStartDate = parsed.data.startDate !== undefined ? parseDateValue(parsed.data.startDate) : existing.startDate
     const nextDueDate = parsed.data.dueDate !== undefined ? parseDateValue(parsed.data.dueDate) : existing.dueDate
     if (nextStartDate && nextDueDate && nextDueDate < nextStartDate) {
       return badRequest("Due date must be on or after the start date")
     }
+    if (!parsed.data.expectedUpdatedAt) {
+      return NextResponse.json(
+        {
+          error: "expectedUpdatedAt is required",
+          current: await db.project.findUnique({ where: { id: projectId } }),
+        },
+        { status: 428 },
+      )
+    }
+    const expectedUpdatedAt = parsed.data.expectedUpdatedAt
 
     const changedFields = Object.entries(parsed.data)
-      .filter(([, value]) => value !== undefined)
+      .filter(([key, value]) => key !== "expectedUpdatedAt" && value !== undefined)
       .map(([key]) => key)
     const nextMode = parsed.data.mode ?? existing.mode
     const nextFeatureFlagsInput =
@@ -60,8 +71,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         : undefined
 
     const project = await db.$transaction(async (tx) => {
-      const updatedProject = await tx.project.update({
-        where: { id: projectId },
+      const claim = await tx.project.updateMany({
+        where: { id: projectId, updatedAt: new Date(expectedUpdatedAt) },
         data: {
           ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
           ...(parsed.data.slug !== undefined ? { slug: parsed.data.slug } : {}),
@@ -79,6 +90,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ...(parsed.data.dueDate !== undefined ? { dueDate: nextDueDate } : {}),
         },
       })
+      if (claim.count !== 1) throw new StaleProjectMutationError()
+      const updatedProject = await tx.project.findUniqueOrThrow({ where: { id: projectId } })
 
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
@@ -95,6 +108,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ project })
   } catch (error) {
+    if (error instanceof StaleProjectMutationError) {
+      return NextResponse.json(
+        {
+          error: "Project changed since it was loaded",
+          current: await db.project.findFirst({
+            where: { id: projectId, workspaceId: query.data.workspaceId },
+          }),
+        },
+        { status: 409 },
+      )
+    }
     return serverError("Failed to update project", String(error))
   }
 }
