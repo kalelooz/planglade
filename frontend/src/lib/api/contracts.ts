@@ -277,7 +277,7 @@ export const workspaceImportPreviewSchema = z.object({
     operation: z.literal('append-import'),
     supportedVersions: z.array(z.number()),
     canExecute: z.boolean(),
-    idempotent: z.literal(false),
+    idempotent: z.literal(true),
     collisionStrategy: z.string(),
     discardedFields: z.array(z.string()),
     expectedAttachmentBytes: z.number(),

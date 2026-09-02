@@ -15,6 +15,7 @@
 - 2026-09-02: real SQLite tests give parallel claims exactly one owner and one conflict, retain and replay older completed checksums after newer imports, recover an expired lease, prevent stale release, and prove bounded retry of Serializable transaction conflicts. The focused import/export route suite and typecheck pass.
 - 2026-09-02: a populated migration probe applies the new operation table after all prior migrations, preserves the existing user and workspace, and accepts a durable lease row.
 - 2026-09-02: the complete backend suite passes 276/276 on a fresh database with every migration applied. The route suite directly proves an overlapping import returns 409, stale owners cannot complete after lease expiry, and backend lint, typecheck, production build, backend-surface validation, high-severity dependency audit, public/CI/docs/release boundary checks, and the backup/restore release rehearsal all pass.
+- 2026-09-02: downstream reconciliation found the preview contract and Settings confirmation still described imports as non-idempotent. The follow-up correction marks checksum retries idempotent, states that matching project slugs are updated, and keeps the restore warning; focused backend and frontend contract tests, both typechecks and lints, and all public boundary checks pass.
 - Visual evidence: not required for the database, API concurrency, and migration change.
 
 ### PG-SEC-001 — Close the invitation test-send relay

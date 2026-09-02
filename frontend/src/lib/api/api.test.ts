@@ -142,7 +142,7 @@ describe('API client', () => {
     const preview = {
       workspaceId: 'workspace-1',
       counts: { projects: 1, tasks: 0, notes: 0, projectDocs: 0, savedViews: 0, settings: 0, archivedProjectDocs: 0 },
-      contract: { operation: 'append-import', supportedVersions: [1, 2], canExecute: true, idempotent: false, collisionStrategy: 'skip duplicates', discardedFields: [], expectedAttachmentBytes: 0, sourceChecksum: `sha256:${'a'.repeat(64)}` },
+      contract: { operation: 'append-import', supportedVersions: [1, 2], canExecute: true, idempotent: true, collisionStrategy: 'skip duplicates', discardedFields: [], expectedAttachmentBytes: 0, sourceChecksum: `sha256:${'a'.repeat(64)}` },
       warnings: [],
       writes: false,
     }

@@ -51,6 +51,8 @@ test("workspace import plan shares relationship warnings and normalized writes",
   assert.equal(plan.workItems[0]?.priority, "URGENT")
   assert.equal(plan.warnings.some((warning) => warning.code === "work_items_missing_projects"), true)
   assert.equal(plan.warnings.some((warning) => warning.code === "duplicate_tasks"), true)
+  assert.equal(plan.contract.idempotent, true)
+  assert.match(plan.contract.collisionStrategy, /Update matching project slugs/)
 })
 
 test("workspace import plan reports unsupported export versions without writes", () => {
