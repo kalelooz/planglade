@@ -11,12 +11,12 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
+import { attemptAttachmentDeletion, enqueueAttachmentDeletion } from "@/lib/attachment-deletion"
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { updateAttachmentSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canAccessNote } from "@/lib/note-access"
 import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
-import { deleteStorageObject } from "@/lib/storage"
 
 type Params = { params: Promise<{ attachmentId: string }> }
 
@@ -176,7 +176,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     const entityId = existing.workItem?.id ?? existing.note?.id ?? existing.id
     const entityTitle = existing.workItem?.title ?? existing.note?.title ?? "item"
 
-    await db.$transaction(async (tx) => {
+    const deletionJob = await db.$transaction(async (tx) => {
+      const queued = await enqueueAttachmentDeletion(tx, existing.storageKey)
       await tx.attachment.delete({ where: { id: attachmentId } })
 
       await logActivityEvent(tx, {
@@ -190,9 +191,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
           attachmentId: existing.id,
         },
       })
+      return queued
     })
 
-    const storageDeleted = await deleteStorageObject(existing.storageKey)
+    const storageDeleted = await attemptAttachmentDeletion(deletionJob.id) === "deleted"
 
     return NextResponse.json({ deleted: true, storageDeleted })
   } catch (error) {

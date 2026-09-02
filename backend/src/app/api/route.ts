@@ -24,6 +24,7 @@ export async function GET() {
       attachmentUploadBinary: "/api/attachments/upload-binary (local provider only)",
       attachmentDownloadUrl: "/api/attachments/:attachmentId/download-url",
       attachmentDownloadBinary: "/api/attachments/download-binary (local provider only)",
+      attachmentMaintenance: "/api/attachments/reap-expired (maintenance token required)",
       workItemRelations: "/api/work-item-relations",
     },
   })
