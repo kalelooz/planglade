@@ -114,6 +114,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     updateSettingsMutation,
     invalidateRelations,
     expectedLaneVersions,
+    expectedDeleteLaneVersions,
   } = useServerWorkspaceSync(selectedWorkspaceId)
 
   useEffect(() => {
@@ -319,10 +320,15 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       toast('Read-only demo mode', { description: 'No changes were saved.' })
       return false
     }
-    if (!workspaceId || (!byId.has(id) && !inboxById.has(id)) || deleteMutation.isPending || deletePending.current) return false
+    const task = byId.get(id) ?? inboxById.get(id)
+    if (!workspaceId || !task?.source || deleteMutation.isPending || deletePending.current) return false
     deletePending.current = true
     try {
-      await deleteMutation.mutateAsync({ workspaceId, taskId: id })
+      await deleteMutation.mutateAsync({
+        workspaceId,
+        task: task.source,
+        expectedLaneVersions: expectedDeleteLaneVersions(workspaceId, task.source),
+      })
       if (!opts?.silent) toast.success('Task deleted')
       return true
     } catch {
@@ -408,10 +414,11 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     return noteUpdateQueue.current(id, { patch: apiPatch, silent: Boolean(opts?.silent) })
   }
   const deleteApiNoteFromWorkspace = async (id: string) => {
-    if (!taskMutationsAllowed || !workspaceId || !state.notes.some((note) => note.id === id) || deleteNoteMutation.isPending || noteDeletePending.current) return false
+    const note = notesQuery.data?.find((candidate) => candidate.id === id)
+    if (!taskMutationsAllowed || !workspaceId || !note || deleteNoteMutation.isPending || noteDeletePending.current) return false
     noteDeletePending.current = true
     try {
-      await deleteNoteMutation.mutateAsync({ workspaceId, noteId: id })
+      await deleteNoteMutation.mutateAsync({ workspaceId, note })
       toast.success('Note deleted')
       return true
     } catch (error) {
@@ -439,7 +446,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     const project = projectsById.get(id)
     if (!taskMutationsAllowed || !workspaceId || !project?.source || deleteProjectMutation.isPending) return false
     try {
-      await deleteProjectMutation.mutateAsync({ workspaceId, projectId: id })
+      await deleteProjectMutation.mutateAsync({ workspaceId, project: project.source })
       toast.success('Project deleted')
       return true
     } catch (error) {

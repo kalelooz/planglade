@@ -11,7 +11,7 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
-import { updateWorkItemSchema, workspaceQuerySchema } from "@/lib/contracts"
+import { deleteWorkItemSchema, updateWorkItemSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 import { createNotificationRecord } from "@/lib/notifications"
@@ -23,7 +23,6 @@ import {
   workspaceProjectExists,
 } from "@/lib/workspace-reference-guards"
 import {
-  bumpWorkItemLaneVersion,
   claimWorkItemLaneVersions,
   getWorkItemLaneVersions,
   runSerializableWorkItemTransaction,
@@ -378,17 +377,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { workItemId } = await params
   const query = workspaceQuerySchema.safeParse({
-    workspaceId: _request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+    workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
   })
   if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+  const parsed = await parseJsonBody(request, deleteWorkItemSchema, { allowEmptyObject: true })
+  if (!parsed.ok) return parsed.response
 
   try {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
-      await resolveRequestActorUserId(_request),
+      await resolveRequestActorUserId(request),
       "MEMBER"
     )
     if (!access.ok) return access.response
@@ -396,7 +397,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.workItem.findUnique({
       where: { id: workItemId },
-      select: { id: true, workspaceId: true, title: true, createdById: true },
+      select: { id: true, workspaceId: true, title: true, createdById: true, status: true, isInbox: true, updatedAt: true },
     })
     if (!existing) return notFound("Work item not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
@@ -405,15 +406,34 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       actorUserId,
       creatorUserId: existing.createdById,
     })) return forbidden("Only the work-item creator or a workspace admin can delete this work item")
+    if (!parsed.data.expectedUpdatedAt) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
+      return NextResponse.json(
+        { error: "expectedUpdatedAt is required", current: current.workItem, laneVersions: current.laneVersions },
+        { status: 428 },
+      )
+    }
+    const expectedLaneVersions = existing.isInbox
+      ? {}
+      : { [existing.status]: parsed.data.expectedLaneVersions?.[existing.status] }
+    if (!existing.isInbox && expectedLaneVersions[existing.status] === undefined) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
+      return NextResponse.json(
+        {
+          error: `expectedLaneVersions.${existing.status} is required`,
+          current: current.workItem,
+          laneVersions: current.laneVersions,
+        },
+        { status: 428 },
+      )
+    }
 
     await runSerializableWorkItemTransaction(db, async (tx) => {
-      const deleted = await tx.workItem.delete({
-        where: { id: workItemId },
-        select: { status: true, isInbox: true },
+      await claimWorkItemLaneVersions(tx, query.data.workspaceId, expectedLaneVersions)
+      const claim = await tx.workItem.deleteMany({
+        where: { id: workItemId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
       })
-      if (!deleted.isInbox) {
-        await bumpWorkItemLaneVersion(tx, query.data.workspaceId, deleted.status)
-      }
+      if (claim.count !== 1) throw new StaleWorkItemMutationError()
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
         actorId: actorUserId,
@@ -425,6 +445,19 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     })
     return NextResponse.json({ deleted: true })
   } catch (error) {
+    if (error instanceof StaleWorkItemMutationError || error instanceof StaleWorkItemLaneMutationError) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
+      return NextResponse.json(
+        {
+          error: error instanceof StaleWorkItemLaneMutationError
+            ? "Task order changed since it was loaded"
+            : "Work item changed since it was loaded",
+          current: current.workItem,
+          laneVersions: current.laneVersions,
+        },
+        { status: 409 },
+      )
+    }
     return serverError("Failed to delete work item", String(error))
   }
 }

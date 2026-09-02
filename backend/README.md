@@ -8,13 +8,13 @@ Use the repository-root README for setup and release instructions. Backend-speci
 
 ## Collaborative write preconditions
 
-`PATCH` requests for work items, projects, and notes must include the entity's
+`PATCH` and `DELETE` requests for work items, projects, and notes must include the entity's
 latest `updatedAt` value as `expectedUpdatedAt`. A missing precondition returns
 `428` with the current entity; a stale value returns `409` with the winning
 server state.
 
 The work-item list response also includes `laneVersions`. A status change or
-board reorder must send the current versions for every affected lane in
+board reorder, plus deletion from a workflow lane, must send the current versions for every affected lane in
 `expectedLaneVersions`. Clients should reload the affected collection after a
 conflict before offering another save.
 

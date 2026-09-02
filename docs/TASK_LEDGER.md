@@ -6,7 +6,7 @@
 
 - Status: **PASS** for public-core publication; Cloud import and PostgreSQL multi-process proof remain separately gated
 - Requested: 2026-09-02
-- Scope: require optimistic preconditions for shared task, project, and note edits, and serialize board ordering against durable per-lane versions.
+- Scope: require optimistic preconditions for shared task, project, and note updates or deletes, and serialize board ordering against durable per-lane versions.
 - Acceptance: missing entity or lane preconditions fail closed with 428 and current state; stale writes return 409 and current state; list data and lane versions come from one snapshot; every task lane membership/order writer advances the durable version; conflicts reload the winning state; two-client edit, reorder, import overlap, migration, integration, and build checks pass.
 
 ### Evidence
@@ -16,6 +16,7 @@
 - 2026-09-02: a populated migration probe preserves existing workspaces and tasks, accepts a lane-version row, and proves workspace deletion cascades it. A separate import-versus-reorder race preserves the imported task and advances the lane once per committed writer.
 - 2026-09-02: clients send entity and lane preconditions, preserve the established conflict payload, refetch active task/project/note queries after 409, and show the winning server state. The complete frontend suite and authenticated integration suite pass.
 - 2026-09-02: independent review found non-atomic list/version reads, an import bypass, a delete-lane race, a stale integration fixture, missing reload proof, and missing operator documentation. The bounded correction pass addresses each confirmed finding; focused backend tests, both typechecks and lints, Prisma validation, and both production builds pass.
+- 2026-09-02: downstream review found destructive deletes still accepted stale clients and note-conflict payloads could expose a note made private during the race. The upstream correction requires entity versions on task, project, and note deletes, requires the task lane version, filters current note state through the caller's live access boundary, races updates against deletes, and exercises a real API-client 409 through the active query cache.
 - Visual evidence: not required; this is a database, API concurrency, and cache-reload change with no layout change.
 
 ### PG-DATA-002 — Serialize append imports durably

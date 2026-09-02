@@ -337,6 +337,12 @@ export const updateProjectSchema = projectFieldsSchema.partial().extend({
   dueDate: z.string().datetime().nullable().optional(),
 }).superRefine(validateProjectDates)
 
+const entityDeletePreconditionSchema = z.object({
+  expectedUpdatedAt: z.string().datetime().optional(),
+}).strict()
+
+export const deleteProjectSchema = entityDeletePreconditionSchema
+
 const workItemBaseSchema = z.object({
   workspaceId: z.string().min(1),
   projectId: z.string().min(1).optional(),
@@ -368,15 +374,17 @@ export const createWorkItemSchema = workItemBaseSchema.extend({
   isInbox: z.boolean().default(false),
 })
 
+const workItemLaneVersionsSchema = z.object({
+  BACKLOG: z.number().int().nonnegative().optional(),
+  TODO: z.number().int().nonnegative().optional(),
+  IN_PROGRESS: z.number().int().nonnegative().optional(),
+  IN_REVIEW: z.number().int().nonnegative().optional(),
+  DONE: z.number().int().nonnegative().optional(),
+}).strict()
+
 export const updateWorkItemSchema = workItemBaseSchema.partial().extend({
   expectedUpdatedAt: z.string().datetime().optional(),
-  expectedLaneVersions: z.object({
-    BACKLOG: z.number().int().nonnegative().optional(),
-    TODO: z.number().int().nonnegative().optional(),
-    IN_PROGRESS: z.number().int().nonnegative().optional(),
-    IN_REVIEW: z.number().int().nonnegative().optional(),
-    DONE: z.number().int().nonnegative().optional(),
-  }).strict().optional(),
+  expectedLaneVersions: workItemLaneVersionsSchema.optional(),
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).nullable().optional(),
   startDate: z.string().datetime().nullable().optional(),
@@ -384,6 +392,10 @@ export const updateWorkItemSchema = workItemBaseSchema.partial().extend({
   assigneeId: z.string().min(1).nullable().optional(),
   completedAt: z.string().datetime().nullable().optional(),
   beforeId: z.string().min(1).nullable().optional(),
+})
+
+export const deleteWorkItemSchema = entityDeletePreconditionSchema.extend({
+  expectedLaneVersions: workItemLaneVersionsSchema.optional(),
 })
 
 export const createCommentSchema = z.object({
@@ -411,6 +423,8 @@ export const updateNoteSchema = noteFieldsSchema.partial().extend({
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).nullable().optional(),
 })
+
+export const deleteNoteSchema = entityDeletePreconditionSchema
 
 export const createProjectDocSchema = z.object({
   workspaceId: z.string().min(1),

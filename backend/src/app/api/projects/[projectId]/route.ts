@@ -11,7 +11,7 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
-import { updateProjectSchema, workspaceQuerySchema } from "@/lib/contracts"
+import { deleteProjectSchema, updateProjectSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 import { toProjectFeatureFlagsJson } from "@/lib/project-flags"
@@ -123,17 +123,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { projectId } = await params
   const query = workspaceQuerySchema.safeParse({
-    workspaceId: _request.nextUrl.searchParams.get("workspaceId") ?? undefined,
+    workspaceId: request.nextUrl.searchParams.get("workspaceId") ?? undefined,
   })
   if (!query.success) return badRequest("workspaceId query is required", query.error.flatten())
+  const parsed = await parseJsonBody(request, deleteProjectSchema, { allowEmptyObject: true })
+  if (!parsed.ok) return parsed.response
 
   try {
     const access = await requireWorkspaceRole(
       query.data.workspaceId,
-      await resolveRequestActorUserId(_request),
+      await resolveRequestActorUserId(request),
       "MEMBER"
     )
     if (!access.ok) return access.response
@@ -141,7 +143,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.project.findUnique({
       where: { id: projectId },
-      select: { id: true, workspaceId: true, name: true, createdById: true },
+      select: { id: true, workspaceId: true, name: true, createdById: true, updatedAt: true },
     })
     if (!existing) return notFound("Project not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Project not found in workspace")
@@ -150,9 +152,18 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       actorUserId,
       creatorUserId: existing.createdById,
     })) return forbidden("Only the project creator or a workspace admin can delete this project")
+    if (!parsed.data.expectedUpdatedAt) {
+      return NextResponse.json(
+        { error: "expectedUpdatedAt is required", current: await db.project.findUnique({ where: { id: projectId } }) },
+        { status: 428 },
+      )
+    }
 
     await db.$transaction(async (tx) => {
-      await tx.project.delete({ where: { id: projectId } })
+      const claim = await tx.project.deleteMany({
+        where: { id: projectId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
+      })
+      if (claim.count !== 1) throw new StaleProjectMutationError()
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
         actorId: actorUserId,
@@ -164,6 +175,15 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     })
     return NextResponse.json({ deleted: true })
   } catch (error) {
+    if (error instanceof StaleProjectMutationError) {
+      return NextResponse.json(
+        {
+          error: "Project changed since it was loaded",
+          current: await db.project.findFirst({ where: { id: projectId, workspaceId: query.data.workspaceId } }),
+        },
+        { status: 409 },
+      )
+    }
     return serverError("Failed to delete project", String(error))
   }
 }

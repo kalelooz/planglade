@@ -1,4 +1,4 @@
-import { deleteJson, getJson, sendJson } from '@/lib/api/client'
+import { getJson, sendJson } from '@/lib/api/client'
 import { workItemHistorySchema, workItemListSchema, workItemResponseSchema, type BackendWorkItem, type WorkItemLaneVersions } from '@/lib/api/contracts'
 import type { Priority, Task, TaskStatus } from '@/types'
 import { placeBoardTask } from '@/lib/board-order'
@@ -117,6 +117,13 @@ export function expectedLaneVersionsForTaskUpdate(
   }
 }
 
+export function expectedLaneVersionsForTaskDelete(
+  task: BackendWorkItem,
+  laneVersions: WorkItemLaneVersions,
+) {
+  return task.isInbox ? undefined : { [task.status]: laneVersions[task.status] }
+}
+
 export function updateTask(
   workspaceId: string,
   task: BackendWorkItem,
@@ -160,9 +167,19 @@ export function optimisticallyPatchTask(tasks: BackendWorkItem[], task: BackendW
 
 const deletedResponseSchema = z.object({ deleted: z.literal(true) })
 
-export function deleteTask(workspaceId: string, taskId: string, signal?: AbortSignal) {
-  return deleteJson(
-    `/api/work-items/${encodeURIComponent(taskId)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+export function deleteTask(
+  workspaceId: string,
+  task: BackendWorkItem,
+  expectedLaneVersions: Partial<WorkItemLaneVersions> | undefined,
+  signal?: AbortSignal,
+) {
+  return sendJson(
+    `/api/work-items/${encodeURIComponent(task.id)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+    'DELETE',
+    {
+      expectedUpdatedAt: task.updatedAt,
+      ...(expectedLaneVersions ? { expectedLaneVersions } : {}),
+    },
     deletedResponseSchema,
     signal,
   )

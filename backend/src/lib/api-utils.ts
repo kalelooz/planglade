@@ -19,6 +19,7 @@ type JsonBodyOptions = {
   maxBytes?: number
   maxDepth?: number
   maxNodes?: number
+  allowEmptyObject?: boolean
 }
 
 export function badRequest(message: string, details?: unknown) {
@@ -124,7 +125,7 @@ export async function parseJsonBody<T>(
 
   let raw: unknown
   try {
-    raw = JSON.parse(body.text)
+    raw = options.allowEmptyObject && body.text.trim() === "" ? {} : JSON.parse(body.text)
   } catch {
     return { ok: false as const, response: badRequest("Request body must be valid JSON") }
   }

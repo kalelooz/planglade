@@ -344,7 +344,7 @@ describe('API client', () => {
 
     await expect(createNote({ workspaceId: 'workspace 1', title: 'Release notes', body: 'Verified backend note', projectId: 'project-1' })).resolves.toEqual(note)
     await expect(updateNote('workspace 1', { ...note, id: 'note/1' }, { title: 'Saved note', body: 'Saved body' })).resolves.toEqual(updated)
-    await expect(deleteNote('workspace 1', 'note/1')).resolves.toEqual({ deleted: true })
+    await expect(deleteNote('workspace 1', { ...note, id: 'note/1' })).resolves.toEqual({ deleted: true })
 
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
       '/api/notes',
@@ -357,8 +357,8 @@ describe('API client', () => {
       workspaceId: 'workspace 1', title: 'Release notes', body: 'Verified backend note', projectId: 'project-1',
     })
     expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).toEqual({ title: 'Saved note', body: 'Saved body', expectedUpdatedAt: note.updatedAt })
+    expect(JSON.parse(fetchMock.mock.calls[2]?.[1].body)).toEqual({ expectedUpdatedAt: note.updatedAt })
     expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body)).not.toHaveProperty('workspaceId')
-    expect(fetchMock.mock.calls[2]?.[1]).not.toHaveProperty('body')
   })
 
   it('downloads the guarded backend workspace export through the same-origin client', async () => {
@@ -411,9 +411,10 @@ describe('API client', () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ deleted: true }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(deleteProject('workspace 1', 'project/1')).resolves.toEqual({ deleted: true })
+    await expect(deleteProject('workspace 1', { ...project, id: 'project/1' })).resolves.toEqual({ deleted: true })
 
     expect(fetchMock).toHaveBeenCalledWith('/api/projects/project%2F1?workspaceId=workspace%201', expect.objectContaining({ method: 'DELETE', credentials: 'include' }))
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ expectedUpdatedAt: project.updatedAt })
   })
 
   it('replaces one authoritative project cache record without changing task associations', () => {
@@ -461,7 +462,7 @@ describe('API client', () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ deleted: true }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(deleteTask('workspace 1', 'task/1')).resolves.toEqual({ deleted: true })
+    await expect(deleteTask('workspace 1', { ...task, id: 'task/1' }, { IN_REVIEW: 4 })).resolves.toEqual({ deleted: true })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith('/api/work-items/task%2F1?workspaceId=workspace%201', expect.objectContaining({
@@ -469,14 +470,17 @@ describe('API client', () => {
       credentials: 'include',
     }))
     expect(fetchMock.mock.calls[0]?.[0]).not.toMatch(/^https?:/)
-    expect(fetchMock.mock.calls[0]?.[1]).not.toHaveProperty('body')
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({
+      expectedUpdatedAt: task.updatedAt,
+      expectedLaneVersions: { IN_REVIEW: 4 },
+    })
   })
 
   it('does not retry a failed task deletion', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('offline'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(deleteTask('workspace-1', 'task-1')).rejects.toMatchObject({
+    await expect(deleteTask('workspace-1', task, { IN_REVIEW: 4 })).rejects.toMatchObject({
       kind: 'temporary',
       message: 'PlanGlade is temporarily unavailable.',
     })
