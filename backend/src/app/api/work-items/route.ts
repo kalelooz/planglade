@@ -23,7 +23,7 @@ import {
 import {
   bumpWorkItemLaneVersion,
   getWorkItemLaneVersions,
-  runSerializableWorkItemMutation,
+  runSerializableWorkItemTransaction,
 } from "@/lib/work-item-lane-versions"
 
 export async function GET(request: NextRequest) {
@@ -47,22 +47,25 @@ export async function GET(request: NextRequest) {
     )
     if (!access.ok) return access.response
 
-    const [workItems, laneVersions] = await Promise.all([
-      db.workItem.findMany({
-        where: {
-          workspaceId: query.data.workspaceId,
-          ...(query.data.projectId ? { projectId: query.data.projectId } : {}),
-          ...(query.data.status ? { status: query.data.status } : {}),
-          ...(query.data.assigneeId ? { assigneeId: query.data.assigneeId } : {}),
-          ...(query.data.isInbox !== undefined ? { isInbox: query.data.isInbox } : {}),
-        },
-        include: {
-          labels: { include: { label: true } },
-        },
-        orderBy: [{ position: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-      }),
-      getWorkItemLaneVersions(db, query.data.workspaceId),
-    ])
+    const { workItems, laneVersions } = await runSerializableWorkItemTransaction(db, async (tx) => {
+      const [items, versions] = await Promise.all([
+        tx.workItem.findMany({
+          where: {
+            workspaceId: query.data.workspaceId,
+            ...(query.data.projectId ? { projectId: query.data.projectId } : {}),
+            ...(query.data.status ? { status: query.data.status } : {}),
+            ...(query.data.assigneeId ? { assigneeId: query.data.assigneeId } : {}),
+            ...(query.data.isInbox !== undefined ? { isInbox: query.data.isInbox } : {}),
+          },
+          include: {
+            labels: { include: { label: true } },
+          },
+          orderBy: [{ position: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+        }),
+        getWorkItemLaneVersions(tx, query.data.workspaceId),
+      ])
+      return { workItems: items, laneVersions: versions }
+    })
 
     return NextResponse.json({ workItems, laneVersions })
   } catch (error) {
@@ -133,7 +136,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const created = await runSerializableWorkItemMutation(db, async (tx) => {
+    const created = await runSerializableWorkItemTransaction(db, async (tx) => {
       const workItem = await tx.workItem.create({
         data: {
           workspaceId: parsed.data.workspaceId,

@@ -16,6 +16,7 @@ import { createWorkspace, updateWorkspace } from '@/lib/api/workspace'
 import type { TaskPatch } from './workspace-context'
 import { useAppCommands } from './app-commands'
 import { toApiError } from '@/lib/api/errors'
+import { reloadCollaborativeQueryOnConflict } from '@/lib/api/conflict-refresh'
 
 type TaskSnapshot = Awaited<ReturnType<typeof getTaskSnapshot>>
 
@@ -119,7 +120,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
         for (const key of taskVersions.current.keys()) {
           if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
         }
-        void queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
+        void reloadCollaborativeQueryOnConflict(queryClient, error, ['tasks', targetWorkspaceId])
       }
     },
     onSuccess: async (updated, { workspaceId: targetWorkspaceId, expectedLaneVersions }) => {
@@ -166,7 +167,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     retry: false,
     onError: (error, variables) => {
       if (toApiError(error).kind === 'conflict') {
-        void queryClient.invalidateQueries({ queryKey: ['projects', variables.workspaceId] })
+        void reloadCollaborativeQueryOnConflict(queryClient, error, ['projects', variables.workspaceId])
       }
     },
     onSuccess: (updated, variables) => {
@@ -201,7 +202,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     retry: false,
     onError: (error, variables) => {
       if (toApiError(error).kind === 'conflict') {
-        void queryClient.invalidateQueries({ queryKey: ['notes', variables.workspaceId] })
+        void reloadCollaborativeQueryOnConflict(queryClient, error, ['notes', variables.workspaceId])
       }
     },
     onSuccess: (updated, variables) => {

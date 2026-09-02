@@ -198,11 +198,11 @@ test('Connections renders authenticated Notes and normalized task relationships'
   const noteTitle = `Connections note ${fixture.runId}`
   const parentTitle = `Connections parent ${fixture.runId}`
   const childTitle = `Connections child ${fixture.runId}`
-  const seeded = await rawTask(page, fixture.workspaceId, fixture.taskTitle) as { id: string } | undefined
-  const reviewed = await rawTask(page, fixture.workspaceId, fixture.reviewTaskTitle) as { id: string } | undefined
+  const seeded = await rawTask(page, fixture.workspaceId, fixture.taskTitle) as { id: string; updatedAt: string } | undefined
+  const reviewed = await rawTask(page, fixture.workspaceId, fixture.reviewTaskTitle) as { id: string; updatedAt: string } | undefined
   if (!seeded || !reviewed) throw new Error('Connections fixtures were not seeded')
 
-  const seededConnections = await page.evaluate(async ({ childTitle, fixture, noteTitle, parentTitle, reviewedId, seedId }) => {
+  const seededConnections = await page.evaluate(async ({ childTitle, fixture, noteTitle, parentTitle, reviewedId, seedId, seedUpdatedAt }) => {
     const request = async (path: string, method: string, body: Record<string, unknown>) => {
       const response = await fetch(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       if (!response.ok) throw new Error(`${method} ${path} returned ${response.status}`)
@@ -217,29 +217,43 @@ test('Connections renders authenticated Notes and normalized task relationships'
       pinned: false,
       tags: [],
     }) as { note: { id: string } }
-    await request(`/api/work-items/${encodeURIComponent(seedId)}?workspaceId=${encodeURIComponent(fixture.workspaceId)}`, 'PATCH', { noteIds: [note.note.id] })
+    await request(`/api/work-items/${encodeURIComponent(seedId)}?workspaceId=${encodeURIComponent(fixture.workspaceId)}`, 'PATCH', {
+      noteIds: [note.note.id],
+      expectedUpdatedAt: seedUpdatedAt,
+    })
     const parent = await request('/api/work-items', 'POST', {
       workspaceId: fixture.workspaceId,
       projectId: fixture.secondaryProjectId,
       title: parentTitle,
       status: 'TODO',
       priority: 'MEDIUM',
-    }) as { workItem: { id: string } }
+    }) as { workItem: { id: string; updatedAt: string } }
     const child = await request('/api/work-items', 'POST', {
       workspaceId: fixture.workspaceId,
       projectId: fixture.secondaryProjectId,
       title: childTitle,
       status: 'TODO',
       priority: 'MEDIUM',
-    }) as { workItem: { id: string } }
-    await request(`/api/work-items/${encodeURIComponent(child.workItem.id)}?workspaceId=${encodeURIComponent(fixture.workspaceId)}`, 'PATCH', { parentId: parent.workItem.id })
+    }) as { workItem: { id: string; updatedAt: string } }
+    await request(`/api/work-items/${encodeURIComponent(child.workItem.id)}?workspaceId=${encodeURIComponent(fixture.workspaceId)}`, 'PATCH', {
+      parentId: parent.workItem.id,
+      expectedUpdatedAt: child.workItem.updatedAt,
+    })
     await request('/api/work-item-relations', 'POST', {
       workspaceId: fixture.workspaceId,
       sourceId: reviewedId,
       targetId: seedId,
       relationType: 'BLOCKS',
     })
-  }, { childTitle, fixture, noteTitle, parentTitle, reviewedId: reviewed.id, seedId: seeded.id })
+  }, {
+    childTitle,
+    fixture,
+    noteTitle,
+    parentTitle,
+    reviewedId: reviewed.id,
+    seedId: seeded.id,
+    seedUpdatedAt: seeded.updatedAt,
+  })
   expect(seededConnections).toBeUndefined()
 
   const consoleErrors: string[] = []

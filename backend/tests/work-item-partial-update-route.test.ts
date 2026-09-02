@@ -197,7 +197,7 @@ test("work-item updates require an updated-at precondition and return current st
     assert.equal(response.status, 428)
     const payload = await response.json()
     assert.equal(payload.error, "expectedUpdatedAt is required")
-    assert.equal(payload.current.workItem.id, "task-1")
+    assert.equal(payload.current.id, "task-1")
   })
 })
 
@@ -235,7 +235,7 @@ test("work-item updates reject a stale updated-at precondition with current serv
     assert.equal(response.status, 409)
     const payload = await response.json()
     assert.equal(payload.error, "Work item changed since it was loaded")
-    assert.equal(payload.current.workItem.id, "task-1")
+    assert.equal(payload.current.id, "task-1")
   })
 })
 

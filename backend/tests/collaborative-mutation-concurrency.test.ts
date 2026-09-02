@@ -144,7 +144,7 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
     ])
     assert.deepEqual(taskResponses.map((response) => response.status).sort(), [200, 409])
     const taskConflict = taskResponses.find((response) => response.status === 409)
-    assert.equal((await taskConflict!.json()).current.workItem.id, firstTask.id)
+    assert.equal((await taskConflict!.json()).current.id, firstTask.id)
     assert.match((await db.workItem.findUniqueOrThrow({ where: { id: firstTask.id } })).title, /^Task from client [AB]$/)
 
     const currentFirst = await db.workItem.findUniqueOrThrow({ where: { id: firstTask.id } })

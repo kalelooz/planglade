@@ -26,7 +26,7 @@ import {
   bumpWorkItemLaneVersion,
   claimWorkItemLaneVersions,
   getWorkItemLaneVersions,
-  runSerializableWorkItemMutation,
+  runSerializableWorkItemTransaction,
   StaleWorkItemLaneMutationError,
   type WorkItemLaneVersions,
 } from "@/lib/work-item-lane-versions"
@@ -104,10 +104,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
 
     if (!parsed.data.expectedUpdatedAt) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
       return NextResponse.json(
         {
           error: "expectedUpdatedAt is required",
-          current: await currentWorkItemState(query.data.workspaceId, workItemId),
+          current: current.workItem,
+          laneVersions: current.laneVersions,
         },
         { status: 428 },
       )
@@ -132,10 +134,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       (status) => expectedLaneVersions[status] === undefined,
     )
     if (missingLaneVersion) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
       return NextResponse.json(
         {
           error: `expectedLaneVersions.${missingLaneVersion} is required`,
-          current: await currentWorkItemState(query.data.workspaceId, workItemId),
+          current: current.workItem,
+          laneVersions: current.laneVersions,
         },
         { status: 428 },
       )
@@ -182,7 +186,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ? "MOVED"
           : "UPDATED"
 
-    const updated = await runSerializableWorkItemMutation(db, async (tx) => {
+    const updated = await runSerializableWorkItemTransaction(db, async (tx) => {
       await claimWorkItemLaneVersions(
         tx,
         query.data.workspaceId,
@@ -358,12 +362,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ workItem: updated })
   } catch (error) {
     if (error instanceof StaleWorkItemMutationError || error instanceof StaleWorkItemLaneMutationError) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
       return NextResponse.json(
         {
           error: error instanceof StaleWorkItemLaneMutationError
             ? "Task order changed since it was loaded"
             : "Work item changed since it was loaded",
-          current: await currentWorkItemState(query.data.workspaceId, workItemId),
+          current: current.workItem,
+          laneVersions: current.laneVersions,
         },
         { status: 409 },
       )
@@ -390,7 +396,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await db.workItem.findUnique({
       where: { id: workItemId },
-      select: { id: true, workspaceId: true, title: true, createdById: true, status: true, isInbox: true },
+      select: { id: true, workspaceId: true, title: true, createdById: true },
     })
     if (!existing) return notFound("Work item not found")
     if (existing.workspaceId !== query.data.workspaceId) return notFound("Work item not found in workspace")
@@ -400,10 +406,13 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       creatorUserId: existing.createdById,
     })) return forbidden("Only the work-item creator or a workspace admin can delete this work item")
 
-    await runSerializableWorkItemMutation(db, async (tx) => {
-      await tx.workItem.delete({ where: { id: workItemId } })
-      if (!existing.isInbox) {
-        await bumpWorkItemLaneVersion(tx, query.data.workspaceId, existing.status)
+    await runSerializableWorkItemTransaction(db, async (tx) => {
+      const deleted = await tx.workItem.delete({
+        where: { id: workItemId },
+        select: { status: true, isInbox: true },
+      })
+      if (!deleted.isInbox) {
+        await bumpWorkItemLaneVersion(tx, query.data.workspaceId, deleted.status)
       }
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,

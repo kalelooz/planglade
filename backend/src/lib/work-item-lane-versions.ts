@@ -59,7 +59,7 @@ export async function bumpWorkItemLaneVersion(
   })
 }
 
-export async function runSerializableWorkItemMutation<T>(
+export async function runSerializableWorkItemTransaction<T>(
   client: Pick<PrismaClient, "$transaction">,
   work: (tx: Prisma.TransactionClient) => Promise<T>,
 ) {
@@ -74,5 +74,5 @@ export async function runSerializableWorkItemMutation<T>(
       if (!retryable || attempt === 2) throw error
     }
   }
-  throw new Error("Work-item mutation retry exhausted")
+  throw new Error("Work-item transaction retry exhausted")
 }
