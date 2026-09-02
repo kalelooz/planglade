@@ -26,6 +26,7 @@ const originalNotificationUpsert = db.notification.upsert
 const originalUserSettingsFindUnique = db.userSettings.findUnique
 const originalTransaction = db.$transaction
 const originalImportOperationDeleteMany = db.workspaceImportOperation.deleteMany
+const originalImportLeaseDeleteMany = db.workspaceImportLease.deleteMany
 
 type Role = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
 
@@ -49,6 +50,7 @@ async function runWithMocks(fn: () => Promise<void>) {
     ;(db.userSettings as typeof db.userSettings).findUnique = originalUserSettingsFindUnique
     ;(db as unknown as { $transaction: unknown }).$transaction = originalTransaction
     ;(db.workspaceImportOperation as typeof db.workspaceImportOperation).deleteMany = originalImportOperationDeleteMany
+    ;(db.workspaceImportLease as typeof db.workspaceImportLease).deleteMany = originalImportLeaseDeleteMany
   }
 }
 
@@ -101,7 +103,11 @@ function mockTransaction(tx: unknown) {
     workspaceImportOperation: {
       findUnique: async () => null,
       create: async () => ({}),
-      updateMany: async () => ({ count: 1 }),
+    },
+    workspaceImportLease: {
+      findUnique: async () => null,
+      create: async () => ({}),
+      deleteMany: async () => ({ count: 1 }),
     },
     ...(tx as object),
     project: { findMany: async () => [], ...transaction.project },
@@ -109,6 +115,9 @@ function mockTransaction(tx: unknown) {
   ;(db.workspaceImportOperation as typeof db.workspaceImportOperation).deleteMany = ((async () => ({
     count: 1,
   })) as unknown) as typeof db.workspaceImportOperation.deleteMany
+  ;(db.workspaceImportLease as typeof db.workspaceImportLease).deleteMany = ((async () => ({
+    count: 1,
+  })) as unknown) as typeof db.workspaceImportLease.deleteMany
 }
 
 function importBody(input: {
@@ -185,6 +194,9 @@ test("POST /workspace/import-local rejects an overlapping workspace import", asy
       fn: (transactionClient: unknown) => Promise<T>
     ) => fn({
       workspaceImportOperation: {
+        findUnique: async () => null,
+      },
+      workspaceImportLease: {
         findUnique: async () => ({
           workspaceId: "workspace-1",
           claimId: "claim-active",

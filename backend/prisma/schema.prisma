@@ -225,19 +225,29 @@ model Workspace {
   comments                     Comment[]
   attachments                  Attachment[]
   attachmentUploadReservations AttachmentUploadReservation[]
-  importOperation              WorkspaceImportOperation?
+  importOperations             WorkspaceImportOperation[]
+  importLease                  WorkspaceImportLease?
   workItemRelations            WorkItemRelation[]
   createdAt                    DateTime                      @default(now())
   updatedAt                    DateTime                      @updatedAt
 }
 
 model WorkspaceImportOperation {
+  workspaceId    String
+  sourceChecksum String
+  result         Json
+  completedAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, sourceChecksum])
+}
+
+model WorkspaceImportLease {
   workspaceId    String    @id
   claimId        String    @unique
   sourceChecksum String
   leaseExpiresAt DateTime
-  completedAt    DateTime?
-  result         Json?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

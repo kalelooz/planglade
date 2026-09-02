@@ -37,7 +37,15 @@ assert.match(files['SECURITY.md'], /Private Vulnerability Reporting/)
 assert.match(files['CODE_OF_CONDUCT.md'], /Security or conduct contact request/)
 
 const permissions = files['docs/PERMISSIONS.md']
-for (const expected of ['Viewer', 'Member', 'Admin', 'Owner', 'Imports are append-only', 'activity log']) {
+for (const expected of [
+  'Viewer',
+  'Member',
+  'Admin',
+  'Owner',
+  'updates projects whose workspace slug already matches',
+  'Every completed source checksum retains its committed result',
+  'activity log',
+]) {
   assert.ok(permissions.includes(expected), `Permissions guide is missing ${expected}`)
 }
 assert.match(files['README.md'], /docs\/PERMISSIONS\.md/)

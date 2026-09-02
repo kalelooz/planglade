@@ -94,6 +94,7 @@ test("parallel durable claims give one importer ownership and one conflict", asy
 
 test("a completed checksum replays its committed result", async () => {
   await db.workspaceImportOperation.deleteMany();
+  await db.workspaceImportLease.deleteMany();
   const sourceChecksum = `sha256:${"2".repeat(64)}`;
   const claim = await claimWorkspaceImportOperation(db, {
     workspaceId: "workspace-1",
@@ -110,8 +111,33 @@ test("a completed checksum replays its committed result", async () => {
   await db.$transaction((tx) =>
     completeWorkspaceImportOperation(tx, {
       workspaceId: "workspace-1",
+      sourceChecksum,
       claimId: claim.claimId,
       result,
+    }),
+  );
+
+  assert.deepEqual(
+    await claimWorkspaceImportOperation(db, {
+      workspaceId: "workspace-1",
+      sourceChecksum,
+    }),
+    { status: "replayed", result },
+  );
+
+  const newerChecksum = `sha256:${"5".repeat(64)}`;
+  const newerClaim = await claimWorkspaceImportOperation(db, {
+    workspaceId: "workspace-1",
+    sourceChecksum: newerChecksum,
+  });
+  assert.equal(newerClaim.status, "acquired");
+  if (newerClaim.status !== "acquired") return;
+  await db.$transaction((tx) =>
+    completeWorkspaceImportOperation(tx, {
+      workspaceId: "workspace-1",
+      sourceChecksum: newerChecksum,
+      claimId: newerClaim.claimId,
+      result: { ...result, imported: { projects: 2 } },
     }),
   );
 
@@ -126,12 +152,13 @@ test("a completed checksum replays its committed result", async () => {
 
 test("an expired lease can be replaced by a different import", async () => {
   await db.workspaceImportOperation.deleteMany();
+  await db.workspaceImportLease.deleteMany();
   const first = await claimWorkspaceImportOperation(db, {
     workspaceId: "workspace-1",
     sourceChecksum: `sha256:${"3".repeat(64)}`,
   });
   assert.equal(first.status, "acquired");
-  await db.workspaceImportOperation.update({
+  await db.workspaceImportLease.update({
     where: { workspaceId: "workspace-1" },
     data: { leaseExpiresAt: new Date(0) },
   });
@@ -146,7 +173,7 @@ test("an expired lease can be replaced by a different import", async () => {
 });
 
 test("release cannot remove another claimant's lease", async () => {
-  const current = await db.workspaceImportOperation.findUniqueOrThrow({
+  const current = await db.workspaceImportLease.findUniqueOrThrow({
     where: { workspaceId: "workspace-1" },
   });
   assert.equal(
@@ -163,4 +190,30 @@ test("release cannot remove another claimant's lease", async () => {
     }),
     true,
   );
+});
+
+test("an expired claimant cannot complete an import", async () => {
+  await db.workspaceImportOperation.deleteMany();
+  await db.workspaceImportLease.deleteMany();
+  const sourceChecksum = `sha256:${"6".repeat(64)}`;
+  const claim = await claimWorkspaceImportOperation(db, {
+    workspaceId: "workspace-1",
+    sourceChecksum,
+  });
+  assert.equal(claim.status, "acquired");
+  if (claim.status !== "acquired") return;
+
+  await assert.rejects(
+    db.$transaction((tx) =>
+      completeWorkspaceImportOperation(tx, {
+        workspaceId: "workspace-1",
+        sourceChecksum,
+        claimId: claim.claimId,
+        result: { imported: { projects: 1 } },
+        now: new Date("2099-01-01T00:00:00.000Z"),
+      }),
+    ),
+    /lease was lost/,
+  );
+  assert.equal(await db.workspaceImportOperation.count(), 0);
 });

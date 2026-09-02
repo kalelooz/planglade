@@ -274,6 +274,7 @@ export async function POST(request: NextRequest) {
 
       await completeWorkspaceImportOperation(tx, {
         workspaceId,
+        sourceChecksum: expectedSourceChecksum,
         claimId: operation.claimId,
         result: result as Prisma.InputJsonValue,
       })

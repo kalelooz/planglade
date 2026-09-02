@@ -54,6 +54,25 @@ test("the import-operation migration preserves a populated workspace", async () 
       .prepare(
         `
       INSERT INTO "WorkspaceImportOperation"
+        ("workspaceId", "sourceChecksum", "result", "completedAt", "createdAt")
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+      )
+      .run(
+        "workspace-1",
+        `sha256:${"a".repeat(64)}`,
+        JSON.stringify({ imported: { projects: 1 } }),
+      );
+    assert.equal(
+      database
+        .prepare('SELECT COUNT(*) AS "count" FROM "WorkspaceImportOperation"')
+        .get()?.count,
+      1,
+    );
+    database
+      .prepare(
+        `
+      INSERT INTO "WorkspaceImportLease"
         ("workspaceId", "claimId", "sourceChecksum", "leaseExpiresAt", "createdAt", "updatedAt")
       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
@@ -61,12 +80,12 @@ test("the import-operation migration preserves a populated workspace", async () 
       .run(
         "workspace-1",
         "claim-1",
-        `sha256:${"a".repeat(64)}`,
+        `sha256:${"b".repeat(64)}`,
         "2026-09-02T12:00:00.000Z",
       );
     assert.equal(
       database
-        .prepare('SELECT COUNT(*) AS "count" FROM "WorkspaceImportOperation"')
+        .prepare('SELECT COUNT(*) AS "count" FROM "WorkspaceImportLease"')
         .get()?.count,
       1,
     );
