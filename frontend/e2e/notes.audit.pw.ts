@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 
 import { expect, test } from '@playwright/test'
+import { deleteCurrentNote } from './collaborative-cleanup'
 
 type Session = { workspace: { id: string } }
 type Note = { id: string }
@@ -72,12 +73,11 @@ test('audits Notes responsive, semantic, motion, and focus behavior', async ({ p
     await expect(page.getByRole('heading', { name: 'Notes' })).toBeFocused()
   } finally {
     if (!deleted) {
-      const cleanup = await page.request.delete(`/api/notes/${encodeURIComponent(note.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(cleanup.ok()).toBeTruthy()
+      await deleteCurrentNote(page.request, session.workspace.id, note.id)
     }
     const remaining = await page.request.get(`/api/notes?workspaceId=${encodeURIComponent(session.workspace.id)}`).then((response) => response.json() as Promise<{ notes: Array<{ id: string; title: string }> }>)
     for (const candidate of remaining.notes.filter(({ title }) => title.startsWith('Responsive audit '))) {
-      await page.request.delete(`/api/notes/${encodeURIComponent(candidate.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
+      await deleteCurrentNote(page.request, session.workspace.id, candidate.id)
     }
   }
 })

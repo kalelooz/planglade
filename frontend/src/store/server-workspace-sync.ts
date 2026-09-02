@@ -16,7 +16,7 @@ import { createWorkspace, updateWorkspace } from '@/lib/api/workspace'
 import type { TaskPatch } from './workspace-context'
 import { useAppCommands } from './app-commands'
 import { toApiError } from '@/lib/api/errors'
-import { reloadCollaborativeQueryOnConflict } from '@/lib/api/conflict-refresh'
+import { reloadCollaborativeQueryOnConflict, reloadTaskQueriesOnConflict } from '@/lib/api/conflict-refresh'
 
 type TaskSnapshot = Awaited<ReturnType<typeof getTaskSnapshot>>
 
@@ -120,7 +120,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
         for (const key of taskVersions.current.keys()) {
           if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
         }
-        void reloadCollaborativeQueryOnConflict(queryClient, error, ['tasks', targetWorkspaceId])
+        void reloadTaskQueriesOnConflict(queryClient, error, targetWorkspaceId)
       }
     },
     onSuccess: async (updated, { workspaceId: targetWorkspaceId, expectedLaneVersions }) => {
@@ -147,7 +147,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     retry: false,
     onError: (error, variables) => {
       if (toApiError(error).kind === 'conflict') {
-        void reloadCollaborativeQueryOnConflict(queryClient, error, ['tasks', variables.workspaceId])
+        void reloadTaskQueriesOnConflict(queryClient, error, variables.workspaceId)
       }
     },
     onSuccess: (_deleted, { workspaceId: targetWorkspaceId, task }) => {

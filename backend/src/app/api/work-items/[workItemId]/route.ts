@@ -114,6 +114,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
     const expectedUpdatedAt = parsed.data.expectedUpdatedAt
+    if (existing.updatedAt.getTime() !== new Date(expectedUpdatedAt).getTime()) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
+      return NextResponse.json(
+        {
+          error: "Work item changed since it was loaded",
+          current: current.workItem,
+          laneVersions: current.laneVersions,
+        },
+        { status: 409 },
+      )
+    }
 
     const effectiveParentId = parsed.data.parentId !== undefined ? parsed.data.parentId : existing.parentId
     const effectiveProjectId = parsed.data.projectId !== undefined ? parsed.data.projectId : existing.projectId
@@ -411,6 +422,17 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return NextResponse.json(
         { error: "expectedUpdatedAt is required", current: current.workItem, laneVersions: current.laneVersions },
         { status: 428 },
+      )
+    }
+    if (existing.updatedAt.getTime() !== new Date(parsed.data.expectedUpdatedAt).getTime()) {
+      const current = await currentWorkItemState(query.data.workspaceId, workItemId)
+      return NextResponse.json(
+        {
+          error: "Work item changed since it was loaded",
+          current: current.workItem,
+          laneVersions: current.laneVersions,
+        },
+        { status: 409 },
       )
     }
     const expectedLaneVersions = existing.isInbox

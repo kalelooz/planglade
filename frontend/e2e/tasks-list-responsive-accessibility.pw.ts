@@ -2,6 +2,7 @@ import { expect, test, type Locator } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { daysFromToday, relativeLabel } from '../src/lib/dates'
+import { deleteCurrentProject, deleteCurrentWorkItem } from './collaborative-cleanup'
 
 type Project = { id: string }
 type WorkItem = { id: string }
@@ -99,12 +100,10 @@ test('Tasks List keeps full metadata clear and touch targets reachable', async (
     await page.screenshot({ path: path.join(artifactDir, '320x844-dark-reduced-motion.png'), fullPage: true })
   } finally {
     if (workItem) {
-      const workItemDelete = await page.request.delete(`/api/work-items/${encodeURIComponent(workItem.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(workItemDelete.ok()).toBeTruthy()
+      await deleteCurrentWorkItem(page.request, session.workspace.id, workItem.id)
     }
     if (project) {
-      const projectDelete = await page.request.delete(`/api/projects/${encodeURIComponent(project.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(projectDelete.ok()).toBeTruthy()
+      await deleteCurrentProject(page.request, session.workspace.id, project.id)
     }
   }
 })

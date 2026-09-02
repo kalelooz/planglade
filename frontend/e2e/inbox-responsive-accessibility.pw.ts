@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import { deleteCurrentProject, deleteCurrentWorkItem } from './collaborative-cleanup'
 
 type Project = { id: string }
 type WorkItem = { id: string; title: string }
@@ -80,8 +81,7 @@ test('Inbox responsive accessibility stays clear at mobile widths', async ({ pag
       await page.screenshot({ path: path.join(artifactDir, `${width}x${height}-dark-reduced-motion.png`), fullPage: true })
     }
   } finally {
-    const response = await page.request.delete(`/api/work-items/${encodeURIComponent(created.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-    expect(response.ok()).toBeTruthy()
+    await deleteCurrentWorkItem(page.request, session.workspace.id, created.id)
   }
 })
 
@@ -142,12 +142,10 @@ test('Inbox desktop project column contains long names without crossing controls
     }
   } finally {
     if (workItem) {
-      const workItemDelete = await page.request.delete(`/api/work-items/${encodeURIComponent(workItem.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(workItemDelete.ok()).toBeTruthy()
+      await deleteCurrentWorkItem(page.request, session.workspace.id, workItem.id)
     }
     if (project) {
-      const projectDelete = await page.request.delete(`/api/projects/${encodeURIComponent(project.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(projectDelete.ok()).toBeTruthy()
+      await deleteCurrentProject(page.request, session.workspace.id, project.id)
     }
   }
 })

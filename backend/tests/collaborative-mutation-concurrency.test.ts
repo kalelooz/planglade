@@ -135,6 +135,16 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
         createdById: user.id,
       },
     })
+    const staleLaneTask = await db.workItem.create({
+      data: {
+        id: "task-stale-lane",
+        workspaceId: "workspace-1",
+        title: "Task moved elsewhere",
+        status: "BACKLOG",
+        position: 2048,
+        createdById: user.id,
+      },
+    })
 
     const missingProjectPrecondition = await updateProject(
       patchRequest("/api/projects/project-1?workspaceId=workspace-1", { name: "Unconditional project" }),
@@ -200,6 +210,31 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
       deleteWorkItem(emptyDeleteRequest("/api/work-items/task-delete?workspaceId=workspace-1"), { params: Promise.resolve({ workItemId: deleteTaskCandidate.id }) }),
     ])
     assert.deepEqual(missingDeletePreconditions.map((response) => response.status), [428, 428, 428])
+
+    await db.workItem.update({
+      where: { id: staleLaneTask.id },
+      data: {
+        status: "DONE",
+        updatedAt: new Date(staleLaneTask.updatedAt.getTime() + 1_000),
+      },
+    })
+    const staleCrossLaneResponses = await Promise.all([
+      updateWorkItem(patchRequest("/api/work-items/task-stale-lane?workspaceId=workspace-1", {
+        status: "IN_PROGRESS",
+        expectedUpdatedAt: staleLaneTask.updatedAt.toISOString(),
+        expectedLaneVersions: { BACKLOG: 0, IN_PROGRESS: 0 },
+      }), { params: Promise.resolve({ workItemId: staleLaneTask.id }) }),
+      deleteWorkItem(deleteRequest("/api/work-items/task-stale-lane?workspaceId=workspace-1", {
+        expectedUpdatedAt: staleLaneTask.updatedAt.toISOString(),
+        expectedLaneVersions: { BACKLOG: 0 },
+      }), { params: Promise.resolve({ workItemId: staleLaneTask.id }) }),
+    ])
+    assert.deepEqual(staleCrossLaneResponses.map((response) => response.status), [409, 409])
+    for (const response of staleCrossLaneResponses) {
+      const conflict = await response.json()
+      assert.equal(conflict.current.id, staleLaneTask.id)
+      assert.equal(conflict.current.status, "DONE")
+    }
 
     const projectDeleteRace = await Promise.all([
       updateProject(patchRequest("/api/projects/project-delete?workspaceId=workspace-1", {

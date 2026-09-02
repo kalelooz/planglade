@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { deleteCurrentWorkItem } from './collaborative-cleanup'
 
 type WorkItem = { id: string; title: string; status: string }
 
@@ -27,8 +28,7 @@ test('captures, persists, and converts one Inbox item without a fake task', asyn
     await expect(page.getByText(runId, { exact: true })).toBeVisible()
   } finally {
     if (created) {
-      const response = await page.request.delete(`/api/work-items/${encodeURIComponent(created.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-      expect(response.ok()).toBeTruthy()
+      await deleteCurrentWorkItem(page.request, session.workspace.id, created.id)
     }
   }
 })
@@ -71,8 +71,7 @@ test('keeps confirmed Inbox state when capture or conversion is rejected and blo
     await expect(page.getByText('PlanGlade is temporarily unavailable.').first()).toBeVisible()
   } finally {
     await page.unrouteAll({ behavior: 'ignoreErrors' })
-    const response = await page.request.delete(`/api/work-items/${encodeURIComponent(existing.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-    expect(response.ok()).toBeTruthy()
+    await deleteCurrentWorkItem(page.request, session.workspace.id, existing.id)
   }
 })
 
@@ -161,7 +160,6 @@ test('Inbox rows keep mobile controls reachable without horizontal overflow', as
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
     await page.evaluate(() => document.documentElement.classList.remove('dark'))
   } finally {
-    const response = await page.request.delete(`/api/work-items/${encodeURIComponent(created.id)}?workspaceId=${encodeURIComponent(session.workspace.id)}`)
-    expect(response.ok()).toBeTruthy()
+    await deleteCurrentWorkItem(page.request, session.workspace.id, created.id)
   }
 })
