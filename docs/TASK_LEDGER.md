@@ -4,7 +4,7 @@
 
 ### PG-OPS-007 — Publish safe health and immutable revision status
 
-- Status: **REVISE** — implementation, review, and downstream proof are pending
+- Status: **PASS** — public implementation and private downstream production proof are complete
 - Requested: 2026-09-02
 - Scope: keep readiness checks useful to operators while removing public provider topology and configuration errors, and expose only a validated immutable source revision.
 - Acceptance: public 200, 503, and 500 responses contain only status, service, and a validated 40-character revision or `unknown`; component detail remains server-side; provider-neutral container builds can supply the revision; focused and full public gates, independent review, Cloud import, exact-merge deployment, and production response-to-image proof pass.
@@ -15,6 +15,8 @@
 - 2026-09-02: regression coverage now requires the complete public response shape for ready, degraded, database-failure, and unexpected-failure paths; invalid or mutable revision text is replaced with `unknown`, while exact lowercase 40-character revisions are returned. Detailed readiness failures are logged internally and are not serialized.
 - 2026-09-02: all ten focused health/API contract tests pass. Backend typecheck, lint, and production build pass, and a clean runner image built with a controlled revision exposes that exact value through `PLANGLADE_BUILD_REVISION`; the local test image was removed after inspection.
 - 2026-09-02: independent review found raw database and unexpected exceptions could retain connection details in internal logs, and the self-hosting guide still described the removed detailed public response. Exception telemetry is now limited to a validated error name and optional safe code, tests prove the secret sentinel is absent from logs as well as responses, and operator guidance points component diagnosis to internal logs only.
+- 2026-09-02: public PR #118 merged as `e0d9e774f74a18ada745d0c38db15a3e55a14615` after the complete quality/build suite, authenticated browser integration, CodeQL, static analyses, container revision probe, and independent correction review passed.
+- 2026-09-02: the private downstream imported that exact reviewed public merge without merging Git history, preserved its provider diagnostics only in internal telemetry, passed complete independent Cloud CI, and promoted an exact-merge image through a zero-traffic probe. Direct, tagged, and hosted production health each return HTTP 200 with exactly `revision`, `service`, and `status`, and the revision matches the promoted source. Provider-specific identifiers, rollback commands, and operational evidence remain in the private C-042 record.
 
 ### PG-DATA-005 — Prevent stale collaborative overwrites
 
