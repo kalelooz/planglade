@@ -17,6 +17,8 @@ import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 
 type Params = { params: Promise<{ noteId: string }> }
 
+class StaleNoteMutationError extends Error {}
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { noteId } = await params
   const query = workspaceQuerySchema.safeParse({
@@ -43,12 +45,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         title: true,
         visibility: true,
         createdById: true,
+        updatedAt: true,
       },
     })
     if (!existing) return notFound("Note not found")
     if (!canAccessNote(existing, query.data.workspaceId, access.actor.userId)) {
       return notFound("Note not found")
     }
+    if (!parsed.data.expectedUpdatedAt) {
+      return NextResponse.json(
+        {
+          error: "expectedUpdatedAt is required",
+          current: await db.note.findUnique({ where: { id: noteId } }),
+        },
+        { status: 428 },
+      )
+    }
+    const expectedUpdatedAt = parsed.data.expectedUpdatedAt
 
     if (parsed.data.projectId) {
       const project = await db.project.findFirst({
@@ -60,12 +73,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const actorUserId = access.actor.userId
     const changedFields = Object.entries(parsed.data)
-      .filter(([, value]) => value !== undefined)
+      .filter(([key, value]) => key !== "expectedUpdatedAt" && value !== undefined)
       .map(([key]) => key)
 
     const note = await db.$transaction(async (tx) => {
-      const updatedNote = await tx.note.update({
-        where: { id: noteId },
+      const claim = await tx.note.updateMany({
+        where: { id: noteId, updatedAt: new Date(expectedUpdatedAt) },
         data: {
           ...(parsed.data.projectId !== undefined ? { projectId: parsed.data.projectId } : {}),
           ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
@@ -76,6 +89,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ...(actorUserId ? { updatedById: actorUserId } : {}),
         },
       })
+      if (claim.count !== 1) throw new StaleNoteMutationError()
+      const updatedNote = await tx.note.findUniqueOrThrow({ where: { id: noteId } })
 
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
@@ -92,6 +107,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ note })
   } catch (error) {
+    if (error instanceof StaleNoteMutationError) {
+      return NextResponse.json(
+        {
+          error: "Note changed since it was loaded",
+          current: await db.note.findFirst({
+            where: { id: noteId, workspaceId: query.data.workspaceId },
+          }),
+        },
+        { status: 409 },
+      )
+    }
     return serverError("Failed to update note", String(error))
   }
 }

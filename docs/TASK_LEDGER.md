@@ -2,9 +2,25 @@
 
 ## Active task
 
+### PG-DATA-005 — Prevent stale collaborative overwrites
+
+- Status: **PASS** for public-core publication; Cloud import and PostgreSQL multi-process proof remain separately gated
+- Requested: 2026-09-02
+- Scope: require optimistic preconditions for shared task, project, and note edits, and serialize board ordering against durable per-lane versions.
+- Acceptance: missing entity or lane preconditions fail closed with 428 and current state; stale writes return 409 and current state; list data and lane versions come from one snapshot; every task lane membership/order writer advances the durable version; conflicts reload the winning state; two-client edit, reorder, import overlap, migration, integration, and build checks pass.
+
+### Evidence
+
+- 2026-09-02: real SQLite route tests race two clients against the same task, project, note, and board lane. Exactly one same-version edit wins, stale requests return 409, and reloads preserve the committed value and ordering.
+- 2026-09-02: lane versions are claimed in Serializable transactions with bounded retry. Task create, status change, reorder, delete, and append import all advance affected non-Inbox lanes; list rows and versions are read in one Serializable snapshot.
+- 2026-09-02: a populated migration probe preserves existing workspaces and tasks, accepts a lane-version row, and proves workspace deletion cascades it. A separate import-versus-reorder race preserves the imported task and advances the lane once per committed writer.
+- 2026-09-02: clients send entity and lane preconditions, preserve the established conflict payload, refetch active task/project/note queries after 409, and show the winning server state. The complete frontend suite and authenticated integration suite pass.
+- 2026-09-02: independent review found non-atomic list/version reads, an import bypass, a delete-lane race, a stale integration fixture, missing reload proof, and missing operator documentation. The bounded correction pass addresses each confirmed finding; focused backend tests, both typechecks and lints, Prisma validation, and both production builds pass.
+- Visual evidence: not required; this is a database, API concurrency, and cache-reload change with no layout change.
+
 ### PG-DATA-002 — Serialize append imports durably
 
-- Status: **REVISE** — public implementation and focused SQLite evidence pass; full public gates, independent review, merge, and downstream PostgreSQL proof remain pending
+- Status: **PASS** — public and Cloud implementations, PostgreSQL multi-process proof, production migration, and safe live verification are complete
 - Requested: 2026-09-02
 - Scope: prevent overlapping append imports from passing duplicate checks in separate application processes, while giving safe retries a stable provider-neutral idempotency contract.
 - Acceptance: a durable workspace lease gives one active importer ownership and returns 409 to overlap; every reviewed source checksum retains and replays its completed result; expired claims recover; release and completion are claim-scoped; import writes and completion commit atomically under Serializable isolation with bounded retry; empty and populated migrations, full public gates, independent review, and downstream PostgreSQL multi-process proof pass.

@@ -227,6 +227,7 @@ model Workspace {
   attachmentUploadReservations AttachmentUploadReservation[]
   importOperations             WorkspaceImportOperation[]
   importLease                  WorkspaceImportLease?
+  workItemLaneVersions         WorkItemLaneVersion[]
   workItemRelations            WorkItemRelation[]
   createdAt                    DateTime                      @default(now())
   updatedAt                    DateTime                      @updatedAt
@@ -335,6 +336,17 @@ model WorkItem {
   @@index([workspaceId, isInbox])
   @@index([projectId, status])
   @@index([assigneeId, status])
+}
+
+model WorkItemLaneVersion {
+  workspaceId String
+  status      WorkItemStatus
+  version     Int            @default(0)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@id([workspaceId, status])
 }
 
 model Label {

@@ -13,6 +13,7 @@ import {
   runSerializableWorkspaceImport,
 } from "@/lib/workspace-import-operation"
 import { buildWorkspaceImportPlan, remapImportedNoteIds } from "@/lib/workspace-import-plan"
+import { bumpWorkItemLaneVersion, WORK_ITEM_STATUSES } from "@/lib/work-item-lane-versions"
 
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, importLocalWorkspaceSchema, {
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
       let skippedProjectDocs = 0
       let createdSavedViews = 0
       let skippedSavedViews = 0
+      const changedLaneStatuses = new Set<(typeof WORK_ITEM_STATUSES)[number]>()
 
       for (const project of importPlan.projects) {
         const upserted = await tx.project.upsert({
@@ -169,7 +171,14 @@ export async function POST(request: NextRequest) {
             assigneeId: item.assigneeId && memberUserIds.has(item.assigneeId) ? item.assigneeId : undefined,
           },
         })
+        if (!item.isInbox) changedLaneStatuses.add(item.status)
         createdWorkItems += 1
+      }
+
+      for (const status of WORK_ITEM_STATUSES) {
+        if (changedLaneStatuses.has(status)) {
+          await bumpWorkItemLaneVersion(tx, workspaceId, status)
+        }
       }
 
       for (const doc of importPlan.projectDocs) {

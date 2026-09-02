@@ -17,6 +17,13 @@ test("project contracts accept a valid schedule and allow dates to be cleared", 
   assert.equal(updateProjectSchema.safeParse({ startDate: null, dueDate: null }).success, true)
 })
 
+test("project patch contracts do not apply create defaults", () => {
+  assert.deepEqual(
+    updateProjectSchema.parse({ name: "Renamed", expectedUpdatedAt: "2026-09-02T10:00:00.000Z" }),
+    { name: "Renamed", expectedUpdatedAt: "2026-09-02T10:00:00.000Z" },
+  )
+})
+
 test("project contracts reject icons outside the supported catalog", () => {
   assert.equal(createProjectSchema.safeParse({ ...project, icon: "made-up-icon" }).success, false)
 })

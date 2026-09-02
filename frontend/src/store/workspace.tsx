@@ -113,6 +113,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     updateWorkspaceMutation,
     updateSettingsMutation,
     invalidateRelations,
+    expectedLaneVersions,
   } = useServerWorkspaceSync(selectedWorkspaceId)
 
   useEffect(() => {
@@ -123,6 +124,10 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     setSelectedWorkspaceId(null)
   }, [selectedWorkspaceId, sessionQuery.error, sessionQuery.isError])
   const workspaceId = sessionQuery.data?.workspace.id
+  useEffect(() => {
+    updateQueue.current = undefined
+    noteUpdateQueue.current = undefined
+  }, [workspaceId])
   useEffect(() => {
     const server = settingsQuery.data?.settings
     if (!server) return
@@ -175,6 +180,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (apiError.kind === 'unauthenticated') return 'Sign in to change tasks.'
     if (apiError.kind === 'forbidden') return 'This workspace is read-only for your account.'
     if (apiError.kind === 'not_found') return 'This task no longer exists.'
+    if (apiError.kind === 'conflict') return 'This task changed elsewhere. The latest version was loaded.'
     if (apiError.kind === 'validation') return 'Check the task details and try again.'
     return 'PlanGlade is temporarily unavailable.'
   }
@@ -183,8 +189,14 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (apiError.kind === 'unauthenticated') return 'Sign in to change notes.'
     if (apiError.kind === 'forbidden') return 'You do not have permission to change this note.'
     if (apiError.kind === 'not_found') return 'This note is no longer available.'
+    if (apiError.kind === 'conflict') return 'This note changed elsewhere. The latest version was loaded.'
     if (apiError.kind === 'validation') return 'Check the note and try again.'
     return 'PlanGlade is temporarily unavailable.'
+  }
+  const projectMutationMessage = (error: unknown) => {
+    const apiError = toApiError(error)
+    if (apiError.kind === 'conflict') return 'This project changed elsewhere. The latest version was loaded.'
+    return mutationMessage(error)
   }
   const addApiTask = async (partial: Partial<Task> & { title: string }, isInbox = false) => {
     if (!taskMutationsAllowed) {
@@ -268,7 +280,12 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       return dependencySaved.then((saved) => (saved ? updateApiTask(id, taskPatch, opts) : false))
     }
     if (!task?.source && inboxItem?.source) {
-      return updateMutation.mutateAsync({ workspaceId, task: inboxItem.source, patch }).then(() => {
+      return updateMutation.mutateAsync({
+        workspaceId,
+        task: inboxItem.source,
+        patch,
+        expectedLaneVersions: expectedLaneVersions(workspaceId, inboxItem.source, patch),
+      }).then(() => {
         if (!opts?.silent) toast.success('Changes saved')
         return true
       }).catch((error) => {
@@ -281,7 +298,12 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
         const currentTask = byId.get(taskId)
         if (!currentTask?.source) return false
         try {
-          await updateMutation.mutateAsync({ workspaceId, task: currentTask.source, patch: request.patch })
+          await updateMutation.mutateAsync({
+            workspaceId,
+            task: currentTask.source,
+            patch: request.patch,
+            expectedLaneVersions: expectedLaneVersions(workspaceId, currentTask.source, request.patch),
+          })
           if (!request.silent) toast.success('Changes saved')
           return true
         } catch (error) {
@@ -338,7 +360,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       toast.success('Project saved')
       return true
     } catch (error) {
-      toast.error(mutationMessage(error))
+      toast.error(projectMutationMessage(error))
       return false
     }
   }

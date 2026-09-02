@@ -7,7 +7,7 @@ import { db } from "../src/lib/db"
 
 const originalAuthMode = process.env.PLANGLADE_AUTH_MODE
 const originals = {
-  userUpsert: db.user.upsert,
+  userFindUnique: db.user.findUnique,
   workspaceFindUnique: db.workspace.findUnique,
   memberFindUnique: db.workspaceMember.findUnique,
   projectFindUnique: db.project.findUnique,
@@ -17,7 +17,7 @@ const originals = {
 test.afterEach(() => {
   if (originalAuthMode === undefined) delete process.env.PLANGLADE_AUTH_MODE
   else process.env.PLANGLADE_AUTH_MODE = originalAuthMode
-  ;(db.user as typeof db.user).upsert = originals.userUpsert
+  ;(db.user as typeof db.user).findUnique = originals.userFindUnique
   ;(db.workspace as typeof db.workspace).findUnique = originals.workspaceFindUnique
   ;(db.workspaceMember as typeof db.workspaceMember).findUnique = originals.memberFindUnique
   ;(db.project as typeof db.project).findUnique = originals.projectFindUnique
@@ -30,7 +30,15 @@ function request() {
 
 function mockWorkspace(role: "VIEWER" | "MEMBER" | "ADMIN") {
   process.env.PLANGLADE_AUTH_MODE = "dev"
-  ;(db.user as typeof db.user).upsert = ((async () => ({ id: "member-1", email: "dev@planglade.local", name: "Dev User" })) as unknown) as typeof db.user.upsert
+  ;(db.user as typeof db.user).findUnique = ((async () => ({
+    id: "member-1",
+    email: "alex.morgan@planglade.dev",
+    normalizedEmail: "alex.morgan@planglade.dev",
+    firebaseUid: null,
+    name: "Alex Morgan",
+    image: null,
+    authVersion: 0,
+  })) as unknown) as typeof db.user.findUnique
   ;(db.workspace as typeof db.workspace).findUnique = ((async () => ({ id: "workspace-1", ownerId: "owner-1" })) as unknown) as typeof db.workspace.findUnique
   ;(db.workspaceMember as typeof db.workspaceMember).findUnique = ((async () => ({ userId: "member-1", role })) as unknown) as typeof db.workspaceMember.findUnique
 }
