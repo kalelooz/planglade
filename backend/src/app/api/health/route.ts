@@ -4,6 +4,19 @@ import { evaluateProductionConfiguration } from "@/lib/production-config.mjs"
 
 type HealthStatus = "ok" | "degraded" | "error"
 
+function safeErrorMetadata(error: unknown) {
+  const record = typeof error === "object" && error !== null
+    ? error as { name?: unknown; code?: unknown }
+    : null
+  const name = typeof record?.name === "string" && /^[A-Za-z][A-Za-z0-9._-]{0,63}$/.test(record.name)
+    ? record.name
+    : "UnknownError"
+  const code = typeof record?.code === "string" && /^[A-Z0-9_-]{1,32}$/.test(record.code)
+    ? record.code
+    : null
+  return code ? { name, code } : { name }
+}
+
 function publicBuildRevision() {
   try {
     const revision = process.env.PLANGLADE_BUILD_REVISION?.trim() ?? ""
@@ -46,7 +59,7 @@ export async function GET() {
       await db.$queryRawUnsafe("SELECT 1")
       isDatabaseReady = true
     } catch (error) {
-      console.error("Health database check failed", error)
+      console.error("Health database check failed", safeErrorMetadata(error))
     }
     const isReady = isAuthReady && isStorageReady && isEmailReady && isDatabaseReady
 
@@ -70,7 +83,7 @@ export async function GET() {
 
     return publicHealthResponse(isReady ? "ok" : "degraded", isReady ? 200 : 503)
   } catch (error) {
-    console.error("Health check failed", error)
+    console.error("Health check failed", safeErrorMetadata(error))
     return publicHealthResponse("error", 500)
   }
 }

@@ -14,6 +14,7 @@
 - 2026-09-02: the finding is current. Production `/api/health` returned Firebase, Resend, storage, billing, provider-capability, and component error structures but no build identifier, even though the running image was independently tied to a reviewed commit.
 - 2026-09-02: regression coverage now requires the complete public response shape for ready, degraded, database-failure, and unexpected-failure paths; invalid or mutable revision text is replaced with `unknown`, while exact lowercase 40-character revisions are returned. Detailed readiness failures are logged internally and are not serialized.
 - 2026-09-02: all ten focused health/API contract tests pass. Backend typecheck, lint, and production build pass, and a clean runner image built with a controlled revision exposes that exact value through `PLANGLADE_BUILD_REVISION`; the local test image was removed after inspection.
+- 2026-09-02: independent review found raw database and unexpected exceptions could retain connection details in internal logs, and the self-hosting guide still described the removed detailed public response. Exception telemetry is now limited to a validated error name and optional safe code, tests prove the secret sentinel is absent from logs as well as responses, and operator guidance points component diagnosis to internal logs only.
 
 ### PG-DATA-005 — Prevent stale collaborative overwrites
 

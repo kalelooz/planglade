@@ -202,6 +202,8 @@ test("health returns safe JSON 503 when the database is unavailable", async () =
       assertPublicHealthPayload(JSON.parse(body), "degraded")
       assert.doesNotMatch(body, /secret=|internal\/path|database-url|stack/i)
       assert.equal(logged.length, 2)
+      assert.match(JSON.stringify(logged), /Health database check failed.*Error/)
+      assert.doesNotMatch(JSON.stringify(logged), /secret=|internal\/path|database-url|stack/i)
     } finally {
       console.error = originalConsoleError
     }
@@ -232,6 +234,8 @@ test("health unexpected failures return safe JSON without internal details", asy
       assertPublicHealthPayload(JSON.parse(body), "error")
       assert.doesNotMatch(body, /secret=|internal\/path|database-url|stack/i)
       assert.equal(logged.length, 1)
+      assert.match(JSON.stringify(logged), /Health check failed.*Error/)
+      assert.doesNotMatch(JSON.stringify(logged), /secret=|internal\/path|database-url|stack/i)
     } finally {
       process.env = realEnv
       console.error = originalConsoleError
