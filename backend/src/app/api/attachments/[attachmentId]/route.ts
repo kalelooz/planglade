@@ -11,7 +11,7 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
-import { attemptAttachmentDeletion, enqueueAttachmentDeletion } from "@/lib/attachment-deletion"
+import { attemptAttachmentDeletion, enqueueAttachmentStorageDeletion } from "@/lib/attachment-deletion"
 import { validateAttachmentProjectBoundary } from "@/lib/attachment-guards"
 import { updateAttachmentSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
@@ -177,7 +177,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     const entityTitle = existing.workItem?.title ?? existing.note?.title ?? "item"
 
     const deletionJob = await db.$transaction(async (tx) => {
-      const queued = await enqueueAttachmentDeletion(tx, existing.storageKey)
+      const queued = await enqueueAttachmentStorageDeletion(tx, existing.storageKey)
       await tx.attachment.delete({ where: { id: attachmentId } })
 
       await logActivityEvent(tx, {

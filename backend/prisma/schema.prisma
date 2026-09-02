@@ -524,8 +524,8 @@ model Attachment {
   mimeType     String?
   sizeBytes    Int?
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workItem     WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Cascade)
-  note         Note?     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  workItem     WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Restrict)
+  note         Note?     @relation(fields: [noteId], references: [id], onDelete: Restrict)
   uploadedBy   User      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt    DateTime  @default(now())
 
@@ -563,8 +563,8 @@ model AttachmentUploadReservation {
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   actor       User      @relation("AttachmentReservationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
-  workItem    WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Cascade)
-  note        Note?     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  workItem    WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Restrict)
+  note        Note?     @relation(fields: [noteId], references: [id], onDelete: Restrict)
 
   @@index([workspaceId, expiresAt, consumedAt])
   @@index([actorUserId, expiresAt])

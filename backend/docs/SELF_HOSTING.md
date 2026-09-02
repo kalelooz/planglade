@@ -96,7 +96,9 @@ Arrange a scheduler on the private application origin to send an authenticated
 the generated `PLANGLADE_MAINTENANCE_TOKEN` as a Bearer token, keep it out of
 logs and command history, and alert when `deletionFailures` stays above zero.
 The same endpoint also removes expired unfinalized uploads and abandoned local
-temporary files. Repeated calls are safe.
+temporary files. Upload capabilities and their reservations share one absolute
+expiry; cleanup waits one additional hour so an upload admitted just before
+expiry can finish before the durable deletion job runs. Repeated calls are safe.
 
 ## HTTPS and public exposure
 

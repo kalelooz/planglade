@@ -27,6 +27,9 @@ export class StorageObjectEmptyError extends Error {}
 export class StorageCapacityError extends Error {}
 
 type SignedStorageMethod = "upload" | "download"
+type SignedStorageExpiry =
+  | { expiresAtMs: number; expiresInSeconds?: never }
+  | { expiresAtMs?: never; expiresInSeconds: number }
 
 const DEFAULT_LOCAL_STORAGE_DIR = "storage/local-attachments"
 const RUNTIME_LOCAL_SIGNING_SECRET = randomBytes(32).toString("hex")
@@ -134,11 +137,10 @@ function buildLocalSignedStorageUrl(input: {
   method: SignedStorageMethod
   storageKey: string
   mimeType: string
-  expiresInSeconds: number
   reservationId?: string
   expectedSizeBytes?: number
-}) {
-  const expiresAtMs = Date.now() + input.expiresInSeconds * 1000
+} & SignedStorageExpiry) {
+  const expiresAtMs = input.expiresAtMs ?? Date.now() + input.expiresInSeconds * 1000
   const payload = encodeLocalStorageTokenPayload({
     method: input.method,
     storageKey: input.storageKey,
@@ -213,17 +215,18 @@ export async function createAttachmentUploadTarget(input: {
   mimeType: string
   reservationId: string
   expectedSizeBytes: number
-  expiresInSeconds?: number
+  expiresAt: Date
 }) {
   const provider = getStorageProviderOrThrow()
-  const expiresInSeconds = input.expiresInSeconds ?? 900
+  const expiresAtMs = input.expiresAt.getTime()
+  const expiresInSeconds = Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000))
 
   if (provider === "firebase") {
     const file = (await getConfiguredFirebaseStorageBucket()).file(input.storageKey)
     const [uploadUrl] = await file.getSignedUrl(
       buildFirebaseUploadSignedUrlConfig({
         mimeType: input.mimeType,
-        expiresAtMs: Date.now() + expiresInSeconds * 1000,
+        expiresAtMs,
       })
     )
 
@@ -244,7 +247,7 @@ export async function createAttachmentUploadTarget(input: {
       method: "upload",
       storageKey: input.storageKey,
       mimeType: input.mimeType,
-      expiresInSeconds,
+      expiresAtMs,
       reservationId: input.reservationId,
       expectedSizeBytes: input.expectedSizeBytes,
     }),

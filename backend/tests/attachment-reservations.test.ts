@@ -15,13 +15,18 @@ let storageRoot: string
 let db: typeof import("../src/lib/db").db
 let reserveAttachmentUpload: typeof import("../src/lib/attachment-reservations").reserveAttachmentUpload
 let finalizeAttachmentReservation: typeof import("../src/lib/attachment-reservations").finalizeAttachmentReservation
+let attachmentUploadDrainMs: number
 let reapExpiredAttachmentUploads: typeof import("../src/lib/attachment-reaper").reapExpiredAttachmentUploads
 let writeLocalStorageObject: typeof import("../src/lib/storage").writeLocalStorageObject
 let storageObjectExists: typeof import("../src/lib/storage").storageObjectExists
+let createAttachmentUploadTarget: typeof import("../src/lib/storage").createAttachmentUploadTarget
+let deleteStorageObject: typeof import("../src/lib/storage").deleteStorageObject
+let uploadLocalAttachment: typeof import("../src/app/api/attachments/upload-binary/route").PUT
 let deleteAttachment: typeof import("../src/app/api/attachments/[attachmentId]/route").DELETE
 let enqueueAttachmentDeletion: typeof import("../src/lib/attachment-deletion").enqueueAttachmentDeletion
 let attemptAttachmentDeletion: typeof import("../src/lib/attachment-deletion").attemptAttachmentDeletion
 let reapPendingAttachmentDeletions: typeof import("../src/lib/attachment-deletion").reapPendingAttachmentDeletions
+let prepareAttachmentParentDeletion: typeof import("../src/lib/attachment-deletion").prepareAttachmentParentDeletion
 
 before(async () => {
   storageRoot = await mkdtemp(path.join(tmpdir(), "planglade-reservations-"))
@@ -30,11 +35,24 @@ before(async () => {
   process.env.PLANGLADE_STORAGE_SIGNING_SECRET = "reservation-test-secret"
   process.env.PLANGLADE_WORKSPACE_STORAGE_QUOTA_BYTES = "100"
   ;({ db } = await import("../src/lib/db"))
-  ;({ reserveAttachmentUpload, finalizeAttachmentReservation } = await import("../src/lib/attachment-reservations"))
+  const attachmentReservations = await import("../src/lib/attachment-reservations")
+  ;({ reserveAttachmentUpload, finalizeAttachmentReservation } = attachmentReservations)
+  attachmentUploadDrainMs = attachmentReservations.ATTACHMENT_UPLOAD_DRAIN_MS
   ;({ reapExpiredAttachmentUploads } = await import("../src/lib/attachment-reaper"))
-  ;({ writeLocalStorageObject, storageObjectExists } = await import("../src/lib/storage"))
+  ;({
+    writeLocalStorageObject,
+    storageObjectExists,
+    createAttachmentUploadTarget,
+    deleteStorageObject,
+  } = await import("../src/lib/storage"))
+  ;({ PUT: uploadLocalAttachment } = await import("../src/app/api/attachments/upload-binary/route"))
   ;({ DELETE: deleteAttachment } = await import("../src/app/api/attachments/[attachmentId]/route"))
-  ;({ enqueueAttachmentDeletion, attemptAttachmentDeletion, reapPendingAttachmentDeletions } = await import("../src/lib/attachment-deletion"))
+  ;({
+    enqueueAttachmentDeletion,
+    attemptAttachmentDeletion,
+    reapPendingAttachmentDeletions,
+    prepareAttachmentParentDeletion,
+  } = await import("../src/lib/attachment-deletion"))
   await db.user.create({ data: { id: "owner-1", email: "alex.morgan@planglade.dev", normalizedEmail: "alex.morgan@planglade.dev" } })
   await db.workspace.create({ data: { id: "workspace-1", slug: "workspace-1", name: "Workspace", ownerId: "owner-1" } })
   await db.workspaceMember.create({ data: { id: "owner-membership", workspaceId: "workspace-1", userId: "owner-1", role: "OWNER" } })
@@ -124,7 +142,7 @@ test("the reaper removes expired unfinalized objects and reservation records", a
       storageKey,
       mimeType: "text/plain",
       sizeBytes: 6,
-      expiresAt: new Date(Date.now() - 1000),
+      expiresAt: new Date(Date.now() - attachmentUploadDrainMs - 1000),
     },
   })
 
@@ -149,7 +167,7 @@ test("the reaper preserves an object when finalization wins the cleanup race", a
       storageKey,
       mimeType: "text/plain",
       sizeBytes: 4,
-      expiresAt: new Date(Date.now() - 1000),
+      expiresAt: new Date(Date.now() - attachmentUploadDrainMs - 1000),
     },
   })
 
@@ -442,4 +460,193 @@ test("attachment deletion survives a temporary storage-provider failure", async 
     { cwd: path.resolve("."), env: { ...process.env, PLANGLADE_STORAGE_PROVIDER: "local" }, windowsHide: true },
   )
   assert.deepEqual(deletionResult(repeatedRetry.stdout), { deletionsRemoved: 0, deletionFailures: 0 })
+})
+
+test("parent deletion keeps cleanup pending while an admitted upload drains", async () => {
+  const storageKey = "workspace-1/slow-parent-upload.txt"
+  const expiresAt = new Date(Date.now() + 60_000)
+  let releaseUpload!: () => void
+  const uploadGate = new Promise<void>((resolve) => {
+    releaseUpload = resolve
+  })
+  let markUploadStarted!: () => void
+  const uploadStarted = new Promise<void>((resolve) => {
+    markUploadStarted = resolve
+  })
+  const source = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      await uploadGate
+      controller.enqueue(new TextEncoder().encode("slow"))
+      controller.close()
+    },
+  })
+
+  await db.note.create({
+    data: {
+      id: "slow-upload-note",
+      workspaceId: "workspace-1",
+      title: "Slow upload parent",
+      createdById: "owner-1",
+      updatedById: "owner-1",
+    },
+  })
+  const reservation = await db.attachmentUploadReservation.create({
+    data: {
+      id: "00000000-0000-4000-8000-000000000099",
+      workspaceId: "workspace-1",
+      actorUserId: "owner-1",
+      noteId: "slow-upload-note",
+      storageKey,
+      mimeType: "text/plain",
+      sizeBytes: 4,
+      expiresAt,
+    },
+  })
+  const target = await createAttachmentUploadTarget({
+    storageKey,
+    mimeType: "text/plain",
+    reservationId: reservation.id,
+    expectedSizeBytes: 4,
+    expiresAt,
+  })
+  const uploadUrl = new URL(target.uploadUrl, "http://localhost")
+  assert.equal(Number(uploadUrl.searchParams.get("expires")), expiresAt.getTime())
+
+  const upload = uploadLocalAttachment({
+    nextUrl: uploadUrl,
+    headers: new Headers({ "content-type": "text/plain" }),
+    body: {
+      getReader() {
+        markUploadStarted()
+        return source.getReader()
+      },
+    },
+  } as unknown as NextRequest)
+
+  try {
+    await uploadStarted
+    const jobs = await db.$transaction(async (tx) => {
+      const queued = await prepareAttachmentParentDeletion(tx, { noteId: "slow-upload-note" })
+      await tx.note.delete({ where: { id: "slow-upload-note" } })
+      return queued
+    })
+    assert.equal(jobs.length, 1)
+    assert.equal(
+      jobs[0]?.nextAttemptAt.getTime(),
+      expiresAt.getTime() + attachmentUploadDrainMs,
+    )
+
+    const afterCapabilityExpiry = new Date(expiresAt.getTime() + 1)
+    await reapExpiredAttachmentUploads(afterCapabilityExpiry)
+    assert.ok(await db.attachmentDeletionJob.findUnique({ where: { storageKey } }))
+    assert.equal(await storageObjectExists(storageKey), false)
+
+    releaseUpload()
+    assert.equal((await upload).status, 200)
+    assert.equal(await storageObjectExists(storageKey), true)
+
+    const afterDrain = new Date(expiresAt.getTime() + attachmentUploadDrainMs + 1)
+    await reapPendingAttachmentDeletions(afterDrain, { clock: () => afterDrain })
+    assert.equal(await storageObjectExists(storageKey), false)
+    assert.equal(await db.attachmentDeletionJob.findUnique({ where: { storageKey } }), null)
+  } finally {
+    releaseUpload()
+    await upload.catch(() => undefined)
+    await Promise.all([
+      deleteStorageObject(storageKey),
+      db.attachmentDeletionJob.deleteMany({ where: { storageKey } }),
+      db.attachmentUploadReservation.deleteMany({ where: { id: reservation.id } }),
+      db.note.deleteMany({ where: { id: "slow-upload-note" } }),
+    ])
+  }
+})
+
+test("direct deletion delays cleanup while a finalized upload capability can replay", async () => {
+  const storageKey = "workspace-1/finalized-replay.txt"
+  const expiresAt = new Date(Date.now() + 60_000)
+  process.env.PLANGLADE_AUTH_MODE = "dev"
+  await db.workItem.create({
+    data: {
+      id: "finalized-replay-task",
+      workspaceId: "workspace-1",
+      title: "Finalized replay",
+      createdById: "owner-1",
+    },
+  })
+  const reservation = await db.attachmentUploadReservation.create({
+    data: {
+      id: "00000000-0000-4000-8000-000000000098",
+      workspaceId: "workspace-1",
+      actorUserId: "owner-1",
+      workItemId: "finalized-replay-task",
+      storageKey,
+      mimeType: "text/plain",
+      sizeBytes: 8,
+      expiresAt,
+      consumedAt: new Date(),
+    },
+  })
+  await writeLocalStorageObject({
+    storageKey,
+    mimeType: "text/plain",
+    bytes: new TextEncoder().encode("original"),
+  })
+  await db.attachment.create({
+    data: {
+      id: "finalized-replay-attachment",
+      workspaceId: "workspace-1",
+      workItemId: "finalized-replay-task",
+      uploadedById: "owner-1",
+      name: "finalized-replay.txt",
+      storageKey,
+      mimeType: "text/plain",
+      sizeBytes: 8,
+    },
+  })
+  const target = await createAttachmentUploadTarget({
+    storageKey,
+    mimeType: "text/plain",
+    reservationId: reservation.id,
+    expectedSizeBytes: 8,
+    expiresAt,
+  })
+
+  try {
+    const response = await deleteAttachment(
+      new NextRequest(
+        "http://localhost/api/attachments/finalized-replay-attachment?workspaceId=workspace-1",
+        { method: "DELETE", headers: { "x-planglade-user-id": "owner-1" } },
+      ),
+      { params: Promise.resolve({ attachmentId: "finalized-replay-attachment" }) },
+    )
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), { deleted: true, storageDeleted: false })
+    const job = await db.attachmentDeletionJob.findUniqueOrThrow({ where: { storageKey } })
+    assert.equal(job.nextAttemptAt.getTime(), expiresAt.getTime() + attachmentUploadDrainMs)
+    assert.equal(await storageObjectExists(storageKey), true)
+
+    const replay = await uploadLocalAttachment(new NextRequest(
+      new URL(target.uploadUrl, "http://localhost"),
+      {
+        method: "PUT",
+        headers: { "content-type": "text/plain" },
+        body: new TextEncoder().encode("replayed"),
+      },
+    ))
+    assert.equal(replay.status, 409)
+    assert.equal(await storageObjectExists(storageKey), true)
+
+    const afterDrain = new Date(expiresAt.getTime() + attachmentUploadDrainMs + 1)
+    await reapPendingAttachmentDeletions(afterDrain, { clock: () => afterDrain })
+    assert.equal(await storageObjectExists(storageKey), false)
+    assert.equal(await db.attachmentDeletionJob.findUnique({ where: { storageKey } }), null)
+  } finally {
+    await Promise.all([
+      deleteStorageObject(storageKey),
+      db.attachment.deleteMany({ where: { id: "finalized-replay-attachment" } }),
+      db.attachmentDeletionJob.deleteMany({ where: { storageKey } }),
+    ])
+    await db.attachmentUploadReservation.deleteMany({ where: { id: reservation.id } })
+    await db.workItem.deleteMany({ where: { id: "finalized-replay-task" } })
+  }
 })

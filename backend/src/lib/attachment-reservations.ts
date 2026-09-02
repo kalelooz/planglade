@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client"
 
 import { db } from "@/lib/db"
 
+export const ATTACHMENT_UPLOAD_DRAIN_MS = 60 * 60 * 1000
+
 const DEFAULT_WORKSPACE_QUOTA_BYTES = 1024 * 1024 * 1024
 
 export class WorkspaceStorageQuotaError extends Error {

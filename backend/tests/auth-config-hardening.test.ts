@@ -150,7 +150,7 @@ test("local storage derives a separate signing key from the operator secret", as
       mimeType: "text/plain",
       reservationId: "00000000-0000-4000-8000-000000000001",
       expectedSizeBytes: 10,
-      expiresInSeconds: 60,
+      expiresAt: new Date(Date.now() + 60_000),
     })
     const url = new URL(target.uploadUrl, "http://localhost")
     const expires = url.searchParams.get("expires") ?? ""
