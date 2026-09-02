@@ -157,8 +157,9 @@ authentication is local-only and cannot be enabled in production.
   `PLANGLADE_PUBLIC_URL` aligned.
 - **Migration failed:** inspect `docker compose logs migrate`; do not delete the
   volume to hide the failure.
-- **Backend is unhealthy:** inspect `docker compose logs --tail=100 backend`
-  and `/api/health` for redacted configuration errors.
+- **Backend is unhealthy:** `/api/health` reports only coarse readiness and the
+  immutable build revision when one was supplied. Inspect
+  `docker compose logs --tail=100 backend` for internal component diagnostics.
 - **Sign-in fails:** verify the public URL, stable session secret, local-auth
   flag, and any optional OAuth callback.
 - **Attachments fail:** verify the attachment volume is writable and the

@@ -42,9 +42,11 @@ CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
 FROM base AS runner
 
+ARG PLANGLADE_BUILD_REVISION=local-unset
 ENV NODE_ENV=production \
   HOSTNAME=0.0.0.0 \
-  PORT=3000
+  PORT=3000 \
+  PLANGLADE_BUILD_REVISION=${PLANGLADE_BUILD_REVISION}
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/validate-auth-config.mjs ./scripts/validate-auth-config.mjs

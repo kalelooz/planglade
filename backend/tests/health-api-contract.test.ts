@@ -36,6 +36,7 @@ after(async () => {
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,
+  PLANGLADE_BUILD_REVISION: process.env.PLANGLADE_BUILD_REVISION,
   PLANGLADE_AUTH_MODE: process.env.PLANGLADE_AUTH_MODE,
   NEXT_PUBLIC_PLANGLADE_AUTH_MODE: process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE,
   PLANGLADE_STORAGE_PROVIDER: process.env.PLANGLADE_STORAGE_PROVIDER,
@@ -49,6 +50,8 @@ const originalEnv = {
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
 }
 
+const TEST_REVISION = "0123456789abcdef0123456789abcdef01234567"
+
 function restoreEnv() {
   for (const [key, value] of Object.entries(originalEnv)) {
     if (value === undefined) delete process.env[key]
@@ -58,6 +61,7 @@ function restoreEnv() {
 
 function setContractEnv(nodeEnv: "development" | "production", authMode = "dev") {
   Reflect.set(process.env, "NODE_ENV", nodeEnv)
+  process.env.PLANGLADE_BUILD_REVISION = TEST_REVISION
   process.env.PLANGLADE_AUTH_MODE = authMode
   process.env.NEXT_PUBLIC_PLANGLADE_AUTH_MODE = authMode
   process.env.PLANGLADE_STORAGE_PROVIDER = "local"
@@ -69,6 +73,14 @@ function setContractEnv(nodeEnv: "development" | "production", authMode = "dev")
   delete process.env.GITHUB_SECRET
   delete process.env.GOOGLE_CLIENT_ID
   delete process.env.GOOGLE_CLIENT_SECRET
+}
+
+function assertPublicHealthPayload(payload: unknown, status: "ok" | "degraded" | "error", revision = TEST_REVISION) {
+  assert.deepEqual(payload, {
+    status,
+    service: "planglade-api",
+    revision,
+  })
 }
 
 async function withRestoredState(fn: () => Promise<void>) {
@@ -90,11 +102,11 @@ test("health returns JSON success when required configuration is ready", async (
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as { status?: string }
+    const payload = await response.json()
 
     assert.equal(response.status, 200)
     assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
-    assert.equal(payload.status, "ok")
+    assertPublicHealthPayload(payload, "ok")
   })
 })
 
@@ -104,15 +116,15 @@ test("health returns JSON 503 when required configuration is unavailable", async
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as { status?: string }
+    const payload = await response.json()
 
     assert.equal(response.status, 503)
     assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
-    assert.equal(payload.status, "degraded")
+    assertPublicHealthPayload(payload, "degraded")
   })
 })
 
-test("health treats explicit local credentials as an available NextAuth provider", async () => {
+test("health accepts explicit local credentials without exposing provider topology", async () => {
   await withRestoredState(async () => {
     setContractEnv("production", "nextauth")
     process.env.NEXTAUTH_SECRET = "test-nextauth-secret-32-bytes-minimum-value"
@@ -121,19 +133,10 @@ test("health treats explicit local credentials as an available NextAuth provider
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as {
-      status?: string
-      checks?: { auth?: { ready?: boolean; providers?: Record<string, boolean> } }
-    }
+    const payload = await response.json()
 
     assert.equal(response.status, 200)
-    assert.equal(payload.status, "ok")
-    assert.deepEqual(payload.checks?.auth?.providers, {
-      localCredentials: true,
-      google: false,
-      github: false,
-      anyConfigured: true,
-    })
+    assertPublicHealthPayload(payload, "ok")
   })
 })
 
@@ -145,15 +148,21 @@ test("health degrades safely for invalid local authentication configuration", as
     process.env.PLANGLADE_LOCAL_AUTH_ENABLED = "invalid"
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
-    const response = await getHealth()
-    const body = await response.text()
-    const payload = JSON.parse(body) as { status?: string; checks?: { auth?: { ready?: boolean; errors?: string[] } } }
+    const originalConsoleError = console.error
+    const logged: unknown[][] = []
+    console.error = (...args: unknown[]) => logged.push(args)
+    try {
+      const response = await getHealth()
+      const body = await response.text()
+      const payload = JSON.parse(body)
 
-    assert.equal(response.status, 503)
-    assert.equal(payload.status, "degraded")
-    assert.equal(payload.checks?.auth?.ready, false)
-    assert.match(payload.checks?.auth?.errors?.join(" ") ?? "", /Invalid PLANGLADE_LOCAL_AUTH_ENABLED/)
-    assert.doesNotMatch(body, /PLANGLADE_LOCAL_AUTH_ENABLED=invalid|secret=|stack/i)
+      assert.equal(response.status, 503)
+      assertPublicHealthPayload(payload, "degraded")
+      assert.doesNotMatch(body, /PLANGLADE_LOCAL_AUTH_ENABLED=invalid|secret=|stack/i)
+      assert.match(JSON.stringify(logged), /Invalid PLANGLADE_LOCAL_AUTH_ENABLED/)
+    } finally {
+      console.error = originalConsoleError
+    }
   })
 })
 
@@ -167,14 +176,10 @@ test("health uses the shared production policy for email readiness", async () =>
     db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
 
     const response = await getHealth()
-    const payload = (await response.json()) as {
-      checks?: { email?: { ready?: boolean; provider?: string; errors?: string[] } }
-    }
+    const payload = await response.json()
 
     assert.equal(response.status, 503)
-    assert.equal(payload.checks?.email?.ready, false)
-    assert.equal(payload.checks?.email?.provider, "console")
-    assert.match(payload.checks?.email?.errors?.join(" ") ?? "", /console.*production/i)
+    assertPublicHealthPayload(payload, "degraded")
   })
 })
 
@@ -194,8 +199,11 @@ test("health returns safe JSON 503 when the database is unavailable", async () =
 
       assert.equal(response.status, 503)
       assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
+      assertPublicHealthPayload(JSON.parse(body), "degraded")
       assert.doesNotMatch(body, /secret=|internal\/path|database-url|stack/i)
-      assert.equal(logged.length, 1)
+      assert.equal(logged.length, 2)
+      assert.match(JSON.stringify(logged), /Health database check failed.*Error/)
+      assert.doesNotMatch(JSON.stringify(logged), /secret=|internal\/path|database-url|stack/i)
     } finally {
       console.error = originalConsoleError
     }
@@ -223,12 +231,28 @@ test("health unexpected failures return safe JSON without internal details", asy
 
       assert.equal(response.status, 500)
       assert.match(response.headers.get("content-type") ?? "", /^application\/json/)
+      assertPublicHealthPayload(JSON.parse(body), "error")
       assert.doesNotMatch(body, /secret=|internal\/path|database-url|stack/i)
       assert.equal(logged.length, 1)
+      assert.match(JSON.stringify(logged), /Health check failed.*Error/)
+      assert.doesNotMatch(JSON.stringify(logged), /secret=|internal\/path|database-url|stack/i)
     } finally {
       process.env = realEnv
       console.error = originalConsoleError
     }
+  })
+})
+
+test("health exposes only an exact immutable revision", async () => {
+  await withRestoredState(async () => {
+    setContractEnv("development")
+    process.env.PLANGLADE_BUILD_REVISION = "mutable-latest"
+    db.$queryRawUnsafe = (async () => [{ ready: 1 }]) as typeof db.$queryRawUnsafe
+
+    const response = await getHealth()
+
+    assert.equal(response.status, 200)
+    assertPublicHealthPayload(await response.json(), "ok", "unknown")
   })
 })
 
