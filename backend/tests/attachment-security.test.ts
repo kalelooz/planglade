@@ -63,7 +63,7 @@ async function uploadUrl(storageKey: string) {
     mimeType: "text/plain",
     reservationId: "00000000-0000-4000-8000-000000000001",
     expectedSizeBytes: MAX_ATTACHMENT_BYTES,
-    expiresInSeconds: 60,
+    expiresAt: new Date(Date.now() + 60_000),
   })
   return new URL(target.uploadUrl, "http://localhost")
 }

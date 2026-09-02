@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     const storageKey = `${parsed.data.workspaceId}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}`
     const expiresInSeconds = 900
+    const expiresAt = new Date(now.getTime() + expiresInSeconds * 1000)
     await ensureLocalStorageHeadroom(parsed.data.sizeBytes)
     const reservation = await reserveAttachmentUpload({
       workspaceId: parsed.data.workspaceId,
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
       storageKey,
       mimeType: parsed.data.mimeType,
       sizeBytes: parsed.data.sizeBytes,
-      expiresAt: new Date(now.getTime() + expiresInSeconds * 1000),
+      expiresAt,
     })
     let uploadTarget
     try {
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
         mimeType: parsed.data.mimeType,
         reservationId: reservation.id,
         expectedSizeBytes: parsed.data.sizeBytes,
-        expiresInSeconds,
+        expiresAt,
       })
     } catch (error) {
       await db.attachmentUploadReservation.delete({ where: { id: reservation.id } }).catch(() => undefined)

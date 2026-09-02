@@ -10,6 +10,11 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
+import {
+  AttachmentParentChangedError,
+  attemptAttachmentDeletion,
+  prepareAttachmentParentDeletion,
+} from "@/lib/attachment-deletion"
 import { deleteNoteSchema, updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { buildNoteAccessWhere, canAccessNote } from "@/lib/note-access"
@@ -18,6 +23,10 @@ import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
 type Params = { params: Promise<{ noteId: string }> }
 
 class StaleNoteMutationError extends Error {}
+
+function isForeignKeyConflict(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2003"
+}
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { noteId } = await params
@@ -178,10 +187,17 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       )
     }
 
-    await db.$transaction(async (tx) => {
-      const claim = await tx.note.deleteMany({
-        where: { id: noteId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
-      })
+    const deletionJobs = await db.$transaction(async (tx) => {
+      const queued = await prepareAttachmentParentDeletion(tx, { noteId })
+      let claim
+      try {
+        claim = await tx.note.deleteMany({
+          where: { id: noteId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
+        })
+      } catch (error) {
+        if (isForeignKeyConflict(error)) throw new StaleNoteMutationError()
+        throw error
+      }
       if (claim.count !== 1) throw new StaleNoteMutationError()
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
@@ -191,10 +207,12 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         entityId: noteId,
         summary: `Deleted note "${existing.title}"`,
       })
+      return queued
     })
+    await Promise.all(deletionJobs.map((job) => attemptAttachmentDeletion(job.id)))
     return NextResponse.json({ deleted: true })
   } catch (error) {
-    if (error instanceof StaleNoteMutationError) {
+    if (error instanceof AttachmentParentChangedError || error instanceof StaleNoteMutationError) {
       return NextResponse.json(
         {
           error: "Note changed since it was loaded",

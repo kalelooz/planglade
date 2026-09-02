@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import type { Prisma } from "@prisma/client"
 
+import { ATTACHMENT_UPLOAD_DRAIN_MS } from "@/lib/attachment-reservations"
 import { db } from "@/lib/db"
 import { deleteStorageObject } from "@/lib/storage"
 
@@ -15,6 +16,12 @@ type DeletionAttemptOptions = {
   deleteObject?: DeleteObject
   clock?: Clock
 }
+
+type AttachmentParent =
+  | { workItemId: string }
+  | { noteId: string }
+
+export class AttachmentParentChangedError extends Error {}
 
 class StorageDeletionIncompleteError extends Error {
   constructor() {
@@ -47,6 +54,66 @@ export function enqueueAttachmentDeletion(
     update: {},
     create: { storageKey, nextAttemptAt: now },
   })
+}
+
+function deletionNotBefore(now: Date, reservationExpiresAt?: Date) {
+  if (!reservationExpiresAt) return now
+  return new Date(Math.max(
+    now.getTime(),
+    reservationExpiresAt.getTime() + ATTACHMENT_UPLOAD_DRAIN_MS,
+  ))
+}
+
+export async function enqueueAttachmentStorageDeletion(
+  tx: Prisma.TransactionClient,
+  storageKey: string,
+  now = new Date(),
+) {
+  const reservation = await tx.attachmentUploadReservation.findUnique({
+    where: { storageKey },
+    select: { expiresAt: true },
+  })
+  return enqueueAttachmentDeletion(tx, storageKey, deletionNotBefore(now, reservation?.expiresAt))
+}
+
+export async function prepareAttachmentParentDeletion(
+  tx: Prisma.TransactionClient,
+  parent: AttachmentParent,
+) {
+  const where = "workItemId" in parent
+    ? { workItemId: parent.workItemId }
+    : { noteId: parent.noteId }
+  const [attachments, reservations] = await Promise.all([
+    tx.attachment.findMany({ where, select: { id: true, storageKey: true } }),
+    tx.attachmentUploadReservation.findMany({
+      where,
+      select: { id: true, storageKey: true, expiresAt: true },
+    }),
+  ])
+  const now = new Date()
+  const deletionTimes = new Map<string, Date>()
+  for (const attachment of attachments) {
+    deletionTimes.set(attachment.storageKey, now)
+  }
+  for (const reservation of reservations) {
+    const notBefore = deletionNotBefore(now, reservation.expiresAt)
+    const current = deletionTimes.get(reservation.storageKey)
+    if (!current || notBefore > current) deletionTimes.set(reservation.storageKey, notBefore)
+  }
+  const jobs = await Promise.all([...deletionTimes].map(([storageKey, notBefore]) => (
+    enqueueAttachmentDeletion(tx, storageKey, notBefore)
+  )))
+  const [attachmentsRemoved, reservationsRemoved] = await Promise.all([
+    tx.attachment.deleteMany({ where: { id: { in: attachments.map(({ id }) => id) } } }),
+    tx.attachmentUploadReservation.deleteMany({
+      where: { id: { in: reservations.map(({ id }) => id) } },
+    }),
+  ])
+  if (
+    attachmentsRemoved.count !== attachments.length
+    || reservationsRemoved.count !== reservations.length
+  ) throw new AttachmentParentChangedError()
+  return jobs
 }
 
 export async function attemptAttachmentDeletion(

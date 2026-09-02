@@ -1,18 +1,20 @@
 import { db } from "@/lib/db"
 import { reapPendingAttachmentDeletions } from "@/lib/attachment-deletion"
+import { ATTACHMENT_UPLOAD_DRAIN_MS } from "@/lib/attachment-reservations"
 import { deleteStorageObject, removeAbandonedLocalUploadTemps } from "@/lib/storage"
 
 export async function reapExpiredAttachmentUploads(now = new Date()) {
   const deletionResult = await reapPendingAttachmentDeletions(now)
+  const expiredBefore = new Date(now.getTime() - ATTACHMENT_UPLOAD_DRAIN_MS)
   const expired = await db.attachmentUploadReservation.findMany({
-    where: { consumedAt: null, expiresAt: { lte: now } },
+    where: { consumedAt: null, expiresAt: { lte: expiredBefore } },
     orderBy: { expiresAt: "asc" },
     take: 100,
   })
   let reservationsRemoved = 0
   for (const reservation of expired) {
     const claimed = await db.attachmentUploadReservation.updateMany({
-      where: { id: reservation.id, consumedAt: null, expiresAt: { lte: now } },
+      where: { id: reservation.id, consumedAt: null, expiresAt: { lte: expiredBefore } },
       data: { consumedAt: now },
     })
     if (claimed.count !== 1) continue
@@ -20,12 +22,12 @@ export async function reapExpiredAttachmentUploads(now = new Date()) {
     try {
       await deleteStorageObject(reservation.storageKey)
       const removed = await db.attachmentUploadReservation.deleteMany({
-        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: now } },
+        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: expiredBefore } },
       })
       reservationsRemoved += removed.count
     } catch (error) {
       await db.attachmentUploadReservation.updateMany({
-        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: now } },
+        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: expiredBefore } },
         data: { consumedAt: null },
       })
       throw error

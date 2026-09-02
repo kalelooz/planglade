@@ -11,6 +11,11 @@ import {
   serverError,
 } from "@/lib/api-utils"
 import { logActivityEvent } from "@/lib/activity"
+import {
+  AttachmentParentChangedError,
+  attemptAttachmentDeletion,
+  prepareAttachmentParentDeletion,
+} from "@/lib/attachment-deletion"
 import { deleteWorkItemSchema, updateWorkItemSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
 import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
@@ -33,6 +38,10 @@ import {
 type Params = { params: Promise<{ workItemId: string }> }
 
 class StaleWorkItemMutationError extends Error {}
+
+function isForeignKeyConflict(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2003"
+}
 
 async function currentWorkItemState(workspaceId: string, workItemId: string) {
   const [workItem, laneVersions] = await Promise.all([
@@ -450,11 +459,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       )
     }
 
-    await runSerializableWorkItemTransaction(db, async (tx) => {
+    const deletionJobs = await runSerializableWorkItemTransaction(db, async (tx) => {
       await claimWorkItemLaneVersions(tx, query.data.workspaceId, expectedLaneVersions)
-      const claim = await tx.workItem.deleteMany({
-        where: { id: workItemId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
-      })
+      const queued = await prepareAttachmentParentDeletion(tx, { workItemId })
+      let claim
+      try {
+        claim = await tx.workItem.deleteMany({
+          where: { id: workItemId, updatedAt: new Date(parsed.data.expectedUpdatedAt!) },
+        })
+      } catch (error) {
+        if (isForeignKeyConflict(error)) throw new StaleWorkItemMutationError()
+        throw error
+      }
       if (claim.count !== 1) throw new StaleWorkItemMutationError()
       await logActivityEvent(tx, {
         workspaceId: query.data.workspaceId,
@@ -464,10 +480,16 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         entityId: workItemId,
         summary: `Deleted work item "${existing.title}"`,
       })
+      return queued
     })
+    await Promise.all(deletionJobs.map((job) => attemptAttachmentDeletion(job.id)))
     return NextResponse.json({ deleted: true })
   } catch (error) {
-    if (error instanceof StaleWorkItemMutationError || error instanceof StaleWorkItemLaneMutationError) {
+    if (
+      error instanceof AttachmentParentChangedError
+      || error instanceof StaleWorkItemMutationError
+      || error instanceof StaleWorkItemLaneMutationError
+    ) {
       const current = await currentWorkItemState(query.data.workspaceId, workItemId)
       return NextResponse.json(
         {
