@@ -14,6 +14,14 @@ function patchRequest(path: string, body: Record<string, unknown>) {
   })
 }
 
+function postRequest(path: string, body: Record<string, unknown>) {
+  return new NextRequest(`http://localhost${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
 function deleteRequest(path: string, body: Record<string, unknown>) {
   return new NextRequest(`http://localhost${path}`, {
     method: "DELETE",
@@ -43,6 +51,7 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
   const { DELETE: deleteProject, PATCH: updateProject } = await import("../src/app/api/projects/[projectId]/route")
   const { DELETE: deleteNote, PATCH: updateNote } = await import("../src/app/api/notes/[noteId]/route")
   const { DELETE: deleteWorkItem, PATCH: updateWorkItem } = await import("../src/app/api/work-items/[workItemId]/route")
+  const { POST: createWorkItem } = await import("../src/app/api/work-items/route")
 
   try {
     const user = await db.user.create({
@@ -124,6 +133,82 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
         updatedById: user.id,
         visibility: "WORKSPACE",
       },
+    })
+    const linkedNote = await db.note.create({
+      data: {
+        id: "note-linked-delete",
+        workspaceId: "workspace-1",
+        title: "Linked note delete candidate",
+        createdById: user.id,
+        updatedById: user.id,
+        visibility: "WORKSPACE",
+      },
+    })
+    await db.workItem.createMany({
+      data: [
+        {
+          id: "task-linked-note-a",
+          workspaceId: "workspace-1",
+          title: "First linked task",
+          noteIds: [linkedNote.id, note.id],
+          createdById: user.id,
+        },
+        {
+          id: "task-linked-note-b",
+          workspaceId: "workspace-1",
+          title: "Second linked task",
+          noteIds: [linkedNote.id],
+          createdById: user.id,
+        },
+      ],
+    })
+    const racingNote = await db.note.create({
+      data: {
+        id: "note-link-race",
+        workspaceId: "workspace-1",
+        title: "Racing note reference",
+        createdById: user.id,
+        updatedById: user.id,
+        visibility: "WORKSPACE",
+      },
+    })
+    const racingTask = await db.workItem.create({
+      data: {
+        id: "task-note-link-race",
+        workspaceId: "workspace-1",
+        title: "Racing note task",
+        noteIds: [],
+        createdById: user.id,
+      },
+    })
+    const racingCreateNote = await db.note.create({
+      data: {
+        id: "note-create-link-race",
+        workspaceId: "workspace-1",
+        title: "Racing create reference",
+        createdById: user.id,
+        updatedById: user.id,
+        visibility: "WORKSPACE",
+      },
+    })
+    const bulkLinkedNote = await db.note.create({
+      data: {
+        id: "note-bulk-linked-delete",
+        workspaceId: "workspace-1",
+        title: "Bulk-linked note",
+        createdById: user.id,
+        updatedById: user.id,
+        visibility: "WORKSPACE",
+      },
+    })
+    await db.workItem.createMany({
+      data: Array.from({ length: 501 }, (_, index) => ({
+        id: `task-bulk-linked-${String(index).padStart(3, "0")}`,
+        workspaceId: "workspace-1",
+        title: `Bulk-linked task ${index}`,
+        noteIds: [bulkLinkedNote.id],
+        createdById: user.id,
+      })),
     })
     const deleteTaskCandidate = await db.workItem.create({
       data: {
@@ -235,6 +320,69 @@ test("two clients cannot silently overwrite task, project, note, or lane updates
       assert.equal(conflict.current.id, staleLaneTask.id)
       assert.equal(conflict.current.status, "DONE")
     }
+
+    const linkedDeleteResponse = await deleteNote(deleteRequest(
+      "/api/notes/note-linked-delete?workspaceId=workspace-1",
+      { expectedUpdatedAt: linkedNote.updatedAt.toISOString() },
+    ), { params: Promise.resolve({ noteId: linkedNote.id }) })
+    assert.equal(linkedDeleteResponse.status, 200)
+    const linkedTasks = await db.workItem.findMany({
+      where: { id: { in: ["task-linked-note-a", "task-linked-note-b"] } },
+      orderBy: { id: "asc" },
+      select: { noteIds: true },
+    })
+    assert.deepEqual(linkedTasks.map((item) => item.noteIds), [[note.id], []])
+
+    const bulkDeleteResponse = await deleteNote(deleteRequest(
+      "/api/notes/note-bulk-linked-delete?workspaceId=workspace-1",
+      { expectedUpdatedAt: bulkLinkedNote.updatedAt.toISOString() },
+    ), { params: Promise.resolve({ noteId: bulkLinkedNote.id }) })
+    assert.equal(bulkDeleteResponse.status, 200)
+    const bulkLinkedTasks = await db.workItem.findMany({
+      where: { id: { startsWith: "task-bulk-linked-" } },
+      select: { noteIds: true },
+    })
+    assert.equal(bulkLinkedTasks.length, 501)
+    assert.equal(bulkLinkedTasks.every((item) => Array.isArray(item.noteIds) && item.noteIds.length === 0), true)
+
+    const noteReferenceRace = await Promise.all([
+      updateWorkItem(patchRequest("/api/work-items/task-note-link-race?workspaceId=workspace-1", {
+        noteIds: [racingNote.id],
+        expectedUpdatedAt: racingTask.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ workItemId: racingTask.id }) }),
+      deleteNote(deleteRequest("/api/notes/note-link-race?workspaceId=workspace-1", {
+        expectedUpdatedAt: racingNote.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ noteId: racingNote.id }) }),
+    ])
+    assert.equal(noteReferenceRace[1].status, 200)
+    assert.ok(
+      [200, 400, 409].includes(noteReferenceRace[0].status),
+      `unexpected note-link response: ${noteReferenceRace[0].status}`,
+    )
+    assert.equal(await db.note.findUnique({ where: { id: racingNote.id } }), null)
+    const reloadedRacingTask = await db.workItem.findUniqueOrThrow({ where: { id: racingTask.id } })
+    assert.equal(Array.isArray(reloadedRacingTask.noteIds) && reloadedRacingTask.noteIds.includes(racingNote.id), false)
+
+    const noteCreateReferenceRace = await Promise.all([
+      createWorkItem(postRequest("/api/work-items", {
+        workspaceId: "workspace-1",
+        title: "Task racing note creation",
+        noteIds: [racingCreateNote.id],
+      })),
+      deleteNote(deleteRequest("/api/notes/note-create-link-race?workspaceId=workspace-1", {
+        expectedUpdatedAt: racingCreateNote.updatedAt.toISOString(),
+      }), { params: Promise.resolve({ noteId: racingCreateNote.id }) }),
+    ])
+    assert.equal(noteCreateReferenceRace[1].status, 200)
+    assert.ok(
+      [201, 400].includes(noteCreateReferenceRace[0].status),
+      `unexpected note-create response: ${noteCreateReferenceRace[0].status}`,
+    )
+    const createdRacingTask = await db.workItem.findFirst({ where: { title: "Task racing note creation" } })
+    assert.equal(
+      Array.isArray(createdRacingTask?.noteIds) && createdRacingTask.noteIds.includes(racingCreateNote.id),
+      false,
+    )
 
     const projectDeleteRace = await Promise.all([
       updateProject(patchRequest("/api/projects/project-delete?workspaceId=workspace-1", {

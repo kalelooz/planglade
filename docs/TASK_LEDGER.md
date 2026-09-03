@@ -2,6 +2,24 @@
 
 ## Active task
 
+### PG-DATA-013 — Remove deleted Note references atomically
+
+- Status: **PASS** for public-core publication; Cloud PostgreSQL import and production verification remain separately gated
+- Requested: 2026-09-03
+- Scope: prevent task `noteIds` from retaining or recreating references to a deleted Note in the self-hosted API and local/reference workspace.
+- Acceptance: Note deletion removes the deleted ID from every workspace task in the same serializable transaction; task create/update revalidate Note access inside their write transaction; concurrent linking and deletion cannot leave a dead reference; local deletion and undo preserve the same invariant; API clients refresh server-authored task versions; focused concurrency, frontend, type, lint, build, boundary, documentation, and independent-review checks pass.
+
+### Evidence
+
+- 2026-09-03: work starts in a clean worktree from exact public `main` `12c9cfa2295a54fe005febce92b534ef5f057c5b`; the owner's original public checkout and its untracked `.claude/` directory remain untouched.
+- 2026-09-03: the Note deletion transaction uses one parameterized SQLite JSON update to remove only the deleted ID from every matching workspace task, then deletes the Note with its existing stale-write precondition and attachment cleanup. Task create/update now validate accessible Note IDs inside their serializable mutation, so a delete/link race either preserves a live reference or removes/rejects it without a dangling ID.
+- 2026-09-03: the isolated SQLite regression deletes a Note linked from two tasks while preserving another Note ID, removes the same reference from 501 tasks in one set-based statement, and races both task update and task creation against Note deletion without a surviving dead reference. All 298 backend and 179 frontend tests pass; backend/frontend lint and typecheck, both production builds, image-optimizer 404 probe, public boundary, CI/docs/release/backend-surface checks, and both zero-vulnerability audits pass.
+- 2026-09-03: the ordinary Windows `prisma migrate deploy` command still exits at the schema engine before migration output, matching the documented host limitation from PG-SEC-011/PG-DEP-012. The repository's direct SQLite migration method applied the complete eight-migration chain to an isolated database before the full 298-test backend run; exact-head Linux CI remains the authoritative Prisma migration-engine gate.
+- 2026-09-03: first independent review found that the original paged cleanup still had unbounded transaction statements and that the frontend mutation-version map survived task query invalidation. The correction uses one set-based cleanup statement, clears the affected workspace's version entries before refresh, and repopulates fresh versions from both task and Inbox responses while preserving other workspace entries.
+- 2026-09-03: bounded follow-up review found that query invalidation could repopulate versions from retained stale cache after a failed or inactive refetch. The correction now performs explicit fetches, records only fulfilled task/Inbox responses, and leaves stale workspace entries cleared when either source is unavailable. The SQLite JSON statement is intentionally public-provider-specific; the required Cloud import must reconcile it to one PostgreSQL JSONB update and prove the same create/update/delete races before Cloud merge.
+- 2026-09-03: later follow-up review found that a pre-delete request or task mutation could finish late and restore stale cache. The correction cancels task/Inbox requests before post-delete fetches and advances a per-workspace mutation generation after successful deletion. A valid mutation that commits after the deletion refresh triggers another authoritative refresh instead of disappearing.
+- 2026-09-03: final follow-up review found that React Query retained stale task data when an authoritative fetch failed. Failed task or Inbox keys are now reset after the fetch attempt, clearing stale active-observer data and allowing the normal active retry; only fulfilled responses repopulate mutation versions. Seven focused cache tests include a real QueryClient/QueryObserver failure and the commit-after-delete race. The final independent corrected-tree review returned `PASS` with no remaining P0-P2 finding.
+
 ### PG-BOUNDARY-013 — Define the Community Edition contribution boundary
 
 - Status: **IN REVIEW**

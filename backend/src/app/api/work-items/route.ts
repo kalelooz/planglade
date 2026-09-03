@@ -26,6 +26,8 @@ import {
   runSerializableWorkItemTransaction,
 } from "@/lib/work-item-lane-versions"
 
+class InvalidNoteReferenceError extends Error {}
+
 export async function GET(request: NextRequest) {
   const query = parseQuery(
     {
@@ -86,13 +88,6 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
 
-    const noteReferences = await validateNoteReferences({
-      workspaceId: parsed.data.workspaceId,
-      actorUserId,
-      noteIds: parsed.data.noteIds,
-    })
-    if (!noteReferences.ok) return badRequest("Note not found or not accessible")
-
     const labelReferences = await validateWorkspaceLabelIds({
       workspaceId: parsed.data.workspaceId,
       labelIds: parsed.data.labelIds,
@@ -137,6 +132,13 @@ export async function POST(request: NextRequest) {
     }
 
     const created = await runSerializableWorkItemTransaction(db, async (tx) => {
+      const noteReferences = await validateNoteReferences({
+        workspaceId: parsed.data.workspaceId,
+        actorUserId,
+        noteIds: parsed.data.noteIds,
+      }, tx)
+      if (!noteReferences.ok) throw new InvalidNoteReferenceError()
+
       const workItem = await tx.workItem.create({
         data: {
           workspaceId: parsed.data.workspaceId,
@@ -213,6 +215,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ workItem: created }, { status: 201 })
   } catch (error) {
+    if (error instanceof InvalidNoteReferenceError) {
+      return badRequest("Note not found or not accessible")
+    }
     return serverError("Failed to create work item", String(error))
   }
 }
