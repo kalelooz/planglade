@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-WEB-010 — Route legacy `/plans` through the self-host SPA
+
+- Status: **PASS** for public-core publication; Cloud hosting import and production verification remain separately gated
+- Requested: 2026-09-03
+- Scope: add the one omitted legacy Plans path to the public Nginx SPA matcher without changing canonical application routing or unrelated gateway behavior.
+- Acceptance: `/plans` matches the checked-in SPA location, falls back to `index.html`, and the existing application contract canonicalizes it to `/app/plans`; focused and complete public checks pass.
+
+### Evidence
+
+- 2026-09-03: the current application contract already maps `/plans` to `/app/plans`, but the current public Nginx template omitted `/plans` from its SPA matcher. The focused regression parses the real configured matcher, accepts `/plans`, rejects `/plans/extra`, and requires the `index.html` fallback.
+- 2026-09-03: focused route/proxy tests passed 6/6; the complete frontend suite passed 172/172; frontend lint, typecheck, and production build passed; `check:public`, `check:ci`, `check:docs`, and `check:release` passed.
+- 2026-09-03: exact-head CI run `33732035803` passed Quality and build plus Authenticated browser integration; CodeQL action and JavaScript analysis passed. A fixed-base Standards and Spec review of the three-file delta found no actionable finding.
+
 ### PG-SEC-011 — Disable unused image optimization and update Next.js
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated

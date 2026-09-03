@@ -56,7 +56,7 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
   }
 
-  location ~ ^/(?:app(?:/.*)?|auth/(?:login|recover)/?|invite/review/?|login/?|setup/?|onboarding/?|inbox/?|tasks/?|projects(?:/[^/]+)?/?|notes/?|calendar/?|connections/?|settings/?|board/?|my-tasks/?)$ {
+  location ~ ^/(?:app(?:/.*)?|auth/(?:login|recover)/?|invite/review/?|login/?|setup/?|onboarding/?|inbox/?|tasks/?|projects(?:/[^/]+)?/?|notes/?|calendar/?|connections/?|settings/?|plans/?|board/?|my-tasks/?)$ {
     try_files $uri /index.html;
     expires -1;
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'" always;
