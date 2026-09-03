@@ -14,4 +14,17 @@ describe("release proxy resource boundaries", () => {
     expect(nginx).toMatch(/location \/api\/\s*\{[\s\S]*?client_max_body_size 2m;/)
     expect(nginx.match(/proxy_request_buffering off;/g)).toHaveLength(1)
   })
+
+  it("routes legacy /plans through the SPA for canonicalization", async () => {
+    const nginx = await readFile(
+      path.join(process.cwd(), "deploy/default.conf.template"),
+      "utf8"
+    )
+    const spaLocation = nginx.match(/location ~ (\^\/\(\?:[^\n]+\)\$) \{([\s\S]*?)\n {2}\}/)
+
+    expect(spaLocation).not.toBeNull()
+    expect(new RegExp(spaLocation![1]).test("/plans")).toBe(true)
+    expect(new RegExp(spaLocation![1]).test("/plans/extra")).toBe(false)
+    expect(spaLocation![2]).toContain("try_files $uri /index.html;")
+  })
 })
