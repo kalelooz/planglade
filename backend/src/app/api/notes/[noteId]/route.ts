@@ -17,8 +17,9 @@ import {
 } from "@/lib/attachment-deletion"
 import { deleteNoteSchema, updateNoteSchema, workspaceQuerySchema } from "@/lib/contracts"
 import { db } from "@/lib/db"
-import { buildNoteAccessWhere, canAccessNote } from "@/lib/note-access"
+import { buildNoteAccessWhere, canAccessNote, unlinkDeletedNoteReferences } from "@/lib/note-access"
 import { canDeleteWorkspaceContent } from "@/lib/permissions/content"
+import { runSerializableWorkItemTransaction } from "@/lib/work-item-lane-versions"
 
 type Params = { params: Promise<{ noteId: string }> }
 
@@ -187,8 +188,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       )
     }
 
-    const deletionJobs = await db.$transaction(async (tx) => {
+    const deletionJobs = await runSerializableWorkItemTransaction(db, async (tx) => {
       const queued = await prepareAttachmentParentDeletion(tx, { noteId })
+      await unlinkDeletedNoteReferences(tx, query.data.workspaceId, noteId)
       let claim
       try {
         claim = await tx.note.deleteMany({

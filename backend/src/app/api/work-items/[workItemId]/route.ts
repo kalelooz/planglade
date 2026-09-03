@@ -38,6 +38,7 @@ import {
 type Params = { params: Promise<{ workItemId: string }> }
 
 class StaleWorkItemMutationError extends Error {}
+class InvalidNoteReferenceError extends Error {}
 
 function isForeignKeyConflict(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2003"
@@ -72,13 +73,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     )
     if (!access.ok) return access.response
     const actorUserId = access.actor.userId
-
-    const noteReferences = await validateNoteReferences({
-      workspaceId: query.data.workspaceId,
-      actorUserId,
-      noteIds: parsed.data.noteIds,
-    })
-    if (!noteReferences.ok) return badRequest("Note not found or not accessible")
 
     const labelReferences = await validateWorkspaceLabelIds({
       workspaceId: query.data.workspaceId,
@@ -206,6 +200,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           : "UPDATED"
 
     const updated = await runSerializableWorkItemTransaction(db, async (tx) => {
+      const noteReferences = await validateNoteReferences({
+        workspaceId: query.data.workspaceId,
+        actorUserId,
+        noteIds: parsed.data.noteIds,
+      }, tx)
+      if (!noteReferences.ok) throw new InvalidNoteReferenceError()
+
       await claimWorkItemLaneVersions(
         tx,
         query.data.workspaceId,
@@ -380,6 +381,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ workItem: updated })
   } catch (error) {
+    if (error instanceof InvalidNoteReferenceError) {
+      return badRequest("Note not found or not accessible")
+    }
     if (error instanceof StaleWorkItemMutationError || error instanceof StaleWorkItemLaneMutationError) {
       const current = await currentWorkItemState(query.data.workspaceId, workItemId)
       return NextResponse.json(

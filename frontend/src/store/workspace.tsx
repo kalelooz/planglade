@@ -967,18 +967,39 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
         }
       }, null),
       deleteNote: async (id) => {
-        const note = await runCommand((s) => {
+        const deletion = await runCommand((s) => {
           const deleted = s.notes.find((item) => item.id === id)
+          const linkedTaskIds = deleted
+            ? s.tasks.filter((task) => task.noteIds?.includes(id)).map((task) => task.id)
+            : []
           return deleted
-            ? { state: { ...s, notes: s.notes.filter((item) => item.id !== id) }, result: deleted }
+            ? {
+                state: {
+                  ...s,
+                  notes: s.notes.filter((item) => item.id !== id),
+                  tasks: s.tasks.map((task) => task.noteIds?.includes(id)
+                    ? { ...task, noteIds: task.noteIds.filter((noteId) => noteId !== id), updatedAt: Date.now() }
+                    : task),
+                },
+                result: { note: deleted, linkedTaskIds },
+              }
             : { state: s, result: null }
         }, null)
-        if (!note) return false
+        if (!deletion) return false
         toast('Note deleted', {
           action: {
             label: 'Undo',
             onClick: () => {
-              void runCommand((s) => ({ state: { ...s, notes: [note, ...s.notes] }, result: undefined }), undefined)
+              void runCommand((s) => ({
+                state: {
+                  ...s,
+                  notes: [deletion.note, ...s.notes],
+                  tasks: s.tasks.map((task) => deletion.linkedTaskIds.includes(task.id) && !task.noteIds?.includes(id)
+                    ? { ...task, noteIds: [...(task.noteIds ?? []), id], updatedAt: Date.now() }
+                    : task),
+                },
+                result: undefined,
+              }), undefined)
             },
           },
         })

@@ -17,6 +17,13 @@ import type { TaskPatch } from './workspace-context'
 import { useAppCommands } from './app-commands'
 import { toApiError } from '@/lib/api/errors'
 import { reloadCollaborativeQueryOnConflict, reloadTaskQueriesOnConflict } from '@/lib/api/conflict-refresh'
+import {
+  advanceWorkspaceTaskGeneration,
+  currentWorkspaceTaskGeneration,
+  refreshSupersededWorkspaceTaskMutation,
+  refreshWorkspaceTaskVersions,
+  replaceWorkspaceTaskVersions,
+} from '@/lib/task-version-cache'
 
 type TaskSnapshot = Awaited<ReturnType<typeof getTaskSnapshot>>
 
@@ -31,6 +38,7 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
   const queryClient = useQueryClient()
   const commands = useAppCommands()
   const taskVersions = useRef(new Map<string, string>())
+  const taskGenerations = useRef(new Map<string, number>())
   const session = useQuery({
     queryKey: ['session', selectedWorkspaceId],
     queryFn: ({ signal }) => getSession(selectedWorkspaceId, signal),
@@ -79,11 +87,45 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     retry: false,
   })
 
+  const refreshTaskState = (targetWorkspaceId: string) => refreshWorkspaceTaskVersions(
+    taskVersions.current,
+    targetWorkspaceId,
+    async () => (await queryClient.fetchQuery({
+      queryKey: ['tasks', targetWorkspaceId],
+      queryFn: ({ signal }) => getTaskSnapshot(targetWorkspaceId, signal),
+    })).workItems,
+    () => queryClient.fetchQuery({
+      queryKey: ['inbox', targetWorkspaceId],
+      queryFn: ({ signal }) => getInboxItems(targetWorkspaceId, signal),
+    }),
+    () => Promise.all([
+      queryClient.cancelQueries({ queryKey: ['tasks', targetWorkspaceId] }),
+      queryClient.cancelQueries({ queryKey: ['inbox', targetWorkspaceId] }),
+    ]),
+    (failedQuery) => queryClient.resetQueries({
+      queryKey: [failedQuery, targetWorkspaceId],
+      exact: true,
+    }),
+  )
+
   const createTaskMutation = useMutation({
     mutationFn: ({ input }: { input: CreateTaskInput }) => createTask(input),
     retry: false,
-    onSuccess: (created, variables) => {
+    onMutate: ({ input }) => ({
+      generation: currentWorkspaceTaskGeneration(taskGenerations.current, input.workspaceId),
+    }),
+    onSuccess: async (created, variables, mutationContext) => {
       const targetWorkspaceId = variables.input.workspaceId
+      const supersededRefresh = refreshSupersededWorkspaceTaskMutation(
+        taskGenerations.current,
+        targetWorkspaceId,
+        mutationContext.generation,
+        () => refreshTaskState(targetWorkspaceId),
+      )
+      if (supersededRefresh) {
+        await supersededRefresh
+        return
+      }
       queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
         current,
         (items) => created.isInbox ? items : [...items.filter((task) => task.id !== created.id), created],
@@ -112,31 +154,37 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
         current,
         (items) => optimisticallyPatchTask(items, task, patch),
       ))
-      return { previousTasks }
+      return {
+        previousTasks,
+        generation: currentWorkspaceTaskGeneration(taskGenerations.current, targetWorkspaceId),
+      }
     },
-    onError: (error, { workspaceId: targetWorkspaceId }, context) => {
-      if (context?.previousTasks) queryClient.setQueryData(['tasks', targetWorkspaceId], context.previousTasks)
+    onError: (error, { workspaceId: targetWorkspaceId }, mutationContext) => {
+      if (mutationContext?.generation !== currentWorkspaceTaskGeneration(taskGenerations.current, targetWorkspaceId)) return
+      if (mutationContext.previousTasks) queryClient.setQueryData(['tasks', targetWorkspaceId], mutationContext.previousTasks)
       if (toApiError(error).kind === 'conflict') {
-        for (const key of taskVersions.current.keys()) {
-          if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
-        }
+        replaceWorkspaceTaskVersions(taskVersions.current, targetWorkspaceId)
         void reloadTaskQueriesOnConflict(queryClient, error, targetWorkspaceId)
       }
     },
-    onSuccess: async (updated, { workspaceId: targetWorkspaceId, expectedLaneVersions }) => {
+    onSuccess: async (updated, { workspaceId: targetWorkspaceId, expectedLaneVersions }, mutationContext) => {
+      const supersededRefresh = refreshSupersededWorkspaceTaskMutation(
+        taskGenerations.current,
+        targetWorkspaceId,
+        mutationContext.generation,
+        () => refreshTaskState(targetWorkspaceId),
+      )
+      if (supersededRefresh) {
+        await supersededRefresh
+        return
+      }
       queryClient.setQueryData<TaskSnapshot>(['tasks', targetWorkspaceId], (current) => updateTaskSnapshot(
         current,
         (items) => replaceTaskInList(items, updated),
       ))
       queryClient.setQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId], (current = []) => replaceInboxInList(current, updated))
       if (expectedLaneVersions) {
-        for (const key of taskVersions.current.keys()) {
-          if (key.startsWith(`${targetWorkspaceId}:`)) taskVersions.current.delete(key)
-        }
-        await queryClient.invalidateQueries({ queryKey: ['tasks', targetWorkspaceId] })
-        for (const task of queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])?.workItems ?? []) {
-          taskVersions.current.set(`${targetWorkspaceId}:${task.id}`, task.updatedAt)
-        }
+        await refreshTaskState(targetWorkspaceId)
       } else {
         taskVersions.current.set(`${targetWorkspaceId}:${updated.id}`, updated.updatedAt)
       }
@@ -229,8 +277,10 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
         void reloadCollaborativeQueryOnConflict(queryClient, error, ['notes', variables.workspaceId])
       }
     },
-    onSuccess: (_deleted, variables) => {
+    onSuccess: async (_deleted, variables) => {
       queryClient.setQueryData<BackendNote[]>(['notes', variables.workspaceId], (current = []) => current.filter((note) => note.id !== variables.note.id))
+      advanceWorkspaceTaskGeneration(taskGenerations.current, variables.workspaceId)
+      await refreshTaskState(variables.workspaceId)
     },
   })
   const createWorkspaceMutation = useMutation({
