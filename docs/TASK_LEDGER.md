@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-FUNC-016 — Keep attachment deletion failures visible
+
+- Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
+- Requested: 2026-09-03
+- Scope: correct the reviewed attachment dialog so a failed permanent deletion is explained inside the still-open modal instead of only behind it.
+- Acceptance: a controlled delete failure keeps the attachment and confirmation open, exposes a modal-scoped alert, permits a deliberate retry, and the successful retry remains durable after refresh; focused/full frontend checks, authenticated browser proof, and independent review pass before downstream Cloud import.
+
+### Evidence
+
+- 2026-09-03: independent downstream review of the public PG-FUNC-015 import found this shared P2 interaction gap. Work starts from clean exact public `main` `5a7bb529e5de1bf692c957167ba3d7da1750d410`; no backend, authorization, storage, or provider behavior changes.
+- 2026-09-03: a controlled HTTP 500 now keeps the confirmation dialog open, presents the failure as a modal-scoped alert, preserves the attachment, and permits a successful retry. The complete authenticated integration suite passes and proves the retry deletion remains absent after refresh. All 185 frontend tests, lint, typecheck, production build, public/CI/docs/release guards, and the zero-high-vulnerability audit pass.
+- 2026-09-03: independent review found that an unchanged live region might not announce two identical consecutive failures and requested focus proof. The correction clears the alert before every retry, restores focus to the confirm action after each failed request, and the focused authenticated journey proves pending-state removal, renewed announcement, retained focus, successful retry, and durable deletion. Corrected-tree independent review returned `PASS` with no remaining P0-P2 finding.
+
 ### PG-FUNC-015 — Expose complete attachment controls
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated

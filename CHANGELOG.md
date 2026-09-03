@@ -14,6 +14,7 @@ releases are documented below.
 
 ### Changed
 
+- Attachment deletion failures now remain visible inside the open confirmation dialog and can be retried deliberately.
 - Relicensed PlanGlade from GNU AGPL v3.0 to the MIT License.
 - Calibrated the desktop Tasks list so its compact metadata columns sit inside
   a centered, responsive work surface with balanced gutters and shorter
