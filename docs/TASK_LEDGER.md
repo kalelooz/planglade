@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-BOUNDARY-013 — Define the Community Edition contribution boundary
+
+- Status: **IN REVIEW**
+- Requested: 2026-09-03
+- Scope: document that this repository is the trustworthy self-hostable Community Edition while PlanGlade Cloud is a commercial hosted superset, without changing product behavior or licensing.
+- Acceptance: contributors are directed to publish security, authorization, integrity, migration-safety, critical dependency, and advertised-functionality fixes promptly; product capability is evaluated case by case; Cloud commercial and operational implementation remains private; non-security feature lag is allowed; the MIT license remains unchanged; and documentation checks plus independent review pass.
+
+### Evidence
+
+- 2026-09-03: the documentation-only change starts from clean exact public `main` `4ec5bb01eecbde480ab7fcaa85549f6d0a1c216e` and contains no Cloud source, provider details, private operations, credentials, customer data, or licensing change.
+- 2026-09-03: the focused public-boundary and contributor-documentation checks pass. Automated assertions now reject loss of the commercial-superset distinction, security/integrity priority, the allowed 30–90 day non-security lag, or the unchanged MIT-license statement.
+- 2026-09-03: independent review rejected advisory wording for mandatory security/integrity publication and insufficient tests around advertised Community functionality and private Cloud implementation. The correction now says to publish those public fixes promptly and guards all three clauses directly.
+
 ### PG-DEP-012 — Resolve remaining public dependency advisories
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated

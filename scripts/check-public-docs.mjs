@@ -21,6 +21,14 @@ for (const command of ['npm run install:all', 'npm run dev']) {
   assert.ok(files['CONTRIBUTING.md'].includes(command), `Contributing guide is missing ${command}`)
 }
 assert.match(files['CONTRIBUTING.md'], /127\.0\.0\.1:5173/)
+assert.match(files['CONTRIBUTING.md'], /commercial hosted superset/)
+assert.match(files['CONTRIBUTING.md'], /does not automatically belong here merely because it could be provider-neutral/)
+assert.match(files['CONTRIBUTING.md'], /Publish public corrections promptly for security/)
+assert.match(files['CONTRIBUTING.md'], /fixes to functionality\s+already advertised by the Community Edition/)
+assert.match(files['CONTRIBUTING.md'], /30–90 days/)
+assert.match(files['CONTRIBUTING.md'], /security and integrity fixes must not be intentionally\s+delayed/)
+assert.match(files['CONTRIBUTING.md'], /Do not publish Cloud billing/)
+assert.match(files['CONTRIBUTING.md'], /public MIT license remains\s+unchanged/)
 assert.doesNotMatch(files['CONTRIBUTING.md'], /Open `http:\/\/localhost:3000`|npm run db:push|^\s*npm install\s*$/m)
 
 const selfHosting = files['backend/docs/SELF_HOSTING.md']
