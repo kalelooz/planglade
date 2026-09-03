@@ -192,6 +192,112 @@ test('Tasks creates a server-backed task that persists after refresh', async ({ 
   await expect(page.getByRole('button', { name: `Task: ${title}` })).toBeVisible()
 })
 
+test('task and note attachments support upload, list, rename, download, and delete', async ({ page }) => {
+  const fixture = await runtime()
+  const taskFile = `task-brief-${fixture.runId}.txt`
+  const renamedTaskFile = `task-brief-renamed-${fixture.runId}.txt`
+  await openTaskDrawer(page, fixture.taskTitle)
+  const taskAttachments = page.getByRole('region', { name: 'Attachments' })
+  await expect(taskAttachments).toContainText('No attachments yet.')
+  await taskAttachments.getByLabel('Add attachment').setInputFiles({
+    name: taskFile,
+    mimeType: 'text/plain',
+    buffer: Buffer.from('PlanGlade task attachment'),
+  })
+  await expect(taskAttachments.getByText(taskFile, { exact: true })).toBeVisible()
+
+  await taskAttachments.getByRole('button', { name: `Rename ${taskFile}` }).click()
+  await taskAttachments.getByLabel(`Rename ${taskFile}`).fill(renamedTaskFile)
+  await taskAttachments.getByRole('button', { name: `Save name for ${taskFile}` }).click()
+  await expect(taskAttachments.getByText(renamedTaskFile, { exact: true })).toBeVisible()
+  await page.reload()
+  await openTaskDrawer(page, fixture.taskTitle)
+  await expect(taskAttachments.getByText(renamedTaskFile, { exact: true })).toBeVisible()
+
+  const taskDownload = page.waitForEvent('download')
+  await taskAttachments.getByRole('button', { name: `Download ${renamedTaskFile}` }).last().click()
+  const downloadedTaskFile = await taskDownload
+  expect(downloadedTaskFile.suggestedFilename()).toBe(renamedTaskFile)
+  expect(await readFile(await downloadedTaskFile.path(), 'utf8')).toBe('PlanGlade task attachment')
+
+  await taskAttachments.getByRole('button', { name: `Delete ${renamedTaskFile}` }).click()
+  const deleteDialog = page.getByRole('alertdialog', { name: 'Delete this attachment?' })
+  await expect(deleteDialog).toContainText(renamedTaskFile)
+  await deleteDialog.getByRole('button', { name: 'Delete attachment' }).click()
+  await expect(taskAttachments.getByText(renamedTaskFile, { exact: true })).toHaveCount(0)
+  await expect(taskAttachments).toContainText('No attachments yet.')
+  await page.reload()
+  await openTaskDrawer(page, fixture.taskTitle)
+  await expect(taskAttachments.getByText(renamedTaskFile, { exact: true })).toHaveCount(0)
+  await expect(taskAttachments).toContainText('No attachments yet.')
+
+  const note = await page.evaluate(async ({ fixture }) => {
+    const response = await fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId: fixture.workspaceId,
+        projectId: fixture.secondaryProjectId,
+        title: `Attachment note ${fixture.runId}`,
+        body: 'A note with a stored file.',
+        visibility: 'WORKSPACE',
+        pinned: false,
+        tags: [],
+      }),
+    })
+    if (!response.ok) throw new Error(`Note creation returned ${response.status}`)
+    return (await response.json() as { note: { id: string } }).note
+  }, { fixture })
+  await page.goto(`/app/notes?note=${encodeURIComponent(note.id)}`)
+  const noteAttachments = page.getByRole('region', { name: 'Attachments' })
+  const noteFile = `note-context-${fixture.runId}.md`
+  await noteAttachments.getByLabel('Add attachment').setInputFiles({
+    name: noteFile,
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('# Note context'),
+  })
+  await expect(noteAttachments.getByText(noteFile, { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(noteAttachments.getByText(noteFile, { exact: true })).toBeVisible()
+  await noteAttachments.getByRole('button', { name: `Delete ${noteFile}` }).click()
+  await page.getByRole('alertdialog', { name: 'Delete this attachment?' }).getByRole('button', { name: 'Delete attachment' }).click()
+  await expect(noteAttachments.getByText(noteFile, { exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(noteAttachments.getByText(noteFile, { exact: true })).toHaveCount(0)
+  await expect(noteAttachments).toContainText('No attachments yet.')
+})
+
+test('task attachment availability follows project reassignment without a reload', async ({ page }) => {
+  const fixture = await runtime()
+  const disabledProjectName = `Attachments disabled ${fixture.runId}`
+  await page.goto('/app')
+  await page.evaluate(async ({ fixture, disabledProjectName }) => {
+    const response = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId: fixture.workspaceId,
+        name: disabledProjectName,
+        slug: `attachments-disabled-${fixture.runId}`,
+        featureFlags: { attachments: false },
+      }),
+    })
+    if (!response.ok) throw new Error(`Disabled project creation returned ${response.status}`)
+  }, { fixture, disabledProjectName })
+
+  await page.goto('/app/tasks')
+  await openTaskDrawer(page, fixture.taskTitle)
+  const taskDialog = page.getByRole('dialog', { name: 'Task details' })
+  const taskAttachments = taskDialog.getByRole('region', { name: 'Attachments' })
+  const projectSelect = taskDialog.getByRole('combobox', { name: 'Project' })
+  await projectSelect.click()
+  await page.getByRole('option', { name: disabledProjectName }).click()
+  await expect(taskAttachments).toContainText('Attachments are unavailable for this item.')
+  await projectSelect.click()
+  await page.getByRole('option', { name: fixture.projectName }).click()
+  await expect(taskAttachments).toContainText('No attachments yet.')
+})
+
 test('Connections renders authenticated Notes and normalized task relationships', async ({ page }) => {
   const fixture = await runtime()
   await page.goto('/app')

@@ -10,6 +10,7 @@ const files = Object.fromEntries(await Promise.all([
   'backend/docs/BACKUP_RESTORE.md',
   'docs/SUPPORT.md',
   'docs/PERMISSIONS.md',
+  'docs/USER_GUIDE.md',
   'SECURITY.md',
   'CODE_OF_CONDUCT.md',
 ].map(async (file) => [file, await readFile(new URL(`../${file}`, import.meta.url), 'utf8')])))
@@ -54,12 +55,20 @@ for (const expected of [
   'Owner',
   'creates imported projects with unique destination slugs',
   'Members may create and remove task relationships',
+  'Upload or rename an attachment',
+  'Delete an attachment uploaded by someone else',
   'Every completed source checksum retains its committed result',
   'activity log',
 ]) {
   assert.ok(permissions.includes(expected), `Permissions guide is missing ${expected}`)
 }
 assert.match(files['README.md'], /docs\/PERMISSIONS\.md/)
+
+const userGuide = files['docs/USER_GUIDE.md']
+assert.match(userGuide, /Attach files to tasks and notes/)
+assert.match(userGuide, /documents, spreadsheets, presentations, ZIP archives, text files/)
+assert.match(userGuide, /up to 50 MB each/)
+assert.match(userGuide, /Attachments are enabled for new projects by default/)
 
 const migrationDocs = files['backend/docs/PRODUCTION_MIGRATIONS.md']
 assert.match(migrationDocs, /docker compose -f compose\.yml/)
