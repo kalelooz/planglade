@@ -222,8 +222,32 @@ test('task and note attachments support upload, list, rename, download, and dele
 
   await taskAttachments.getByRole('button', { name: `Delete ${renamedTaskFile}` }).click()
   const deleteDialog = page.getByRole('alertdialog', { name: 'Delete this attachment?' })
+  const confirmDelete = deleteDialog.getByRole('button', { name: /Delete attachment|Deleting/ })
   await expect(deleteDialog).toContainText(renamedTaskFile)
-  await deleteDialog.getByRole('button', { name: 'Delete attachment' }).click()
+  let deleteAttempts = 0
+  let releaseSecondDelete = () => {}
+  const secondDeleteGate = new Promise<void>((resolve) => { releaseSecondDelete = resolve })
+  await page.route('**/api/attachments/*', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      deleteAttempts += 1
+      if (deleteAttempts === 2) await secondDeleteGate
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Controlled deletion failure' }) })
+      return
+    }
+    await route.continue()
+  })
+  await confirmDelete.click()
+  await expect(deleteDialog.getByRole('alert')).toHaveText('The attachment service is temporarily unavailable. Try again.')
+  await expect(confirmDelete).toBeFocused()
+  await expect(deleteDialog).toBeVisible()
+  await confirmDelete.click()
+  await expect(confirmDelete).toHaveText('Deleting…')
+  await expect(deleteDialog.getByRole('alert')).toHaveCount(0)
+  releaseSecondDelete()
+  await expect(deleteDialog.getByRole('alert')).toHaveText('The attachment service is temporarily unavailable. Try again.')
+  await expect(confirmDelete).toBeFocused()
+  await page.unroute('**/api/attachments/*')
+  await confirmDelete.click()
   await expect(taskAttachments.getByText(renamedTaskFile, { exact: true })).toHaveCount(0)
   await expect(taskAttachments).toContainText('No attachments yet.')
   await page.reload()

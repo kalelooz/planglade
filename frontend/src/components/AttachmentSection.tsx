@@ -64,6 +64,7 @@ export function AttachmentSection({
 }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
+  const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const targetType = target.workItemId ? 'task' : 'note'
   const targetId = target.workItemId ?? target.noteId ?? ''
   const queryKey = ['attachments', workspaceId, targetType, targetId, projectId ?? 'no-project'] as const
@@ -72,6 +73,7 @@ export function AttachmentSection({
   const [editing, setEditing] = useState<Attachment | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const [deleting, setDeleting] = useState<Attachment | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const attachmentsQuery = useQuery({
     queryKey,
@@ -129,9 +131,13 @@ export function AttachmentSection({
       }))
       void queryClient.invalidateQueries({ queryKey })
       setDeleting(null)
+      setDeleteError(null)
       setActionError(null)
     },
-    onError: (error) => setActionError(actionErrorMessage(error)),
+    onError: (error) => {
+      setDeleteError(actionErrorMessage(error))
+      requestAnimationFrame(() => deleteButtonRef.current?.focus())
+    },
   })
 
   const selectFile = (file: File | undefined) => {
@@ -246,7 +252,7 @@ export function AttachmentSection({
                       {downloadingId === attachment.id ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : <Download className="size-3.5" />}
                     </Button>
                     {canUpload && <Button type="button" size="icon" variant="ghost" className="size-11 lg:size-9" onClick={() => { setEditing(attachment); setRenameDraft(attachment.name) }} aria-label={`Rename ${attachment.name}`}><Pencil className="size-3.5" /></Button>}
-                    {canDelete(attachment) && <Button type="button" size="icon" variant="ghost" className="size-11 text-destructive hover:text-destructive lg:size-9" onClick={() => setDeleting(attachment)} aria-label={`Delete ${attachment.name}`}><Trash2 className="size-3.5" /></Button>}
+                    {canDelete(attachment) && <Button type="button" size="icon" variant="ghost" className="size-11 text-destructive hover:text-destructive lg:size-9" onClick={() => { setDeleting(attachment); setDeleteError(null) }} aria-label={`Delete ${attachment.name}`}><Trash2 className="size-3.5" /></Button>}
                   </div>
                 </>
               )}
@@ -258,20 +264,25 @@ export function AttachmentSection({
       )}
       {attachmentsQuery.data?.limitReached && <p className="mt-2 text-xs text-muted-foreground">Loaded the 200 newest attachments. Older files may not appear.</p>}
 
-      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setDeleting(null) }}>
+      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open && !deleteMutation.isPending) { setDeleting(null); setDeleteError(null) } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this attachment?</AlertDialogTitle>
             <AlertDialogDescription>“{deleting?.name}” will be removed from this item and its stored file will be queued for permanent deletion.</AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>Keep attachment</AlertDialogCancel>
             <AlertDialogAction
+              ref={deleteButtonRef}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteMutation.isPending}
               onClick={(event) => {
                 event.preventDefault()
-                if (deleting) deleteMutation.mutate(deleting.id)
+                if (deleting) {
+                  setDeleteError(null)
+                  deleteMutation.mutate(deleting.id)
+                }
               }}
             >
               {deleteMutation.isPending ? 'Deleting…' : 'Delete attachment'}
