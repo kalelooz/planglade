@@ -287,6 +287,137 @@ test('Connections renders authenticated Notes and normalized task relationships'
   expect(consoleErrors).toEqual([])
 })
 
+test('Connections reports failed Notes and relationship data instead of showing a silent partial graph', async ({ page }) => {
+  await page.route('**/api/notes?*', (route) => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: '{"error":"Temporary"}',
+  }))
+  await page.route('**/api/work-item-relations?*', (route) => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: '{"error":"Temporary"}',
+  }))
+
+  await page.goto('/app/connections')
+
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('Connections are incomplete')
+  await expect(alert).toContainText('notes or task relationships')
+  await expect(alert.getByRole('button', { name: 'Reload connections' })).toBeVisible()
+})
+
+test('Connections states the exact 500-relationship response boundary', async ({ page }) => {
+  const fixture = await runtime()
+  await page.route('**/api/work-item-relations?*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      relations: Array.from({ length: 500 }, (_, index) => ({
+        id: `relation-${index}`,
+        workspaceId: fixture.workspaceId,
+        sourceId: `source-${index}`,
+        targetId: `target-${index}`,
+        relationType: 'BLOCKS',
+        createdAt: new Date(1_700_000_000_000 + index).toISOString(),
+        source: { id: `source-${index}`, title: `Source ${index}`, projectId: null },
+        target: { id: `target-${index}`, title: `Target ${index}`, projectId: null },
+      })),
+    }),
+  }))
+
+  await page.goto('/app/connections')
+
+  const notice = page.getByRole('alert').filter({ hasText: 'Loaded the 500 newest task relationships' })
+  await expect(notice).toContainText('Older relationships may not appear')
+  await expect(notice).toContainText('Filters narrow only this loaded set')
+})
+
+test('invitation acceptance and already-accepted continuation activate the reviewed workspace', async ({ page }) => {
+  const token = 'a'.repeat(32)
+  let alreadyAccepted = false
+  let acceptCalls = 0
+  let targetWorkspaceId = 'accepted-workspace'
+  const review = () => ({
+    email: 'invited@example.test',
+    role: 'MEMBER',
+    status: 'PENDING',
+    expiresAt: '2030-01-01T00:00:00.000Z',
+    customMessage: null,
+    alreadyAccepted,
+    workspace: { id: targetWorkspaceId, name: 'Accepted workspace', slug: 'accepted-workspace' },
+    invitedBy: { id: 'inviter', email: 'inviter@example.test', name: 'Inviter' },
+  })
+  await page.route('**/api/workspace/invitations/preview', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ review: review() }),
+  }))
+  await page.route('**/api/workspace/invitations/accept', (route) => {
+    acceptCalls += 1
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        accepted: true,
+        workspace: review().workspace,
+        member: { userId: 'invited-user', role: 'MEMBER', joinedAt: '2026-09-03T00:00:00.000Z' },
+      }),
+    })
+  })
+  await page.route('**/api/auth/session?workspaceId=*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      user: { id: 'invited-user', email: 'invited@example.test', name: 'Invited user' },
+      workspace: { id: targetWorkspaceId, slug: targetWorkspaceId, name: 'Accepted workspace' },
+      workspaces: [{ id: targetWorkspaceId, slug: targetWorkspaceId, name: 'Accepted workspace', role: 'MEMBER' }],
+      authMode: 'nextauth',
+    }),
+  }))
+
+  await page.goto(`/invite/review?inviteToken=${token}&next=/app/tasks`)
+  await page.getByRole('button', { name: 'Accept invitation' }).click()
+  await expect(page).toHaveURL('/app/tasks')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('planglade-active-workspace-v1'))).toBe('accepted-workspace')
+  expect(acceptCalls).toBe(1)
+
+  alreadyAccepted = true
+  targetWorkspaceId = 'already-accepted-workspace'
+  await page.goto(`/invite/review?inviteToken=${token}&next=/app/projects`)
+  await page.getByRole('link', { name: 'Continue to workspace' }).click()
+  await expect(page).toHaveURL('/app/projects')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('planglade-active-workspace-v1'))).toBe('already-accepted-workspace')
+  expect(acceptCalls).toBe(1)
+})
+
+test('server-backed Members are not offered Admin-only export actions', async ({ page }) => {
+  await page.route('**/api/auth/session*', async (route) => {
+    const response = await route.fetch()
+    const session = await response.json() as {
+      workspace: { id: string }
+      workspaces?: Array<{ id: string; role: string }>
+    }
+    await route.fulfill({
+      response,
+      json: {
+        ...session,
+        workspaces: session.workspaces?.map((workspace) => workspace.id === session.workspace.id
+          ? { ...workspace, role: 'MEMBER' }
+          : workspace),
+      },
+    })
+  })
+
+  await page.goto('/app/settings')
+
+  const dataSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Your data' }) })
+  await expect(dataSection).toContainText('Only workspace admins can export workspace data.')
+  await expect(dataSection).toContainText('Admin only')
+  await expect(dataSection.getByRole('button', { name: 'Preview' })).toHaveCount(0)
+  await expect(dataSection.getByRole('button', { name: 'Download' })).toHaveCount(0)
+})
+
 test('Quick Capture creates one persisted backend Inbox item', async ({ page }) => {
   const fixture = await runtime()
   const title = `Quick Capture ${fixture.runId}`

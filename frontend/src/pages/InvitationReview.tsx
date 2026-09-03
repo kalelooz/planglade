@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { acceptWorkspaceInvite, previewWorkspaceInvite, type WorkspaceInviteReview } from '@/lib/api/team'
 import { ApiError } from '@/lib/api/errors'
 import { normalizeWorkspaceDestination } from '@/lib/auth-destination'
+import { rememberActiveWorkspace } from '@/lib/active-workspace'
 
 type ReviewState = 'loading' | 'ready' | 'authentication-required' | 'unavailable' | 'temporary-error'
 type ReviewResult = { token: string; state: Exclude<ReviewState, 'loading'>; review: WorkspaceInviteReview | null }
@@ -59,7 +60,8 @@ export default function InvitationReview() {
     setAccepting(true)
     setAcceptError(null)
     try {
-      await acceptWorkspaceInvite(inviteToken)
+      const accepted = await acceptWorkspaceInvite(inviteToken)
+      rememberActiveWorkspace(localStorage, accepted.workspace.id)
       window.location.assign(destination)
     } catch (error) {
       setAcceptError(
@@ -116,7 +118,7 @@ export default function InvitationReview() {
             <div className="border-t border-border p-5">
               <p className="text-xs leading-5 text-muted-foreground">Access is granted only after you press Accept invitation. If this was sent by mistake, choose Not now.</p>
               {acceptError && <p role="alert" className="mt-3 text-sm text-destructive">{acceptError === 'temporary' ? 'The invitation service could not be reached. Try accepting again.' : 'The invitation could not be accepted. It may have changed or expired.'}</p>}
-              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button asChild variant="outline" className="h-11 sm:h-9"><Link to="/auth/login">Not now</Link></Button>{review.alreadyAccepted ? <Button asChild className="h-11 sm:h-9"><Link to={destination}>Continue to workspace</Link></Button> : <Button type="button" className="h-11 sm:h-9" disabled={accepting} onClick={() => void accept()}>{accepting && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}{accepting ? 'Joining…' : 'Accept invitation'}</Button>}</div>
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button asChild variant="outline" className="h-11 sm:h-9"><Link to="/auth/login">Not now</Link></Button>{review.alreadyAccepted ? <Button asChild className="h-11 sm:h-9"><Link to={destination} onClick={() => rememberActiveWorkspace(localStorage, review.workspace.id)}>Continue to workspace</Link></Button> : <Button type="button" className="h-11 sm:h-9" disabled={accepting} onClick={() => void accept()}>{accepting && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}{accepting ? 'Joining…' : 'Accept invitation'}</Button>}</div>
             </div>
           </div>
         )}

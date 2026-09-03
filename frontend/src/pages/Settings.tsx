@@ -78,12 +78,14 @@ export default function Settings() {
   const [importError, setImportError] = useState<string | null>(null)
   const settings = ws.state.settings
   const serverBacked = ws.mode.kind === 'server'
+  const canExportWorkspace = !serverBacked || ws.canManageWorkspace
 
   useEffect(() => {
     setName(ws.state.workspaceName)
   }, [ws.state.workspaceName])
 
   const loadExport = async () => {
+    if (!canExportWorkspace) throw new Error('Workspace export requires admin access')
     if (!serverBacked) return ws.exportJson()
     if (!ws.workspaceId) throw new Error('Missing workspace scope')
     return JSON.stringify(await getWorkspaceExport(ws.workspaceId), null, 2)
@@ -254,17 +256,21 @@ export default function Settings() {
             <div>
               <p className="pg-item-title">Export workspace</p>
               <p className="pg-meta mt-0.5 text-pretty">
-                {serverBacked ? 'A JSON export of the workspace data your account is permitted to export.' : 'A plain JSON file of the workspace data currently loaded here.'}
+                {serverBacked
+                  ? ws.canManageWorkspace
+                    ? 'A JSON export of the workspace data your account is permitted to export.'
+                    : 'Only workspace admins can export workspace data.'
+                  : 'A plain JSON file of the workspace data currently loaded here.'}
               </p>
             </div>
-            <div className="flex gap-2">
+            {canExportWorkspace ? <div className="flex gap-2">
               <button onClick={() => void previewExport()} disabled={exportPending} className="h-11 px-3 rounded-md lg:h-8 border border-input text-[13px] hover:bg-accent transition-colors disabled:opacity-40">
                 {exportPending ? 'Loading...' : 'Preview'}
               </button>
               <button onClick={() => void download()} disabled={exportPending} className="h-11 px-3 rounded-md lg:h-8 text-[13px] bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-40">
                 <Download className="h-3.5 w-3.5" /> Download
               </button>
-            </div>
+            </div> : <span className="pg-meta">Admin only</span>}
           </div>
           {serverBacked && <div className="flex items-center justify-between gap-4 py-3 flex-wrap">
             <div>
@@ -354,7 +360,7 @@ export default function Settings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Import these records?</AlertDialogTitle>
             <AlertDialogDescription>
-              The preview made no changes. Confirming will apply {importPreview ? importPreview.counts.projects + importPreview.counts.tasks + importPreview.counts.notes + importPreview.counts.projectDocs + importPreview.counts.savedViews : 0} supported records to this workspace; matching project slugs will be updated and other possible duplicates will be skipped.
+              The preview made no changes. Confirming will process {importPreview ? importPreview.counts.projects + importPreview.counts.tasks + importPreview.counts.notes + importPreview.counts.projectDocs + importPreview.counts.savedViews : 0} supported records for this workspace. Imported projects receive unique destination slugs; other possible duplicates are skipped.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {importPreview && <div className="max-h-48 overflow-y-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">
