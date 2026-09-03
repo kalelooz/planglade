@@ -100,6 +100,7 @@ test("Umami fails closed for incomplete, malformed, or non-HTTPS production conf
 
 test("application headers keep existing protections and disable framework disclosure", async () => {
   assert.equal(nextConfig.poweredByHeader, false)
+  assert.equal(nextConfig.images?.unoptimized, true)
   assert.ok(nextConfig.headers)
 
   const entries = await nextConfig.headers()

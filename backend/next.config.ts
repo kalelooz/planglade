@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: false,
+  images: {
+    unoptimized: true,
+  },
   async headers() {
     const contentSecurityPolicy = buildContentSecurityPolicy({
       nodeEnv: process.env.NODE_ENV,
