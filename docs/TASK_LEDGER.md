@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-DEP-012 — Resolve remaining public dependency advisories
+
+- Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
+- Requested: 2026-09-03
+- Scope: update only the vulnerable transitive resolutions already allowed by the existing dependency ranges: `postcss-selector-parser` in the frontend and `@humanfs/node` in both applications.
+- Acceptance: both lockfiles resolve advisory-fixed releases, package manifests and dependency families remain unchanged, clean installs and complete public checks pass, and the exact-head dependency audit reports zero known vulnerabilities.
+
+### Evidence
+
+- 2026-09-03: repository and advisory reconciliation confirmed `postcss-selector-parser` 6.1.2 in the frontend and `@humanfs/node` 0.16.7 in both applications. Lockfile-only updates resolve them to 6.1.4 and 0.16.8 respectively; no direct dependency or runtime package was added.
+- 2026-09-03: clean installs completed for both applications and `npm audit --audit-level=low` reported zero known vulnerabilities in each. Frontend tests passed 172/172; backend and frontend lint/typecheck passed; both production builds passed; the standalone image optimizer probe remained HTTP 404; Prisma schema validation and all public boundary, CI, docs, and release checks passed. The unchanged database-backed backend suite remains delegated to the exact-head Linux CI gate because this Windows host's Prisma migration engine already failed during PG-SEC-011 verification.
+- 2026-09-03: exact-head CI run `33733222454` passed the complete Linux Quality and build job, including migration setup, backend/frontend tests, release rehearsal, and both builds; Authenticated browser integration also passed. CodeQL action and JavaScript analysis passed. Independent fixed-base review confirmed the manifests were unchanged, every lock resolution and integrity value was valid, both audits were clean, and found no code or standards defect; its evidence-only correction is recorded here.
+
 ### PG-WEB-010 — Route legacy `/plans` through the self-host SPA
 
 - Status: **PASS** for public-core publication; Cloud hosting import and production verification remain separately gated
