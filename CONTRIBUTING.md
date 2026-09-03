@@ -49,6 +49,27 @@ Never commit `.env`, `.runtime/`, local databases, attachment data, or secrets.
 - Do not add fake features, metrics, cloud claims, or non-working controls.
 - Reuse existing routes, components, contracts, and dependencies first.
 
+## Community Edition boundary
+
+This repository is the useful, secure, self-hostable Community Edition. The
+private PlanGlade Cloud product is a commercial hosted superset, so a feature
+does not automatically belong here merely because it could be provider-neutral.
+
+Publish public corrections promptly for security, authentication and authorization,
+token or input-validation hardening, data integrity, migration safety, serious
+concurrency defects, critical dependency updates, and fixes to functionality
+already advertised by the Community Edition. Consider general UX, productivity,
+collaboration, advanced-view, convenience, and other product additions case by
+case. Non-security capability may trail Cloud by one release generation or
+roughly 30–90 days; security and integrity fixes must not be intentionally
+delayed.
+
+Do not publish Cloud billing, managed-provider infrastructure, hosted identity or
+email implementation, private operations, commercial analytics, customer data,
+credentials, or designated competitive features. Do not remove or degrade an
+existing public capability to differentiate Cloud. The public MIT license remains
+unchanged; licensing changes are a separate owner decision.
+
 Security vulnerabilities do not belong in public issues. Follow
 [SECURITY.md](./SECURITY.md). General help and conduct-contact instructions are
 in [docs/SUPPORT.md](./docs/SUPPORT.md).
