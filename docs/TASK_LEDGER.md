@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-SEC-011 — Disable unused image optimization and update Next.js
+
+- Status: **IN REVIEW**
+- Requested: 2026-09-03
+- Scope: close the newly disclosed Next.js Critical RCE exposure with the smallest public security patch, keep the unused Image Optimization API unavailable, and leave unrelated dependencies and product behavior unchanged.
+- Acceptance: Next.js and its lint config resolve to a vendor-fixed stable patch; Sharp matches the corrected runtime; `images.unoptimized` is explicit; a real standalone-server probe returns 404 for a harmless local image optimizer request; public quality, build, browser, release, static-security, and dependency gates pass.
+
+### Evidence
+
+- 2026-09-03: both vendor advisories were re-verified against public `main` `c05f8ec2bc3e236bb1c08a38445c814bb0f5e30e`; Next.js 16.3.0 remains inside the affected ranges. The focused patch moves Next.js and `eslint-config-next` to 16.3.4 and Sharp to 0.35.4, then globally disables image optimization.
+- 2026-09-03: the focused security-header/configuration test passes, the Next.js 16.3.4 production build passes, and the built standalone server returns HTTP 404 for `/_next/image?url=<harmless-local-png>&w=64&q=75`.
+- 2026-09-03: public boundary, CI, docs, release, backend-surface, lint, typecheck, Prisma schema validation, release rehearsal, and high-severity backend/frontend dependency audits pass locally. The complete SQLite-backed suite is deferred to the required Linux CI gate because Prisma's schema engine cannot initialize the shared SQLite test database in this Windows worktree; isolated SQLite tests and the changed-path checks run successfully.
+
 ### PG-STO-009 — Retry attachment storage deletion durably
 
 - Status: **PASS** — public implementation and private downstream production proof are complete
