@@ -7,6 +7,11 @@ releases are documented below.
 
 ## Unreleased
 
+### Added
+
+- Added complete attachment controls to saved tasks and notes, including
+  upload, list, download, rename, and permission-aware permanent deletion.
+
 ### Changed
 
 - Relicensed PlanGlade from GNU AGPL v3.0 to the MIT License.

@@ -6,6 +6,9 @@ PlanGlade uses four workspace roles. Access is always limited to the current wor
 | --- | --- | --- | --- | --- |
 | View and search workspace content | Yes | Yes | Yes | Yes |
 | Download an accessible attachment | Yes | Yes | Yes | Yes |
+| Upload or rename an attachment | No | Yes | Yes | Yes |
+| Delete an attachment you uploaded | No | Yes | Yes | Yes |
+| Delete an attachment uploaded by someone else | No | No | Yes | Yes |
 | Create and edit ordinary content | No | Yes | Yes | Yes |
 | Delete content you created | No | Yes | Yes | Yes |
 | Delete content created by someone else | No | No | Yes | Yes |
@@ -32,6 +35,8 @@ Only admins and owners can import data. Each completed import is recorded in the
 ## Deletion
 
 Members can delete content they created. Admins and owners can also delete shared content created by other members. Labels do not record a creator, so only admins and owners can delete them. Members may create and remove task relationships because those links are part of the shared task plan; Viewers remain read-only.
+
+Attachments follow the same shared-content boundary for deletion: the uploader, an admin, or the owner may delete a file. Any member may rename an attachment attached to content they can access. Deletion removes the product record immediately and queues durable storage cleanup.
 
 Use archive controls where PlanGlade provides them. Permanent deletion cannot be undone from the app.
 

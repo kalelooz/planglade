@@ -23,7 +23,7 @@ export const DEFAULT_PROJECT_FEATURE_FLAGS: ProjectFeatureFlags = {
   subtasks: true,
   relations: true,
   docs: false,
-  attachments: false,
+  attachments: true,
   customFields: false,
   sla: false,
 }

@@ -30,6 +30,14 @@ Projects collect related tasks and project context. Use them when several pieces
 
 Notes hold supporting information that does not belong in a task description. Link notes to a project when the context is project-specific, or leave them independent for general reference.
 
+## Attach files to tasks and notes
+
+Open a saved task or note and use **Add file** in its Attachments section. PlanGlade accepts common documents, spreadsheets, presentations, ZIP archives, text files, and GIF, JPEG, PNG, or WebP images up to 50 MB each. Workspace storage limits still apply.
+
+Everyone who can view the task or note can download its attachments. Members, admins, and owners can upload and rename files. The person who uploaded a file can delete it; admins and owners can also delete files uploaded by someone else. Deletion is permanent after the server completes its storage cleanup.
+
+Attachments are enabled for new projects by default. A project configured with attachments disabled shows that state instead of upload controls.
+
 ## Plan on the calendar
 
 The Calendar page places tasks on their due dates. Switch between month and week views, filter the visible workload, and select a task to open its drawer.

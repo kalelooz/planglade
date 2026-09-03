@@ -27,6 +27,7 @@ import { getTaskHistory } from '@/lib/api/tasks'
 import { useAppCommands } from '@/store/app-commands'
 import { TaskComments } from '@/components/TaskComments'
 import { EntityTypeBadge } from '@/components/EntityTypeBadge'
+import { AttachmentSection } from '@/components/AttachmentSection'
 import { createAutosaveDraftController } from '@/lib/autosave-draft-controller'
 import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
 import {
@@ -662,6 +663,17 @@ function TaskDrawerBody({
             </div>
           </>
         )}
+
+        {ws.mode.kind === 'server' && ws.workspaceId && task.source && <>
+          <Separator />
+          <AttachmentSection
+            workspaceId={ws.workspaceId}
+            target={{ workItemId: task.id }}
+            projectId={task.projectId}
+            canUpload={canEdit}
+            className="px-5 py-4"
+          />
+        </>}
 
         {ws.mode.kind === 'server' && commentScope && task.source && <>
           <Separator />

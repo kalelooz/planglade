@@ -2,6 +2,22 @@
 
 ## Active task
 
+### PG-FUNC-015 — Expose complete attachment controls
+
+- Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
+- Requested: 2026-09-03
+- Scope: expose the existing provider-neutral attachment API on saved Tasks and Notes without weakening workspace, item, project-feature, storage, or role boundaries.
+- Acceptance: default projects enable advertised attachments while explicit disablement remains closed; accessible saved Tasks and Notes list files; Members can upload and rename; Viewers can download; only uploaders, Admins, and Owners can delete; all supported-file, size, quota, empty, loading, error, destructive-confirmation, responsive, keyboard, and persistence paths are truthful; focused/full public checks and independent review pass before downstream Cloud import.
+
+### Evidence
+
+- 2026-09-03: the implementation starts from clean exact public `main` `ffcb6a42597f782e15cd960f18ad964de9e9d607`; the original public checkout and its untracked `.claude/` directory remain untouched. Repository inspection confirmed complete upload-reservation, finalize, list, rename, signed-download, delete, durable cleanup, item-visibility, role, project-feature, MIME, 50 MB, and workspace-storage enforcement already existed in the public backend, while no frontend attachment client or control existed.
+- 2026-09-03: the frontend adapts the repository's installed shadcn Button and AlertDialog patterns and the approved shadcn attachment/input guidance without adding a dependency. Saved Tasks and Notes now expose one accessible attachment region with explicit loading, empty, disabled, error/retry, upload, download, rename, delete-confirmation, and 200-newest-limit states; mobile actions retain 44 px targets and reduced-motion loading behavior.
+- 2026-09-03: the real authenticated SQLite browser integration passes complete Task and Note upload, list, reload, rename, exact-byte download, and permanent-delete journeys. It also moves the same Task into and out of an explicitly disabled project without reloading and proves the attachment state follows the new project immediately. The complete backend suite passes 300/300 tests and the complete frontend suite passes 185/185 tests.
+- 2026-09-03: live desktop and 390×844 inspection found no horizontal overflow, browser warning, or console error. All visible mobile attachment actions measure at least 44×44 px; the duplicate download icon is desktop-only so the primary filename action remains readable. Two retained screenshots are under `artifacts/verification/PG-FUNC-015/` and remain intentionally ignored.
+- 2026-09-03: backend/frontend lint, typecheck, and production builds pass; the image optimizer remains HTTP 404. The ten-test reference browser suite, authenticated integration suite, public boundary across 524 files, CI/docs/release/backend-surface checks, eight-migration backup/restore rehearsal, diff validation, and both zero-vulnerability audits pass.
+- 2026-09-03: independent review found three P2 gaps: protocol-relative signed URLs, stale attachment availability after project reassignment, and incomplete persistence/download browser proof. The bounded correction rejects every non-root-relative or non-HTTPS URL form, keys attachment reads by current project, and expands the browser proof to exact bytes plus post-reload rename/delete checks. Corrected-tree review returned `PASS` with no remaining P0-P2 finding.
+
 ### PG-FUNC-014 — Make audited interactions truthful and complete
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated

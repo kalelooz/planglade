@@ -156,11 +156,11 @@ export async function GET(request: NextRequest) {
         uploadedBy: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 201,
     })
 
     return NextResponse.json({
-      attachments: attachments.map((attachment) => ({
+      attachments: attachments.slice(0, 200).map((attachment) => ({
         id: attachment.id,
         workspaceId: attachment.workspaceId,
         workItemId: attachment.workItemId,
@@ -173,6 +173,7 @@ export async function GET(request: NextRequest) {
         uploadedBy: attachment.uploadedBy,
         createdAt: attachment.createdAt,
       })),
+      limitReached: attachments.length > 200,
     })
   } catch (error) {
     return serverError("Failed to load attachments", String(error))
@@ -278,6 +279,9 @@ export async function POST(request: NextRequest) {
           storageKey: parsed.data.storageKey,
           mimeType: parsed.data.mimeType,
           sizeBytes: parsed.data.sizeBytes,
+        },
+        include: {
+          uploadedBy: { select: { id: true, name: true, email: true } },
         },
       })
 

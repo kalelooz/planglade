@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/input-group'
 import type { Note, Priority } from '@/types'
 import { EntityTypeBadge } from '@/components/EntityTypeBadge'
+import { AttachmentSection } from '@/components/AttachmentSection'
 
 interface ConvertState {
   open: boolean
@@ -314,6 +315,16 @@ function NoteEditor({ note, onBack }: { note: Note; onBack?: () => void }) {
         <span>Edited {timeAgo(note.updatedAt)}</span>
         {canEdit && <span aria-live="polite">{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? (!title.trim() ? 'A note needs a title before it can be saved.' : 'Could not save. Your edits are still here.') : ''}</span>}
       </div>
+
+      {ws.mode.kind === 'server' && ws.workspaceId && (
+        <AttachmentSection
+          workspaceId={ws.workspaceId}
+          target={{ noteId: note.id }}
+          projectId={note.projectId}
+          canUpload={canEdit}
+          className="border-b border-border px-4 py-3 sm:px-5"
+        />
+      )}
 
       <TabsContent value="edit" className="m-0 flex min-h-0 flex-1 flex-col">
         {/* toolbar */}

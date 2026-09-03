@@ -8,6 +8,13 @@ test("enables core task structure features by default", () => {
 
   assert.equal(flags.subtasks, true)
   assert.equal(flags.relations, true)
+  assert.equal(flags.attachments, true)
+})
+
+test("keeps an explicit attachments-disabled project closed", () => {
+  const flags = normalizeProjectFeatureFlags({ attachments: false })
+
+  assert.equal(flags.attachments, false)
 })
 
 test("keeps explicit subtasks disabled flag", () => {

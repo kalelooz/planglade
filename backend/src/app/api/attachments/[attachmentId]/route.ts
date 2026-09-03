@@ -98,6 +98,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       const updatedAttachment = await tx.attachment.update({
         where: { id: attachmentId },
         data: { name: parsed.data.name },
+        include: {
+          uploadedBy: { select: { id: true, name: true, email: true } },
+        },
       })
 
       await logActivityEvent(tx, {
