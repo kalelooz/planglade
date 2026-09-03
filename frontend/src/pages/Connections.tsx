@@ -13,6 +13,9 @@ import {
   Tag,
   User,
   X,
+  AlertTriangle,
+  Info,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -26,6 +29,7 @@ import { EntityTypeBadge } from "@/components/EntityTypeBadge";
 import { PageContainer } from "@/components/bits";
 import { workspaceNotePath, workspaceProjectPath } from "@/lib/workspace-routes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type NodeType = "project" | "task" | "note" | "person" | "label";
 type EdgeType =
@@ -610,6 +614,12 @@ function Connections() {
     const to = nodes.find((node) => node.id === edge.to);
     return from && to ? [{ ...edge, from, to }] : [];
   });
+  const failedConnectionData = [
+    ws.connectionsData.notes === "error" ? "notes" : null,
+    ws.connectionsData.relations === "error" ? "task relationships" : null,
+  ].filter((value): value is string => value !== null);
+  const connectionDataLoading = failedConnectionData.length === 0
+    && (ws.connectionsData.notes === "loading" || ws.connectionsData.relations === "loading");
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-connections-root>
       <PageContainer width="canvas" className="min-w-0 pt-6 sm:pt-8">
@@ -630,6 +640,29 @@ function Connections() {
             {nodes.length} nodes / {edges.length} links
           </div>
         </header>
+        {failedConnectionData.length > 0 && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle />
+            <AlertTitle>Connections are incomplete</AlertTitle>
+            <AlertDescription>
+              <p>PlanGlade could not load {failedConnectionData.join(" or ")}. The graph below may be missing links.</p>
+              <button type="button" onClick={() => window.location.reload()} className="mt-1 h-9 rounded border border-current/25 px-3 text-xs font-medium hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Reload connections</button>
+            </AlertDescription>
+          </Alert>
+        )}
+        {connectionDataLoading && (
+          <div role="status" className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+            Loading notes and task relationships…
+          </div>
+        )}
+        {ws.connectionsData.relationLimitReached && (
+          <Alert className="mb-4">
+            <Info />
+            <AlertTitle>Loaded the 500 newest task relationships</AlertTitle>
+            <AlertDescription>Older relationships may not appear. Filters narrow only this loaded set.</AlertDescription>
+          </Alert>
+        )}
       </PageContainer>
       <PageContainer width="canvas" className="flex min-h-0 min-w-0 flex-1 flex-col pb-6">
         <Tabs value={showList ? "list" : "map"} onValueChange={(value) => setShowList(value === "list")} className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-lg border border-border bg-card">

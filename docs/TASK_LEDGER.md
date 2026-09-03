@@ -2,6 +2,22 @@
 
 ## Active task
 
+### PG-FUNC-014 — Make audited interactions truthful and complete
+
+- Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
+- Requested: 2026-09-03
+- Scope: activate the workspace returned by invitation acceptance, expose incomplete Connections data, align task-relation removal and workspace export with server permissions, and correct append-import copy.
+- Acceptance: accepted and already-accepted invitations select the reviewed workspace before navigation; failed Notes or relation reads cannot look like a complete empty graph; Members can remove task relations while Viewers cannot; non-admins are not offered server export actions; import wording matches unique-slug append behavior; focused API, browser, accessibility, type, lint, build, boundary, and independent-review checks pass.
+
+### Evidence
+
+- 2026-09-03: work starts from clean exact public `main` `8e893dab74148212d01a13547b86cf5814e1973d`; the original public checkout remains untouched. Repository evidence re-confirmed all four mismatches before editing: invitation acceptance discarded its returned workspace, Connections tolerated failed optional queries without disclosure, relation creation required Member while deletion required Admin, and Settings offered Member export against an Admin endpoint while describing slug-update behavior absent from append imports.
+- 2026-09-03: the UI correction reuses the repository's installed shadcn Alert and Button patterns with no dependency. Connections now announces loading, incomplete data, and the 500-relation display bound; Settings explains Admin-only export without offering unusable actions; import confirmation describes unique destination slugs.
+- 2026-09-03: a focused authorization regression proves Members can remove a workspace-scoped task relation and Viewers receive 403 without deletion. Invitation activation stores the server-returned workspace ID through one shared active-workspace helper used by normal switching. The complete suites pass all 299 backend and 180 frontend tests.
+- 2026-09-03: both Connections browser scenarios pass against the authenticated integration harness: the normal graph still renders Notes and normalized relationships, while controlled 503 responses for both optional sources produce an explicit alert and reload action. All ten reference-mode Playwright journeys pass, including Axe checks, keyboard navigation, Task/Note controls, Settings, and Connections at responsive widths.
+- 2026-09-03: backend/frontend lint, typecheck, and production builds pass; the optimizer remains HTTP 404. Public boundary, CI/docs/release/backend-surface checks, diff validation, and both low-threshold zero-vulnerability audits pass.
+- 2026-09-03: independent review found incomplete append-import wording and documentation, an overpromising 500-row notice, stale relation permission docs, and missing browser acceptance paths. The correction aligns the runtime collision contract, both guides, and docs assertions with unique destination slugs and possible skips; limits the notice to the 500 newest loaded relationships; and adds rendered tests for that exact boundary, accepted/already-accepted workspace activation, and Member export visibility. Corrected-tree independent review returned `PASS` with no remaining P0-P2 finding.
+
 ### PG-DATA-013 — Remove deleted Note references atomically
 
 - Status: **PASS** for public-core publication; Cloud PostgreSQL import and production verification remain separately gated

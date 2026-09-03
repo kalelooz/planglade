@@ -211,7 +211,7 @@ export function buildWorkspaceImportPlan(
       supportedVersions: [...SUPPORTED_EXPORT_VERSIONS],
       canExecute: supportedVersion,
       idempotent: true,
-      collisionStrategy: "Update matching project slugs; create other records and skip possible duplicates by normalized name or title.",
+      collisionStrategy: "Create imported projects with unique destination slugs; create other records and skip possible duplicates by normalized name or title.",
       discardedFields: [
         "workspace profile changes",
         "original record IDs and timestamps",

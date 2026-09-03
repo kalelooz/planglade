@@ -52,7 +52,8 @@ for (const expected of [
   'Member',
   'Admin',
   'Owner',
-  'updates projects whose workspace slug already matches',
+  'creates imported projects with unique destination slugs',
+  'Members may create and remove task relationships',
   'Every completed source checksum retains its committed result',
   'activity log',
 ]) {

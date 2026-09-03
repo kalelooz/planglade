@@ -22,6 +22,7 @@ import { createReferenceWorkspaceAdapter } from '@/store/reference-workspace-ada
 import { createReferenceWorkspaceCommandQueue, type ReferenceWorkspaceCommand } from '@/store/reference-workspace-command-queue'
 import { useServerWorkspaceSync } from '@/store/server-workspace-sync'
 import { WORKSPACE_PATHS } from '@/lib/workspace-routes'
+import { ACTIVE_WORKSPACE_KEY, rememberActiveWorkspace } from '@/lib/active-workspace'
 import {
   WorkspaceContexts,
   type TaskPatch,
@@ -31,8 +32,6 @@ import {
 
 export { useWorkspace, useWorkspaceActions, useWorkspaceCapabilities, useWorkspaceData, useWorkspaceIdentity } from '@/store/workspace-context'
 export type { TaskPatch, WorkspaceMode } from '@/store/workspace-context'
-
-const ACTIVE_WORKSPACE_KEY = 'planglade-active-workspace-v1'
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   return dataMode === 'reference'
@@ -433,7 +432,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (!name.trim()) return false
     try {
       const created = await createWorkspaceMutation.mutateAsync({ name: name.trim() })
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, created.id)
+      rememberActiveWorkspace(localStorage, created.id)
       toast.success('Workspace created')
       window.location.assign(WORKSPACE_PATHS.home)
       return true
@@ -477,7 +476,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       : [{ ...session.workspace, role: 'MEMBER' }],
     switchWorkspace: (nextWorkspaceId) => {
       if (nextWorkspaceId === workspaceId) return
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, nextWorkspaceId)
+      rememberActiveWorkspace(localStorage, nextWorkspaceId)
       window.location.assign(WORKSPACE_PATHS.home)
     },
     createWorkspace: createNewWorkspace,

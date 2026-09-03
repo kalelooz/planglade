@@ -25,13 +25,13 @@ Store exported JSON files securely. They can contain private workspace content.
 
 ## Imports
 
-Imports add supported data without deleting records. PlanGlade previews the data, creates records, updates projects whose workspace slug already matches, and skips possible duplicates for other record types. Every completed source checksum retains its committed result for idempotent retries, and a separate durable workspace lease rejects overlapping imports. An import does not replace the workspace.
+Imports add supported data without deleting records. PlanGlade previews the data, creates imported projects with unique destination slugs, creates other supported records, and skips possible duplicates by normalized name or title. Every completed source checksum retains its committed result for idempotent retries, and a separate durable workspace lease rejects overlapping imports. An import does not replace the workspace.
 
 Only admins and owners can import data. Each completed import is recorded in the activity log.
 
 ## Deletion
 
-Members can delete content they created. Admins and owners can also delete shared content created by other members. Labels and task relationships do not record a creator, so only admins and owners can delete them.
+Members can delete content they created. Admins and owners can also delete shared content created by other members. Labels do not record a creator, so only admins and owners can delete them. Members may create and remove task relationships because those links are part of the shared task plan; Viewers remain read-only.
 
 Use archive controls where PlanGlade provides them. Permanent deletion cannot be undone from the app.
 
