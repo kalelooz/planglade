@@ -157,6 +157,13 @@ test('primary, compatibility, back, and home navigation remain wired', async ({ 
 
   await page.goto('/tasks?view=board')
   await expect(page).toHaveURL('/app/tasks?view=board')
+  await page.goto('/app/projects')
+  await page.goto('/app/notes')
+  await page.goBack()
+  await expect(page).toHaveURL('/app/projects')
+  await page.goForward()
+  await expect(page).toHaveURL('/app/notes')
+  await page.goto('/tasks?view=board')
   await page.goto('/missing-page')
   await expect(page.getByRole('heading', { name: 'This path does not lead to a PlanGlade page.' })).toBeVisible()
   await page.getByRole('button', { name: 'Go back' }).click()
@@ -190,6 +197,112 @@ test('Tasks creates a server-backed task that persists after refresh', async ({ 
   await expect(page.getByRole('button', { name: `Task: ${title}` })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('button', { name: `Task: ${title}` })).toBeVisible()
+})
+
+test('project and task deletion stay truthful while comments persist and retry', async ({ page }) => {
+  const fixture = await runtime()
+  const projectName = `Delete project ${fixture.runId}`
+  const taskTitle = `Delete task ${fixture.runId}`
+  const firstComment = `First comment ${fixture.runId}`
+  const secondComment = `Second comment ${fixture.runId}`
+  const retryComment = `Retry comment ${fixture.runId}`
+
+  await page.goto('/app/projects')
+  await page.getByRole('button', { name: /new project/i }).click()
+  const projectDialog = page.getByRole('dialog', { name: 'New project' })
+  await projectDialog.getByLabel('Name').fill(projectName)
+  await projectDialog.getByLabel('Project URL slug').fill(`delete-project-${fixture.runId}`)
+  const projectCreated = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/projects')
+  await projectDialog.getByRole('button', { name: 'Create project' }).click()
+  const projectResponse = await projectCreated
+  expect(projectResponse.status()).toBe(201)
+  const project = (await projectResponse.json() as { project: { id: string } }).project
+  await expect(page.getByRole('heading', { name: projectName })).toBeVisible()
+
+  await page.goto('/app/projects')
+  await page.getByLabel('Search projects').fill(projectName)
+  await expect(page.getByText(projectName, { exact: true })).toBeVisible()
+
+  await page.goto('/app/tasks')
+  await page.getByRole('button', { name: 'New task' }).click()
+  const taskDialog = page.getByRole('dialog', { name: 'New task' })
+  await taskDialog.getByLabel('Task title').fill(taskTitle)
+  await taskDialog.getByRole('combobox', { name: 'Project' }).click()
+  await page.getByRole('option', { name: projectName, exact: true }).click()
+  const taskCreated = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/work-items')
+  await taskDialog.getByRole('button', { name: 'Create task' }).click()
+  const taskResponse = await taskCreated
+  expect(taskResponse.status()).toBe(201)
+  const task = (await taskResponse.json() as { workItem: { id: string } }).workItem
+
+  const taskSearch = page.getByLabel('Search tasks')
+  await taskSearch.fill(taskTitle)
+  const taskButton = page.getByRole('button', { name: `Task: ${taskTitle}` })
+  await expect(taskButton).toBeVisible()
+  await taskButton.click()
+  let drawer = page.getByLabel('Task details')
+  const comment = drawer.getByLabel('Write a comment')
+  const post = drawer.getByRole('button', { name: 'Post comment' })
+  await expect(post).toBeDisabled()
+
+  for (const body of [firstComment, secondComment]) {
+    await comment.fill(body)
+    await expect(post).toBeEnabled()
+    const posted = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith(`/work-items/${task.id}/comments`))
+    await post.click()
+    expect((await posted).ok()).toBe(true)
+    await expect(drawer.getByText(body, { exact: true })).toBeVisible()
+  }
+
+  await page.reload()
+  await page.getByLabel('Search tasks').fill(taskTitle)
+  await page.getByRole('button', { name: `Task: ${taskTitle}` }).click()
+  drawer = page.getByLabel('Task details')
+  await expect(drawer.getByText(firstComment, { exact: true })).toBeVisible()
+  await expect(drawer.getByText(secondComment, { exact: true })).toBeVisible()
+
+  await page.route(`**/api/work-items/${task.id}/comments**`, async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Unavailable' }) })
+      return
+    }
+    await route.continue()
+  })
+  await drawer.getByLabel('Write a comment').fill(retryComment)
+  await drawer.getByRole('button', { name: 'Post comment' }).click()
+  await expect(drawer.getByRole('alert')).toContainText('not posted')
+  await expect(drawer.getByLabel('Write a comment')).toHaveValue(retryComment)
+  await page.unroute(`**/api/work-items/${task.id}/comments**`)
+  await drawer.getByRole('button', { name: 'Post comment' }).click()
+  await expect(drawer.getByText(retryComment, { exact: true })).toBeVisible()
+  await drawer.getByRole('button', { name: 'Close' }).click()
+
+  await page.goto(`/app/projects/${project.id}`)
+  await page.getByRole('button', { name: 'Edit project' }).click()
+  await page.getByRole('dialog', { name: 'Edit project' }).getByRole('button', { name: 'Delete project' }).click()
+  const projectDelete = page.getByRole('alertdialog', { name: 'Delete this project?' })
+  await expect(projectDelete).toContainText('Its tasks and notes will remain without a project.')
+  const projectDeleted = page.waitForResponse((response) => response.request().method() === 'DELETE' && new URL(response.url()).pathname.endsWith(`/projects/${project.id}`))
+  await projectDelete.getByRole('button', { name: 'Delete project' }).click()
+  expect((await projectDeleted).status()).toBe(200)
+  await expect(page).toHaveURL('/app/projects')
+  await expect(page.getByText(projectName, { exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByText(projectName, { exact: true })).toHaveCount(0)
+
+  await page.goto('/app/tasks')
+  await page.getByLabel('Search tasks').fill(taskTitle)
+  await page.getByRole('button', { name: `Task: ${taskTitle}` }).click()
+  drawer = page.getByLabel('Task details')
+  await expect(drawer.getByRole('combobox', { name: 'Project' })).toContainText('No project')
+  await drawer.getByRole('button', { name: 'Delete task' }).click()
+  const taskDelete = page.getByRole('alertdialog', { name: 'Delete this task?' })
+  const taskDeleted = page.waitForResponse((response) => response.request().method() === 'DELETE' && new URL(response.url()).pathname.endsWith(`/work-items/${task.id}`))
+  await taskDelete.getByRole('button', { name: 'Delete', exact: true }).click()
+  expect((await taskDeleted).status()).toBe(200)
+  await expect(page.getByRole('button', { name: `Task: ${taskTitle}` })).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('button', { name: `Task: ${taskTitle}` })).toHaveCount(0)
 })
 
 test('task and note attachments support upload, list, rename, download, and delete', async ({ page }) => {
