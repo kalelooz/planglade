@@ -166,7 +166,7 @@ test('project schedule, appearance, status, and advanced fields remain interacti
   const targetDate = dialog.getByRole('button', { name: 'Target date' })
   await targetDate.click()
   const targetCalendar = page.locator('[data-slot="popover-content"]').filter({ visible: true })
-  await targetCalendar.locator('button[data-day]:not([disabled])').filter({ visible: true }).last().click()
+  await targetCalendar.locator('[role="gridcell"]:not([data-outside]) button[data-day]:not([disabled])').last().click()
   await expect(targetDate).not.toContainText('Set date')
 
   await dialog.getByRole('combobox', { name: 'Project status' }).click()
