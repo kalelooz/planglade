@@ -2,6 +2,21 @@
 
 ## Active task
 
+### PG-FUNC-017 — Close rendered CRUD and comments evidence gaps
+
+- Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
+- Requested: 2026-09-04
+- Scope: extend the authenticated rendered audit without adding product capability: prove native history navigation, Project deletion through its confirmation UI, child-task preservation, Task deletion through its confirmation UI, search, and Task comment validation, creation, multiple-comment refresh persistence, controlled failure, draft retention, and retry.
+- Acceptance: the real rendered Chromium journey exercises every listed action through the product UI; network responses and refresh durability are asserted; controlled failure remains visible and recoverable; focused/full frontend checks and required public CI pass before Cloud import.
+
+### Evidence
+
+- 2026-09-04: the release re-audit found Project and Task deletion and Task comments had API/unit evidence but no complete rendered lifecycle proof. This test-only ticket starts from clean public `main` `a47f16438fc4710aa3ce850e41bbd0f0e69adaae`; no provider, commercial, authorization, or product behavior changes.
+- 2026-09-04: the first rendered comment attempt exposed an advertised-feature defect rather than a test gap. Focusing the composer increased its height; pressing the adjacent Post action blurred and shrank the composer between pointer down and pointer up, moving the button before a click event could fire. The composer now keeps stable geometry, and the same visible Post action reaches the real API with normal form semantics.
+- 2026-09-04: the focused journey and complete authenticated Chromium suite pass. They create and find a project and child task, reject an empty comment, post multiple comments, preserve them across refresh, retain a controlled failed draft, retry it, delete the project through its confirmation while preserving and unassigning the child, then delete the task through its confirmation with durable removal. Native Back and Forward also preserve direct routes.
+- 2026-09-04: all 185 frontend unit tests, frontend lint, typecheck, production build, public/CI/docs/release guards, and the high-severity dependency audit pass with zero findings. Required exact-head public quality/build, authenticated browser, and CodeQL checks remain enforced before merge.
+- 2026-09-04: a bounded independent review returned PASS with no P0-P2 finding. It confirmed that the stable composer geometry is the smallest product correction and that the mouse-click plus real POST wait is the relevant regression proof.
+
 ### PG-FUNC-016 — Keep attachment deletion failures visible
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated

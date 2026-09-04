@@ -118,7 +118,7 @@ export function TaskComments({
       {canComment ? (
         <form onSubmit={submit} className={cn('flex flex-wrap items-end gap-2', comments.length > 0 && 'mt-3 border-t border-border/60 pt-3')}>
           <label htmlFor={composerId} className="sr-only">Write a comment</label>
-          <Textarea id={composerId} value={body} onChange={(event) => onDraftChange(event.target.value)} placeholder={handles.length > 0 ? 'Add a comment… use @ to mention' : 'Add a comment…'} maxLength={5000} rows={1} disabled={mutation.isPending} className="min-h-11 min-w-0 max-h-32 flex-1 resize-y bg-background/60 py-2.5 text-sm focus:min-h-20" />
+          <Textarea id={composerId} value={body} onChange={(event) => onDraftChange(event.target.value)} placeholder={handles.length > 0 ? 'Add a comment… use @ to mention' : 'Add a comment…'} maxLength={5000} rows={1} disabled={mutation.isPending} className="min-h-11 min-w-0 max-h-32 flex-1 resize-y bg-background/60 py-2.5 text-sm" />
           <Button type="submit" size="sm" disabled={!body.trim() || mutation.isPending} aria-label={mutation.isPending ? 'Posting comment' : 'Post comment'} className="size-11 shrink-0 px-0 lg:size-9"><Send className="size-3.5" /></Button>
           {mutation.isError && <p role="alert" className="w-full text-[12px] text-destructive">This comment was not posted. Your draft is still here.</p>}
         </form>
