@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Download, FileText, Loader2, Paperclip, Pencil, Trash2, Upload, X } from 'lucide-react'
 
@@ -136,9 +136,12 @@ export function AttachmentSection({
     },
     onError: (error) => {
       setDeleteError(actionErrorMessage(error))
-      requestAnimationFrame(() => deleteButtonRef.current?.focus())
     },
   })
+
+  useEffect(() => {
+    if (deleteError && !deleteMutation.isPending) deleteButtonRef.current?.focus()
+  }, [deleteError, deleteMutation.isPending])
 
   const selectFile = (file: File | undefined) => {
     if (!file || uploadMutation.isPending) return
