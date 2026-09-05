@@ -2,6 +2,14 @@
 
 ## Active task
 
+### PG-REL-021 — Serialize Inbox edits using current work-item state
+
+- Status: **IN PROGRESS**
+- Requested: 2026-09-05; close the confirmed interaction-audit failure.
+- Scope: route Inbox metadata changes through the existing per-item task mutation queue, and resolve each queued item from its current workspace query cache instead of a captured first-render map. Preserve server concurrency and authorization checks.
+- Evidence: the rendered regression holds one real request while project/date/priority are edited; before the fix, updates conflict and project/priority are lost. It also captures and edits a second item after queue initialization, then verifies all fields after refresh. Focused checks, independent review and exact CI are required before merge. No managed-provider or commercial implementation is included.
+- Local acceptance: all 28 authenticated integration scenarios and 185 frontend unit tests pass, as do lint, typecheck/production build, public boundary, CI, docs and release guards. Independent review found the functional patch correct; generated development type-path drift was excluded. The retained screenshot shows both captured items with persisted project, date and priority. Required GitHub CI remains the merge gate.
+
 ### PG-DATA-020 — Preserve subtasks when deleting a reference parent
 
 - Status: **IN PROGRESS**
