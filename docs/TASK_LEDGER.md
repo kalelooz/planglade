@@ -2,6 +2,14 @@
 
 ## Active task
 
+### PG-DATA-020 — Preserve subtasks when deleting a reference parent
+
+- Status: **IN PROGRESS**
+- Requested: 2026-09-05; continue the product interaction audit and close confirmed findings.
+- Scope: align reference task deletion with the existing API contract: delete only the selected task, retain and detach direct children, and remove references to the deleted task. Undo restores the deleted task without overwriting surviving children.
+- Acceptance: actual rendered create/subtask/confirmation/cancel/delete/Undo/refresh regression; focused frontend checks, independent review and required CI before publication. No provider or commercial implementation is included.
+- Evidence: the new rendered regression failed before the correction because the child disappeared; after deleting only the selected task and detaching its direct children, all 11 reference journeys pass. Frontend lint, typecheck/build, 185 tests, zero-vulnerability audit, public/docs/CI/release guards pass. One screenshot confirms the surviving child is still editable after refresh. The existing API deletion behavior is unchanged; reference CI now continuously covers this regression.
+
 ### PG-UX-019 — Align Tasks with Home card styling
 
 - Status: **IN PROGRESS**

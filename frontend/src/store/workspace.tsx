@@ -918,9 +918,10 @@ function ReferenceWorkspaceProvider({ children }: { children: React.ReactNode })
             state: {
               ...s,
               tasks: s.tasks
-                .filter((candidate) => candidate.id !== id && candidate.parentId !== id)
+                .filter((candidate) => candidate.id !== id)
                 .map((candidate) => ({
                   ...candidate,
+                  parentId: candidate.parentId === id ? null : candidate.parentId,
                   dependsOn: candidate.dependsOn.filter((dependencyId) => dependencyId !== id),
                   related: candidate.related.filter((relatedId) => relatedId !== id),
                 })),
