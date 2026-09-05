@@ -1,13 +1,13 @@
 import assert from "node:assert/strict"
 import { createServer } from "node:http"
 import { createRequire } from "node:module"
-import path from "node:path"
 import test from "node:test"
 
 test("Firebase Storage accepts valid Cloud Run metadata headers", async () => {
   const require = createRequire(import.meta.url)
-  const storageRoot = path.resolve(path.dirname(require.resolve("@google-cloud/storage")), "../../..")
-  const metadata = require(path.join(storageRoot, "node_modules/gcp-metadata/build/src/index.js")) as {
+  const storageRequire = createRequire(require.resolve("@google-cloud/storage"))
+  const storageAuthRequire = createRequire(storageRequire.resolve("google-auth-library"))
+  const metadata = require(storageAuthRequire.resolve("gcp-metadata")) as {
     instance: (property: string) => Promise<string>
     resetIsAvailableCache: () => void
   }
