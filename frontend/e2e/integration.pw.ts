@@ -51,6 +51,56 @@ async function rawTask(page: Page, workspaceId: string, title: string) {
 
 test.describe.configure({ mode: 'serial' })
 
+test('Inbox edits serialize against current records, including newly captured items', async ({ page }) => {
+  const fixture = await runtime()
+  const errors = collectConsoleErrors(page)
+  const patchStatuses: number[] = []
+  page.on('response', (response) => {
+    if (response.request().method() === 'PATCH' && new URL(response.url()).pathname.startsWith('/api/work-items/')) patchStatuses.push(response.status())
+  })
+  await page.goto('/app/inbox')
+  for (const suffix of ['first', 'after queue initialization']) {
+    const title = `Serialized inbox ${suffix} ${fixture.runId}`
+    await page.getByRole('textbox', { name: 'Capture to inbox' }).fill(title)
+    const created = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/work-items')
+    await page.getByRole('textbox', { name: 'Capture to inbox' }).press('Enter')
+    expect((await created).status()).toBe(201)
+    const row = page.getByText(title, { exact: true }).locator('xpath=../..')
+    let releaseFirst!: () => void
+    const gate = new Promise<void>((resolve) => { releaseFirst = resolve })
+    let first = true
+    await page.route('**/api/work-items/*', async (route) => {
+      if (route.request().method() === 'PATCH' && first) {
+        first = false
+        await gate
+      }
+      await route.continue()
+    })
+    try {
+      await row.getByRole('combobox', { name: 'Assign project' }).click()
+      await page.getByRole('option', { name: fixture.secondaryProjectName, exact: true }).click()
+      await row.getByRole('button', { name: 'Set due date' }).click()
+      await page.locator('[role="gridcell"]:not([data-outside]) button[data-day]:not([disabled])').first().click()
+      await row.getByRole('combobox', { name: 'Set priority' }).click()
+      await page.getByRole('option', { name: 'High', exact: true }).click()
+    } finally {
+      releaseFirst()
+    }
+    await expect.poll(() => rawTask(page, fixture.workspaceId, title)).toMatchObject({ projectId: fixture.secondaryProjectId, priority: 'HIGH', dueDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) })
+    await page.unroute('**/api/work-items/*')
+  }
+  await page.reload()
+  for (const suffix of ['first', 'after queue initialization']) {
+    const row = page.getByText(`Serialized inbox ${suffix} ${fixture.runId}`, { exact: true }).locator('xpath=../..')
+    await expect(row.getByRole('combobox', { name: 'Assign project' })).toContainText(fixture.secondaryProjectName)
+    await expect(row.getByRole('combobox', { name: 'Set priority' })).toContainText('High')
+    await expect(row.getByRole('button', { name: 'Set due date' })).not.toContainText('No date')
+  }
+  await page.screenshot({ path: '../artifacts/verification/PG-REL-021/inbox-edits.png' })
+  expect(patchStatuses).toEqual([200, 200, 200, 200, 200, 200])
+  expect(errors).toEqual([])
+})
+
 test('workspace entry enables an authenticated member and preserves access after refresh', async ({ page }) => {
   const fixture = await runtime()
   const consoleErrors = collectConsoleErrors(page)

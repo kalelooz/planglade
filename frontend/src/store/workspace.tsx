@@ -112,6 +112,7 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
     updateWorkspaceMutation,
     updateSettingsMutation,
     invalidateRelations,
+    getCurrentTask,
     expectedLaneVersions,
     expectedDeleteLaneVersions,
   } = useServerWorkspaceSync(selectedWorkspaceId)
@@ -279,30 +280,16 @@ function ApiWorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (Object.keys(taskPatch).length === 0) return dependencySaved
       return dependencySaved.then((saved) => (saved ? updateApiTask(id, taskPatch, opts) : false))
     }
-    if (!task?.source && inboxItem?.source) {
-      return updateMutation.mutateAsync({
-        workspaceId,
-        task: inboxItem.source,
-        patch,
-        expectedLaneVersions: expectedLaneVersions(workspaceId, inboxItem.source, patch),
-      }).then(() => {
-        if (!opts?.silent) toast.success('Changes saved')
-        return true
-      }).catch((error) => {
-        toast.error(mutationMessage(error))
-        return false
-      })
-    }
     if (typeof updateQueue.current !== 'function') {
       updateQueue.current = createTaskMutationQueue(async (taskId, request) => {
-        const currentTask = byId.get(taskId)
-        if (!currentTask?.source) return false
+        const currentTask = getCurrentTask(workspaceId, taskId)
+        if (!currentTask) return false
         try {
           await updateMutation.mutateAsync({
             workspaceId,
-            task: currentTask.source,
+            task: currentTask,
             patch: request.patch,
-            expectedLaneVersions: expectedLaneVersions(workspaceId, currentTask.source, request.patch),
+            expectedLaneVersions: expectedLaneVersions(workspaceId, currentTask, request.patch),
           })
           if (!request.silent) toast.success('Changes saved')
           return true

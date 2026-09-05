@@ -323,6 +323,9 @@ export function useServerWorkspaceSync(selectedWorkspaceId: string | null) {
     createWorkspaceMutation,
     updateWorkspaceMutation,
     updateSettingsMutation,
+    getCurrentTask: (targetWorkspaceId: string, id: string) =>
+      queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])?.workItems.find((task) => task.id === id)
+      ?? queryClient.getQueryData<BackendWorkItem[]>(['inbox', targetWorkspaceId])?.find((task) => task.id === id),
     expectedLaneVersions: (targetWorkspaceId: string, task: BackendWorkItem, patch: TaskMutationPatch) => {
       const snapshot = queryClient.getQueryData<TaskSnapshot>(['tasks', targetWorkspaceId])
       const currentTask = snapshot?.workItems.find((candidate) => candidate.id === task.id) ?? task
