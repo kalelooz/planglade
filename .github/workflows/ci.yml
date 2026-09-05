@@ -119,6 +119,9 @@ jobs:
           PLANGLADE_E2E_BACKEND_DIR: ${{ github.workspace }}/backend
         run: npm run test:e2e:integration --prefix frontend
 
+      - name: Run reference interaction suite
+        run: npm run test:e2e:reference --prefix frontend
+
       - name: Upload browser failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -127,5 +130,6 @@ jobs:
           path: |
             frontend/test-results/vite-landing
             frontend/test-results/vite-integration
+            frontend/test-results/vite-reference
           if-no-files-found: ignore
           retention-days: 7

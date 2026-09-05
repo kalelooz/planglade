@@ -92,6 +92,40 @@ async function renderedColors(locator: Locator, surfaceSelector?: string) {
   }, surfaceSelector)
 }
 
+test('deleting a reference parent retains its subtask through undo and refresh', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const parent = 'Retention audit parent'
+  const child = 'Retention audit child'
+  await page.goto('/app/tasks')
+  await page.getByRole('button', { name: 'New task', exact: true }).click()
+  const create = page.getByRole('dialog', { name: 'New task', exact: true })
+  await create.getByLabel('Task title', { exact: true }).fill(parent)
+  await create.getByRole('button', { name: 'Create task', exact: true }).click()
+  await page.getByRole('button', { name: `Task: ${parent}`, exact: true }).click()
+  const drawer = page.getByLabel('Task details')
+  await drawer.getByLabel('Add a subtask', { exact: true }).fill(child)
+  await drawer.getByLabel('Add a subtask', { exact: true }).press('Enter')
+  await expect(drawer.getByRole('button', { name: child, exact: true })).toBeVisible()
+  await drawer.getByRole('button', { name: 'Delete task', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Keep task', exact: true }).click()
+  await expect(drawer.getByRole('button', { name: child, exact: true })).toBeVisible()
+  await drawer.getByRole('button', { name: 'Delete task', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(page.getByRole('button', { name: `Task: ${child}`, exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect(page.getByRole('button', { name: `Task: ${parent}`, exact: true })).toBeVisible()
+  await page.getByRole('button', { name: `Task: ${parent}`, exact: true }).click()
+  await drawer.getByRole('button', { name: 'Delete task', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: `Task: ${parent}`, exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: `Task: ${child}`, exact: true }).click()
+  await expect(drawer.getByLabel('Task title', { exact: true })).toHaveValue(child)
+  await page.screenshot({ path: '../artifacts/verification/PG-DATA-020/retained-subtask.png' })
+  expect(errors).toEqual([])
+})
+
 test('reference mode stays independent from the backend', async ({ page }) => {
   const backendRequests: string[] = []
   const consoleErrors: string[] = []
