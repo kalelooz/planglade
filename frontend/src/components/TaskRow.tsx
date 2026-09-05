@@ -57,7 +57,7 @@ export function TaskRow({
   const hasMobilePriority = field('priority') && task.priority !== 'none'
   const listDesktopColumns = [
     '18px',
-    'minmax(280px, min(20rem, 45vw))',
+    'minmax(320px, min(28rem, 52vw))',
     field('status') ? '96px' : null,
     field('dueDate') ? '104px' : null,
     field('priority') ? '28px' : null,
@@ -99,7 +99,7 @@ export function TaskRow({
           <span data-task-field={listMobileLayout ? 'completion' : undefined} className="relative z-10 flex h-11 items-center justify-center [&>button]:size-11 lg:h-auto lg:justify-start lg:pt-0.5 lg:[&>button]:size-[18px]"><TaskCheckbox checked={done} onToggle={() => ws.toggleTask(task.id)} blocked={blocked && !done} /></span>
           <div className="relative z-10 min-w-0 pointer-events-none" data-task-field={listMobileLayout ? 'identity' : undefined}>
             <div className="flex items-start gap-2">
-              <p className={cn('pg-item-title min-w-0 flex-1', done && 'line-through text-muted-foreground font-normal')}>
+              <p data-task-title className={cn('pg-item-title min-w-0 flex-1 truncate !text-nowrap', done && 'line-through text-muted-foreground font-normal')}>
                 <span data-task-field={listMobileLayout ? 'title' : undefined}>{task.title}</span>
               </p>
               <EntityTypeBadge type="task" className="mt-0.5" />

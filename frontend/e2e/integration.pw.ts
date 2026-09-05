@@ -185,7 +185,7 @@ test('Tasks view tabs keep their selected semantic state while switching views',
 
 test('Tasks creates a server-backed task that persists after refresh', async ({ page }) => {
   const fixture = await runtime()
-  const title = `Created task ${fixture.runId}`
+  const title = `Created task ${fixture.runId} with a deliberately long single-line title`
   await page.goto('/app/tasks')
   await page.getByRole('button', { name: 'New task' }).click()
   await page.getByRole('dialog').getByLabel('Task title').fill(title)
@@ -194,7 +194,21 @@ test('Tasks creates a server-backed task that persists after refresh', async ({ 
   )
   await page.getByRole('button', { name: 'Create task' }).click()
   expect((await created).status()).toBe(201)
-  await expect(page.getByRole('button', { name: `Task: ${title}` })).toBeVisible()
+  const taskButton = page.getByRole('button', { name: `Task: ${title}` })
+  await expect(taskButton).toBeVisible()
+  const titleElement = taskButton.locator('..').locator('[data-task-title]')
+  expect(await titleElement.evaluate((element) => getComputedStyle(element).whiteSpace)).toBe('nowrap')
+  const taskCardStyle = await page.locator('[data-task-group-card]').first().evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      backgroundColor: style.backgroundColor,
+      borderRadius: style.borderRadius,
+      boxShadow: style.boxShadow,
+    }
+  })
+  expect(taskCardStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(taskCardStyle.borderRadius).toBe('8px')
+  expect(taskCardStyle.boxShadow).not.toBe('none')
   await page.reload()
   await expect(page.getByRole('button', { name: `Task: ${title}` })).toBeVisible()
 })
