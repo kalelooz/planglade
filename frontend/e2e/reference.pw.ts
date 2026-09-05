@@ -334,15 +334,15 @@ test('desktop task rows render metadata once', async ({ page }) => {
   const priorityCell = await visibleBox(row.locator('[data-task-field="priority"]'))
   const desktopCells = [identityCell, statusCell, dueCell, priorityCell]
 
-  expect(identityCell.width).toBeLessThanOrEqual(320)
-  expect(statusCell.x - (titleText.x + titleText.width)).toBeLessThanOrEqual(240)
+  expect(identityCell.width).toBeLessThanOrEqual(448)
+  expect(statusCell.x - (titleText.x + titleText.width)).toBeLessThanOrEqual(368)
   for (let index = 1; index < desktopCells.length; index += 1) {
     const previous = desktopCells[index - 1]
     const current = desktopCells[index]
     expect(current.x - (previous.x + previous.width)).toBeGreaterThanOrEqual(0)
     expect(current.x - (previous.x + previous.width)).toBeLessThanOrEqual(24)
   }
-  expect(priorityCell.x + priorityCell.width - identityCell.x).toBeLessThanOrEqual(700)
+  expect(priorityCell.x + priorityCell.width - identityCell.x).toBeLessThanOrEqual(840)
 
   const listRegion = await visibleBox(page.locator('[data-task-list-region]'))
   const listSurface = await visibleBox(page.locator('[data-task-list-surface]'))

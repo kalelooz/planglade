@@ -26,6 +26,7 @@ describe('responsive readability', () => {
     const home = readFileSync(join(sourceRoot, 'pages', 'Home.tsx'), 'utf8')
     const inbox = readFileSync(join(sourceRoot, 'pages', 'Inbox.tsx'), 'utf8')
     const tasks = readFileSync(join(sourceRoot, 'pages', 'Tasks.tsx'), 'utf8')
+    const taskRow = readFileSync(join(sourceRoot, 'components', 'TaskRow.tsx'), 'utf8')
 
     expect(bits).toContain("wide: 'mx-auto max-w-[1600px]")
     expect(bits).toContain("reading: 'mx-auto max-w-[900px]")
@@ -33,6 +34,9 @@ describe('responsive readability', () => {
     expect(inbox).toContain('<PageContainer width="wide"')
     expect(tasks).toContain('<PageContainer width="standard" className="pb-10" data-task-list-region>')
     expect(tasks).toContain('className="mx-auto w-full max-w-[960px]" data-task-list-surface')
+    expect(tasks).toContain('className="mb-5 overflow-hidden rounded-lg border border-border/70 bg-card shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"')
+    expect(taskRow).toContain("'pg-item-title min-w-0 flex-1 truncate !text-nowrap'")
+    expect(taskRow).toContain("'minmax(320px, min(28rem, 52vw))'")
     expect(tasks).toContain("['comfortable', 'compact'] as const")
   })
 })

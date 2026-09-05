@@ -2,6 +2,18 @@
 
 ## Active task
 
+### PG-UX-019 — Align Tasks with Home card styling
+
+- Status: **IN PROGRESS**
+- Requested: 2026-09-05
+- Scope: keep task titles to one line, widen and center the desktop task grid so titles receive more room, and present Tasks list groups with the same established card surface used on Home.
+- Acceptance: long rendered task titles receive a wider centered desktop column, remain one line without horizontal overflow, and default and grouped Task lists use the existing Home card border, background, radius, and shadow; focused checks, rendered responsive proof, full frontend checks, required CI, and independent review pass before downstream Cloud import.
+
+### Evidence
+
+- 2026-09-05: the owner supplied a production screenshot showing a long Task title wrapping to a second line and requested visual consistency between Tasks and Home. The implementation reuses the exact existing Home card classes and adds no dependency or new design abstraction.
+- 2026-09-05: the authenticated creation/refresh journey proves a long title renders on one line and the Tasks card has its expected surface. All ten reference browser journeys pass, including centered metadata with optional columns, keyboard behavior, accessibility, and Home cards in both themes. All 185 frontend tests, lint, typecheck, build, public/CI/docs/release guards, and both zero-vulnerability audits pass. Desktop screenshots under ignored artifacts/verification/PG-UX-019 show the wider title column. An attempted local backend suite lacked DATABASE_URL; required GitHub CI prepares the test database and remains a merge gate.
+
 ### PG-REL-018 — Restore managed attachment URL signing
 
 - Status: **PASS** for public-core publication; downstream import and production verification remain separately gated

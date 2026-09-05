@@ -417,10 +417,8 @@ export default function Tasks() {
                 <section
                   key={g.key}
                   aria-labelledby={g.label ? `task-group-${g.key}` : undefined}
-                  className={cn(
-                    'mb-5',
-                    group !== 'none' && 'overflow-hidden rounded-lg border border-border/60 bg-card/35',
-                  )}
+                  className="mb-5 overflow-hidden rounded-lg border border-border/70 bg-card shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
+                  data-task-group-card
                 >
                   {g.label && (
                     <h2
@@ -431,7 +429,7 @@ export default function Tasks() {
                       <CountBadge count={g.tasks.length} label={`${g.tasks.length} tasks`} />
                     </h2>
                   )}
-                  <div className={cn('divide-y divide-border/50', group === 'none' && 'border-y border-border/60')}>
+                  <div className="divide-y divide-border/50">
                     <AnimatePresence initial={false}>
                       {g.tasks.map((t) => (
                         <motion.div
