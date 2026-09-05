@@ -2,6 +2,19 @@
 
 ## Active task
 
+### PG-REL-018 — Restore managed attachment URL signing
+
+- Status: **PASS** for public-core publication; downstream import and production verification remain separately gated
+- Requested: 2026-09-05
+- Scope: remove the incompatible global HTTP-client override that breaks the Firebase Storage library's Cloud metadata response handling while retaining independently patched dependency lines.
+- Acceptance: a regression probe accepts an authentic metadata-flavor response through the exact Storage dependency path; clean dependency installation and high-severity audits pass; lint, typecheck, production builds, public boundaries, required CI, and independent review pass before downstream import.
+
+### Evidence
+
+- 2026-09-05: a rendered managed-runtime attachment upload exposed a real signing failure. The exact dependency reproduction proved that the global `gaxios` 7 override made the Storage stack's `gcp-metadata` 6 client misread a valid `Metadata-Flavor: Google` response as headerless.
+- 2026-09-05: removing only that override lets npm retain `gaxios` 7.2.0 for current Firebase libraries while installing compatible `gaxios` 6.7.1 under the older Storage signing stack. The new regression test fails on the prior graph and passes on the corrected graph.
+- 2026-09-05: both clean installs and both high-severity audits report zero vulnerabilities. Public, CI, documentation, release, and backend-surface checks pass; backend/frontend lint and typecheck pass; both production builds pass and the image optimizer remains disabled. The Linux migration rehearsal, complete suites, authenticated browser gate, CodeQL, and independent PR review remain required before merge.
+
 ### PG-FUNC-017 — Close rendered CRUD and comments evidence gaps
 
 - Status: **PASS** for public-core publication; Cloud import and production verification remain separately gated
