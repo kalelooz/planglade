@@ -2,6 +2,15 @@
 
 ## Active task
 
+### Recover abandoned uploads after cleanup interruption
+
+- Status: **REVISE** — local correction, focused checks and independent security/data-integrity review pass; required remote checks/merge remain pending.
+- Requested: 2026-09-07; correct the confirmed abandoned-upload cleanup recovery defect.
+- Baseline: current Community `afb9f6790b190f24704437adf0fcc38148bc5335` in an isolated checkout.
+- Change: atomically remove only expired, unconsumed reservations and enqueue their storage keys in the existing durable deletion queue. Successful finalization is no longer overloaded as a cleanup claim. Existing fenced leases and retry logic retain intent on process exit, exceptions or false provider results; upload drain time and finalized attachments remain protected.
+- Evidence: the abrupt-process-exit regression failed before the correction and passes after it. All 17 attachment database tests pass, including fresh-process recovery, finalization races, competing reapers/deletion workers, missing objects, failed providers, retry timing and upload drain behavior. Backend typecheck, changed-file lint and public/CI/docs/release guards pass.
+- No schema change or new dependency. Existing already-consumed reservations are intentionally untouched; reconciling any historical stranded objects requires separate evidence that they do not belong to finalized attachments. No remote publication or deployment has occurred.
+
 ### PG-REL-021 — Serialize Inbox edits using current work-item state
 
 - Status: **IN PROGRESS**
