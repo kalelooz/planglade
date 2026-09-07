@@ -1,10 +1,9 @@
 import { db } from "@/lib/db"
-import { reapPendingAttachmentDeletions } from "@/lib/attachment-deletion"
+import { enqueueAttachmentDeletion, reapPendingAttachmentDeletions } from "@/lib/attachment-deletion"
 import { ATTACHMENT_UPLOAD_DRAIN_MS } from "@/lib/attachment-reservations"
-import { deleteStorageObject, removeAbandonedLocalUploadTemps } from "@/lib/storage"
+import { removeAbandonedLocalUploadTemps } from "@/lib/storage"
 
 export async function reapExpiredAttachmentUploads(now = new Date()) {
-  const deletionResult = await reapPendingAttachmentDeletions(now)
   const expiredBefore = new Date(now.getTime() - ATTACHMENT_UPLOAD_DRAIN_MS)
   const expired = await db.attachmentUploadReservation.findMany({
     where: { consumedAt: null, expiresAt: { lte: expiredBefore } },
@@ -13,26 +12,16 @@ export async function reapExpiredAttachmentUploads(now = new Date()) {
   })
   let reservationsRemoved = 0
   for (const reservation of expired) {
-    const claimed = await db.attachmentUploadReservation.updateMany({
-      where: { id: reservation.id, consumedAt: null, expiresAt: { lte: expiredBefore } },
-      data: { consumedAt: now },
+    reservationsRemoved += await db.$transaction(async (tx) => {
+      const removed = await tx.attachmentUploadReservation.deleteMany({
+        where: { id: reservation.id, consumedAt: null, expiresAt: { lte: expiredBefore } },
+      })
+      if (removed.count === 1) await enqueueAttachmentDeletion(tx, reservation.storageKey, now)
+      return removed.count
     })
-    if (claimed.count !== 1) continue
-
-    try {
-      await deleteStorageObject(reservation.storageKey)
-      const removed = await db.attachmentUploadReservation.deleteMany({
-        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: expiredBefore } },
-      })
-      reservationsRemoved += removed.count
-    } catch (error) {
-      await db.attachmentUploadReservation.updateMany({
-        where: { id: reservation.id, consumedAt: now, expiresAt: { lte: expiredBefore } },
-        data: { consumedAt: null },
-      })
-      throw error
-    }
   }
+
+  const deletionResult = await reapPendingAttachmentDeletions(now)
 
   const temporaryFilesRemoved = await removeAbandonedLocalUploadTemps(
     new Date(now.getTime() - 60 * 60 * 1000),

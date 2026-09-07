@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
@@ -150,6 +150,71 @@ test("the reaper removes expired unfinalized objects and reservation records", a
   assert.equal(result.reservationsRemoved, 1)
   assert.equal(await storageObjectExists(storageKey), false)
   assert.equal(await db.attachmentUploadReservation.findUnique({ where: { id: "expired-reservation" } }), null)
+})
+
+test("abandoned uploads retain durable retries for false results and provider exceptions", async () => {
+  for (const failure of ["false", "throw"]) {
+    const storageKey = `workspace-1/reap-${failure}`
+    const objectPath = path.join(storageRoot, storageKey)
+    if (failure === "false") await mkdir(objectPath, { recursive: true })
+    else await writeLocalStorageObject({ storageKey, mimeType: "text/plain", bytes: new TextEncoder().encode("retry") })
+    await db.attachmentUploadReservation.create({ data: {
+      id: `reap-${failure}`, ...reservationInput(storageKey, 5),
+      expiresAt: new Date(Date.now() - attachmentUploadDrainMs - 1000),
+    } })
+    if (failure === "throw") process.env.PLANGLADE_STORAGE_PROVIDER = "unavailable"
+    try {
+      if (failure === "throw") await assert.rejects(reapExpiredAttachmentUploads(), /Invalid PLANGLADE_STORAGE_PROVIDER/)
+      else assert.equal((await reapExpiredAttachmentUploads()).deletionFailures, 1)
+      const job = await db.attachmentDeletionJob.findUniqueOrThrow({ where: { storageKey } })
+      assert.equal(job.claimId, null)
+      assert.equal(job.lastError, failure === "false" ? "StorageDeletionIncompleteError" : "Error")
+      if (failure === "false") await rm(objectPath, { recursive: true })
+      process.env.PLANGLADE_STORAGE_PROVIDER = "local"
+      assert.equal(await attemptAttachmentDeletion(job.id, { clock: () => job.nextAttemptAt }), "deleted")
+      assert.equal(await storageObjectExists(storageKey), false)
+    } finally {
+      process.env.PLANGLADE_STORAGE_PROVIDER = "local"
+    }
+  }
+})
+
+test("competing reapers safely transfer an already-absent abandoned object", async () => {
+  const storageKey = "workspace-1/already-absent-reap"
+  await db.attachmentUploadReservation.create({ data: {
+    id: "already-absent-reap", ...reservationInput(storageKey, 5),
+    expiresAt: new Date(Date.now() - attachmentUploadDrainMs - 1000),
+  } })
+  const results = await Promise.all([reapExpiredAttachmentUploads(), reapExpiredAttachmentUploads()])
+  assert.equal(results.reduce((sum, result) => sum + result.reservationsRemoved, 0), 1)
+  assert.equal(results.reduce((sum, result) => sum + result.deletionsRemoved, 0), 1)
+  assert.equal(await db.attachmentDeletionJob.findUnique({ where: { storageKey } }), null)
+})
+
+test("an abandoned upload survives a reaper crash as recoverable deletion work", async () => {
+  const storageKey = "workspace-1/crashed-reaper"
+  await writeLocalStorageObject({ storageKey, mimeType: "text/plain", bytes: new TextEncoder().encode("orphan") })
+  await db.attachmentUploadReservation.create({ data: {
+    id: "crashed-reaper", ...reservationInput(storageKey, 6),
+    expiresAt: new Date(Date.now() - attachmentUploadDrainMs - 1000),
+  } })
+  await assert.rejects(execFileAsync(process.execPath,
+    ["--import", "tsx", "tests/helpers/crash-attachment-reaper.ts"],
+    { cwd: path.resolve("."), env: { ...process.env }, windowsHide: true },
+  ), (error: unknown) => (error as { code: number }).code === 73)
+  assert.equal(await storageObjectExists(storageKey), true)
+  const job = await db.attachmentDeletionJob.findUnique({ where: { storageKey } })
+  assert.ok(job, "a process death must leave durable deletion intent")
+  assert.ok(job.claimExpiresAt)
+  assert.equal(await db.attachmentUploadReservation.findUnique({ where: { id: "crashed-reaper" } }), null)
+  const retryAt = new Date(job.claimExpiresAt.getTime() + 1).toISOString()
+  const recovered = await execFileAsync(process.execPath,
+    ["--import", "tsx", "tests/helpers/reap-attachment-deletions.ts", retryAt],
+    { cwd: path.resolve("."), env: { ...process.env }, windowsHide: true },
+  )
+  assert.deepEqual(deletionResult(recovered.stdout), { deletionsRemoved: 1, deletionFailures: 0 })
+  assert.equal(await storageObjectExists(storageKey), false)
+  assert.equal(await db.attachmentDeletionJob.findUnique({ where: { storageKey } }), null)
 })
 
 test("the reaper preserves an object when finalization wins the cleanup race", async () => {
