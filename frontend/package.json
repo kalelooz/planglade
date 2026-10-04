@@ -93,5 +93,8 @@
     "typescript-eslint": "^8.46.4",
     "vite": "^7.3.6",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3"
   }
 }
