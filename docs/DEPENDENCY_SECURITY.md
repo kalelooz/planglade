@@ -18,7 +18,8 @@ It preserves the existing glob API used by linting and Tailwind. No framework
 upgrade or audit exception is included.
 
 This is a new, independently maintained package, not an upstream release. Its
-exact version and archive integrity are pinned in both lockfiles. Review any
+exact version, registry URL and archive integrity are pinned in both lockfiles
+and enforced by the dependency regression check in CI. Review any
 replacement version before changing those pins. Prefer returning to upstream
 when a compatible official fix is available.
 
@@ -30,7 +31,8 @@ attestation. The package has no install lifecycle scripts and retains the same
 `fill-range` runtime dependency. All 799 tests in that source revision passed.
 
 The project's `npm run test:dependency-guards` checks every installed braces copy
-recorded in the two lockfiles, ordinary source-file glob expansion, deeply nested
+recorded in the two lockfiles, the reviewed archive identity and installed package
+identity, ordinary source-file glob expansion, deeply nested
 strings and ASTs, the 252-byte multipart boundary, and prototype-named headers.
 Hostile parser cases run in a child process with a timeout. This check also runs
 as part of `npm test`.

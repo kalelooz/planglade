@@ -22,6 +22,11 @@ for (const workspace of ['backend', 'frontend']) {
     for (const [location, metadata] of copies) {
       assert.equal(metadata.name, '@dieub/braces-depth-guard')
       assert.equal(metadata.version, '3.0.3-pn.3')
+      assert.equal(metadata.resolved, 'https://registry.npmjs.org/@dieub/braces-depth-guard/-/braces-depth-guard-3.0.3-pn.3.tgz')
+      assert.equal(metadata.integrity, 'sha512-QY+Uq4s42STyIMPoRkBuUZfYyvz0uZuwuUburLwMx5N+lWqnHHaBxcKPtgKVKjTyFnS1q4ivKu9Wxi4VG7FE9Q==')
+      const installed = JSON.parse(readFileSync(path.join(root, workspace, location, 'package.json'), 'utf8'))
+      assert.equal(installed.name, metadata.name)
+      assert.equal(installed.version, metadata.version)
       probe(`
         const assert = require('node:assert/strict');
         const braces = require(process.argv[1]);
