@@ -366,3 +366,9 @@
 - 2026-08-26: desktop and mobile browser inspection passed with no runtime warnings or errors; evidence is under `artifacts/verification/UI-001/` (intentionally ignored).
 - 2026-08-26: the Impeccable detector's four warnings were reviewed as existing false positives: Markdown blockquote styling, a functional timeline resize handle, and mutually exclusive project-status color branches.
 - 2026-08-26: the bounded PR review correction passed backend configuration/import tests, workspace import route integration tests, repository boundary checks, and the backend surface guard.
+
+### Dependency recursion and multipart security - 2026-10-04
+
+- Scope: pin the existing multipart parser to the official 3.2.2 patch and replace vulnerable braces 3.0.3 in lint/build tooling with the reviewed, exact MIT-licensed depth-guard derivative. No application feature, framework version, authentication policy, or database migration changes.
+- Local checks: 3 focused dependency regressions; 304 backend tests; 185 frontend tests; both lints, typechecks and builds; public, CI, docs, release and backend-surface checks; both dependency audits report zero vulnerabilities. The original packages fail the relevant nesting/header negative controls.
+- Supply-chain review: published runtime bytes and license match source commit 305a2e4bfe324bb53c336c1b03387ee1251c926f; archive integrity, registry signature and GitHub Actions attestation verified; all 799 source-package tests pass. The new maintainer and limits of the depth guard are documented in docs/DEPENDENCY_SECURITY.md. Independent PR checks and review remain required before merge.

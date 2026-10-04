@@ -14,7 +14,8 @@
     "test:release": "node scripts/rehearse-release.mjs",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
-    "test": "node scripts/test-setup-local.mjs && npm test --prefix backend && npm test --prefix frontend -- --run",
-    "build": "npm run build --prefix backend && npm run build --prefix frontend"
+    "test": "node --test scripts/dependency-guards.test.mjs && node scripts/test-setup-local.mjs && npm test --prefix backend && npm test --prefix frontend -- --run",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "test:dependency-guards": "node --test scripts/dependency-guards.test.mjs"
   }
 }
